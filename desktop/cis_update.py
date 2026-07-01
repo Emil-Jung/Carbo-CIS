@@ -1,8 +1,12 @@
 """
-Built-in CIS updates (same mechanism as the Maintenance Manager).
+Built-in CIS updates (installer model).
 
-Checks version.json on the server, downloads a new .exe via a detached PowerShell
-helper (Windows cannot replace the running .exe), verifies its SHA256, then restarts.
+Checks version.json on the server; if a newer version exists, a detached PowerShell
+helper downloads the signed installer, verifies its SHA256, runs it silently
+(per-user, no UAC), and relaunches the app.
+
+Server version.json:
+    { "version": "1.2.0", "setup": "CarboCIS-Setup.exe", "sha256": "<hex>", "released": "2026-07-01" }
 """
 
 from __future__ import annotations
@@ -18,7 +22,8 @@ from typing import Any
 from config import CIS_DOWNLOAD_BASE_URL, BASE_DIR
 from version import CIS_VERSION
 
-EXE_NAME = "Carbo Integrated System.exe"
+APP_EXE_NAME = "Carbo Integrated System.exe"
+DEFAULT_SETUP_NAME = "CarboCIS-Setup.exe"
 UPDATER_SCRIPT_NAME = "update_cis.ps1"
 PARAMS_FILE_NAME = "update_params.json"
 
@@ -88,7 +93,6 @@ def fetch_remote_manifest(base_url: str | None = None) -> dict[str, Any]:
 
 
 def check_for_update(base_url: str | None = None) -> dict[str, Any]:
-    """Return local/remote version info and whether an update is available."""
     base = (base_url or get_download_base_url()).rstrip("/")
     manifest = fetch_remote_manifest(base)
     local_version = get_local_version()
@@ -100,7 +104,6 @@ def check_for_update(base_url: str | None = None) -> dict[str, Any]:
         "update_available": version_less(local_version, remote_version),
         "manifest": manifest,
         "install_dir": str(get_install_dir()),
-        "exe_path": str(get_install_dir() / EXE_NAME),
     }
 
 
@@ -113,29 +116,34 @@ def _bundled_updater_script() -> Path | None:
     return candidate if candidate.is_file() else None
 
 
-def ensure_updater_script(install_dir: Path | None = None) -> Path:
-    install_dir = install_dir or get_install_dir()
-    install_dir.mkdir(parents=True, exist_ok=True)
-    dest = install_dir / UPDATER_SCRIPT_NAME
+def _updater_work_dir() -> Path:
+    """Writable scratch dir for the updater (install dir may be read-only-ish)."""
+    base = os.environ.get("LOCALAPPDATA") or os.environ.get("TEMP") or "."
+    d = Path(base) / "CarboCIS" / "update"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def ensure_updater_script(work_dir: Path) -> Path:
+    dest = work_dir / UPDATER_SCRIPT_NAME
     bundled = _bundled_updater_script()
     if bundled:
         dest.write_bytes(bundled.read_bytes())
     elif not dest.is_file():
-        raise RuntimeError(
-            f"Updater script not found. Expected {dest} or bundled copy in the app."
-        )
+        raise RuntimeError(f"Updater script not found. Expected {dest} or bundled in the app.")
     return dest
 
 
 def build_update_params(manifest: dict[str, Any], parent_pid: int | None = None) -> dict[str, Any]:
     install_dir = get_install_dir()
-    base_url = get_download_base_url()
-    exe_name = manifest.get("exe") or EXE_NAME
+    work_dir = _updater_work_dir()
+    setup_name = manifest.get("setup") or DEFAULT_SETUP_NAME
     return {
-        "base_url": base_url,
+        "base_url": get_download_base_url(),
+        "work_dir": str(work_dir),
         "install_dir": str(install_dir),
-        "exe_name": EXE_NAME,
-        "remote_exe": exe_name,
+        "app_exe": str(install_dir / APP_EXE_NAME),
+        "setup_name": setup_name,
         "remote_version": str(manifest.get("version", "")).strip(),
         "sha256": (manifest.get("sha256") or "").strip().lower(),
         "parent_pid": parent_pid or os.getpid(),
@@ -144,18 +152,16 @@ def build_update_params(manifest: dict[str, Any], parent_pid: int | None = None)
     }
 
 
-def launch_update_and_exit(manifest: dict[str, Any], app) -> None:
-    """Write params, start detached PowerShell updater, then quit the Qt app."""
+def start_update(manifest: dict[str, Any]) -> None:
+    """Write params and launch the detached PowerShell installer helper. Does NOT exit;
+    the caller should close the app window right after (Windows can't replace files in use)."""
     if not is_frozen_exe():
-        raise RuntimeError("Updates only apply to the installed CIS .exe.")
+        raise RuntimeError("Updates only apply to the installed CIS app.")
 
-    install_dir = get_install_dir()
-    updater_script = ensure_updater_script(install_dir)
-    params_path = install_dir / PARAMS_FILE_NAME
-    params_path.write_text(
-        json.dumps(build_update_params(manifest), indent=2),
-        encoding="utf-8",
-    )
+    work_dir = _updater_work_dir()
+    updater_script = ensure_updater_script(work_dir)
+    params_path = work_dir / PARAMS_FILE_NAME
+    params_path.write_text(json.dumps(build_update_params(manifest), indent=2), encoding="utf-8")
 
     creationflags = 0
     if sys.platform == "win32":
@@ -163,19 +169,11 @@ def launch_update_and_exit(manifest: dict[str, Any], app) -> None:
 
     subprocess.Popen(
         [
-            "powershell.exe",
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-WindowStyle",
-            "Hidden",
-            "-File",
-            str(updater_script),
-            "-ParamsFile",
-            str(params_path),
+            "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+            "-WindowStyle", "Hidden", "-File", str(updater_script),
+            "-ParamsFile", str(params_path),
         ],
-        cwd=str(install_dir),
+        cwd=str(work_dir),
         creationflags=creationflags,
         close_fds=True,
     )
-    app.quit()

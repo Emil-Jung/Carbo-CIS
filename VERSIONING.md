@@ -36,10 +36,11 @@ CIS_INTERNAL = 0   # Z
 ## Release checklist
 
 1. Edit `desktop/version.py` (bump the right part).
-2. `BUILD-CIS.cmd` -> produces `dist\Carbo Integrated System.exe`.
-3. `powershell -File scripts\stage-cis-download.ps1` -> writes `cis_download\version.json` + exe with SHA256.
-4. Upload both files to the server's CIS app folder (`/opt/carbo/cis/app/`).
-5. Installed apps see the new `version.json` on next launch and offer the update.
+2. `BUILD-CIS.cmd` -> one-folder app (exe + DLLs) in `dist\Carbo Integrated System\`.
+3. `BUILD-INSTALLER.cmd` -> `installer\Output\CarboCIS-Setup.exe` (Inno Setup, version auto-read).
+4. `powershell -File scripts\stage-cis-download.ps1` -> writes `cis_download\version.json` + installer with SHA256.
+5. Upload both files to the server's CIS app folder (`/opt/carbo/cis/app/`).
+6. Installed apps see the new `version.json` on next launch and silently update.
 
 ## Per-module tracking (optional, later)
 

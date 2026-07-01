@@ -7,6 +7,7 @@ overridden with environment variables for local development).
 
 import os
 import sys
+import tempfile
 
 
 def _is_frozen() -> bool:
@@ -40,6 +41,11 @@ IDENTITY_API_BASE_URL = os.environ.get("IDENTITY_API_BASE_URL", "").strip() \
 MAINTENANCE_API_BASE_URL = os.environ.get("MAINTENANCE_API_BASE_URL", "").strip() \
     or "https://bkweb3.bigk.co.uk/maintenance/api"
 
-# Where the CIS app's own auto-update files live (version.json + the .exe).
+# Where the CIS app's own auto-update files live (version.json + the installer).
 CIS_DOWNLOAD_BASE_URL = os.environ.get("CIS_DOWNLOAD_BASE_URL", "").strip() \
     or "https://bkweb3.bigk.co.uk/cis/app"
+
+# Persistent WebView2 storage (cookies, localStorage, IndexedDB). Survives restarts
+# so future offline traceability data (queued scans/sieving) is retained.
+_LOCAL = os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()
+STORAGE_DIR = os.path.join(_LOCAL, "CarboCIS", "webview")

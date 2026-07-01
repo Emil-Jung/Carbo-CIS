@@ -1,9 +1,10 @@
 """
-Carbo Integrated System — installed desktop shell.
+Carbo Integrated System — installed desktop shell (WebView2 via pywebview).
 
-A thin PySide6 window that hosts the bundled web shell/modules in an embedded
-browser. The shell is served from a local 127.0.0.1 port (so cross-origin calls to
-the cloud APIs behave normally) and the app self-updates like the Manager app.
+A thin host that renders the bundled web shell/modules using the OS Edge WebView2
+engine (no bundled Chromium). The shell is served from a local 127.0.0.1 port so it
+runs in a secure context (needed later for camera/QR + normal cross-origin API
+calls), and the app self-updates from the server by running a silent installer.
 """
 
 from __future__ import annotations
@@ -17,10 +18,7 @@ import threading
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-from PySide6.QtCore import QUrl, QTimer
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
-from PySide6.QtWebEngineWidgets import QWebEngineView
+import webview
 
 import config
 import cis_update
@@ -47,105 +45,104 @@ def _prepare_shell_dir() -> str:
     return dest
 
 
-def _start_local_server(directory: str):
-    """Serve `directory` on an ephemeral localhost port. Returns (httpd, port)."""
-    handler = partial(_QuietHandler, directory=directory)
-    httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    port = httpd.server_address[1]
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-    thread.start()
-    return httpd, port
-
-
 class _QuietHandler(SimpleHTTPRequestHandler):
-    def log_message(self, *args):  # silence console spam
+    def log_message(self, *args):
         pass
 
 
-class MainWindow(QMainWindow):
-    def __init__(self, url: str):
-        super().__init__()
-        self.setWindowTitle(WINDOW_TITLE)
-        self.resize(1240, 820)
-        self.view = QWebEngineView()
-        self.setCentralWidget(self.view)
-        self.view.load(QUrl(url))
-        self._build_menu()
-        QTimer.singleShot(2500, self._startup_update_check)
+def _start_local_server(directory: str):
+    handler = partial(_QuietHandler, directory=directory)
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    port = httpd.server_address[1]
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd, port
 
-    def _build_menu(self):
-        help_menu = self.menuBar().addMenu("Help")
-        act_update = QAction("Check for updates…", self)
-        act_update.triggered.connect(self.check_for_updates)
-        help_menu.addAction(act_update)
-        help_menu.addSeparator()
-        act_about = QAction("About", self)
-        act_about.triggered.connect(self.show_about)
-        help_menu.addAction(act_about)
 
-    def show_about(self):
-        QMessageBox.information(
-            self,
-            "About",
-            f"Carbo Integrated System\nVersion {CIS_VERSION}\n\n"
-            "Version format  X.Y.Z\n"
-            "  X = CIS version\n"
-            "  Y = module adjustments\n"
-            "  Z = internal build",
-        )
+def _native_confirm(title: str, text: str) -> bool:
+    """Windows Yes/No box (used for the startup update prompt)."""
+    if sys.platform != "win32":
+        return False
+    import ctypes
 
-    def _startup_update_check(self):
-        if not cis_update.is_frozen_exe():
-            return
+    MB_YESNO = 0x4
+    MB_ICONQUESTION = 0x20
+    IDYES = 6
+    return ctypes.windll.user32.MessageBoxW(0, text, title, MB_YESNO | MB_ICONQUESTION) == IDYES
+
+
+def _quit_and_update(manifest) -> None:
+    cis_update.start_update(manifest)
+    for win in list(webview.windows):
         try:
-            status = cis_update.check_for_update()
+            win.destroy()
         except Exception:
-            return  # offline / server down — stay quiet on startup
-        if cis_update.is_update_available(status):
-            self._prompt_update(status)
+            pass
 
-    def check_for_updates(self):
+
+class Api:
+    """Exposed to the web shell as window.pywebview.api.* (desktop only)."""
+
+    def app_info(self):
+        return {"name": "Carbo Integrated System", "version": CIS_VERSION,
+                "installed": cis_update.is_frozen_exe()}
+
+    def check_updates(self):
         try:
             status = cis_update.check_for_update()
         except Exception as exc:
-            QMessageBox.warning(self, "Updates", f"Could not check for updates:\n{exc}")
-            return
-        if not cis_update.is_frozen_exe():
-            QMessageBox.information(
-                self, "Updates",
-                f"Current version {status['local_version']}.\n"
-                "Auto-update applies only to the installed app.",
-            )
-            return
-        if cis_update.is_update_available(status):
-            self._prompt_update(status)
-        else:
-            QMessageBox.information(self, "Updates", f"You are up to date (v{status['local_version']}).")
+            return {"ok": False, "error": str(exc)}
+        return {
+            "ok": True,
+            "installed": cis_update.is_frozen_exe(),
+            "local": status["local_version"],
+            "remote": status["remote_version"],
+            "available": bool(status["update_available"]),
+        }
 
-    def _prompt_update(self, status):
-        answer = QMessageBox.question(
-            self,
+    def apply_update(self):
+        if not cis_update.is_frozen_exe():
+            return {"ok": False, "error": "Updates apply only to the installed app."}
+        try:
+            status = cis_update.check_for_update()
+            if not status["update_available"]:
+                return {"ok": True, "applied": False}
+            _quit_and_update(status["manifest"])
+            return {"ok": True, "applied": True}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+
+def _startup_update_check():
+    if not cis_update.is_frozen_exe():
+        return
+    try:
+        status = cis_update.check_for_update()
+    except Exception:
+        return  # offline / server down — stay quiet
+    if status["update_available"]:
+        if _native_confirm(
             "Update available",
             f"A new version of CIS is available.\n\n"
             f"Installed: {status['local_version']}\n"
             f"Available: {status['remote_version']}\n\n"
-            "Update now? The app will close and reopen.",
-        )
-        if answer == QMessageBox.StandardButton.Yes:
-            try:
-                cis_update.launch_update_and_exit(status["manifest"], QApplication.instance())
-            except Exception as exc:
-                QMessageBox.warning(self, "Updates", f"Update failed to start:\n{exc}")
+            "Update now? The app will close, update, and reopen.",
+        ):
+            _quit_and_update(status["manifest"])
 
 
 def main():
-    app = QApplication(sys.argv)
-    app.setApplicationName("Carbo Integrated System")
     shell_dir = _prepare_shell_dir()
     _httpd, port = _start_local_server(shell_dir)
-    window = MainWindow(f"http://127.0.0.1:{port}/index.html")
-    window.show()
-    sys.exit(app.exec())
+    url = f"http://127.0.0.1:{port}/index.html"
+
+    webview.create_window(WINDOW_TITLE, url, js_api=Api(), width=1240, height=820)
+
+    def _on_start():
+        threading.Timer(2.5, _startup_update_check).start()
+
+    os.makedirs(config.STORAGE_DIR, exist_ok=True)
+    # private_mode=False + storage_path => localStorage/IndexedDB persist (future offline).
+    webview.start(_on_start, storage_path=config.STORAGE_DIR, private_mode=False)
 
 
 if __name__ == "__main__":

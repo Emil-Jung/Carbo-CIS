@@ -4,21 +4,24 @@ An **installed desktop app** (one per PC, like the Maintenance Manager) that giv
 managers one login and shows only the modules their permissions allow. It is the
 forerunner of the full CIS and replaces handing each person a device key.
 
-It is **not** a PWA. The app is a thin PySide6 window that hosts the web
-shell/modules inside it and **auto-updates from the server** — so adding a module
-later (e.g. Traceability) is just: build, bump version, publish; every PC updates.
+It is **not** a PWA. The app is a thin host (WebView2 via pywebview — uses the OS
+Edge engine, no bundled Chromium, ~25–35 MB) that renders the bundled web
+shell/modules and **auto-updates from the server** by running a new installer
+silently — so adding a module later (e.g. Traceability) is just: build, bump
+version, publish; every PC updates.
 
 ## Two layers
 
 ```
-desktop/         The installed app (PySide6 + embedded web view + auto-updater)
-  app.py           hosts the bundled shell locally, Help > Check for updates / About
+desktop/         The installed app (pywebview/WebView2 host + auto-updater)
+  app.py           hosts the bundled shell on 127.0.0.1, JS update bridge, startup check
   version.py       X.Y.Z = CIS . Module . Internal   (see VERSIONING.md)
-  config.py        cloud API URLs + update download URL
-  cis_update.py    version.json check + hash-verified exe swap (same as Manager)
-  scripts/update_cis.ps1     detached updater
-  scripts/stage-cis-download.ps1   builds version.json + exe with SHA256
-  cis.spec, BUILD-CIS.cmd, RUN-CIS.cmd, requirements.txt
+  config.py        cloud API URLs + update URL + persistent WebView2 storage dir
+  cis_update.py    version.json check + hash-verified installer run
+  scripts/update_cis.ps1           detached updater (downloads + runs setup silently)
+  scripts/stage-cis-download.ps1   builds version.json + installer with SHA256
+  installer/cis.iss                Inno Setup (per-user, WebView2 check)
+  cis.spec, BUILD-CIS.cmd, BUILD-INSTALLER.cmd, RUN-CIS.cmd, requirements.txt
 
 shell/           The web shell + modules (bundled into the app; also web-servable)
   index.html, app.js, styles.css, config.json
@@ -62,5 +65,6 @@ Override endpoints for local dev with env vars `IDENTITY_API_BASE_URL`,
 
 ## Build & release
 
-See [`DEPLOY.md`](DEPLOY.md). In short: `BUILD-CIS.cmd` → `stage-cis-download.ps1`
-→ upload `version.json` + the `.exe` to `/opt/carbo/cis/app/` on the server.
+See [`DEPLOY.md`](DEPLOY.md). In short: `BUILD-CIS.cmd` → `BUILD-INSTALLER.cmd` →
+`stage-cis-download.ps1` → upload `version.json` + `CarboCIS-Setup.exe` to
+`/opt/carbo/cis/app/` on the server. Needs Inno Setup 6 installed.

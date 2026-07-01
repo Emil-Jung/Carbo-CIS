@@ -129,7 +129,45 @@
       (state.user.display_name || state.user.login_id);
     const verEl = document.getElementById("app-version");
     if (verEl) verEl.textContent = state.config && state.config.cisVersion ? ("v" + state.config.cisVersion) : "";
+    setupUpdateButton();
     renderNav();
+  }
+
+  // "Check for updates" button — only inside the installed desktop app (pywebview bridge present).
+  function setupUpdateButton() {
+    const bridge = window.pywebview && window.pywebview.api;
+    if (!bridge || document.getElementById("cis-update-btn")) return;
+    const btn = document.createElement("button");
+    btn.id = "cis-update-btn";
+    btn.className = "btn-ghost";
+    btn.textContent = "Check for updates";
+    const logout = document.getElementById("logout-btn");
+    logout.parentNode.insertBefore(btn, logout);
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = "Checking…";
+      try {
+        const res = await window.pywebview.api.check_updates();
+        if (!res || !res.ok) {
+          window.alert("Could not check for updates" + (res && res.error ? ":\n" + res.error : "."));
+        } else if (!res.installed) {
+          window.alert("Running from source (v" + res.local + "). Updates apply only to the installed app.");
+        } else if (res.available) {
+          if (window.confirm("Update available.\n\nInstalled: " + res.local + "\nAvailable: " + res.remote +
+              "\n\nUpdate now? The app will close, update, and reopen.")) {
+            await window.pywebview.api.apply_update();
+          }
+        } else {
+          window.alert("You are up to date (v" + res.local + ").");
+        }
+      } catch (e) {
+        window.alert("Update check failed: " + (e && e.message ? e.message : e));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    });
   }
 
   function visibleModules() {
