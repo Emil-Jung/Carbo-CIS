@@ -1,0 +1,5 @@
+{
+  "appName": "Carbo Integrated System",
+  "identityApiBase": "/identity/api",
+  "maintenanceApiBase": "/maintenance/api"
+}
