@@ -1,0 +1,9 @@
+# After UPLOAD-CIS-TO-SERVER.cmd from your PC, run these on the server (SSH):
+
+sudo cp ~/cis_app_upload/CarboCIS-Setup.exe /opt/carbo/cis/app/
+sudo cp ~/cis_app_upload/version.json /opt/carbo/cis/app/
+
+curl -s https://bkweb3.bigk.co.uk/cis/app/version.json
+
+# Users can download: https://bkweb3.bigk.co.uk/cis/app/CarboCIS-Setup.exe
+# Installed CIS apps auto-update from version.json on launch.

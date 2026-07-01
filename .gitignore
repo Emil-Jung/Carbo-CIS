@@ -13,6 +13,9 @@ env/
 build/
 dist/
 *.spec.bak
+desktop/cis_download/*.exe
+desktop/cis_download/version.json
+desktop/installer/Output/
 
 # Node (if ever used for tooling)
 node_modules/
