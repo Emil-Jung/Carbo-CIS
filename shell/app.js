@@ -127,6 +127,8 @@
     document.getElementById("app-view").classList.remove("hidden");
     document.getElementById("current-user").textContent =
       (state.user.display_name || state.user.login_id);
+    const verEl = document.getElementById("app-version");
+    if (verEl) verEl.textContent = state.config && state.config.cisVersion ? ("v" + state.config.cisVersion) : "";
     renderNav();
   }
 
