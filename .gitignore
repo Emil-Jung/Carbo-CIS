@@ -13,9 +13,8 @@ env/
 build/
 dist/
 *.spec.bak
-desktop/cis_download/*.exe
-desktop/cis_download/version.json
 desktop/installer/Output/
+# Release files in desktop/cis_download/ ARE tracked (git pull on server deploys them).
 
 # Node (if ever used for tooling)
 node_modules/

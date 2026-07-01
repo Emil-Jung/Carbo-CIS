@@ -1,9 +1,20 @@
-# After UPLOAD-CIS-TO-SERVER.cmd from your PC, run these on the server (SSH):
+# CIS app on Big-K — deploy via git (no scp)
 
-sudo cp ~/cis_app_upload/CarboCIS-Setup.exe /opt/carbo/cis/app/
-sudo cp ~/cis_app_upload/version.json /opt/carbo/cis/app/
+## On your PC (after BUILD-INSTALLER.cmd + stage-cis-download.ps1)
 
-curl -s https://bkweb3.bigk.co.uk/cis/app/version.json
+    cd "G:\My Coding Projects\Carbo-CIS"
+    git add desktop/cis_download/CarboCIS-Setup.exe desktop/cis_download/version.json
+    git commit -m "Release CIS 1.0.0 installer"
+    git push origin master
 
-# Users can download: https://bkweb3.bigk.co.uk/cis/app/CarboCIS-Setup.exe
-# Installed CIS apps auto-update from version.json on launch.
+## On the server (SSH)
+
+    cd /opt/carbo/carbo-cis
+    git pull
+    bash sync_cis_app_on_server.sh
+
+## Verify — browser on your PC
+
+    https://bkweb3.bigk.co.uk/cis/app/version.json
+
+Users download: https://bkweb3.bigk.co.uk/cis/app/CarboCIS-Setup.exe
