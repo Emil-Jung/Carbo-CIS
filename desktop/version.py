@@ -10,6 +10,6 @@ See VERSIONING.md for the rules and examples.
 
 CIS_MAJOR = 1      # X — CIS version
 CIS_MODULE = 3     # Y — invite login + dashboard apps
-CIS_INTERNAL = 2   # Z — internal build
+CIS_INTERNAL = 3   # Z — Maintenance Manager CIS embed
 
 CIS_VERSION = f"{CIS_MAJOR}.{CIS_MODULE}.{CIS_INTERNAL}"

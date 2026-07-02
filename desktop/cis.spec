@@ -24,6 +24,7 @@ a = Analysis(
     datas=datas,
     hiddenimports=[
         "cis_update",
+        "maintenance_host",
         "version",
         "config",
         "webview",

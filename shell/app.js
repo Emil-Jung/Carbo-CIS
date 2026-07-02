@@ -262,6 +262,12 @@
 
   function showDashboard() {
 
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.close_maintenance_manager) {
+
+      window.pywebview.api.close_maintenance_manager().catch(function () {});
+
+    }
+
     state.activeModuleId = "dashboard";
 
     updateTopbarContext();

@@ -45,6 +45,10 @@ Source: "redist\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: dontco
 Name: "{userprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
+[Dirs]
+; Maintenance Manager .exe is copied here (UPDATE MANAGER FROM WEB.cmd or IT deploy).
+Name: "{app}\Maintenance Manager"
+
 [Run]
 ; Launch after an interactive install; skipped during silent auto-update (the
 ; updater relaunches the app itself).

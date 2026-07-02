@@ -23,6 +23,7 @@ import webview
 import config
 import cis_update
 from version import CIS_VERSION
+import maintenance_host
 
 WINDOW_TITLE = f"Carbo Integrated System  —  v{CIS_VERSION}"
 
@@ -117,6 +118,28 @@ class Api:
             return {"ok": True, "applied": True}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
+
+    def open_maintenance_manager(self, bearer_token=None):
+        if not webview.windows:
+            return {"ok": False, "error": "CIS window is not ready."}
+        return maintenance_host.open_maintenance(
+            webview.windows[0],
+            config.DATA_DIR,
+            bearer_token,
+        )
+
+    def close_maintenance_manager(self):
+        return maintenance_host.close_maintenance()
+
+    def maintenance_manager_status(self):
+        return maintenance_host.maintenance_status()
+
+    def maintenance_manager_install_dir(self):
+        return {
+            "ok": True,
+            "path": maintenance_host.manager_install_dir(config.DATA_DIR),
+            "exe": maintenance_host.manager_exe_path(config.DATA_DIR),
+        }
 
 
 def _startup_update_check():

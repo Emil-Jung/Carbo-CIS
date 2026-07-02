@@ -51,3 +51,6 @@ CIS_DOWNLOAD_BASE_URL = os.environ.get("CIS_DOWNLOAD_BASE_URL", "").strip() \
 # so future offline traceability data (queued scans/sieving) is retained.
 _LOCAL = os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()
 STORAGE_DIR = os.path.join(_LOCAL, "CarboCIS", "webview")
+
+# Maintenance Manager .exe lives next to the CIS install (not a folder on C:\ root).
+MANAGER_INSTALL_DIR = os.path.join(DATA_DIR, "Maintenance Manager")
