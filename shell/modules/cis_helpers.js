@@ -14,6 +14,35 @@
     return !CIS.isTrailerVehicle(vehicle);
   };
 
+  /** Skip dummy / sandbox assets (e.g. FL-TEST, TR-TEST) from fleet reports. */
+  CIS.isTestVehicle = function (vehicle) {
+    if (!vehicle) return false;
+    var fields = [
+      vehicle.vehicle_id,
+      vehicle.vehicle_type,
+      vehicle.make,
+      vehicle.model,
+      vehicle.unique_id,
+      vehicle.location,
+      vehicle.notes,
+    ];
+    for (var i = 0; i < fields.length; i++) {
+      var val = String(fields[i] || "").toLowerCase();
+      if (val.indexOf("test") !== -1) return true;
+    }
+    return false;
+  };
+
+  CIS.filterFleetVehicles = function (vehicles) {
+    return (vehicles || []).filter(function (v) {
+      return !CIS.isTestVehicle(v);
+    });
+  };
+
+  CIS.isTestVehicleId = function (vehicleId) {
+    return String(vehicleId || "").toLowerCase().indexOf("test") !== -1;
+  };
+
   CIS.launcherPage = function (container, ctx, opts) {
     var ui = CIS.ui;
     container.innerHTML = "";

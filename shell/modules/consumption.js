@@ -30,6 +30,7 @@
         ctx.api.maintenance("/fuel-summaries"),
       ]);
       const vehicles = (vehResp.vehicles || []).filter(function (v) {
+        if (CIS.isTestVehicle && CIS.isTestVehicle(v)) return false;
         return CIS.isFuelEligibleVehicle ? CIS.isFuelEligibleVehicle(v) : true;
       });
       const summaries = (sumResp.summaries || {});

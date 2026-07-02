@@ -47,8 +47,10 @@
         ctx.api.maintenance("/vehicles"),
         ctx.api.maintenance("/exceptions?status=open"),
       ]);
-      const vehicles = vehResp.vehicles || [];
-      const openFaults = exResp.exceptions || [];
+      const vehicles = CIS.filterFleetVehicles ? CIS.filterFleetVehicles(vehResp.vehicles || []) : (vehResp.vehicles || []);
+      const openFaults = (exResp.exceptions || []).filter(function (f) {
+        return !(CIS.isTestVehicleId && CIS.isTestVehicleId(f.vehicle_id));
+      });
 
       const faultsByVehicle = {};
       openFaults.forEach((f) => {
