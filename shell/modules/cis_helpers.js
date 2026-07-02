@@ -41,4 +41,79 @@
     }
     container.appendChild(actions);
   };
+
+  CIS.embedIframe = function (container, opts) {
+    container.innerHTML = "";
+    container.classList.add("module-iframe-host");
+    var iframe = document.createElement("iframe");
+    iframe.className = "module-iframe";
+    iframe.title = opts.title || "Application";
+    iframe.src = opts.src;
+    container.appendChild(iframe);
+  };
+
+  /**
+   * Embed an app that accepts CIS bearer auth via postMessage
+   * ({ type: "cis-auth", token }) and replies with { type: "cis-auth-ack" }.
+   */
+  CIS.embedAuthenticatedIframe = function (container, opts) {
+    container.innerHTML = "";
+    container.classList.add("module-iframe-host");
+    var iframe = document.createElement("iframe");
+    iframe.className = "module-iframe";
+    iframe.title = opts.title || "Application";
+    iframe.src = opts.src;
+    container.appendChild(iframe);
+
+    var acked = false;
+    var pollTimer = null;
+
+    function onMessage(ev) {
+      if (ev.source !== iframe.contentWindow) return;
+      if (!ev.data || ev.data.type !== "cis-auth-ack") return;
+      acked = true;
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+    window.addEventListener("message", onMessage);
+
+    function sendAuth() {
+      var token = CIS.getToken && CIS.getToken();
+      if (!token || !iframe.contentWindow) return;
+      iframe.contentWindow.postMessage({ type: "cis-auth", token: token }, "*");
+    }
+
+    iframe.addEventListener("load", sendAuth);
+    sendAuth();
+    pollTimer = setInterval(function () {
+      if (!acked) sendAuth();
+    }, 400);
+    setTimeout(function () {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }, 15000);
+  };
+
+  CIS.placeholderPage = function (container, ctx, opts) {
+    var ui = CIS.ui;
+    container.innerHTML = "";
+    container.classList.add("module-placeholder-host");
+    container.appendChild(ui.el("h2", { class: "module-title" }, [opts.title]));
+    container.appendChild(ui.el("p", { class: "module-desc" }, [opts.description]));
+    container.appendChild(ui.el("p", { class: "placeholder-badge" }, ["Coming soon — not active yet"]));
+    (opts.notes || []).forEach(function (note) {
+      container.appendChild(ui.el("p", { class: "muted launcher-note" }, [note]));
+    });
+    container.appendChild(ui.el("button", {
+      class: "btn-ghost btn-sm",
+      type: "button",
+      onclick: function () {
+        if (CIS.showDashboard) CIS.showDashboard();
+      },
+    }, ["Back to dashboard"]));
+  };
 })();

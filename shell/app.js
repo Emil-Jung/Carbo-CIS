@@ -348,7 +348,9 @@
 
     if (!mod) return;
 
-    if (!canAccessModule(mod)) {
+    if (mod.inactive) {
+      /* Placeholder — open info page; no permission or external link. */
+    } else if (!canAccessModule(mod)) {
 
       showAccessDenied(mod);
 
@@ -389,6 +391,7 @@
   }
 
   CIS.openModule = openModule;
+  CIS.showDashboard = showDashboard;
 
 
 

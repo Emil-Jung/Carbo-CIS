@@ -1,25 +1,16 @@
-/* Traceability — scanner / supervisor PWA launcher. */
+/* Traceability — placeholder until field PWA is connected on Big-K. */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
-  function scannerUrl(ctx) {
-    var cfg = (ctx && ctx.config) || {};
-    return (cfg.traceabilityScannerUrl || "/traceability/scanner/").trim();
-  }
-
   function render(container, ctx) {
-    CIS.launcherPage(container, ctx, {
+    CIS.placeholderPage(container, ctx, {
       title: "Traceability",
-      description: "Bag scanning and traceability capture in the field.",
+      description: "Bag scanning and charcoal traceability in the field and at Big-K.",
       notes: [
-        "Register device keys under CIS → Administration → Device keys.",
-        "Supervisor tools are on the server when enabled.",
+        "This application is not connected yet. Device keys and the scanner PWA will be enabled in a later rollout.",
       ],
-      primaryUrl: scannerUrl(ctx),
-      primaryLabel: "Open Traceability",
-      sameTab: false,
     });
   }
 
@@ -29,7 +20,7 @@
     kind: "app",
     icon: "traceability",
     description: "Field bag scanning PWA",
-    requires: "traceability.access",
+    inactive: true,
     render: render,
   });
 })();
