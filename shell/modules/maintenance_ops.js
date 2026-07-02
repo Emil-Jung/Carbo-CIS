@@ -1,107 +1,139 @@
-/* Maintenance Operations module — fleet health, service-due, open faults. Read-only. */
+/* Maintenance Operations — fleet table aligned with Maintenance Manager (read-only). */
 (function () {
   "use strict";
-  const CIS = (window.CIS = window.CIS || {});
+  var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
-  function isTrailer(v) { return String(v.vehicle_type || "").toLowerCase().indexOf("trailer") !== -1; }
-
-  // Returns {state:'ok'|'soon'|'due', remaining} based on hours/km since last service.
-  function serviceStatus(v) {
-    const interval = v.service_interval_hours;
-    const warn = v.service_red_threshold;
-    const current = v.current_hours;
-    const lastService = v.last_service_hours;
-    if (interval == null || current == null) return { state: "unknown", remaining: null };
-    const base = (lastService != null) ? lastService : (v.starting_hours || 0);
-    const since = current - base;
-    const remaining = interval - since;
-    let stateName = "ok";
-    if (remaining <= 0) stateName = "due";
-    else if (warn != null && remaining <= warn) stateName = "soon";
-    return { state: stateName, remaining };
+  function pill(ui, state, label) {
+    var map = {
+      ok: ["ok", "In Service"],
+      soon: ["warn", "Service Soon"],
+      due: ["danger", "Overdue"],
+      unknown: ["", "—"],
+    };
+    var pair = map[state] || map.unknown;
+    return ui.el("span", { class: "pill " + pair[0] }, [label || pair[1]]);
   }
 
-  function pill(ui, state) {
-    const map = { ok: ["ok", "OK"], soon: ["warn", "Service soon"], due: ["danger", "Service due"], unknown: ["", "—"] };
-    const [cls, label] = map[state] || map.unknown;
-    const span = ui.el("span", { class: "pill " + cls }, [label]);
-    return span;
+  function card(ui, label, value, className) {
+    var c = ui.el("div", { class: "card" + (className ? " " + className : "") });
+    c.appendChild(ui.el("div", { class: "label" }, [label]));
+    c.appendChild(ui.el("div", { class: "value" }, [value]));
+    return c;
   }
 
   async function render(container, ctx) {
-    const ui = CIS.ui;
+    var ui = CIS.ui;
+    container.innerHTML = "";
+    container.classList.add("maintenance-ops-host");
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Maintenance — Operations"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Fleet status, service-due and open faults. Read-only.",
+      "Fleet overview matching the Maintenance Manager table — service due, checklists, and open faults.",
     ]));
 
-    const cards = ui.el("div", { class: "cards" });
-    const body = ui.el("div", {});
+    var cards = ui.el("div", { class: "cards maintenance-ops-cards" });
+    var body = ui.el("div", { class: "maintenance-ops-body" });
     container.appendChild(cards);
     container.appendChild(body);
     body.appendChild(ui.el("p", { class: "muted" }, ["Loading…"]));
 
     try {
-      const [vehResp, exResp] = await Promise.all([
+      var responses = await Promise.all([
         ctx.api.maintenance("/vehicles"),
         ctx.api.maintenance("/exceptions?status=open"),
       ]);
-      const vehicles = CIS.filterFleetVehicles ? CIS.filterFleetVehicles(vehResp.vehicles || []) : (vehResp.vehicles || []);
-      const openFaults = (exResp.exceptions || []).filter(function (f) {
-        return !(CIS.isTestVehicleId && CIS.isTestVehicleId(f.vehicle_id));
+      var vehicles = CIS.filterFleetVehicles(responses[0].vehicles || []);
+      var openFaults = (responses[1].exceptions || []).filter(function (f) {
+        return !CIS.isTestVehicleId(f.vehicle_id);
       });
 
-      const faultsByVehicle = {};
-      openFaults.forEach((f) => {
+      var faultsByVehicle = {};
+      openFaults.forEach(function (f) {
         faultsByVehicle[f.vehicle_id] = (faultsByVehicle[f.vehicle_id] || 0) + 1;
       });
 
-      let due = 0, soon = 0;
-      const rows = vehicles.map((v) => {
-        const st = serviceStatus(v);
-        if (st.state === "due") due++;
-        else if (st.state === "soon") soon++;
-        return { v, st, faults: faultsByVehicle[v.vehicle_id] || 0 };
+      var countHealthy = 0;
+      var countSoon = 0;
+      var countOverdue = 0;
+      var rows = vehicles.map(function (v) {
+        var svc = CIS.calculateService(v);
+        if (svc.state === "due") countOverdue++;
+        else if (svc.state === "soon") countSoon++;
+        else if (svc.state === "ok") countHealthy++;
+        return {
+          v: v,
+          svc: svc,
+          faults: faultsByVehicle[v.vehicle_id] || 0,
+        };
       });
 
-      cards.appendChild(card(ui, "Vehicles", String(vehicles.length)));
-      cards.appendChild(card(ui, "Service due", String(due)));
-      cards.appendChild(card(ui, "Service soon", String(soon)));
+      cards.innerHTML = "";
+      cards.appendChild(card(ui, "Total vehicles", String(vehicles.length)));
+      cards.appendChild(card(ui, "In service", String(countHealthy), "card-ok"));
+      cards.appendChild(card(ui, "Service soon", String(countSoon), "card-warn"));
+      cards.appendChild(card(ui, "Service overdue", String(countOverdue), "card-danger"));
       cards.appendChild(card(ui, "Open faults", String(openFaults.length)));
 
       body.innerHTML = "";
-      const table = ui.el("table", { class: "data" });
+      if (!rows.length) {
+        body.appendChild(ui.el("p", { class: "muted" }, ["No fleet vehicles found."]));
+        return;
+      }
+
+      var wrap = ui.el("div", { class: "maintenance-ops-table-wrap" });
+      var table = ui.el("table", { class: "data maintenance-ops-table" });
       table.innerHTML =
-        "<thead><tr><th>Vehicle</th><th>Make / model</th><th>Current</th>" +
-        "<th>Service</th><th>Remaining</th><th>Open faults</th></tr></thead>";
-      const tbody = ui.el("tbody", {});
-      const order = { due: 0, soon: 1, ok: 2, unknown: 3 };
-      rows.sort((a, b) => (order[a.st.state] - order[b.st.state]) || String(a.v.vehicle_id).localeCompare(b.v.vehicle_id));
-      rows.forEach((r) => {
-        const unit = isTrailer(r.v) ? " km" : " h";
-        const tr = ui.el("tr", {});
-        const tdVeh = ui.el("td", {}, [String(r.v.vehicle_id)]);
-        const tdType = ui.el("td", { class: "muted" }, [[r.v.make, r.v.model].filter(Boolean).join(" ") || r.v.vehicle_type || ""]);
-        const tdCur = ui.el("td", {}, [r.v.current_hours != null ? (Math.round(r.v.current_hours) + unit) : "—"]);
-        const tdSvc = ui.el("td", {}, [pill(ui, r.st.state)]);
-        const tdRem = ui.el("td", {}, [r.st.remaining != null ? (Math.round(r.st.remaining) + unit) : "—"]);
-        const tdFault = ui.el("td", {}, [
-          r.faults > 0 ? ui.el("span", { class: "pill danger" }, [String(r.faults)]) : document.createTextNode("0"),
-        ]);
-        [tdVeh, tdType, tdCur, tdSvc, tdRem, tdFault].forEach((td) => tr.appendChild(td));
+        "<thead><tr>" +
+        "<th>Vehicle</th><th>Model / type</th><th>Current</th><th>Op. hours</th>" +
+        "<th>Checklist</th><th>Exc.</th><th>Next service</th><th>Due in</th>" +
+        "<th>Status</th><th>Last update</th>" +
+        "</tr></thead>";
+      var tbody = ui.el("tbody", {});
+      var order = { due: 0, soon: 1, ok: 2, unknown: 3 };
+      rows.sort(function (a, b) {
+        var d = order[a.svc.state] - order[b.svc.state];
+        if (d !== 0) return d;
+        return String(a.v.vehicle_id).localeCompare(String(b.v.vehicle_id));
+      });
+
+      rows.forEach(function (r) {
+        var tr = ui.el("tr", { class: "fleet-row-" + r.svc.state });
+        var v = r.v;
+        tr.appendChild(ui.el("td", {}, [String(v.vehicle_id)]));
+        tr.appendChild(ui.el("td", { class: "muted" }, [CIS.modelTypeLabel(v)]));
+        tr.appendChild(ui.el("td", {}, [CIS.formatMeter(CIS.effectiveCurrentHours(v), v)]));
+        tr.appendChild(ui.el("td", {}, [
+          v.hours_prev_day != null ? CIS.formatMeter(v.hours_prev_day, v) : "—",
+        ]));
+        tr.appendChild(ui.el("td", { class: "checklist-cell" }, [
+          CIS.formatChecklistWhen(v.last_checklist_datetime),
+        ]));
+        tr.appendChild(ui.el("td", {}, [
+          r.faults > 0
+            ? ui.el("span", { class: "pill danger" }, [String(r.faults)])
+            : document.createTextNode("0"),
+        ]));
+        tr.appendChild(ui.el("td", {}, [
+          r.svc.nextService != null ? CIS.formatMeter(r.svc.nextService, v) : "—",
+        ]));
+        tr.appendChild(ui.el("td", {}, [r.svc.dueInLabel]));
+        tr.appendChild(ui.el("td", {}, [pill(ui, r.svc.state, r.svc.statusLabel)]));
+        tr.appendChild(ui.el("td", { class: "muted" }, [
+          CIS.formatLastUpdate(v.last_checklist_datetime),
+        ]));
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      body.appendChild(table);
+      wrap.appendChild(table);
+      body.appendChild(wrap);
 
       if (openFaults.length) {
-        body.appendChild(ui.el("h3", { class: "module-title", style: "margin-top:26px" }, ["Open faults"]));
-        const ft = ui.el("table", { class: "data" });
+        body.appendChild(ui.el("h3", { class: "module-title maintenance-ops-faults-title" }, ["Open faults"]));
+        var ft = ui.el("table", { class: "data" });
         ft.innerHTML = "<thead><tr><th>Vehicle</th><th>Item</th><th>Raised</th></tr></thead>";
-        const fb = ui.el("tbody", {});
-        openFaults.forEach((f) => {
-          const tr = ui.el("tr", {});
+        var fb = ui.el("tbody", {});
+        openFaults.forEach(function (f) {
+          var tr = ui.el("tr", {});
           tr.innerHTML =
             "<td>" + ui.escape(f.vehicle_id) + "</td>" +
             "<td>" + ui.escape(f.item_description || f.item_code) + "</td>" +
@@ -117,13 +149,6 @@
     }
   }
 
-  function card(ui, label, value) {
-    const c = ui.el("div", { class: "card" });
-    c.appendChild(ui.el("div", { class: "label" }, [label]));
-    c.appendChild(ui.el("div", { class: "value" }, [value]));
-    return c;
-  }
-
   CIS.modules.push({
     id: "maintenance_ops",
     title: "Operations",
@@ -133,6 +158,6 @@
     icon: "operations",
     description: "Fleet status, service due, and open faults (read-only)",
     requires: "maintenance.ops.view",
-    render,
+    render: render,
   });
 })();

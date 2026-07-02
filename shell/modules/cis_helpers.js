@@ -17,8 +17,9 @@
   /** Skip dummy / sandbox assets (e.g. FL-TEST, TR-TEST) from fleet reports. */
   CIS.isTestVehicle = function (vehicle) {
     if (!vehicle) return false;
+    var id = String(vehicle.vehicle_id || "").trim();
+    if (/-TEST$/i.test(id) || /^TEST-/i.test(id)) return true;
     var fields = [
-      vehicle.vehicle_id,
       vehicle.vehicle_type,
       vehicle.make,
       vehicle.model,
@@ -27,10 +28,15 @@
       vehicle.notes,
     ];
     for (var i = 0; i < fields.length; i++) {
-      var val = String(fields[i] || "").toLowerCase();
-      if (val.indexOf("test") !== -1) return true;
+      if (/\btest\b/i.test(String(fields[i] || ""))) return true;
     }
     return false;
+  };
+
+  CIS.isTestVehicleId = function (vehicleId) {
+    var id = String(vehicleId || "").trim();
+    if (/-TEST$/i.test(id) || /^TEST-/i.test(id)) return true;
+    return /\btest\b/i.test(id);
   };
 
   CIS.filterFleetVehicles = function (vehicles) {
@@ -39,8 +45,146 @@
     });
   };
 
-  CIS.isTestVehicleId = function (vehicleId) {
-    return String(vehicleId || "").toLowerCase().indexOf("test") !== -1;
+  /** Maintenance service maths — mirrors Maintenance-Platform/calculations.py */
+  CIS.defaultServiceInterval = function (vehicle) {
+    return CIS.isTrailerVehicle(vehicle) ? 40000 : 250;
+  };
+
+  CIS.serviceSoonThreshold = function (vehicle) {
+    var configured = vehicle && vehicle.service_red_threshold;
+    if (configured != null && !isNaN(Number(configured)) && Number(configured) >= 1) {
+      return Number(configured);
+    }
+    return CIS.isTrailerVehicle(vehicle) ? 3000 : 30;
+  };
+
+  CIS.meterUnit = function (vehicle) {
+    return CIS.isTrailerVehicle(vehicle) ? "km" : "h";
+  };
+
+  CIS.formatMeter = function (value, vehicle) {
+    if (value == null || isNaN(Number(value))) return "—";
+    var n = Number(value);
+    var text = (Math.round(n * 10) / 10).toString().replace(/\.0$/, "");
+    return text + " " + CIS.meterUnit(vehicle);
+  };
+
+  CIS.effectiveCurrentHours = function (vehicle) {
+    if (vehicle.current_hours != null && !isNaN(Number(vehicle.current_hours))) {
+      return Number(vehicle.current_hours);
+    }
+    if (vehicle.starting_hours != null && !isNaN(Number(vehicle.starting_hours))) {
+      return Number(vehicle.starting_hours);
+    }
+    return null;
+  };
+
+  CIS.calculateService = function (vehicle) {
+    var interval = vehicle.service_interval_hours;
+    if (interval == null || isNaN(Number(interval)) || Number(interval) < 1) {
+      interval = CIS.defaultServiceInterval(vehicle);
+    } else {
+      interval = Number(interval);
+    }
+    var soon = CIS.serviceSoonThreshold(vehicle);
+    var current = CIS.effectiveCurrentHours(vehicle);
+    var baseline = vehicle.last_service_hours;
+    if (baseline == null || isNaN(Number(baseline))) {
+      baseline = vehicle.starting_hours != null ? Number(vehicle.starting_hours) : 0;
+    } else {
+      baseline = Number(baseline);
+    }
+    if (current == null) {
+      return {
+        state: "unknown",
+        statusLabel: "—",
+        remaining: null,
+        nextService: null,
+        dueInLabel: "—",
+      };
+    }
+    var nextService = baseline + interval;
+    var remaining = nextService - current;
+    var unit = CIS.meterUnit(vehicle);
+    var state = "ok";
+    var statusLabel = "In Service";
+    if (remaining < 0) {
+      state = "due";
+      statusLabel = "Overdue";
+    } else if (remaining <= soon) {
+      state = "soon";
+      statusLabel = "Service Soon";
+    }
+    var dueInLabel;
+    if (remaining >= 0) {
+      dueInLabel = Math.round(remaining) + " " + unit;
+    } else {
+      dueInLabel = Math.round(Math.abs(remaining)) + " " + unit + " overdue";
+    }
+    return {
+      state: state,
+      statusLabel: statusLabel,
+      remaining: remaining,
+      nextService: nextService,
+      dueInLabel: dueInLabel,
+    };
+  };
+
+  CIS.modelTypeLabel = function (vehicle) {
+    var make = String(vehicle.make || "").trim();
+    var model = String(vehicle.model || "").trim();
+    var type = String(vehicle.vehicle_type || "").trim();
+    var ident = [make, model].filter(Boolean).join(" ");
+    if (ident && type) return ident + " / " + type;
+    return ident || type || "—";
+  };
+
+  CIS.formatChecklistWhen = function (iso) {
+    if (!iso) return "Never";
+    var s = String(iso).trim().replace(" ", "T").slice(0, 19);
+    var dt = new Date(s);
+    if (isNaN(dt.getTime())) return "Never";
+    var now = new Date();
+    var dayMs = 86400000;
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var checkDay = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    var deltaDays = Math.round((today - checkDay) / dayMs);
+    var status;
+    if (deltaDays === 0) status = "Today ✔";
+    else if (deltaDays === 1) status = "Yesterday ✔";
+    else status = deltaDays + " days ago";
+    var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    var dateStr = dt.getDate() + " " + months[dt.getMonth()] + " " + dt.getFullYear();
+    var hh = dt.getHours();
+    var mm = dt.getMinutes();
+    if (hh || mm) {
+      return dateStr + ", " + String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0") + " — " + status;
+    }
+    return dateStr + " — " + status;
+  };
+
+  CIS.formatLastUpdate = function (iso) {
+    if (!iso) return "—";
+    var s = String(iso).trim().replace(" ", "T").slice(0, 19);
+    var dt = new Date(s);
+    if (isNaN(dt.getTime())) return "—";
+    var now = new Date();
+    var secs = Math.floor((now - dt) / 1000);
+    if (secs < 3600 && secs >= 0) {
+      var mins = Math.floor(secs / 60);
+      return mins > 0 ? mins + " min ago" : "Just now";
+    }
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var day = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    if (+day === +today) {
+      return "Today " + String(dt.getHours()).padStart(2, "0") + ":" + String(dt.getMinutes()).padStart(2, "0");
+    }
+    var yesterday = new Date(today.getTime() - dayMs);
+    if (+day === +yesterday) return "Yesterday";
+    var deltaDays = Math.round((today - day) / 86400000);
+    if (deltaDays > 1 && deltaDays < 7) return deltaDays + " days ago";
+    var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return dt.getDate() + " " + months[dt.getMonth()];
   };
 
   CIS.launcherPage = function (container, ctx, opts) {

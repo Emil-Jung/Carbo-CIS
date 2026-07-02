@@ -392,6 +392,23 @@ table.data tr:hover td { background: rgba(201, 162, 39, 0.04); }
 .pill.warn { background: rgba(217, 119, 6, 0.18); color: #fbbf24; }
 .pill.danger { background: rgba(220, 38, 38, 0.18); color: #f87171; }
 
+.maintenance-ops-host { max-width: 100%; }
+.maintenance-ops-cards { margin-bottom: 16px; }
+.maintenance-ops-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.maintenance-ops-table { min-width: 980px; margin: 0; border: none; border-radius: 0; }
+.maintenance-ops-table .checklist-cell { font-size: 12px; max-width: 200px; }
+tr.fleet-row-due td { background: rgba(220, 38, 38, 0.06); }
+tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
+.card-ok .value { color: #4ade80; }
+.card-warn .value { color: #fbbf24; }
+.card-danger .value { color: #f87171; }
+.maintenance-ops-faults-title { margin-top: 26px; }
+
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .toolbar input, .toolbar select {
   background: var(--panel-2);
