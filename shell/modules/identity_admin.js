@@ -58,7 +58,7 @@
     const ui = CIS.ui;
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Identity Administration"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Each CIS dashboard tile has its own permission. Pick tiles per person — e.g. finance can get Consumption (diesel) without Operations. Roles are templates only.",
+      "Each CIS dashboard tile has its own permission. Tick tiles per person — e.g. finance can get Consumption (diesel) without Operations. Use a template to pre-fill, then adjust.",
     ]));
 
     const usersWrap = ui.el("div", {});
@@ -128,7 +128,7 @@
       "You have been given access to the Carbo Integrated System (CIS) — Carbo’s " +
       "central sign-in for quality, production, and other operational tools. " +
       "CIS brings the applications you need into one place, with access controlled " +
-      "by your role.\n\n" +
+      "by the tiles assigned to your account.\n\n" +
       "FIRST-TIME SIGN-IN\n\n" +
       "1. Open your personal link below in a web browser (Chrome or Edge recommended).\n" +
       "2. Your User ID is already filled in: " + loginId + "\n" +
@@ -285,9 +285,9 @@
       modal._statusSel = statusSel;
     }
 
-    modal.appendChild(ui.el("label", {}, ["CIS tiles (individual access)"]));
+    modal.appendChild(ui.el("label", {}, ["CIS tiles (access)"]));
     modal.appendChild(ui.el("p", { class: "muted launcher-note" }, [
-      "Tick each dashboard tile this person may open. Use a template to pre-fill, then add or remove tiles.",
+      "Tick each dashboard tile this person may open. Saving clears any old role assignments — only checked tiles apply.",
     ]));
 
     var tileChecks = ui.el("div", { class: "checks tile-perm-checks" });
@@ -325,28 +325,6 @@
     modal.appendChild(templateRow);
     modal.appendChild(tileChecks);
 
-    modal.appendChild(ui.el("label", {}, ["Legacy roles (optional backup — tile list controls access once saved)"]));
-    const checks = ui.el("div", { class: "checks" });
-    const roleInputs = [];
-    rolesCache.forEach((r) => {
-      const cb = ui.el("input", { type: "checkbox", value: String(r.role_id) });
-      if (isEdit && (user.roles || []).indexOf(r.name) !== -1) cb.checked = true;
-      const lbl = ui.el("label", {}, []);
-      lbl.appendChild(cb);
-      lbl.appendChild(document.createTextNode(r.name + " — " + (r.description || "")));
-      checks.appendChild(lbl);
-      roleInputs.push({ cb, role_id: r.role_id });
-    });
-    modal.appendChild(checks);
-
-    var initialRoleIds = [];
-    if (isEdit) {
-      rolesCache.forEach(function (r) {
-        if ((user.roles || []).indexOf(r.name) !== -1) initialRoleIds.push(r.role_id);
-      });
-    }
-    modal._initialRoleIds = initialRoleIds;
-
     const actions = ui.el("div", { class: "modal-actions" });
     const cancelBtn = ui.el("button", { class: "btn-ghost", onclick: () => document.body.removeChild(backdrop) }, ["Cancel"]);
     const saveBtn = ui.el("button", { class: "btn" }, ["Save"]);
@@ -356,10 +334,9 @@
 
     saveBtn.addEventListener("click", async () => {
       errEl.classList.add("hidden");
-      const roleIds = roleInputs.filter((r) => r.cb.checked).map((r) => r.role_id);
       const tilePermissions = tileInputs.filter((t) => t.cb.checked).map((t) => t.key).filter(Boolean);
-      if (tilePermissions.length === 0 && roleIds.length === 0) {
-        errEl.textContent = "Select at least one CIS tile or legacy role.";
+      if (tilePermissions.length === 0) {
+        errEl.textContent = "Select at least one CIS tile.";
         errEl.classList.remove("hidden");
         return;
       }
@@ -372,10 +349,8 @@
             display_name: nameInput.value.trim(),
             status: modal._statusSel.value,
             tile_permissions: tilePermissions,
+            role_ids: [],
           };
-          const rolesChanged = roleIds.length !== modal._initialRoleIds.length ||
-            roleIds.some(function (id) { return modal._initialRoleIds.indexOf(id) === -1; });
-          if (rolesChanged) body.role_ids = roleIds;
           if (pw.trim()) body.password = pw.trim();
           await ctx.api.identity("/users/" + user.user_id, { method: "PATCH", body });
           if (CIS.refreshSession && CIS.currentUser() && CIS.currentUser().user_id === user.user_id) {
@@ -387,7 +362,7 @@
           const body = {
             login_id: loginInput.value.trim(),
             display_name: nameInput.value.trim(),
-            role_ids: roleIds,
+            role_ids: [],
             tile_permissions: tilePermissions,
           };
           if (pw.trim()) body.password = pw.trim();
@@ -419,7 +394,7 @@
     kind: "app",
     order: 10,
     icon: "admin",
-    description: "Manage logins, roles, and permissions",
+    description: "Manage logins and tile access",
     requires: "identity.admin",
     render,
   });
