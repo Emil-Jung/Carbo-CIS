@@ -40,6 +40,8 @@ def _prepare_shell_dir() -> str:
         "maintenanceApiBase": config.MAINTENANCE_API_BASE_URL,
         "qualityViewerUrl": config.QUALITY_VIEWER_URL,
         "qualityCaptureUrl": "https://bkweb3.bigk.co.uk/quality/",
+        "qualityApiBase": "https://bkweb3.bigk.co.uk/quality/api",
+        "maintenancePwaUrl": "https://bkweb3.bigk.co.uk/maintenance/",
         "producersOfficeUrl": "https://bkweb3.bigk.co.uk/producers/office/",
         "producersPublicUrl": "https://bkweb3.bigk.co.uk/producers/public/",
         "maintenanceManagerUrl": "https://bkweb3.bigk.co.uk/maintenance/manager/",

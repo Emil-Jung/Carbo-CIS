@@ -19,6 +19,7 @@
 
 
   const state = { config: null, token: null, user: null, permissions: [], activeModuleId: null };
+  CIS._state = state;
 
 
 
@@ -80,6 +81,8 @@
 
     maintenance: (path, opts) => apiFetch(state.config.maintenanceApiBase, path, opts),
 
+    quality: (path, opts) => apiFetch(state.config.qualityApiBase || "/quality/api", path, opts),
+
   };
 
   CIS.getToken = () => state.token || localStorage.getItem(TOKEN_KEY);
@@ -128,7 +131,7 @@
 
     state.token = localStorage.getItem(TOKEN_KEY);
 
-    wireLogin();
+    if (CIS.authUi) CIS.authUi.wireAuthForms();
 
     document.getElementById("logout-btn").addEventListener("click", () => doLogout(false));
 
@@ -156,7 +159,8 @@
 
     }
 
-    showLogin();
+    if (CIS.authUi) CIS.authUi.checkInviteAndShowLogin();
+    else showLogin();
 
   }
 
@@ -176,72 +180,6 @@
 
   // ---- Login / logout --------------------------------------------------
 
-  function wireLogin() {
-
-    const form = document.getElementById("login-form");
-
-    form.addEventListener("submit", async (ev) => {
-
-      ev.preventDefault();
-
-      const btn = document.getElementById("login-btn");
-
-      const errEl = document.getElementById("login-error");
-
-      errEl.classList.add("hidden");
-
-      btn.disabled = true;
-
-      btn.textContent = "Signing in...";
-
-      try {
-
-        const result = await CIS.api.identity("/auth/login", {
-
-          method: "POST",
-
-          body: {
-
-            login_id: document.getElementById("login-id").value.trim(),
-
-            password: document.getElementById("login-password").value,
-
-          },
-
-        });
-
-        state.token = result.token;
-
-        localStorage.setItem(TOKEN_KEY, result.token);
-
-        state.user = result.user;
-
-        state.permissions = result.permissions || [];
-
-        document.getElementById("login-password").value = "";
-
-        showApp();
-
-      } catch (e) {
-
-        errEl.textContent = e.message || "Sign in failed";
-
-        errEl.classList.remove("hidden");
-
-      } finally {
-
-        btn.disabled = false;
-
-        btn.textContent = "Sign in";
-
-      }
-
-    });
-
-  }
-
-
-
   async function doLogout(silent) {
 
     try { if (state.token) await CIS.api.identity("/auth/logout", { method: "POST" }); } catch (e) {}
@@ -259,13 +197,13 @@
   // ---- Views -----------------------------------------------------------
 
   function showLogin() {
-
+    if (CIS.authUi) {
+      CIS.authUi.showLoginView();
+      return;
+    }
     document.getElementById("app-view").classList.add("hidden");
-
     document.getElementById("login-view").classList.remove("hidden");
-
     document.getElementById("login-id").focus();
-
   }
 
 
@@ -273,6 +211,7 @@
   function showApp() {
 
     document.getElementById("login-view").classList.add("hidden");
+    document.getElementById("setup-view").classList.add("hidden");
 
     document.getElementById("app-view").classList.remove("hidden");
 
@@ -289,6 +228,7 @@
     showDashboard();
 
   }
+  CIS._showApp = showApp;
 
 
 

@@ -95,6 +95,9 @@ body {
 }
 .login-card button:hover, .btn:hover { filter: brightness(1.06); }
 .login-error { color: #fca5a5; font-size: 13px; margin: 12px 0 0; text-align: center; }
+.login-hint { font-size: 12px; margin: 14px 0 0; text-align: center; max-width: 280px; }
+.setup-user-id { margin: 0 0 18px; color: var(--gold-bright); font-size: 15px; }
+.setup-back { margin-top: 10px; width: 100%; }
 
 /* ---- App shell ---- */
 .app-view { min-height: 100vh; display: flex; flex-direction: column; }
@@ -260,6 +263,33 @@ a.btn-launch-secondary {
   padding: 11px 16px;
   border-radius: 8px;
 }
+
+/* Device keys module */
+.device-keys-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+.device-keys-tab {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.device-keys-tab.active {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  background: rgba(201, 162, 39, 0.1);
+}
+.device-keys-hint { font-size: 12px; margin-bottom: 12px; }
+.device-keys-table-wrap { margin-bottom: 12px; overflow-x: auto; }
+.device-keys-table td:first-child { width: 36px; }
 
 @media (max-width: 640px) {
   .module-content { padding: 16px; }

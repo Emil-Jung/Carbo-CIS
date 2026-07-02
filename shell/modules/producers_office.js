@@ -15,7 +15,7 @@
       description: "Register Other FSC and Non-FSC producers (identity, farm, classification).",
       notes: [
         "FSC Carbo members are managed in the FSC Management System, not here.",
-        "Office API key is required on first use in the PWA.",
+        "Office API key is configured on the server. Issue or look up the shared key under CIS → Device keys → Producers office.",
       ],
       primaryUrl: officeUrl(ctx),
       primaryLabel: "Open Producers Office",

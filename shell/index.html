@@ -55,12 +55,28 @@
       <button type="submit" id="login-btn">Sign in</button>
 
       <p id="login-error" class="login-error hidden"></p>
-
+      <p class="login-hint muted">First time? Use the link your administrator sent — it includes your User ID.</p>
     </form>
-
   </div>
 
-
+  <!-- First sign-in: create password -->
+  <div id="setup-view" class="login-view hidden">
+    <form id="setup-form" class="login-card" autocomplete="on">
+      <div class="login-logo-wrap">
+        <img class="login-logo" src="assets/logo.png" alt="Carbo" width="92" height="92" />
+      </div>
+      <h1 class="brand">Welcome</h1>
+      <p class="subtitle">Create your password to sign in</p>
+      <p class="setup-user-id">User ID: <strong id="setup-login-id"></strong></p>
+      <label for="setup-password">New password (min 6 characters)</label>
+      <input id="setup-password" name="new-password" type="password" autocomplete="new-password" required />
+      <label for="setup-password2">Confirm password</label>
+      <input id="setup-password2" name="confirm-password" type="password" autocomplete="new-password" required />
+      <button type="submit" id="setup-btn">Create password & sign in</button>
+      <button type="button" id="setup-back-btn" class="btn-ghost setup-back">Back to sign in</button>
+      <p id="setup-error" class="login-error hidden"></p>
+    </form>
+  </div>
 
   <!-- App shell -->
 
@@ -106,9 +122,11 @@
 
 
 
+  <script src="auth.js"></script>
   <script src="modules/cis_helpers.js"></script>
   <script src="modules/dashboard.js"></script>
   <script src="modules/identity_admin.js"></script>
+  <script src="modules/device_keys.js"></script>
   <script src="modules/quality_capture.js"></script>
   <script src="modules/quality_view.js"></script>
   <script src="modules/producers_office.js"></script>

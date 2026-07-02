@@ -15,8 +15,8 @@
       title: "Maintenance Manager",
       description: "Full fleet maintenance desktop app — vehicles, service, fuel, certificates, device keys, and exceptions.",
       notes: [
-        "Install on Windows from the download link below. Data matches Operations and Consumption reports in CIS.",
-        "Field operators use the Maintenance checklist PWA on their phones; managers use this desktop app.",
+        "Install on Windows from the download link below.",
+        "Device keys for field PWAs are managed in CIS → Device keys.",
       ],
       primaryUrl: base,
       primaryLabel: "Download / update Manager",

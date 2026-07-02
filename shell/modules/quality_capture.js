@@ -14,7 +14,7 @@
       title: "Sieving Sheet",
       description: "Capture truck sieving test samples in the field or office.",
       notes: [
-        "This PWA uses a device key (issued from Maintenance Manager → Device keys).",
+        "Register the device key from CIS → Administration → Device keys.",
         "Add to your phone home screen for fastest access.",
       ],
       primaryUrl: captureUrl(ctx),
