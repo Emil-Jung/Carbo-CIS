@@ -58,7 +58,7 @@
     const ui = CIS.ui;
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Identity Administration"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Each CIS dashboard tile has its own permission. Tick tiles per person — e.g. finance can get Consumption (diesel) without Operations. Use a template to pre-fill, then adjust.",
+      "Each CIS dashboard tile has its own permission. Tick tiles per person — e.g. finance can get Consumption (diesel) without Fleet Status. Use a template to pre-fill, then adjust.",
     ]));
 
     const usersWrap = ui.el("div", {});

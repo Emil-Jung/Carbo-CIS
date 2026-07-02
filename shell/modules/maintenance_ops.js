@@ -26,7 +26,7 @@
     var ui = CIS.ui;
     container.innerHTML = "";
     container.classList.add("maintenance-ops-host");
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Maintenance — Operations"]));
+    container.appendChild(ui.el("h2", { class: "module-title" }, ["Fleet Status"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "Fleet overview matching the Maintenance Manager table — service due, checklists, and open faults.",
     ]));
@@ -151,7 +151,7 @@
 
   CIS.modules.push({
     id: "maintenance_ops",
-    title: "Operations",
+    title: "Fleet Status",
     section: "Maintenance",
     kind: "lookup",
     order: 10,

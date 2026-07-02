@@ -36,7 +36,7 @@
 
     title: "Carbo Big-K Bag Stock",
 
-    kind: "lookup",
+    kind: "app",
 
     icon: "bags",
 
@@ -45,9 +45,6 @@
     inactive: true,
     requires: "traceability.stock.view",
     render: render,
-
   });
 
 })();
-
-
