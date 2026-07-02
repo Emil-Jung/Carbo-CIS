@@ -3,5 +3,5 @@
   "identityApiBase": "/identity/api",
   "maintenanceApiBase": "/maintenance/api",
   "qualityViewerUrl": "/quality/viewer/",
-  "cisVersion": "1.2.0"
+  "cisVersion": "1.2.1"
 }

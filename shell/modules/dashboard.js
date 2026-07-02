@@ -9,7 +9,7 @@
     Administration: "Administration",
   };
 
-  var SECTION_ORDER = { Production: 1, Maintenance: 2, Administration: 99 };
+  var SECTION_ORDER = { Administration: 1, Production: 2, Maintenance: 3 };
 
   function sectionRank(section) {
     return SECTION_ORDER[section] != null ? SECTION_ORDER[section] : 50;
@@ -53,7 +53,7 @@
 
   function render(container, ctx) {
     var ui = CIS.ui;
-    var mods = CIS.visibleModules ? CIS.visibleModules() : [];
+    var mods = CIS.allModules ? CIS.allModules() : (CIS.modules || []);
     container.innerHTML = "";
     container.className = "module-content dashboard-host";
 
@@ -61,13 +61,15 @@
     var who = (ctx.user && (ctx.user.display_name || ctx.user.login_id)) || "";
     welcome.appendChild(ui.el("h1", { class: "dashboard-title" }, ["Welcome" + (who ? ", " + who : "")]));
     welcome.appendChild(
-      ui.el("p", { class: "dashboard-sub" }, ["Choose an application below."])
+      ui.el("p", { class: "dashboard-sub" }, [
+        "All Carbo applications are shown below. Your permissions determine which you can open.",
+      ])
     );
     container.appendChild(welcome);
 
     if (!mods.length) {
       container.appendChild(
-        ui.error("No applications are assigned to your account. Ask an administrator to grant access.")
+        ui.error("No applications are configured in CIS yet.")
       );
       return;
     }
@@ -76,8 +78,10 @@
       container.appendChild(ui.el("h2", { class: "dashboard-section-title" }, [group.label]));
       var grid = ui.el("div", { class: "dashboard-grid" });
       group.modules.forEach(function (mod) {
+        var allowed = CIS.canAccessModule ? CIS.canAccessModule(mod) : true;
+        var tileClass = "dashboard-tile" + (allowed ? "" : " dashboard-tile-locked");
         var tile = ui.el("button", {
-          class: "dashboard-tile",
+          class: tileClass,
           type: "button",
           onclick: function () {
             if (CIS.openModule) CIS.openModule(mod.id);
@@ -91,6 +95,9 @@
         tile.appendChild(ui.el("span", { class: "dashboard-tile-title" }, [mod.title]));
         if (mod.description) {
           tile.appendChild(ui.el("span", { class: "dashboard-tile-desc" }, [mod.description]));
+        }
+        if (!allowed) {
+          tile.appendChild(ui.el("span", { class: "dashboard-tile-lock" }, ["No access"]));
         }
         grid.appendChild(tile);
       });
