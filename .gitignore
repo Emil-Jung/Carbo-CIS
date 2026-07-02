@@ -14,7 +14,9 @@ build/
 dist/
 *.spec.bak
 desktop/installer/Output/
-# Release files in desktop/cis_download/ ARE tracked (git pull on server deploys them).
+# Release staging (build on PC, upload via UPLOAD-CIS-TO-SERVER.cmd — never commit):
+desktop/cis_download/CarboCIS-Setup.exe
+desktop/cis_download/version.json
 
 # Node (if ever used for tooling)
 node_modules/
