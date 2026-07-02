@@ -86,6 +86,10 @@
   CIS.modules.push({
     id: "consumption",
     title: "Consumption",
+    section: "Maintenance",
+    order: 20,
+    icon: "consumption",
+    description: "Fuel consumption in litres",
     requires: "maintenance.fuel.view",
     render,
   });

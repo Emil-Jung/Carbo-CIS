@@ -13,10 +13,14 @@ function Get-CisServerWebDir {
     return '/opt/carbo/cis/app'
 }
 
+function Get-CisRepoRoot {
+    return Split-Path -Parent $PSScriptRoot
+}
+
 function Get-CisDownloadDir {
     param([string]$Root)
     if (-not $Root) {
-        $Root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+        $Root = Get-CisRepoRoot
     }
     return Join-Path $Root 'desktop\cis_download'
 }

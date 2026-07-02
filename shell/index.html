@@ -1,49 +1,124 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
   <meta charset="UTF-8" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta name="theme-color" content="#0c0c0c" />
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
   <title>Carbo Integrated System</title>
+
+  <link rel="manifest" href="manifest.json" />
+
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+
   <link rel="stylesheet" href="styles.css" />
+
 </head>
+
 <body>
+
   <!-- Login view -->
+
   <div id="login-view" class="login-view hidden">
+
     <form id="login-form" class="login-card" autocomplete="on">
+
+      <div class="login-logo-wrap">
+
+        <img class="login-logo" src="assets/logo.png" alt="Carbo" width="92" height="92" />
+
+      </div>
+
       <h1 class="brand">Carbo</h1>
+
       <p class="subtitle">Integrated System</p>
+
       <label for="login-id">User ID</label>
+
       <input id="login-id" name="username" type="text" autocomplete="username" required />
+
       <label for="login-password">Password</label>
+
       <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+
       <button type="submit" id="login-btn">Sign in</button>
+
       <p id="login-error" class="login-error hidden"></p>
+
     </form>
+
   </div>
+
+
 
   <!-- App shell -->
+
   <div id="app-view" class="app-view hidden">
+
     <header class="topbar">
+
       <div class="topbar-left">
-        <span class="topbar-brand">Carbo</span>
-        <span class="topbar-sub">Integrated System</span>
+
+        <button type="button" id="home-btn" class="btn-ghost btn-home hidden" title="Back to dashboard">Home</button>
+
+        <div class="topbar-brand-wrap">
+
+          <img class="topbar-logo" src="assets/logo.png" alt="" width="36" height="36" />
+
+          <span class="topbar-brand">Carbo</span>
+
+          <span id="topbar-context" class="topbar-sub">Dashboard</span>
+
+        </div>
+
       </div>
+
       <div class="topbar-right">
+
         <span id="app-version" class="current-user"></span>
+
         <span id="current-user" class="current-user"></span>
+
         <button id="logout-btn" class="btn-ghost">Sign out</button>
+
       </div>
+
     </header>
+
     <div class="body">
-      <nav id="module-nav" class="module-nav"></nav>
+
       <main id="module-content" class="module-content"></main>
+
     </div>
+
   </div>
 
+
+
+  <script src="modules/dashboard.js"></script>
+
   <script src="modules/quality_view.js"></script>
-  <script src="modules/identity_admin.js"></script>
+
   <script src="modules/maintenance_ops.js"></script>
+
   <script src="modules/consumption.js"></script>
+
+  <script src="modules/identity_admin.js"></script>
+
   <script src="app.js"></script>
+
 </body>
+
 </html>
+

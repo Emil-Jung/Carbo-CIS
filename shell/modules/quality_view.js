@@ -35,6 +35,10 @@
   CIS.modules.push({
     id: "quality_view",
     title: "Quality",
+    section: "Production",
+    order: 10,
+    icon: "quality",
+    description: "Sieving data, producers, and daily sheets",
     requires: "quality.view",
     render,
   });

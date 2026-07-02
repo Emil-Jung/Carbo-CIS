@@ -125,6 +125,10 @@
   CIS.modules.push({
     id: "maintenance_ops",
     title: "Operations",
+    section: "Maintenance",
+    order: 10,
+    icon: "operations",
+    description: "Fleet status, service due, and open faults",
     requires: "maintenance.ops.view",
     render,
   });

@@ -154,7 +154,11 @@
 
   CIS.modules.push({
     id: "identity_admin",
-    title: "Identity Admin",
+    title: "Users & access",
+    section: "Administration",
+    order: 10,
+    icon: "admin",
+    description: "Manage logins, roles, and permissions",
     requires: "identity.admin",
     render,
   });
