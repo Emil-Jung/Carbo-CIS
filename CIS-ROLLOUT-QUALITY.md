@@ -46,7 +46,7 @@ git pull origin master
 
 cd identity_api
 unset DATABASE_URL
-python seed_identity.py
+.venv/bin/python seed_identity.py
 sudo systemctl restart carbo-identity
 
 curl -s http://127.0.0.1:8004/health
@@ -90,7 +90,23 @@ Check `config.json` shows `"cisVersion": "1.3.3"`.
 
 ---
 
-## Step 5 — Create staff users (admin)
+## Admin login (`admin`)
+
+CIS admin User ID is **`admin`** (not a server Linux account).
+
+After pushing Carbo-Identity, run seed on the server — it creates **`admin`** if missing and prints a one-time password:
+
+```bash
+cd /opt/carbo/carbo-identity/identity_api
+unset DATABASE_URL
+.venv/bin/python seed_identity.py
+```
+
+You can disable **`carbo_user`** later in **Users & access** if you no longer need it.
+
+---
+
+## Step 5 — Create staff users
 
 1. Sign in as **admin** at https://bkweb3.bigk.co.uk/cis/
 2. **Administration → Users & access → + New user**
@@ -104,7 +120,7 @@ Check `config.json` shows `"cisVersion": "1.3.3"`.
 ## Step 6 — Smoke test (as a staff user)
 
 1. Open invite link → set password → dashboard
-2. **Production & quality → Reports & lookups → Quality sheets** — should open
+2. **Production & quality → Reports & lookups → Quality Analysis** — should open
 3. Other tiles show **No access** (expected)
 4. Browse a date / producer — data loads
 

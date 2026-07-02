@@ -124,16 +124,25 @@
       return;
     }
 
-    groupedModules(mods).forEach(function (group) {
-      container.appendChild(ui.el("h2", { class: "dashboard-section-title" }, [group.label]));
-      group.kinds.forEach(function (kindGroup) {
-        container.appendChild(ui.el("h3", { class: "dashboard-kind-title" }, [kindGroup.label]));
+    var groups = groupedModules(mods);
+    groups.forEach(function (group, groupIdx) {
+      var sectionBlock = ui.el("section", { class: "dashboard-section-block" });
+      sectionBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, [group.label]));
+      group.kinds.forEach(function (kindGroup, kindIdx) {
+        if (kindGroup.kind === "lookup" && kindIdx > 0) {
+          sectionBlock.appendChild(ui.el("div", { class: "dashboard-kind-divider", "aria-hidden": "true" }));
+        }
+        sectionBlock.appendChild(ui.el("h3", { class: "dashboard-kind-title" }, [kindGroup.label]));
         var grid = ui.el("div", { class: "dashboard-grid" });
         kindGroup.modules.forEach(function (mod) {
           grid.appendChild(renderTile(ui, mod));
         });
-        container.appendChild(grid);
+        sectionBlock.appendChild(grid);
       });
+      container.appendChild(sectionBlock);
+      if (groupIdx < groups.length - 1) {
+        container.appendChild(ui.el("div", { class: "dashboard-section-divider", "aria-hidden": "true" }));
+      }
     });
   }
 

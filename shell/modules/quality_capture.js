@@ -11,26 +11,26 @@
 
   function render(container, ctx) {
     CIS.launcherPage(container, ctx, {
-      title: "Sieving Sheet",
+      title: "Capture Quality Samples",
       description: "Capture truck sieving test samples in the field or office.",
       notes: [
         "Register the device key from CIS → Administration → Device keys.",
         "Add to your phone home screen for fastest access.",
       ],
       primaryUrl: captureUrl(ctx),
-      primaryLabel: "Open Sieving Sheet",
+      primaryLabel: "Open Capture Quality Samples",
       sameTab: false,
     });
   }
 
   CIS.modules.push({
     id: "quality_capture",
-    title: "Sieving Sheet",
+    title: "Capture Quality Samples",
     section: "Production",
     kind: "app",
     order: 5,
     icon: "capture",
-    description: "Capture sieving samples (field PWA)",
+    description: "Field PWA for sieving sample capture",
     requires: "quality.capture",
     render: render,
   });

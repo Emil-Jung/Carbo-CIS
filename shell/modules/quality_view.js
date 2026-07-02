@@ -34,12 +34,12 @@
 
   CIS.modules.push({
     id: "quality_view",
-    title: "Quality sheets",
+    title: "Quality Analysis",
     section: "Production",
     kind: "lookup",
     order: 10,
     icon: "quality",
-    description: "View sieving sheets and producer summaries (read-only)",
+    description: "Read-only sieving sheets and producer summaries",
     requires: "quality.view",
     render,
   });
