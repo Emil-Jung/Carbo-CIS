@@ -72,8 +72,8 @@ DEPLOY-SHELL.cmd
 ### On the server (manual)
 
 ```
-cd /opt/carbo/carbo-cis && git pull
-bash sync_cis_shell_on_server.sh
+cd /opt/carbo/carbo-cis
+bash deploy_on_server.sh
 ```
 
 ### Check it worked

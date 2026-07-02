@@ -6,7 +6,8 @@
 # git pull alone does NOT update the browser — this script copies shell/* across.
 #
 # Run ON the server (after git push from your PC):
-#   bash sync_cis_shell_on_server.sh
+#   cd /opt/carbo/carbo-cis
+#   bash deploy_on_server.sh
 #
 # Or from your PC (VPN on):
 #   DEPLOY-SHELL.cmd

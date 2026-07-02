@@ -1,112 +1,98 @@
-# CIS rollout — Quality sheets (view only)
+# CIS rollout — deploy (PC → server)
 
-One goal: **staff sign in, open Quality sheets, read sieving data.** Everything else stays visible on the dashboard but shows **No access** until you grant roles later.
+After **git push** from your PC, run **`bash deploy_on_server.sh`** in each repo on the server (VPN + SSH).
 
-**URL:** https://bkweb3.bigk.co.uk/cis/
-
----
-
-## How access works
-
-| Piece | What it does |
-|-------|----------------|
-| **Role `quality_viewer`** | Permission `quality.view` only — opens **Quality sheets** |
-| **Dashboard** | All tiles visible; locked tiles show **No access** |
-| **Admin** | Role `admin` — create users, assign roles |
-
-No nginx changes needed if `/cis/`, `/identity/api/`, and `/quality/viewer/` already work.
+SSH: `ssh bkweb3dev@192.168.89.101`
 
 ---
 
-## Step 1 — Push from your PC (always first)
+## Step 1 — Push from PC
 
-```powershell
-cd "G:\My Coding Projects\Carbo-Identity"
-git add -A
-git commit -m "quality_viewer: view-only staff role"
-git push origin master
-
-cd "G:\My Coding Projects\Carbo-CIS"
-git add -A
-git commit -m "CIS rollout: default quality_viewer role, quality sheets tile"
-git push origin master
-```
-
-(Quality-Platform only if you changed viewer/API auth recently — usually already deployed.)
+Push **Carbo-Identity**, **Quality-Platform**, **Producers-Platform**, and **Carbo-CIS** (see git commit messages in your session or prior deploy notes).
 
 ---
 
-## Step 2 — Server: Identity (roles)
+## Step 2 — Server deploy (in this order)
 
 ```bash
 ssh bkweb3dev@192.168.89.101
 
 cd /opt/carbo/carbo-identity
-git pull origin master
+bash deploy_on_server.sh
 
-cd identity_api
-unset DATABASE_URL
-.venv/bin/python seed_identity.py
-sudo systemctl restart carbo-identity
+cd /opt/carbo/quality-platform
+bash deploy_on_server.sh
 
-curl -s http://127.0.0.1:8004/health
+cd /opt/carbo/producers-platform
+bash deploy_on_server.sh
+
+cd /opt/carbo/carbo-cis
+bash deploy_on_server.sh
 ```
 
-`seed_identity.py` updates the `quality_viewer` role to **view only** (removes capture).
+Each script: **git pull**, update deps if needed, restart service (or copy CIS shell), **health check**.
 
 ---
 
-## Step 3 — Server: Quality API (CIS login → viewer)
+## Step 3 — Browser
 
-Ensure identity introspection is configured:
+Open https://bkweb3.bigk.co.uk/cis/ → **Ctrl+F5**
+
+Check `config.json` shows current `cisVersion` (e.g. `"1.3.9"`).
+
+---
+
+## One-time env checks (if not already set)
 
 ```bash
 grep IDENTITY_API_URL /opt/carbo/quality-platform/quality_api/.env
-# Should show: IDENTITY_API_URL=http://127.0.0.1:8004
+grep IDENTITY_API_URL /opt/carbo/producers-platform/producers_api/.env
+# Both should show: IDENTITY_API_URL=http://127.0.0.1:8004
 ```
 
-If missing, add to `quality_api/.env` then:
-
-```bash
-sudo systemctl restart quality-api
-curl -s http://127.0.0.1:8002/health
-```
+If missing, add and re-run `bash deploy_on_server.sh` in that repo.
 
 ---
 
-## Step 4 — Server: CIS web shell
+## PC shortcut (CIS shell only)
 
-```bash
-cd /opt/carbo/carbo-cis
-git pull origin master
-bash sync_cis_shell_on_server.sh
-```
-
-Or from your PC (VPN on): `DEPLOY-SHELL.cmd`
-
-Hard refresh in browser: **Ctrl+F5** on https://bkweb3.bigk.co.uk/cis/
-
-Check `config.json` shows `"cisVersion": "1.3.3"`.
+From `Carbo-CIS` on PC (VPN on): `DEPLOY-SHELL.cmd`  
+(runs `git pull` + `bash deploy_on_server.sh` on the server)
 
 ---
 
-## Admin login (`admin`)
+## Smoke test
+
+| Check | Expect |
+|-------|--------|
+| CIS login | https://bkweb3.bigk.co.uk/cis/ |
+| Quality Analysis (staff user) | Opens in CIS, no device key |
+| Producers (admin / producers.office) | Embedded office, list loads |
+| `curl -s http://127.0.0.1:8004/health` | identity ok |
+| `curl -s http://127.0.0.1:8002/health` | quality ok |
+| `curl -s http://127.0.0.1:8003/health` | producers ok |
+
+Use **localhost** curl on the server — public HTTPS curl to your own URL often hangs.
+
+---
+
+## Staff access
+
+### How access works
+
+| Piece | What it does |
+|-------|----------------|
+| **Role `quality_viewer`** | Permission `quality.view` only — opens **Quality Analysis** |
+| **Dashboard** | All tiles visible; locked tiles show **No access** |
+| **Admin** | Role `admin` — create users, assign roles |
+
+### Admin login (`admin`)
 
 CIS admin User ID is **`admin`** (not a server Linux account).
 
-After pushing Carbo-Identity, run seed on the server — it creates **`admin`** if missing and prints a one-time password:
+After deploy, `bash deploy_on_server.sh` in carbo-identity runs `seed_identity.py` — it creates **`admin`** if missing and may print a one-time password.
 
-```bash
-cd /opt/carbo/carbo-identity/identity_api
-unset DATABASE_URL
-.venv/bin/python seed_identity.py
-```
-
-You can disable **`carbo_user`** later in **Users & access** if you no longer need it.
-
----
-
-## Step 5 — Create staff users
+### Create staff users
 
 1. Sign in as **admin** at https://bkweb3.bigk.co.uk/cis/
 2. **Administration → Users & access → + New user**
@@ -115,44 +101,31 @@ You can disable **`carbo_user`** later in **Users & access** if you no longer ne
 5. Save → copy the personal invite link (`?user=...`) and send to the person
 6. They set a password on first sign-in
 
----
-
-## Step 6 — Smoke test (as a staff user)
+### Smoke test (as a staff user)
 
 1. Open invite link → set password → dashboard
-2. **Production & quality → Reports & lookups → Quality Analysis** — should open
+2. **Reports & lookups → Quality Analysis** — should open in-page
 3. Other tiles show **No access** (expected)
 4. Browse a date / producer — data loads
 
-If Quality sheets is blank or “unauthorized”:
+If Quality Analysis is blank or “unauthorized”, re-check `IDENTITY_API_URL` on quality API and run `bash deploy_on_server.sh` again in quality-platform and carbo-identity.
 
-```bash
-# On server — identity reachable from quality?
-curl -s http://127.0.0.1:8004/health
-curl -s http://127.0.0.1:8002/health
-```
-
----
-
-## Give someone more later
+### Give someone more later
 
 | Need | Role / permission |
 |------|-------------------|
 | View sheets only | `quality_viewer` |
 | Capture sieving (field) | add `quality.capture` or `operations` role |
 | Fuel / fleet | `operations` or `finance` |
+| Producers office | `producers.office` (admin has this) |
 | User admin | `admin` |
 
 Edit user in **Users & access** → check extra roles → Save.
 
----
-
-## Quick checks
+### Quick URLs
 
 | URL | Expect |
 |-----|--------|
 | https://bkweb3.bigk.co.uk/cis/ | CIS login |
 | https://bkweb3.bigk.co.uk/identity/api/health | `{"status":"ok",...}` |
 | https://bkweb3.bigk.co.uk/quality/viewer/ | Viewer (device key or CIS iframe) |
-
-**On the server**, do not curl your own public HTTPS URL for CIS (often hangs). Use localhost checks above.

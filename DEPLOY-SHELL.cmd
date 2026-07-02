@@ -13,16 +13,8 @@ echo  3. This copies shell/* to /opt/carbo/cis/shell/ (what nginx serves)
 echo.
 pause
 
-echo Uploading sync script and running on server...
-scp -o ConnectTimeout=15 "%~dp0sync_cis_shell_on_server.sh" %CIS_SERVER_SSH%:~/sync_cis_shell_on_server.sh
-if errorlevel 1 (
-  echo.
-  echo SCP failed. Check VPN and SSH: %CIS_SERVER_SSH%
-  pause
-  exit /b 1
-)
-
-ssh -o ConnectTimeout=15 %CIS_SERVER_SSH% "bash ~/sync_cis_shell_on_server.sh"
+echo Running deploy on server (git pull + copy shell to nginx)...
+ssh -o ConnectTimeout=15 %CIS_SERVER_SSH% "cd /opt/carbo/carbo-cis && git pull origin master && bash deploy_on_server.sh"
 if errorlevel 1 (
   echo.
   echo Deploy failed. See messages above.
