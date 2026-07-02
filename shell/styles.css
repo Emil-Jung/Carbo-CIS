@@ -98,6 +98,21 @@ body {
 .nav-empty { color: var(--muted); font-size: 13px; padding: 12px; }
 
 .module-content { flex: 1; padding: 24px 28px; overflow: auto; }
+.module-content.module-quality-host,
+.module-quality-host {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.module-iframe {
+  flex: 1;
+  width: 100%;
+  min-height: 480px;
+  border: none;
+  background: #1a1a1a;
+}
 
 /* ---- Shared module UI ---- */
 h2.module-title { margin: 0 0 4px; }

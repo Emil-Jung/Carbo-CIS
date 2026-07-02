@@ -41,6 +41,7 @@
     identity: (path, opts) => apiFetch(state.config.identityApiBase, path, opts),
     maintenance: (path, opts) => apiFetch(state.config.maintenanceApiBase, path, opts),
   };
+  CIS.getToken = () => state.token || localStorage.getItem(TOKEN_KEY);
   CIS.hasPermission = (perm) => state.permissions.indexOf(perm) !== -1;
   CIS.currentUser = () => state.user;
 
@@ -202,9 +203,15 @@
     state.activeModuleId = id;
     renderNav();
     const content = document.getElementById("module-content");
+    content.className = "module-content";
     content.innerHTML = "";
     try {
-      mod.render(content, { api: CIS.api, user: state.user, permissions: state.permissions });
+      mod.render(content, {
+        api: CIS.api,
+        user: state.user,
+        permissions: state.permissions,
+        config: state.config,
+      });
     } catch (e) {
       content.innerHTML = '<div class="error-box">Module failed to load: ' + (e.message || e) + "</div>";
     }

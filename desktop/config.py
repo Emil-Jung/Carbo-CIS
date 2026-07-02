@@ -40,6 +40,8 @@ IDENTITY_API_BASE_URL = os.environ.get("IDENTITY_API_BASE_URL", "").strip() \
     or "https://bkweb3.bigk.co.uk/identity/api"
 MAINTENANCE_API_BASE_URL = os.environ.get("MAINTENANCE_API_BASE_URL", "").strip() \
     or "https://bkweb3.bigk.co.uk/maintenance/api"
+QUALITY_VIEWER_URL = os.environ.get("QUALITY_VIEWER_URL", "").strip() \
+    or "https://bkweb3.bigk.co.uk/quality/viewer/"
 
 # Where the CIS app's own auto-update files live (version.json + the installer).
 CIS_DOWNLOAD_BASE_URL = os.environ.get("CIS_DOWNLOAD_BASE_URL", "").strip() \

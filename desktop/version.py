@@ -9,7 +9,7 @@ See VERSIONING.md for the rules and examples.
 """
 
 CIS_MAJOR = 1      # X — CIS version
-CIS_MODULE = 0     # Y — module adjustments
+CIS_MODULE = 1     # Y — module adjustments
 CIS_INTERNAL = 0   # Z — internal build
 
 CIS_VERSION = f"{CIS_MAJOR}.{CIS_MODULE}.{CIS_INTERNAL}"

@@ -38,6 +38,7 @@ def _prepare_shell_dir() -> str:
         "appName": "Carbo Integrated System",
         "identityApiBase": config.IDENTITY_API_BASE_URL,
         "maintenanceApiBase": config.MAINTENANCE_API_BASE_URL,
+        "qualityViewerUrl": config.QUALITY_VIEWER_URL,
         "cisVersion": CIS_VERSION,
     }
     with open(os.path.join(dest, "config.json"), "w", encoding="utf-8") as fh:
