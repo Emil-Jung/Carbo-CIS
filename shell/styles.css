@@ -288,6 +288,8 @@ a.btn-launch-secondary {
   background: rgba(201, 162, 39, 0.1);
 }
 .device-keys-hint { font-size: 12px; margin-bottom: 12px; }
+.device-keys-panel.hidden { display: none !important; }
+.device-keys-panels { min-height: 200px; }
 .device-keys-table-wrap { margin-bottom: 12px; overflow-x: auto; }
 .device-keys-table td:first-child { width: 36px; }
 

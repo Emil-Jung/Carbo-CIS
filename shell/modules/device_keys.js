@@ -79,7 +79,7 @@
     return filterRows(resp.device_keys || [], pool);
   }
 
-  async function renderPool(container, ctx, pool, ui) {
+  function renderPool(container, ctx, pool, ui) {
     var section = ui.el("div", { class: "device-keys-panel hidden", "data-pool": pool.id });
     section.appendChild(ui.el("p", { class: "module-desc" }, [pool.intro]));
     section.appendChild(ui.el("p", { class: "muted" }, [
@@ -296,7 +296,7 @@
     return section;
   }
 
-  async function render(container, ctx) {
+  function render(container, ctx) {
     var ui = CIS.ui;
     container.innerHTML = "";
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Device keys & API access"]));
@@ -362,7 +362,10 @@
         t.classList.toggle("active", t.getAttribute("data-pool") === id);
       });
       Object.keys(panelEls).forEach(function (k) {
-        panelEls[k].classList.toggle("hidden", k !== id);
+        var panel = panelEls[k];
+        if (panel && panel.classList) {
+          panel.classList.toggle("hidden", k !== id);
+        }
       });
     }
 
