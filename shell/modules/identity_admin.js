@@ -132,6 +132,7 @@
     rolesCache.forEach((r) => {
       const cb = ui.el("input", { type: "checkbox", value: String(r.role_id) });
       if (isEdit && (user.roles || []).indexOf(r.name) !== -1) cb.checked = true;
+      if (!isEdit && r.name === "quality_viewer") cb.checked = true;
       if (!isEdit && r.name === "admin") cb.checked = false;
       const lbl = ui.el("label", {}, []);
       lbl.appendChild(cb);
