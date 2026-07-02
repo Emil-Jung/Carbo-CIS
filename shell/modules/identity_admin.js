@@ -7,6 +7,10 @@
   let rolesCache = [];
   let permissionsCache = [];
 
+  function permKey(p) {
+    return (p && (p.key || p.permission)) || "";
+  }
+
   function permissionsForRoles(roleIds) {
     var set = {};
     rolesCache.forEach(function (r) {
@@ -298,13 +302,14 @@
     Object.keys(bySection).sort().forEach(function (sec) {
       tileChecks.appendChild(ui.el("div", { class: "checks-section-title" }, [sec]));
       bySection[sec].forEach(function (p) {
-        var cb = ui.el("input", { type: "checkbox", value: p.key });
-        if (initial.indexOf(p.key) !== -1) cb.checked = true;
+        var key = permKey(p);
+        var cb = ui.el("input", { type: "checkbox", value: key });
+        if (initial.indexOf(key) !== -1) cb.checked = true;
         var lbl = ui.el("label", { class: "tile-perm-label" }, []);
         lbl.appendChild(cb);
-        lbl.appendChild(document.createTextNode(p.label + " (" + p.key + ")"));
+        lbl.appendChild(document.createTextNode(p.label + " (" + key + ")"));
         tileChecks.appendChild(lbl);
-        tileInputs.push({ cb: cb, key: p.key });
+        tileInputs.push({ cb: cb, key: key });
       });
     });
 
@@ -320,7 +325,7 @@
     modal.appendChild(templateRow);
     modal.appendChild(tileChecks);
 
-    modal.appendChild(ui.el("label", {}, ["Legacy roles (optional — ignored once tile list is saved)"]));
+    modal.appendChild(ui.el("label", {}, ["Legacy roles (optional backup — tile list controls access once saved)"]));
     const checks = ui.el("div", { class: "checks" });
     const roleInputs = [];
     rolesCache.forEach((r) => {
@@ -334,6 +339,14 @@
     });
     modal.appendChild(checks);
 
+    var initialRoleIds = [];
+    if (isEdit) {
+      rolesCache.forEach(function (r) {
+        if ((user.roles || []).indexOf(r.name) !== -1) initialRoleIds.push(r.role_id);
+      });
+    }
+    modal._initialRoleIds = initialRoleIds;
+
     const actions = ui.el("div", { class: "modal-actions" });
     const cancelBtn = ui.el("button", { class: "btn-ghost", onclick: () => document.body.removeChild(backdrop) }, ["Cancel"]);
     const saveBtn = ui.el("button", { class: "btn" }, ["Save"]);
@@ -344,15 +357,30 @@
     saveBtn.addEventListener("click", async () => {
       errEl.classList.add("hidden");
       const roleIds = roleInputs.filter((r) => r.cb.checked).map((r) => r.role_id);
-      const tilePermissions = tileInputs.filter((t) => t.cb.checked).map((t) => t.key);
+      const tilePermissions = tileInputs.filter((t) => t.cb.checked).map((t) => t.key).filter(Boolean);
+      if (tilePermissions.length === 0 && roleIds.length === 0) {
+        errEl.textContent = "Select at least one CIS tile or legacy role.";
+        errEl.classList.remove("hidden");
+        return;
+      }
       const pw = pwInput.value;
       saveBtn.disabled = true;
       saveBtn.textContent = "Saving…";
       try {
         if (isEdit) {
-          const body = { display_name: nameInput.value.trim(), status: modal._statusSel.value, role_ids: roleIds, tile_permissions: tilePermissions };
+          const body = {
+            display_name: nameInput.value.trim(),
+            status: modal._statusSel.value,
+            tile_permissions: tilePermissions,
+          };
+          const rolesChanged = roleIds.length !== modal._initialRoleIds.length ||
+            roleIds.some(function (id) { return modal._initialRoleIds.indexOf(id) === -1; });
+          if (rolesChanged) body.role_ids = roleIds;
           if (pw.trim()) body.password = pw.trim();
           await ctx.api.identity("/users/" + user.user_id, { method: "PATCH", body });
+          if (CIS.refreshSession && CIS.currentUser() && CIS.currentUser().user_id === user.user_id) {
+            await CIS.refreshSession();
+          }
           document.body.removeChild(backdrop);
           if (usersWrap) await refreshUsers(ctx, usersWrap);
         } else {

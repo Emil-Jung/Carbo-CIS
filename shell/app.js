@@ -176,6 +176,8 @@
 
   }
 
+  CIS.refreshSession = loadSession;
+
 
 
   // ---- Login / logout --------------------------------------------------
