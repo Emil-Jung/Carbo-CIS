@@ -1,37 +1,32 @@
-/* Quality Capture — Sieving Sheet PWA (field / Jessica). */
-(function () {
-  "use strict";
-  var CIS = (window.CIS = window.CIS || {});
-  CIS.modules = CIS.modules || [];
-
-  function captureUrl(ctx) {
-    var cfg = (ctx && ctx.config) || {};
-    return (cfg.qualityCaptureUrl || "/quality/").trim();
-  }
-
-  function render(container, ctx) {
-    CIS.launcherPage(container, ctx, {
-      title: "Capture Quality Samples",
-      description: "Capture truck sieving test samples in the field or office.",
-      notes: [
-        "Register the device key from CIS → Administration → Device keys.",
-        "Add to your phone home screen for fastest access.",
-      ],
-      primaryUrl: captureUrl(ctx),
-      primaryLabel: "Open Capture Quality Samples",
-      sameTab: false,
-    });
-  }
-
-  CIS.modules.push({
-    id: "quality_capture",
-    title: "Quality",
-    section: "Production",
-    kind: "app",
-    order: 5,
-    icon: "capture",
-    description: "Field PWA for sieving sample capture",
-    requires: "quality.capture",
-    render: render,
-  });
-})();
+/* Quality Capture — Sieving Sheet PWA embedded in CIS (office / Jessica). */
+(function () {
+  "use strict";
+  var CIS = (window.CIS = window.CIS || {});
+  CIS.modules = CIS.modules || [];
+
+  function captureUrl(ctx) {
+    var cfg = (ctx && ctx.config) || {};
+    var base = (cfg.qualityCaptureUrl || "/quality/").trim();
+    var join = base.indexOf("?") === -1 ? "?" : "&";
+    return base + join + "cis=1";
+  }
+
+  function render(container, ctx) {
+    CIS.embedAuthenticatedIframe(container, {
+      title: "Quality capture",
+      src: captureUrl(ctx),
+    });
+  }
+
+  CIS.modules.push({
+    id: "quality_capture",
+    title: "Quality",
+    section: "Production",
+    kind: "app",
+    order: 5,
+    icon: "capture",
+    description: "Capture sieving samples (office or field)",
+    requires: "quality.capture",
+    render: render,
+  });
+})();
