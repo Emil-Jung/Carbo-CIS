@@ -22,7 +22,7 @@
 
   CIS.modules.push({
     id: "producers_public",
-    title: "FSC Public Register",
+    title: "FSC Public",
     section: "Production",
     kind: "lookup",
     order: 25,

@@ -25,7 +25,7 @@
 
   CIS.modules.push({
     id: "producers_office",
-    title: "Producers — Office",
+    title: "Producers",
     section: "Production",
     kind: "app",
     order: 15,

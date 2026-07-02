@@ -27,7 +27,7 @@
 
   CIS.modules.push({
     id: "maintenance_manager",
-    title: "Maintenance Manager",
+    title: "Maintenance",
     section: "Maintenance",
     kind: "app",
     order: 5,

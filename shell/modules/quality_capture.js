@@ -25,7 +25,7 @@
 
   CIS.modules.push({
     id: "quality_capture",
-    title: "Capture Quality Samples",
+    title: "Quality",
     section: "Production",
     kind: "app",
     order: 5,
