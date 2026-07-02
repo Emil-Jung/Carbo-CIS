@@ -1,32 +1,91 @@
-# CIS app on Big-K — installer is NOT in git
-
-The installer and version.json are built locally and uploaded to the server
-(scp). Git is only for source code (shell, desktop app source, scripts).
-
-## On your PC (after BUILD-INSTALLER.cmd + stage-cis-download.ps1)
-
-    cd "G:\My Coding Projects\Carbo-CIS\desktop"
-    BUILD-CIS.cmd
-    BUILD-INSTALLER.cmd
-    powershell -File scripts\stage-cis-download.ps1
-
-    cd ..
-    UPLOAD-CIS-TO-SERVER.cmd
-
-## On the server (SSH, after upload)
-
-    bash sync_cis_app_on_server.sh
-
-    # or manually:
-    sudo cp ~/cis_app_upload/* /opt/carbo/cis/app/
-
-## Verify — browser on your PC
-
-    https://bkweb3.bigk.co.uk/cis/app/version.json
-
-Users download: https://bkweb3.bigk.co.uk/cis/app/CarboCIS-Setup.exe
-
-## Shell-only deploy (Quality module, etc.) — no installer
-
-    cd /opt/carbo/carbo-cis && git pull
-    cp -r shell/* /opt/carbo/cis/shell/
+# CIS app on Big-K — installer is NOT in git
+
+
+
+The installer and version.json are built locally and uploaded to the server
+
+(scp). Git is only for source code (shell, desktop app source, scripts).
+
+
+
+## On your PC (after BUILD-INSTALLER.cmd + stage-cis-download.ps1)
+
+
+
+    cd "G:\My Coding Projects\Carbo-CIS\desktop"
+
+    BUILD-CIS.cmd
+
+    BUILD-INSTALLER.cmd
+
+    powershell -File scripts\stage-cis-download.ps1
+
+
+
+    cd ..
+
+    UPLOAD-CIS-TO-SERVER.cmd
+
+
+
+## On the server (SSH, after upload)
+
+
+
+    bash sync_cis_app_on_server.sh
+
+
+
+    # or manually:
+
+    sudo cp ~/cis_app_upload/* /opt/carbo/cis/app/
+
+
+
+## Verify — browser on your PC
+
+
+
+    https://bkweb3.bigk.co.uk/cis/app/version.json
+
+
+
+Users download: https://bkweb3.bigk.co.uk/cis/app/CarboCIS-Setup.exe
+
+
+
+## Shell-only deploy (Quality module, dashboard, etc.) — no installer
+
+**Important:** The browser does **not** read the git repo directly.
+Nginx serves **`/opt/carbo/cis/shell/`**. You must **pull AND copy**.
+
+### From your PC (easiest — VPN on)
+
+```
+git add .
+git commit -m "your message"
+git push origin master
+
+DEPLOY-SHELL.cmd
+```
+
+### On the server (manual)
+
+```
+cd /opt/carbo/carbo-cis && git pull
+bash sync_cis_shell_on_server.sh
+```
+
+### Check it worked
+
+Open https://bkweb3.bigk.co.uk/cis/ → **Ctrl+F5** (hard refresh).
+
+Right-click → **View page source**. You should see:
+- `modules/dashboard.js`
+- `assets/logo.png`
+- `id="topbar-context"`
+
+You should **not** see `module-nav` (old left sidebar).
+
+If the page is still old, the copy step was skipped — run `DEPLOY-SHELL.cmd` again.
+
