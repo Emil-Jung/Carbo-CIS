@@ -114,6 +114,6 @@
       onclick: function () {
         if (CIS.showDashboard) CIS.showDashboard();
       },
-    }, ["Back to dashboard"]));
+    }, ["Back"]));
   };
 })();

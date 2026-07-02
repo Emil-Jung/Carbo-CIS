@@ -135,7 +135,7 @@
 
     document.getElementById("logout-btn").addEventListener("click", () => doLogout(false));
 
-    document.getElementById("home-btn").addEventListener("click", () => showDashboard());
+    document.getElementById("back-btn").addEventListener("click", () => showDashboard());
 
 
 
@@ -234,13 +234,13 @@
 
   function updateTopbarContext() {
 
-    const homeBtn = document.getElementById("home-btn");
+    const backBtn = document.getElementById("back-btn");
 
     const subEl = document.getElementById("topbar-context");
 
     const onDashboard = !state.activeModuleId || state.activeModuleId === "dashboard";
 
-    if (homeBtn) homeBtn.classList.toggle("hidden", onDashboard);
+    if (backBtn) backBtn.classList.toggle("hidden", onDashboard);
 
     if (!subEl) return;
 
@@ -334,7 +334,7 @@
 
         onclick: () => showDashboard(),
 
-      }, ["Back to dashboard"]),
+      }, ["Back"]),
 
     ]));
 

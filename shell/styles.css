@@ -135,7 +135,7 @@ body {
   font-size: 13px;
 }
 .btn-ghost:hover { background: var(--panel-2); border-color: var(--gold-dim); }
-.btn-home { color: var(--gold-bright); border-color: var(--gold-dim); }
+.btn-back { color: var(--gold-bright); border-color: var(--gold-dim); font-weight: 600; }
 
 .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .module-content { flex: 1; padding: 24px 28px; overflow: auto; }
@@ -167,7 +167,7 @@ body {
   color: var(--gold-bright);
 }
 .dashboard-sub { margin: 0; color: var(--muted); font-size: 15px; }
-.dashboard-admin-block {
+.dashboard-block {
   margin-bottom: 28px;
 }
 .dashboard-section-title {
@@ -179,23 +179,6 @@ body {
   color: var(--gold-bright);
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
-}
-.dashboard-main-block {
-  margin-top: 4px;
-}
-.dashboard-kind-title {
-  margin: 0 0 10px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-}
-.dashboard-apps-reports-split {
-  height: 0;
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 22px 0 18px;
 }
 .dashboard-row {
   display: grid;
@@ -450,7 +433,7 @@ table.data tr:hover td { background: rgba(201, 162, 39, 0.04); }
 }
 .modal h3 { margin: 0 0 16px; color: var(--gold-bright); }
 .modal label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
-.modal input, .modal select {
+.modal input, .modal select, .modal textarea {
   width: 100%;
   background: var(--panel-2);
   border: 1px solid var(--border);
@@ -458,7 +441,20 @@ table.data tr:hover td { background: rgba(201, 162, 39, 0.04); }
   border-radius: 8px;
   padding: 9px 11px;
   font-size: 14px;
+  box-sizing: border-box;
 }
+.modal textarea {
+  min-height: 220px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.45;
+}
+.modal input[readonly], .modal textarea[readonly] {
+  user-select: all;
+  cursor: text;
+}
+.modal.modal-wide { width: min(560px, 92vw); }
+.modal .copy-status { font-size: 12px; color: var(--ok); min-height: 1.2em; margin-top: 8px; }
 .modal .checks { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .modal .checks label { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); }
 .modal .checks input { width: auto; }
