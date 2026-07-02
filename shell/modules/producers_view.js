@@ -1,4 +1,4 @@
-/* Producers Office — embeds the office capture PWA (CIS auth, no separate API key). */
+/* View Producers — read-only office list (CIS auth, no capture). */
 
 (function () {
 
@@ -10,7 +10,7 @@
 
 
 
-  function officeUrl(ctx) {
+  function viewUrl(ctx) {
 
     var cfg = (ctx && ctx.config) || {};
 
@@ -18,7 +18,7 @@
 
     var join = base.indexOf("?") === -1 ? "?" : "&";
 
-    return base + join + "cis=1";
+    return base + join + "cis=1&mode=view";
 
   }
 
@@ -28,9 +28,9 @@
 
     CIS.embedAuthenticatedIframe(container, {
 
-      title: "Capture Producers",
+      title: "View Producers",
 
-      src: officeUrl(ctx),
+      src: viewUrl(ctx),
 
     });
 
@@ -40,25 +40,24 @@
 
   CIS.modules.push({
 
-    id: "producers_office",
+    id: "producers_view",
 
-    title: "Capture Producers",
+    title: "View Producers",
 
     section: "Production",
 
-    kind: "app",
+    kind: "lookup",
 
-    order: 15,
+    order: 12,
 
     icon: "producers",
 
-    description: "Capture FSC Other and Non FSC registrations",
+    description: "Read-only producer and farm list",
 
-    requires: "producers.office",
+    requires: "producers.view",
 
     render: render,
 
   });
 
 })();
-

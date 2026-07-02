@@ -16,7 +16,7 @@
 
     applications: ["producers_office", "traceability", "quality_capture", "maintenance_manager"],
 
-    reportsRow1: ["producers_public", "quality_view", "bag_stock"],
+    reportsRow1: ["producers_view", "quality_view", "bag_stock"],
 
     reportsRow2: ["maintenance_ops", "consumption"],
 

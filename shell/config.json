@@ -7,10 +7,9 @@
   "qualityViewerUrl": "/quality/viewer/",
   "qualityCaptureUrl": "/quality/",
   "producersOfficeUrl": "/producers/office/",
-  "producersPublicUrl": "/producers/public/",
   "maintenanceManagerUrl": "/maintenance/manager/",
   "traceabilityScannerUrl": "/traceability/scanner/",
   "traceabilitySupervisorUrl": "/traceability/supervisor/",
   "bagStockUrl": "/traceability/supervisor/",
-  "cisVersion": "1.3.25"
+  "cisVersion": "1.3.26"
 }
