@@ -63,7 +63,7 @@
       if (u.needs_password && CIS.inviteUrl) {
         actions.appendChild(ui.el("button", {
           class: "btn-ghost btn-sm",
-          onclick: () => copyInvite(u.login_id),
+          onclick: () => copyInvite(u),
         }, ["Copy link"]));
       }
       actions.appendChild(ui.el("button", { class: "btn-ghost btn-sm", onclick: () => openUserModal(ctx, u, wrap) }, ["Edit"]));
@@ -74,16 +74,128 @@
     wrap.appendChild(table);
   }
 
-  function copyInvite(loginId) {
-    var url = CIS.inviteUrl ? CIS.inviteUrl(loginId) : "";
-    if (!url) return;
+  function inviteEmailText(loginId, displayName, link) {
+    var who = (displayName || loginId || "there").trim();
+    return (
+      "Hello " + who + ",\n\n" +
+      "You have been given access to the Carbo Integrated System (CIS) — Carbo’s " +
+      "central sign-in for quality, production, and other operational tools. " +
+      "CIS brings the applications you need into one place, with access controlled " +
+      "by your role.\n\n" +
+      "FIRST-TIME SIGN-IN\n\n" +
+      "1. Open your personal link below in a web browser (Chrome or Edge recommended).\n" +
+      "2. Your User ID is already filled in: " + loginId + "\n" +
+      "3. You will be asked to create a password (minimum 6 characters). " +
+      "Choose something you can remember, and keep it somewhere safe — for example " +
+      "in a password manager or a secure note. If you clear your browser history or " +
+      "site data, you may need this password again; CIS does not email password " +
+      "reminders, so please store it.\n" +
+      "4. After setting your password, you will be signed in to the CIS dashboard.\n\n" +
+      "Your invite link:\n" +
+      link + "\n\n" +
+      "This link is personal to you. Please do not share it or forward this email.\n\n" +
+      "PLEASE IGNORE OLD INSTRUCTIONS\n\n" +
+      "If you were previously given device keys, direct app links, or bookmarked URLs " +
+      "to Quality, Maintenance, or other Carbo tools, please ignore those for now. " +
+      "Sign in only through the CIS link in this email and your new User ID and password. " +
+      "Older keys and links may no longer work or may not reflect your current access.\n\n" +
+      "IMPORTANT — TEMPORARY WEB ACCESS\n\n" +
+      "For now, CIS is accessed through the website above (a web app in your browser). " +
+      "This route is temporary. A downloadable desktop app is being prepared that will " +
+      "install on your PC and update automatically when new versions are released. " +
+      "We will let you know when that is ready to use.\n\n" +
+      "WHAT TO EXPECT\n\n" +
+      "CIS is being rolled out in stages. You will see tiles on the dashboard for " +
+      "applications and reports; only the areas assigned to your account can be opened. " +
+      "Other tiles may show as unavailable or “Coming soon” — more modules will be " +
+      "added over time as they are connected and tested.\n\n" +
+      "If you have trouble signing in or are unsure which applications you should use, " +
+      "please contact your administrator.\n\n" +
+      "Kind regards,\n" +
+      "Carbo Integrated System"
+    );
+  }
+
+  function copyText(text, onDone) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(function () {
-        window.alert("Link copied:\n\n" + url);
+      navigator.clipboard.writeText(text).then(function () {
+        if (onDone) onDone();
+      }).catch(function () {
+        window.prompt("Copy this text:", text);
       });
     } else {
-      window.prompt("Copy this link:", url);
+      window.prompt("Copy this text:", text);
     }
+  }
+
+  function showInviteDialog(loginId, displayName, link) {
+    if (!link) return;
+    var ui = CIS.ui;
+    var backdrop = ui.el("div", { class: "modal-backdrop" });
+    var modal = ui.el("div", { class: "modal modal-wide" });
+    backdrop.appendChild(modal);
+
+    modal.appendChild(ui.el("h3", {}, ["Send invite to " + loginId]));
+    modal.appendChild(ui.el("p", { class: "muted" }, [
+      "Copy the email text below into your mail app, or copy the link only.",
+    ]));
+
+    var emailBody = inviteEmailText(loginId, displayName, link);
+
+    modal.appendChild(ui.el("label", {}, ["Email text (select all and copy)"]));
+    var emailArea = ui.el("textarea", { readonly: "readonly" });
+    emailArea.value = emailBody;
+    modal.appendChild(emailArea);
+
+    modal.appendChild(ui.el("label", {}, ["Invite link only"]));
+    var linkInput = ui.el("input", { type: "text", readonly: "readonly", value: link });
+    linkInput.style.fontFamily = "Consolas, monospace";
+    linkInput.style.fontSize = "13px";
+    modal.appendChild(linkInput);
+
+    var statusEl = ui.el("div", { class: "copy-status" });
+    modal.appendChild(statusEl);
+
+    function flash(msg) {
+      statusEl.textContent = msg;
+      setTimeout(function () {
+        if (statusEl.textContent === msg) statusEl.textContent = "";
+      }, 2500);
+    }
+
+    var copyEmailBtn = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Copy email"]);
+    var copyLinkBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Copy link"]);
+    var closeBtn = ui.el("button", { class: "btn-ghost", type: "button" }, ["Close"]);
+
+    copyEmailBtn.addEventListener("click", function () {
+      copyText(emailBody, function () { flash("Email text copied."); });
+    });
+    copyLinkBtn.addEventListener("click", function () {
+      copyText(link, function () { flash("Link copied."); });
+    });
+    closeBtn.addEventListener("click", function () {
+      document.body.removeChild(backdrop);
+    });
+
+    emailArea.addEventListener("focus", function () { emailArea.select(); });
+    linkInput.addEventListener("focus", function () { linkInput.select(); });
+
+    var row = ui.el("div", { class: "modal-actions" });
+    row.appendChild(copyEmailBtn);
+    row.appendChild(copyLinkBtn);
+    row.appendChild(closeBtn);
+    modal.appendChild(row);
+
+    document.body.appendChild(backdrop);
+    emailArea.select();
+  }
+
+  function copyInvite(user) {
+    var loginId = typeof user === "string" ? user : user.login_id;
+    var displayName = typeof user === "string" ? user : user.display_name;
+    var url = CIS.inviteUrl ? CIS.inviteUrl(loginId) : "";
+    if (!url) return;
+    showInviteDialog(loginId, displayName, url);
   }
 
   function openUserModal(ctx, user, usersWrap) {
@@ -174,10 +286,7 @@
           if (usersWrap) await refreshUsers(ctx, usersWrap);
           var link = fullInviteUrl(created.invite_url) || (CIS.inviteUrl && CIS.inviteUrl(created.login_id));
           if (link) {
-            window.alert(
-              "User created.\n\nSend this link (User ID is in the URL):\n\n" + link +
-              "\n\nThey will create their password on first open."
-            );
+            showInviteDialog(created.login_id, created.display_name || nameInput.value.trim(), link);
           }
         }
       } catch (e) {
