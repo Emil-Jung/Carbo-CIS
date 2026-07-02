@@ -36,9 +36,10 @@
     id: "quality_view",
     title: "Quality",
     section: "Production",
+    kind: "lookup",
     order: 10,
     icon: "quality",
-    description: "Sieving data, producers, and daily sheets",
+    description: "Read-only sieving data and producer summaries",
     requires: "quality.view",
     render,
   });

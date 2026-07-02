@@ -39,6 +39,10 @@ def _prepare_shell_dir() -> str:
         "identityApiBase": config.IDENTITY_API_BASE_URL,
         "maintenanceApiBase": config.MAINTENANCE_API_BASE_URL,
         "qualityViewerUrl": config.QUALITY_VIEWER_URL,
+        "qualityCaptureUrl": "https://bkweb3.bigk.co.uk/quality/",
+        "producersOfficeUrl": "https://bkweb3.bigk.co.uk/producers/office/",
+        "producersPublicUrl": "https://bkweb3.bigk.co.uk/producers/public/",
+        "maintenanceManagerUrl": "https://bkweb3.bigk.co.uk/maintenance/manager/",
         "cisVersion": CIS_VERSION,
     }
     with open(os.path.join(dest, "config.json"), "w", encoding="utf-8") as fh:

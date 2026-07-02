@@ -15,7 +15,7 @@
     const ui = CIS.ui;
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Consumption"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Fuel consumption in litres. Costs and pricing will be added later.",
+      "Diesel consumption in litres for powered assets (forklifts, trucks). Trailers are excluded — they have no diesel tank.",
     ]));
 
     const cards = ui.el("div", { class: "cards" });
@@ -29,7 +29,9 @@
         ctx.api.maintenance("/vehicles"),
         ctx.api.maintenance("/fuel-summaries"),
       ]);
-      const vehicles = (vehResp.vehicles || []);
+      const vehicles = (vehResp.vehicles || []).filter(function (v) {
+        return CIS.isFuelEligibleVehicle ? CIS.isFuelEligibleVehicle(v) : true;
+      });
       const summaries = (sumResp.summaries || {});
 
       let totalLitres = 0;
@@ -47,7 +49,7 @@
         };
       });
 
-      cards.appendChild(card(ui, "Vehicles", fmt(vehicles.length)));
+      cards.appendChild(card(ui, "Powered assets", fmt(vehicles.length)));
       cards.appendChild(card(ui, "Total litres (all time)", fmt(totalLitres, 0)));
       cards.appendChild(card(ui, "Vehicles with fuel data", fmt(withData)));
 
@@ -87,9 +89,10 @@
     id: "consumption",
     title: "Consumption",
     section: "Maintenance",
+    kind: "lookup",
     order: 20,
     icon: "consumption",
-    description: "Fuel consumption in litres",
+    description: "Diesel litres — powered assets only",
     requires: "maintenance.fuel.view",
     render,
   });

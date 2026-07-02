@@ -156,6 +156,7 @@
     id: "identity_admin",
     title: "Users & access",
     section: "Administration",
+    kind: "app",
     order: 10,
     icon: "admin",
     description: "Manage logins, roles, and permissions",
