@@ -319,17 +319,6 @@
 
     var staticTabs = [
       {
-        id: "producers_office",
-        label: "Producers office",
-        intro: "Shared API key for the Producers Office PWA (not per-device).",
-        paragraphs: [
-          "Set PRODUCERS_OFFICE_API_KEY on the server. Office staff paste it once into the Producers Office app.",
-          "Quality capture uses this key server-side for the producer dropdown — keep the same value on Quality API (.env PRODUCERS_OFFICE_API_KEY).",
-        ],
-        url: cfg(ctx, "producersOfficeUrl", "/producers/office/"),
-        linkLabel: "Open Producers Office",
-      },
-      {
         id: "traceability",
         label: "Traceability",
         intro: "Scanner and supervisor devices for charcoal traceability.",
@@ -384,7 +373,7 @@
     kind: "app",
     order: 20,
     icon: "keys",
-    description: "PWA keys — maintenance, quality, producers, traceability",
+    description: "PWA keys — maintenance, quality, traceability",
     requires: "identity.device_keys",
     render: render,
   });
