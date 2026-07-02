@@ -476,6 +476,19 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   cursor: text;
 }
 .modal.modal-wide { width: min(560px, 92vw); }
+.modal.modal-wide .tile-perm-checks {
+  max-height: min(340px, 50vh);
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+.checks-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold);
+  margin: 12px 0 6px;
+  width: 100%;
+}
+.tile-perm-label { display: block; margin-bottom: 4px; }
 .modal .copy-status { font-size: 12px; color: var(--ok); min-height: 1.2em; margin-top: 8px; }
 .modal .checks { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .modal .checks label { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); }

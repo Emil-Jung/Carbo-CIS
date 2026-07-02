@@ -208,7 +208,7 @@
 
 
 
-    var adminBlock = ui.el("section", { class: "dashboard-admin-block" });
+    var adminBlock = ui.el("section", { class: "dashboard-block" });
 
     adminBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, ["Administration"]));
 
@@ -218,25 +218,25 @@
 
 
 
-    var mainBlock = ui.el("section", { class: "dashboard-main-block" });
+    var appsBlock = ui.el("section", { class: "dashboard-block" });
 
-    mainBlock.appendChild(ui.el("h3", { class: "dashboard-kind-title" }, ["Applications"]));
+    appsBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, ["Applications"]));
 
-    mainBlock.appendChild(renderRow(ui, mods, LAYOUT.applications, "dashboard-row-apps"));
+    appsBlock.appendChild(renderRow(ui, mods, LAYOUT.applications, "dashboard-row-apps"));
 
-
-
-    mainBlock.appendChild(ui.el("div", { class: "dashboard-apps-reports-split", "aria-hidden": "true" }));
+    container.appendChild(appsBlock);
 
 
 
-    mainBlock.appendChild(ui.el("h3", { class: "dashboard-kind-title" }, ["Reports & lookups"]));
+    var reportsBlock = ui.el("section", { class: "dashboard-block" });
 
-    mainBlock.appendChild(renderRow(ui, mods, LAYOUT.reportsRow1, "dashboard-row-reports"));
+    reportsBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, ["Reports & lookups"]));
 
-    mainBlock.appendChild(renderRow(ui, mods, LAYOUT.reportsRow2, "dashboard-row-reports"));
+    reportsBlock.appendChild(renderRow(ui, mods, LAYOUT.reportsRow1, "dashboard-row-reports"));
 
-    container.appendChild(mainBlock);
+    reportsBlock.appendChild(renderRow(ui, mods, LAYOUT.reportsRow2, "dashboard-row-reports"));
+
+    container.appendChild(reportsBlock);
 
   }
 

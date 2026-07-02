@@ -5,6 +5,44 @@
   CIS.modules = CIS.modules || [];
 
   let rolesCache = [];
+  let permissionsCache = [];
+
+  function permissionsForRoles(roleIds) {
+    var set = {};
+    rolesCache.forEach(function (r) {
+      if (roleIds.indexOf(r.role_id) === -1) return;
+      (r.permissions || []).forEach(function (p) { set[p] = true; });
+    });
+    return Object.keys(set);
+  }
+
+  function applyTemplateToTiles(roleName, tileInputs, mode) {
+    var role = rolesCache.find(function (r) { return r.name === roleName; });
+    if (!role) return;
+    var perms = role.permissions || [];
+    tileInputs.forEach(function (t) {
+      if (mode === "replace") {
+        t.cb.checked = perms.indexOf(t.key) !== -1;
+      } else if (perms.indexOf(t.key) !== -1) {
+        t.cb.checked = true;
+      }
+    });
+  }
+
+  function initialTileChecks(user, isEdit) {
+    if (isEdit && user.tile_permissions && user.tile_permissions.length) {
+      return user.tile_permissions.slice();
+    }
+    if (isEdit && user.permissions && user.permissions.length) {
+      return user.permissions.slice();
+    }
+    if (!isEdit) {
+      return permissionsForRoles(
+        rolesCache.filter(function (r) { return r.name === "production_office"; }).map(function (r) { return r.role_id; })
+      );
+    }
+    return [];
+  }
 
   function fullInviteUrl(path) {
     if (!path) return "";
@@ -16,7 +54,7 @@
     const ui = CIS.ui;
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Identity Administration"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Create accounts with User ID and roles only — leave password blank and send each person their personal CIS link. Device keys for PWAs are under Device keys.",
+      "Each CIS dashboard tile has its own permission. Pick tiles per person — e.g. finance can get Consumption (diesel) without Operations. Roles are templates only.",
     ]));
 
     const usersWrap = ui.el("div", {});
@@ -29,8 +67,12 @@
     usersWrap.appendChild(ui.el("p", { class: "muted" }, ["Loading…"]));
 
     try {
-      const roleResp = await ctx.api.identity("/roles");
+      const [roleResp, permResp] = await Promise.all([
+        ctx.api.identity("/roles"),
+        ctx.api.identity("/permissions"),
+      ]);
       rolesCache = roleResp.roles || [];
+      permissionsCache = permResp.permissions || [];
       await refreshUsers(ctx, usersWrap);
     } catch (e) {
       usersWrap.innerHTML = "";
@@ -45,7 +87,7 @@
     wrap.innerHTML = "";
     const table = ui.el("table", { class: "data" });
     table.innerHTML =
-      "<thead><tr><th>User ID</th><th>Name</th><th>Roles</th><th>Password</th><th>Status</th><th>Last login</th><th></th></tr></thead>";
+      "<thead><tr><th>User ID</th><th>Name</th><th>Tiles</th><th>Password</th><th>Status</th><th>Last login</th><th></th></tr></thead>";
     const tbody = ui.el("tbody", {});
     users.forEach((u) => {
       const tr = ui.el("tr", {});
@@ -55,7 +97,8 @@
       }, [u.needs_password ? "Awaiting setup" : "Set"]);
       tr.appendChild(ui.el("td", {}, [u.login_id]));
       tr.appendChild(ui.el("td", {}, [u.display_name]));
-      tr.appendChild(ui.el("td", { class: "muted" }, [(u.roles || []).join(", ") || "—"]));
+      var tileCount = (u.permissions || []).length;
+      tr.appendChild(ui.el("td", { class: "muted" }, [tileCount ? (tileCount + " tile" + (tileCount === 1 ? "" : "s")) : "—"]));
       tr.appendChild(ui.el("td", {}, [pwPill]));
       tr.appendChild(ui.el("td", {}, [statusPill]));
       tr.appendChild(ui.el("td", { class: "muted" }, [u.last_login_at ? String(u.last_login_at).slice(0, 16).replace("T", " ") : "—"]));
@@ -64,7 +107,7 @@
         actions.appendChild(ui.el("button", {
           class: "btn-ghost btn-sm",
           onclick: () => copyInvite(u),
-        }, ["Copy link"]));
+        }, ["Send invite"]));
       }
       actions.appendChild(ui.el("button", { class: "btn-ghost btn-sm", onclick: () => openUserModal(ctx, u, wrap) }, ["Edit"]));
       tr.appendChild(actions);
@@ -202,7 +245,7 @@
     const ui = CIS.ui;
     const isEdit = !!user;
     const backdrop = ui.el("div", { class: "modal-backdrop" });
-    const modal = ui.el("div", { class: "modal" });
+    const modal = ui.el("div", { class: "modal modal-wide" });
     backdrop.appendChild(modal);
 
     modal.appendChild(ui.el("h3", {}, [isEdit ? ("Edit " + user.login_id) : "New user"]));
@@ -238,14 +281,51 @@
       modal._statusSel = statusSel;
     }
 
-    modal.appendChild(ui.el("label", {}, ["Roles"]));
+    modal.appendChild(ui.el("label", {}, ["CIS tiles (individual access)"]));
+    modal.appendChild(ui.el("p", { class: "muted launcher-note" }, [
+      "Tick each dashboard tile this person may open. Use a template to pre-fill, then add or remove tiles.",
+    ]));
+
+    var tileChecks = ui.el("div", { class: "checks tile-perm-checks" });
+    var tileInputs = [];
+    var initial = initialTileChecks(user, isEdit);
+    var bySection = {};
+    permissionsCache.forEach(function (p) {
+      var sec = p.section || "Other";
+      if (!bySection[sec]) bySection[sec] = [];
+      bySection[sec].push(p);
+    });
+    Object.keys(bySection).sort().forEach(function (sec) {
+      tileChecks.appendChild(ui.el("div", { class: "checks-section-title" }, [sec]));
+      bySection[sec].forEach(function (p) {
+        var cb = ui.el("input", { type: "checkbox", value: p.key });
+        if (initial.indexOf(p.key) !== -1) cb.checked = true;
+        var lbl = ui.el("label", { class: "tile-perm-label" }, []);
+        lbl.appendChild(cb);
+        lbl.appendChild(document.createTextNode(p.label + " (" + p.key + ")"));
+        tileChecks.appendChild(lbl);
+        tileInputs.push({ cb: cb, key: p.key });
+      });
+    });
+
+    var templateRow = ui.el("div", { class: "launcher-actions" });
+    ["production_office", "operations", "finance", "quality_viewer"].forEach(function (name) {
+      if (!rolesCache.some(function (r) { return r.name === name; })) return;
+      var btn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Template: " + name]);
+      btn.addEventListener("click", function () {
+        applyTemplateToTiles(name, tileInputs, "replace");
+      });
+      templateRow.appendChild(btn);
+    });
+    modal.appendChild(templateRow);
+    modal.appendChild(tileChecks);
+
+    modal.appendChild(ui.el("label", {}, ["Legacy roles (optional — ignored once tile list is saved)"]));
     const checks = ui.el("div", { class: "checks" });
     const roleInputs = [];
     rolesCache.forEach((r) => {
       const cb = ui.el("input", { type: "checkbox", value: String(r.role_id) });
       if (isEdit && (user.roles || []).indexOf(r.name) !== -1) cb.checked = true;
-      if (!isEdit && r.name === "quality_viewer") cb.checked = true;
-      if (!isEdit && r.name === "admin") cb.checked = false;
       const lbl = ui.el("label", {}, []);
       lbl.appendChild(cb);
       lbl.appendChild(document.createTextNode(r.name + " — " + (r.description || "")));
@@ -264,12 +344,13 @@
     saveBtn.addEventListener("click", async () => {
       errEl.classList.add("hidden");
       const roleIds = roleInputs.filter((r) => r.cb.checked).map((r) => r.role_id);
+      const tilePermissions = tileInputs.filter((t) => t.cb.checked).map((t) => t.key);
       const pw = pwInput.value;
       saveBtn.disabled = true;
       saveBtn.textContent = "Saving…";
       try {
         if (isEdit) {
-          const body = { display_name: nameInput.value.trim(), status: modal._statusSel.value, role_ids: roleIds };
+          const body = { display_name: nameInput.value.trim(), status: modal._statusSel.value, role_ids: roleIds, tile_permissions: tilePermissions };
           if (pw.trim()) body.password = pw.trim();
           await ctx.api.identity("/users/" + user.user_id, { method: "PATCH", body });
           document.body.removeChild(backdrop);
@@ -279,6 +360,7 @@
             login_id: loginInput.value.trim(),
             display_name: nameInput.value.trim(),
             role_ids: roleIds,
+            tile_permissions: tilePermissions,
           };
           if (pw.trim()) body.password = pw.trim();
           const created = await ctx.api.identity("/users", { method: "POST", body });

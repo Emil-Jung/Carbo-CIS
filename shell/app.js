@@ -354,14 +354,9 @@
 
     if (!mod) return;
 
-    if (mod.inactive) {
-      /* Placeholder — open info page; no permission or external link. */
-    } else if (!canAccessModule(mod)) {
-
+    if (!canAccessModule(mod)) {
       showAccessDenied(mod);
-
       return;
-
     }
 
     state.activeModuleId = id;
