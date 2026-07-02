@@ -14,11 +14,12 @@
     return !CIS.isTrailerVehicle(vehicle);
   };
 
-  /** Skip dummy / sandbox assets (e.g. FL-TEST, TR-TEST) from fleet reports. */
+  /** Skip dummy / sandbox assets and inactive units from fleet reports. */
   CIS.isTestVehicle = function (vehicle) {
     if (!vehicle) return false;
+    if (String(vehicle.status || "").toLowerCase() === "inactive") return true;
     var id = String(vehicle.vehicle_id || "").trim();
-    if (/-TEST$/i.test(id) || /^TEST-/i.test(id)) return true;
+    if (/test/i.test(id)) return true;
     var fields = [
       vehicle.vehicle_type,
       vehicle.make,
@@ -35,14 +36,35 @@
 
   CIS.isTestVehicleId = function (vehicleId) {
     var id = String(vehicleId || "").trim();
-    if (/-TEST$/i.test(id) || /^TEST-/i.test(id)) return true;
-    return /\btest\b/i.test(id);
+    return /test/i.test(id);
   };
 
   CIS.filterFleetVehicles = function (vehicles) {
     return (vehicles || []).filter(function (v) {
-      return !CIS.isTestVehicle(v);
+      return v && !CIS.isTestVehicle(v);
     });
+  };
+
+  /** Sort key for fleet table — mirrors Maintenance Manager hub buckets. */
+  CIS.fleetCategoryRank = function (vehicle) {
+    var t = String((vehicle && vehicle.vehicle_type) || "").trim().toLowerCase();
+    var isTrailer = t.indexOf("trailer") !== -1;
+    var isFork = !t || t.indexOf("fork") !== -1 || t === "forklift" || t === "fork lift" || t === "fl";
+    var isTruck = t.indexOf("truck") !== -1 || t === "lorry" || t.indexOf("rigid") !== -1;
+    if (isTrailer) return 30;
+    if (isFork && !isTrailer) return 10;
+    if (isTruck && !isFork && !isTrailer) return 20;
+    if (t.indexOf("compressor") !== -1) return 50;
+    if (t.indexOf("generator") !== -1) return 60;
+    if (t.indexOf("workshop") !== -1) return 70;
+    if (t.indexOf("conveyor") !== -1) return 80;
+    if (t.indexOf("extinguish") !== -1 || (t.indexOf("fire") !== -1 && t.indexOf("fighting") !== -1)) return 90;
+    if (t && (t.indexOf("production") !== -1 && t.indexOf("machine") !== -1)) return 40;
+    return t ? 35 : 10;
+  };
+
+  CIS.compareVehicleIds = function (a, b) {
+    return String(a || "").localeCompare(String(b || ""), undefined, { numeric: true, sensitivity: "base" });
   };
 
   /** Maintenance service maths — mirrors Maintenance-Platform/calculations.py */

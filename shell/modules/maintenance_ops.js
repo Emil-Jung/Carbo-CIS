@@ -89,11 +89,10 @@
         "<th>Status</th><th>Last update</th>" +
         "</tr></thead>";
       var tbody = ui.el("tbody", {});
-      var order = { due: 0, soon: 1, ok: 2, unknown: 3 };
       rows.sort(function (a, b) {
-        var d = order[a.svc.state] - order[b.svc.state];
-        if (d !== 0) return d;
-        return String(a.v.vehicle_id).localeCompare(String(b.v.vehicle_id));
+        var typeOrder = CIS.fleetCategoryRank(a.v) - CIS.fleetCategoryRank(b.v);
+        if (typeOrder !== 0) return typeOrder;
+        return CIS.compareVehicleIds(a.v.vehicle_id, b.v.vehicle_id);
       });
 
       rows.forEach(function (r) {
@@ -132,6 +131,9 @@
         var ft = ui.el("table", { class: "data" });
         ft.innerHTML = "<thead><tr><th>Vehicle</th><th>Item</th><th>Raised</th></tr></thead>";
         var fb = ui.el("tbody", {});
+        openFaults.sort(function (a, b) {
+          return CIS.compareVehicleIds(a.vehicle_id, b.vehicle_id);
+        });
         openFaults.forEach(function (f) {
           var tr = ui.el("tr", {});
           tr.innerHTML =
