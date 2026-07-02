@@ -169,6 +169,7 @@
     var dt = new Date(s);
     if (isNaN(dt.getTime())) return "—";
     var now = new Date();
+    var dayMs = 86400000;
     var secs = Math.floor((now - dt) / 1000);
     if (secs < 3600 && secs >= 0) {
       var mins = Math.floor(secs / 60);
@@ -181,7 +182,7 @@
     }
     var yesterday = new Date(today.getTime() - dayMs);
     if (+day === +yesterday) return "Yesterday";
-    var deltaDays = Math.round((today - day) / 86400000);
+    var deltaDays = Math.round((today - day) / dayMs);
     if (deltaDays > 1 && deltaDays < 7) return deltaDays + " days ago";
     var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return dt.getDate() + " " + months[dt.getMonth()];
