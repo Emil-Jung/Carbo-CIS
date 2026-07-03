@@ -1,4 +1,4 @@
-/* Carbo Big-K Bag Stock — placeholder until traceability stock view is live. */
+/* Carbo Big-K Bag Stock — placeholder until traceability stock application is live. */
 
 (function () {
 
@@ -16,11 +16,11 @@
 
       title: "Carbo Big-K Bag Stock",
 
-      description: "Read-only bag inventory and session totals at the Big-K site.",
+      description: "Bag inventory and session totals at Carbo Namibia sites.",
 
       notes: [
 
-        "This report is not connected yet. It will link to traceability stock data when that service is live on bkweb3.",
+        "This application is not connected yet. It will link to traceability stock data when that service is live on bkweb3.",
 
       ],
 
@@ -40,7 +40,7 @@
 
     icon: "bags",
 
-    description: "Big-K bag inventory & session totals",
+    description: "Carbo Namibia bag stock application",
 
     inactive: true,
     requires: "traceability.stock.view",
