@@ -210,6 +210,59 @@
     return dt.getDate() + " " + months[dt.getMonth()];
   };
 
+  /** IANA zone for CIS timestamps (last login, etc.). Override in shell/config.json. */
+  CIS.displayTimezone = function (ctx) {
+    var cfg = (ctx && ctx.config) || {};
+    return (cfg.displayTimezone || "Africa/Windhoek").trim() || "Africa/Windhoek";
+  };
+
+  CIS.parseApiInstant = function (iso) {
+    if (!iso) return null;
+    var s = String(iso).trim().replace(" ", "T");
+    if (!s) return null;
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
+      return new Date(s + "Z");
+    }
+    return new Date(s);
+  };
+
+  /** Server UTC instant → local office time with zone label (e.g. CAT, BST). */
+  CIS.formatDateTime = function (iso, ctx) {
+    var dt = CIS.parseApiInstant(iso);
+    if (!dt || isNaN(dt.getTime())) return "—";
+    var tz = CIS.displayTimezone(ctx);
+    try {
+      return new Intl.DateTimeFormat("en-GB", {
+        timeZone: tz,
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZoneName: "short",
+      }).format(dt);
+    } catch (e) {
+      return String(iso).slice(0, 16).replace("T", " ");
+    }
+  };
+
+  /** ISO timestamp from fuel_records.created_at — date + optional time for reports. */
+  CIS.formatFuelFillDate = function (iso) {
+    if (!iso) return "—";
+    var s = String(iso).trim().replace(" ", "T").slice(0, 19);
+    var dt = new Date(s);
+    if (isNaN(dt.getTime())) return "—";
+    var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    var dateStr = dt.getDate() + " " + months[dt.getMonth()] + " " + dt.getFullYear();
+    var hh = dt.getHours();
+    var mm = dt.getMinutes();
+    if (hh || mm) {
+      return dateStr + ", " + String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+    }
+    return dateStr;
+  };
+
   CIS.launcherPage = function (container, ctx, opts) {
     var ui = CIS.ui;
     container.innerHTML = "";

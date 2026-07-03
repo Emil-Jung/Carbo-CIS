@@ -11,5 +11,6 @@
   "traceabilityScannerUrl": "/traceability/scanner/",
   "traceabilitySupervisorUrl": "/traceability/supervisor/",
   "bagStockUrl": "/traceability/supervisor/",
-  "cisVersion": "1.3.35"
+  "displayTimezone": "Africa/Windhoek",
+  "cisVersion": "1.3.36"
 }

@@ -52,7 +52,7 @@
 
     icon: "producers",
 
-    description: "Read-only producer and farm list",
+    description: "Read-only producer and farm list of all producers delivering charcoal to Carbo Namibia",
 
     requires: "producers.view",
 

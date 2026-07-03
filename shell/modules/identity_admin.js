@@ -105,7 +105,7 @@
       tr.appendChild(ui.el("td", { class: "muted" }, [tileCount ? (tileCount + " tile" + (tileCount === 1 ? "" : "s")) : "—"]));
       tr.appendChild(ui.el("td", {}, [pwPill]));
       tr.appendChild(ui.el("td", {}, [statusPill]));
-      tr.appendChild(ui.el("td", { class: "muted" }, [u.last_login_at ? String(u.last_login_at).slice(0, 16).replace("T", " ") : "—"]));
+      tr.appendChild(ui.el("td", { class: "muted" }, [CIS.formatDateTime(u.last_login_at, ctx)]));
       const actions = ui.el("td", {});
       if (u.needs_password && CIS.inviteUrl) {
         actions.appendChild(ui.el("button", {

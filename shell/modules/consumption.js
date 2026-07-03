@@ -46,6 +46,7 @@
           type: [v.make, v.model].filter(Boolean).join(" ") || v.vehicle_type || "",
           lph: s.liters_per_hour,
           last_fill: s.liters_added,
+          last_fill_date: s.created_at || "",
           cumulative: cum,
         };
       });
@@ -57,7 +58,7 @@
       const table = ui.el("table", { class: "data" });
       table.innerHTML =
         "<thead><tr><th>Vehicle</th><th>Make / model</th>" +
-        "<th>Litres / hour</th><th>Last fill (L)</th><th>Total litres</th></tr></thead>";
+        "<th>Litres / hour</th><th>Last fill (L)</th><th>Last fill date</th><th>Total litres</th></tr></thead>";
       const tbody = ui.el("tbody", {});
       rows.sort((a, b) => (b.cumulative || 0) - (a.cumulative || 0));
       rows.forEach((r) => {
@@ -67,6 +68,7 @@
           "<td class='muted'>" + ui.escape(r.type) + "</td>" +
           "<td>" + fmt(r.lph, 2) + "</td>" +
           "<td>" + fmt(r.last_fill, 1) + "</td>" +
+          "<td class='muted'>" + ui.escape(CIS.formatFuelFillDate(r.last_fill_date)) + "</td>" +
           "<td>" + fmt(r.cumulative, 0) + "</td>";
         tbody.appendChild(tr);
       });

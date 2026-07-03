@@ -45,6 +45,7 @@ def _prepare_shell_dir() -> str:
         "maintenancePwaUrl": "https://bkweb3.bigk.co.uk/maintenance/",
         "producersOfficeUrl": "https://bkweb3.bigk.co.uk/producers/office/",
         "maintenanceManagerUrl": "https://bkweb3.bigk.co.uk/maintenance/manager/",
+        "displayTimezone": "Africa/Windhoek",
         "cisVersion": CIS_VERSION,
     }
     with open(os.path.join(dest, "config.json"), "w", encoding="utf-8") as fh:
