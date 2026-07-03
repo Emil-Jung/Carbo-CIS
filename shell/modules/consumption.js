@@ -15,7 +15,7 @@
     const ui = CIS.ui;
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Consumption"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Diesel consumption in litres for powered assets (forklifts, trucks). Trailers are excluded — they have no diesel tank.",
+      "Diesel consumption in litres — forklifts FL-01 to FL-06 (more vehicles later). Trailers are excluded.",
     ]));
 
     const cards = ui.el("div", { class: "cards" });
@@ -31,7 +31,8 @@
       ]);
       const vehicles = (vehResp.vehicles || []).filter(function (v) {
         if (CIS.isTestVehicle && CIS.isTestVehicle(v)) return false;
-        return CIS.isFuelEligibleVehicle ? CIS.isFuelEligibleVehicle(v) : true;
+        if (!CIS.isFuelEligibleVehicle || !CIS.isFuelEligibleVehicle(v)) return false;
+        return CIS.isConsumptionForklift ? CIS.isConsumptionForklift(v) : true;
       });
       const summaries = (sumResp.summaries || {});
 
@@ -51,7 +52,7 @@
         };
       });
 
-      cards.appendChild(card(ui, "Powered assets", fmt(vehicles.length)));
+      cards.appendChild(card(ui, "Forklifts", fmt(vehicles.length)));
       cards.appendChild(card(ui, "Total litres (all time)", fmt(totalLitres, 0)));
       cards.appendChild(card(ui, "Vehicles with fuel data", fmt(withData)));
 
@@ -60,7 +61,9 @@
         "<thead><tr><th>Vehicle</th><th>Make / model</th>" +
         "<th>Litres / hour</th><th>Last fill (L)</th><th>Last fill date</th><th>Total litres</th></tr></thead>";
       const tbody = ui.el("tbody", {});
-      rows.sort((a, b) => (b.cumulative || 0) - (a.cumulative || 0));
+      rows.sort(function (a, b) {
+        return CIS.compareVehicleIds(a.vehicle_id, b.vehicle_id);
+      });
       rows.forEach((r) => {
         const tr = ui.el("tr", {});
         tr.innerHTML =
@@ -95,7 +98,7 @@
     kind: "lookup",
     order: 20,
     icon: "consumption",
-    description: "Diesel litres — powered assets only",
+    description: "Diesel litres — forklifts FL-01–FL-06",
     requires: "maintenance.fuel.view",
     render,
   });

@@ -67,6 +67,18 @@
     return String(a || "").localeCompare(String(b || ""), undefined, { numeric: true, sensitivity: "base" });
   };
 
+  /** Consumption report — forklifts FL-01 … FL-06 for now; trucks etc. later. */
+  CIS.consumptionForkliftNumber = function (vehicleId) {
+    var m = String(vehicleId || "").trim().toUpperCase().match(/^FL-0*(\d+)$/);
+    return m ? parseInt(m[1], 10) : NaN;
+  };
+
+  CIS.isConsumptionForklift = function (vehicle) {
+    if (!vehicle || !vehicle.vehicle_id) return false;
+    var n = CIS.consumptionForkliftNumber(vehicle.vehicle_id);
+    return !isNaN(n) && n >= 1 && n <= 6;
+  };
+
   /** Maintenance service maths — mirrors Maintenance-Platform/calculations.py */
   CIS.defaultServiceInterval = function (vehicle) {
     return CIS.isTrailerVehicle(vehicle) ? 40000 : 250;
