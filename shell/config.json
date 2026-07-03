@@ -11,5 +11,5 @@
   "traceabilityScannerUrl": "/traceability/scanner/",
   "traceabilitySupervisorUrl": "/traceability/supervisor/",
   "bagStockUrl": "/traceability/supervisor/",
-  "cisVersion": "1.3.34"
+  "cisVersion": "1.3.35"
 }
