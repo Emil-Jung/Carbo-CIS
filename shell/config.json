@@ -7,6 +7,7 @@
   "qualityViewerUrl": "/quality/viewer/",
   "qualityCaptureUrl": "/quality/",
   "producersOfficeUrl": "/producers/office/",
+  "producersApiBase": "/producers/api",
   "maintenanceManagerUrl": "/maintenance/manager/",
   "traceabilityScannerUrl": "/traceability/scanner/",
   "traceabilitySupervisorUrl": "/traceability/supervisor/",

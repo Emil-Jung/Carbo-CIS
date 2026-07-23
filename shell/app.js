@@ -83,6 +83,8 @@
 
     quality: (path, opts) => apiFetch(state.config.qualityApiBase || "/quality/api", path, opts),
 
+    producers: (path, opts) => apiFetch(state.config.producersApiBase || "/producers/api", path, opts),
+
   };
 
   CIS.getToken = () => state.token || localStorage.getItem(TOKEN_KEY);

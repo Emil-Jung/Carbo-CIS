@@ -44,6 +44,7 @@ def _prepare_shell_dir() -> str:
         "qualityApiBase": "https://bkweb3.bigk.co.uk/quality/api",
         "maintenancePwaUrl": "https://bkweb3.bigk.co.uk/maintenance/",
         "producersOfficeUrl": "https://bkweb3.bigk.co.uk/producers/office/",
+        "producersApiBase": "https://bkweb3.bigk.co.uk/producers/api",
         "maintenanceManagerUrl": "https://bkweb3.bigk.co.uk/maintenance/manager/",
         "displayTimezone": "Africa/Windhoek",
         "cisVersion": CIS_VERSION,
