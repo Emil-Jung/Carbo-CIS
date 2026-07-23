@@ -52,7 +52,7 @@
 
     icon: "producers",
 
-    description: "Capture FSC Other and Non FSC registrations",
+    description: "Capture FSC Other / Non FSC, edit names, reclassify to Non FSC",
 
     requires: "producers.office",
 
