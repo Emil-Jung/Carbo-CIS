@@ -4,6 +4,12 @@
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
+  var YEAR_OPTIONS = [
+    { value: "all", label: "All years" },
+    { value: "2025", label: "2025" },
+    { value: "2026", label: "2026" },
+  ];
+
   function fmt(n, d) {
     if (n == null || isNaN(n)) return "—";
     return Number(n).toLocaleString(undefined, {
@@ -53,46 +59,46 @@
     svg.innerHTML = parts.join("");
   }
 
-  async function render(container, ctx) {
-    var ui = CIS.ui;
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Restaurant quality"]));
-    container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Monthly restaurant % trend and loads above 8% from the factory Deliveries tracker.",
+  function card(ui, label, value) {
+    var c = ui.el("div", { class: "card" });
+    c.appendChild(ui.el("div", { class: "label" }, [label]));
+    c.appendChild(ui.el("div", { class: "value" }, [value]));
+    return c;
+  }
+
+  function yearLabel(data) {
+    var y = data.year;
+    if (y === "all" || y == null) return "all years";
+    return String(y);
+  }
+
+  function paintReport(body, data, ui) {
+    body.innerHTML = "";
+
+    var cards = ui.el("div", { class: "cards" });
+    var pa = data.portfolio_averages || {};
+    cards.appendChild(card(ui, "Portfolio avg — Restaurant", fmt(pa.restaurant, 2) + "%"));
+    cards.appendChild(card(ui, "Portfolio avg — Lumpwood", fmt(pa.lumpwood, 2) + "%"));
+    cards.appendChild(card(ui, "Portfolio avg — Fines", fmt(pa.fines, 2) + "%"));
+    cards.appendChild(card(ui, "Portfolio avg — Wastage", fmt(pa.wastage, 2) + "%"));
+    cards.appendChild(card(ui, "Loads > " + data.restaurant_threshold_pct + "%", fmt(data.high_restaurant_load_count)));
+    body.appendChild(cards);
+
+    var chartWrap = ui.el("div", { class: "report-chart-wrap" });
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "report-line-chart");
+    chartWrap.appendChild(svg);
+    body.appendChild(chartWrap);
+    renderLineChart(svg, data.monthly_trend || [], data.restaurant_threshold_pct || 8, ui.escape);
+
+    body.appendChild(ui.el("h3", { class: "module-subtitle" }, [
+      "Suppliers with loads above " + data.restaurant_threshold_pct + "% restaurant (" + yearLabel(data) + ")",
     ]));
 
-    var status = ui.el("p", { class: "muted" }, ["Loading…"]);
-    container.appendChild(status);
-
-    try {
-      var data = await ctx.api.qualityReports("/restaurant-report");
-      status.remove();
-
-      var cards = ui.el("div", { class: "cards" });
-      var pa = data.portfolio_averages || {};
-      cards.appendChild(card(ui, "Portfolio avg — Restaurant", fmt(pa.restaurant, 2) + "%"));
-      cards.appendChild(card(ui, "Portfolio avg — Lumpwood", fmt(pa.lumpwood, 2) + "%"));
-      cards.appendChild(card(ui, "Portfolio avg — Fines", fmt(pa.fines, 2) + "%"));
-      cards.appendChild(card(ui, "Portfolio avg — Wastage", fmt(pa.wastage, 2) + "%"));
-      cards.appendChild(card(ui, "Loads > " + data.restaurant_threshold_pct + "%", fmt(data.high_restaurant_load_count)));
-      container.appendChild(cards);
-
-      var chartWrap = ui.el("div", { class: "report-chart-wrap" });
-      var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("class", "report-line-chart");
-      chartWrap.appendChild(svg);
-      container.appendChild(chartWrap);
-      renderLineChart(svg, data.monthly_trend || [], data.restaurant_threshold_pct || 8, ui.escape);
-
-      container.appendChild(ui.el("h3", { class: "module-subtitle" }, [
-        "Suppliers with loads above " + data.restaurant_threshold_pct + "% restaurant",
-      ]));
-
-      var suppliers = data.high_restaurant_suppliers || [];
-      if (!suppliers.length) {
-        container.appendChild(ui.el("p", { class: "muted" }, ["No loads above threshold in range."]));
-        return;
-      }
-
+    var suppliers = data.high_restaurant_suppliers || [];
+    if (!suppliers.length) {
+      body.appendChild(ui.el("p", { class: "muted" }, ["No loads above threshold in range."]));
+    } else {
       suppliers.forEach(function (grp) {
         var block = ui.el("div", { class: "report-supplier-block" });
         var title = grp.supplier + " — " + grp.load_count + " load(s)";
@@ -116,23 +122,59 @@
         });
         table.appendChild(tbody);
         block.appendChild(table);
-        container.appendChild(block);
+        body.appendChild(block);
       });
-
-      container.appendChild(ui.el("p", { class: "muted" }, [
-        "Source: " + ui.escape(data.source_file || "") + " · through " + ui.escape(data.through_date || ""),
-      ]));
-    } catch (e) {
-      status.textContent = "";
-      container.appendChild(ui.error("Could not load report: " + (e.message || e)));
     }
+
+    body.appendChild(ui.el("p", { class: "muted" }, [
+      "Source: " + ui.escape(data.source_file || "") + " · through " + ui.escape(data.through_date || "") +
+        " · " + ui.escape(yearLabel(data)),
+    ]));
   }
 
-  function card(ui, label, value) {
-    var c = ui.el("div", { class: "card" });
-    c.appendChild(ui.el("div", { class: "label" }, [label]));
-    c.appendChild(ui.el("div", { class: "value" }, [value]));
-    return c;
+  async function render(container, ctx) {
+    var ui = CIS.ui;
+    container.appendChild(ui.el("h2", { class: "module-title" }, ["Restaurant quality"]));
+    container.appendChild(ui.el("p", { class: "module-desc" }, [
+      "Monthly restaurant % trend and loads above 8% from the factory Deliveries tracker.",
+    ]));
+
+    var toolbar = ui.el("div", { class: "toolbar" });
+    toolbar.appendChild(ui.el("label", { for: "restaurant-report-year" }, ["Year"]));
+    var yearSel = ui.el("select", { id: "restaurant-report-year" });
+    YEAR_OPTIONS.forEach(function (opt) {
+      var o = ui.el("option", { value: opt.value }, [opt.label]);
+      yearSel.appendChild(o);
+    });
+    toolbar.appendChild(yearSel);
+    container.appendChild(toolbar);
+
+    var status = ui.el("p", { class: "muted" }, ["Loading…"]);
+    container.appendChild(status);
+    var body = ui.el("div", { class: "report-body" });
+    container.appendChild(body);
+
+    async function loadReport(year) {
+      status.textContent = "Loading…";
+      status.style.display = "";
+      body.innerHTML = "";
+      try {
+        var path = "/restaurant-report?year=" + encodeURIComponent(year);
+        var data = await ctx.api.qualityReports(path);
+        status.style.display = "none";
+        paintReport(body, data, ui);
+      } catch (e) {
+        status.textContent = "";
+        body.innerHTML = "";
+        body.appendChild(ui.error("Could not load report: " + (e.message || e)));
+      }
+    }
+
+    yearSel.addEventListener("change", function () {
+      loadReport(yearSel.value);
+    });
+
+    await loadReport(yearSel.value);
   }
 
   CIS.modules.push({
