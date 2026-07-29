@@ -18,7 +18,7 @@
 
     reportsRow1: ["producers_view", "permit_status", "quality_view"],
 
-    reportsRow2: ["maintenance_ops", "consumption"],
+    reportsRow2: ["maintenance_ops", "consumption", "restaurant_report"],
 
   };
 

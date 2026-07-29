@@ -13,5 +13,6 @@
   "traceabilitySupervisorUrl": "/traceability/supervisor/",
   "bagStockUrl": "/traceability/supervisor/",
   "displayTimezone": "Africa/Windhoek",
-  "cisVersion": "1.3.38"
+  "qualityReportsApiBase": "/quality/reports/api",
+  "cisVersion": "1.3.40"
 }
