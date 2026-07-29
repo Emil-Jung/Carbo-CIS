@@ -185,7 +185,7 @@
     order: 15,
     icon: "quality",
     description: "Restaurant % trend and loads above 8%",
-    requires: "quality.view",
+    requires: "quality.restaurant_report",
     render: render,
   });
 })();
