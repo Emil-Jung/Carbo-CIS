@@ -24,10 +24,11 @@
       return;
     }
     var w = 720;
-    var h = 260;
-    var pad = { l: 48, r: 20, t: 24, b: 52 };
+    var h = 330;
+    var pad = { l: 48, r: 20, t: 24, b: 88 };
     var innerW = w - pad.l - pad.r;
     var innerH = h - pad.t - pad.b;
+    var labelY = h - pad.b + 36;
     var ys = points.map(function (p) { return p.avg_restaurant_pct; });
     var maxY = Math.max(threshold * 1.5, Math.max.apply(null, ys.concat([threshold])) * 1.1);
     var minY = 0;
@@ -49,8 +50,8 @@
       parts.push("<circle cx='" + x(i) + "' cy='" + y(p.avg_restaurant_pct) +
         "' r='3.5' fill='#7cb5ec'/>");
       if (i % Math.ceil(points.length / 12) === 0 || i === points.length - 1) {
-        parts.push("<text x='" + x(i) + "' y='" + (h - 12) + "' fill='#aaa' font-size='9' " +
-          "text-anchor='end' transform='rotate(-55 " + x(i) + " " + (h - 12) + ")'>" +
+        parts.push("<text x='" + x(i) + "' y='" + labelY + "' fill='#aaa' font-size='9' " +
+          "text-anchor='end' transform='rotate(-55 " + x(i) + " " + labelY + ")'>" +
           escapeHtml(p.label) + "</text>");
       }
     });
