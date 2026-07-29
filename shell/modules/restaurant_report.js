@@ -100,18 +100,17 @@
         block.appendChild(ui.el("h4", { class: "report-supplier-title" }, [title]));
         var table = ui.el("table", { class: "data" });
         table.innerHTML =
-          "<thead><tr><th>Date</th><th>GRN</th><th>Transporter</th><th>Tonnes</th>" +
-          "<th>% Restaurant</th><th>% Lumpwood</th><th>% Wastage</th></tr></thead>";
+          "<thead><tr><th>Date</th><th>Tonnes</th>" +
+          "<th>% Restaurant</th><th>% Lumpwood</th><th>% Fines</th><th>% Wastage</th></tr></thead>";
         var tbody = ui.el("tbody");
         (grp.loads || []).forEach(function (ld) {
           var tr = ui.el("tr");
           tr.innerHTML =
             "<td>" + ui.escape(ld.booking_date) + "</td>" +
-            "<td>" + ui.escape(ld.grn) + "</td>" +
-            "<td class='muted'>" + ui.escape(ld.transporter) + "</td>" +
             "<td>" + fmt(ld.weight_ton, 1) + "</td>" +
             "<td><strong>" + fmt(ld.pct_restaurant, 2) + "</strong></td>" +
             "<td>" + fmt(ld.pct_lumpwood, 2) + "</td>" +
+            "<td>" + fmt(ld.pct_fines, 2) + "</td>" +
             "<td>" + fmt(ld.pct_wastage, 2) + "</td>";
           tbody.appendChild(tr);
         });
