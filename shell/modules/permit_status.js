@@ -81,7 +81,11 @@
       var tbody = ui.el("tbody", {});
 
       rows.forEach(function (r) {
-        var tr = ui.el("tr", { class: "fleet-row-" + (r.permit_status === "expired" ? "due" : r.permit_status === "due_soon" ? "soon" : "ok") });
+        var rowClass = "fleet-row-ok";
+        if (r.member_status === "Suspended") rowClass = "fleet-row-due";
+        else if (r.permit_status === "expired") rowClass = "fleet-row-due";
+        else if (r.permit_status === "due_soon") rowClass = "fleet-row-soon";
+        var tr = ui.el("tr", { class: rowClass });
         tr.appendChild(ui.el("td", {}, [r.display_label || "—"]));
         var ms = r.member_status || "—";
         if (r.member_status === "Suspended" && r.suspension_reason) {
