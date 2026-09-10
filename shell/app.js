@@ -49,9 +49,15 @@
 
     if (res.status === 401) {
 
-      doLogout(true);
+      const identityBase = state.config && state.config.identityApiBase;
 
-      throw new Error("Session expired. Please sign in again.");
+      if (identityBase && base === identityBase) {
+
+        doLogout(true);
+
+        throw new Error("Session expired. Please sign in again.");
+
+      }
 
     }
 
@@ -63,7 +69,13 @@
 
     if (!res.ok) {
 
-      const detail = data && data.detail ? data.detail : ("HTTP " + res.status);
+      let detail = "HTTP " + res.status;
+
+      if (data && data.detail != null) {
+
+        detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+
+      }
 
       throw new Error(detail);
 
@@ -86,6 +98,14 @@
     producers: (path, opts) => apiFetch(state.config.producersApiBase || "/producers/api", path, opts),
 
     qualityReports: (path, opts) => apiFetch(state.config.qualityReportsApiBase || "/quality/reports/api", path, opts),
+
+    supplierTracking: (path, opts) =>
+      apiFetch(state.config.supplierTrackingApiBase || "/supplier-tracking/api", path, opts),
+
+    traceability: (path, opts) => {
+      const base = (state.config && state.config.traceabilityApiBase) || "/traceability/api/v1";
+      return apiFetch(base, path, opts);
+    },
 
   };
 

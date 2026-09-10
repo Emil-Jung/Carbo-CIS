@@ -46,6 +46,9 @@ def _prepare_shell_dir() -> str:
         "producersOfficeUrl": "https://bkweb3.bigk.co.uk/producers/office/",
         "producersApiBase": "https://bkweb3.bigk.co.uk/producers/api",
         "maintenanceManagerUrl": "https://bkweb3.bigk.co.uk/maintenance/manager/",
+        "traceabilityApiBase": config.TRACEABILITY_API_BASE_URL,
+        "qualityReportsApiBase": "https://bkweb3.bigk.co.uk/quality/reports/api",
+        "supplierTrackingApiBase": "https://bkweb3.bigk.co.uk/supplier-tracking/api",
         "displayTimezone": "Africa/Windhoek",
         "cisVersion": CIS_VERSION,
     }
@@ -141,6 +144,32 @@ class Api:
             "path": maintenance_host.manager_install_dir(config.DATA_DIR),
             "exe": maintenance_host.manager_exe_path(config.DATA_DIR),
         }
+
+    def send_zpl(self, host, port=9100, zpl=""):
+        """Send ZPL to a Zebra printer over RAW TCP (port 9100). Desktop CIS only."""
+        import re
+        import socket
+
+        host = (host or "").strip()
+        if not host or len(host) > 253 or not re.match(r"^[A-Za-z0-9.:-]+$", host):
+            return {"ok": False, "error": "Invalid printer host."}
+        try:
+            port_n = int(port)
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "Invalid printer port."}
+        if port_n < 1 or port_n > 65535:
+            return {"ok": False, "error": "Invalid printer port."}
+        if not isinstance(zpl, str) or not zpl.strip():
+            return {"ok": False, "error": "No ZPL to send."}
+        if len(zpl) > 2_000_000:
+            return {"ok": False, "error": "ZPL payload is too large."}
+        try:
+            with socket.create_connection((host, port_n), timeout=20) as sock:
+                sock.settimeout(20)
+                sock.sendall(zpl.encode("utf-8"))
+        except OSError as exc:
+            return {"ok": False, "error": str(exc)}
+        return {"ok": True}
 
 
 def _startup_update_check():

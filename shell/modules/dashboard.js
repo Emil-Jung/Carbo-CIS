@@ -14,11 +14,13 @@
 
     administration: ["identity_admin", "device_keys"],
 
-    applications: ["producers_office", "traceability", "quality_capture", "maintenance_manager", "bag_stock"],
+    applications: ["producers_office", "traceability", "quality_capture", "maintenance_manager"],
 
     reportsRow1: ["producers_view", "permit_status", "quality_view"],
 
     reportsRow2: ["maintenance_ops", "consumption", "restaurant_report"],
+
+    reportsRow3: ["supplier_contacts"],
 
   };
 
@@ -235,6 +237,8 @@
     reportsBlock.appendChild(renderRow(ui, mods, LAYOUT.reportsRow1, "dashboard-row-reports"));
 
     reportsBlock.appendChild(renderRow(ui, mods, LAYOUT.reportsRow2, "dashboard-row-reports"));
+
+    reportsBlock.appendChild(renderRow(ui, mods, LAYOUT.reportsRow3, "dashboard-row-reports"));
 
     container.appendChild(reportsBlock);
 
