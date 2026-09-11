@@ -9,7 +9,7 @@ See VERSIONING.md for the rules and examples.
 """
 
 CIS_MAJOR = 1      # X — CIS version
-CIS_MODULE = 4     # Y — Traceability hub + bag labels
-CIS_INTERNAL = 1   # Z — blue tab on the left (outside) as loaded
+CIS_MODULE = 5     # Y — Print Labels USB + layout
+CIS_INTERNAL = 1   # Z — ZT231 54×25 mm ZPL spec + test label
 
 CIS_VERSION = f"{CIS_MAJOR}.{CIS_MODULE}.{CIS_INTERNAL}"

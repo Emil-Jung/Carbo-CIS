@@ -636,6 +636,42 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   text-transform: none;
   letter-spacing: normal;
 }
+.print-labels-preview-stock {
+  background: #f4f1ea;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  color: #1a1200;
+}
+.print-labels-preview-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 280px;
+  aspect-ratio: 54 / 25;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+.print-labels-preview-qr {
+  flex: 0 0 auto;
+  max-height: 100%;
+}
+.print-labels-preview-qr svg {
+  display: block;
+  height: 72px;
+  width: auto;
+}
+.print-labels-preview-text {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}
+
 .bag-labels-preview {
   display: flex;
   gap: 20px;
