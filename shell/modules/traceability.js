@@ -9,7 +9,7 @@
     {
       id: "print_labels",
       title: "Print Labels",
-      description: "Allocate and print bag identity labels.",
+      description: "Allocate serials and print QR labels on the Zebra.",
       requires: "traceability.labels.print",
       icon: "labels",
     },
