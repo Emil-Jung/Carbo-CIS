@@ -61,10 +61,21 @@
     return modules * mag;
   }
 
+  function serialTextLines(serial) {
+    var m = /^BAG-(\d{4})-(\d{6,})$/.exec((serial || "").trim());
+    if (m) return { line1: "BAG-" + m[1], line2: m[2], twoLine: true };
+    return { line1: serial || "", line2: "", twoLine: false };
+  }
+
+  function estimateTextWidth(text, fontW) {
+    return (text || "").length * fontW * 0.65;
+  }
+
   function layoutLabel(serial, spec) {
     var s = Object.assign({}, DEFAULT_SPEC, spec || {});
     var d = specToDots(s);
     var payload = symbolPayload(serial, s);
+    var lines = serialTextLines(serial);
     var usableW = d.pw - 2 * d.margin;
     var usableH = d.ll - 2 * d.margin;
     var mag = d.qrMag > 0 ? d.qrMag : autoQrMag(payload.data, Math.min(usableH, usableW - d.textReserve - d.gap));
@@ -85,16 +96,25 @@
     var qrX = d.margin;
     var qrY = d.margin + Math.round((usableH - qrSize) / 2);
     var textX = qrX + qrSize + d.gap;
-    var textAreaW = d.pw - d.margin - textX;
-    var fontH = Math.min(32, Math.max(22, Math.round(usableH * 0.18)));
-    var fontW = Math.round(fontH * 0.9);
-    var estTextW = (serial || "").length * fontW * 0.55;
-    while (fontH > 18 && estTextW > textAreaW) {
-      fontH -= 2;
-      fontW = Math.round(fontH * 0.9);
-      estTextW = (serial || "").length * fontW * 0.55;
+    var textAreaW = Math.max(40, d.pw - d.margin - textX);
+    var lineCount = lines.twoLine ? 2 : 1;
+    var longestLine = lines.twoLine
+      ? Math.max(lines.line1.length, lines.line2.length)
+      : lines.line1.length;
+    var fontH = Math.min(20, Math.max(14, Math.round(usableH * 0.14)));
+    var fontW = Math.max(10, Math.round(fontH * 0.85));
+    var lineGap = Math.max(2, Math.round(fontH * 0.12));
+    var textBlockH = fontH * lineCount + lineGap * (lineCount - 1);
+    while (fontH > 11 && (
+      estimateTextWidth(longestLine, fontW) > textAreaW ||
+      textBlockH > usableH
+    )) {
+      fontH -= 1;
+      fontW = Math.max(9, Math.round(fontH * 0.85));
+      lineGap = Math.max(2, Math.round(fontH * 0.12));
+      textBlockH = fontH * lineCount + lineGap * (lineCount - 1);
     }
-    var textY = d.margin + Math.round((usableH - fontH) / 2);
+    var textY = d.margin + Math.round((usableH - textBlockH) / 2);
     return {
       dots: d,
       payload: payload,
@@ -104,8 +124,13 @@
       qrSize: qrSize,
       textX: textX,
       textY: textY,
+      textAreaW: textAreaW,
       fontH: fontH,
       fontW: fontW,
+      lineGap: lineGap,
+      textLine1: lines.line1,
+      textLine2: lines.line2,
+      textTwoLine: lines.twoLine,
       serial: serial,
     };
   }
@@ -119,14 +144,31 @@
     return "^FO" + layout.qrX + "," + layout.qrY + "^BQN,2," + mag + "^FD" + p.field + "," + p.data + "^FS";
   }
 
+  function zplTextField(layout) {
+    var lh = layout.fontH;
+    var lw = layout.fontW;
+    if (layout.textTwoLine) {
+      return (
+        "^FO" + layout.textX + "," + layout.textY +
+        "^A0N," + lh + "," + lw + "^FD" + layout.textLine1 + "^FS\n" +
+        "^FO" + layout.textX + "," + (layout.textY + lh + layout.lineGap) +
+        "^A0N," + lh + "," + lw + "^FD" + layout.textLine2 + "^FS\n"
+      );
+    }
+    return (
+      "^FO" + layout.textX + "," + layout.textY +
+      "^A0N," + lh + "," + lw +
+      "^FB" + layout.textAreaW + ",1,0,L,0^FD" + layout.textLine1 + "^FS\n"
+    );
+  }
+
   function zplOneLabel(serial, spec) {
     var layout = layoutLabel(serial, spec);
     var d = layout.dots;
     return (
       "^XA\n^CI28\n^PW" + d.pw + "\n^LL" + d.ll + "\n^LH0,0\n" +
       zplSymbolField(layout) + "\n" +
-      "^FO" + layout.textX + "," + layout.textY +
-      "^A0N," + layout.fontH + "," + layout.fontW + "^FD" + layout.serial + "^FS\n" +
+      zplTextField(layout) +
       "^XZ\n"
     );
   }
@@ -143,7 +185,7 @@
         heightMm: 25,
         marginMm: 2.5,
         gapMm: 1.5,
-        textReserveMm: 22,
+        textReserveMm: 26,
         qrMag: 0,
         qrBoostMag: PRODUCTION_QR_BOOST_MAG,
         symbol: "qr",

@@ -57,7 +57,8 @@ Full rules and examples in [`VERSIONING.md`](VERSIONING.md).
 ```
 cd desktop
 python -m venv .venv && .venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python app.py     REM  or RUN-CIS.cmd
+RUN-CIS.cmd or RUN-CIS.vbs      REM  no console (uses full path to pythonw)
+RUN-CIS-console.cmd             REM  dev: visible console + pause on exit
 ```
 
 Override endpoints for local dev with env vars `IDENTITY_API_BASE_URL`,

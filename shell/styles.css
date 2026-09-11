@@ -609,6 +609,7 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .print-labels-summary { margin-top: 12px; }
 .print-labels-status { margin-top: 10px; font-size: 13px; line-height: 1.45; }
+.print-labels-run-status { margin-top: 12px; }
 
 .bag-labels-form {
   display: grid;

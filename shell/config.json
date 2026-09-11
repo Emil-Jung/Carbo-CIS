@@ -16,5 +16,5 @@
   "displayTimezone": "Africa/Windhoek",
   "qualityReportsApiBase": "/quality/reports/api",
   "supplierTrackingApiBase": "/supplier-tracking/api",
-  "cisVersion": "1.5.5"
+  "cisVersion": "1.5.6"
 }

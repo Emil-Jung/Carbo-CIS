@@ -1,5 +1,5 @@
 @echo off
-REM Run the CIS desktop shell from source (development).
+REM Run CIS from source with no console window.
 cd /d "%~dp0"
-python app.py
-pause
+powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0RUN-CIS.ps1"
+exit /b %ERRORLEVEL%

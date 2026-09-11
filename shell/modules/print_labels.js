@@ -83,6 +83,7 @@
     var pendingRun = null;
     var pendingLabels = [];
     var pendingMode = null;
+    var pendingRecovery = false;
 
     container.innerHTML = "";
     container.className = "module-content print-labels-host";
@@ -145,6 +146,8 @@
     runPanel.body.appendChild(field(ui, "Note", noteEl));
     var prepareBtn = ui.el("button", { class: "btn-primary", type: "button" }, ["Continue"]);
     runPanel.body.appendChild(prepareBtn);
+    var runStatus = ui.el("p", { class: "print-labels-status print-labels-run-status muted" }, [""]);
+    runPanel.body.appendChild(runStatus);
 
     var reprintPanel = panel(ui, "Reprint label");
     mainCol.appendChild(reprintPanel.root);
@@ -155,7 +158,8 @@
       autocomplete: "off",
     });
     var reprintReasonEl = ui.el("input", { type: "text", placeholder: "Optional reason", value: "" });
-    reprintPanel.body.appendChild(field(ui, "Bag ID", reprintSerialEl, "Reprints the same Bag ID — never mints a new one."));
+    reprintPanel.body.appendChild(field(ui, "Bag ID", reprintSerialEl,
+      "Reprints an existing Bag ID, or recovers one left allocated after a failed print run (e.g. BAG-2026-000002)."));
     reprintPanel.body.appendChild(field(ui, "Reason", reprintReasonEl));
     var reprintBtn = ui.el("button", { class: "btn-secondary", type: "button" }, ["Prepare reprint"]);
     reprintPanel.body.appendChild(reprintBtn);
@@ -188,6 +192,9 @@
     var status = ui.el("p", { class: "print-labels-status muted" }, [""]);
     previewPanel.body.appendChild(status);
 
+    var oldModal = document.querySelector(".print-labels-modal-backdrop");
+    if (oldModal) oldModal.remove();
+
     container.appendChild(ui.el("button", {
       class: "btn-ghost btn-sm hub-back",
       type: "button",
@@ -209,7 +216,7 @@
     modal.appendChild(modalBody);
     modal.appendChild(modalActions);
     modalBackdrop.appendChild(modal);
-    container.appendChild(modalBackdrop);
+    document.body.appendChild(modalBackdrop);
 
     function readSaved() {
       return {
@@ -240,9 +247,23 @@
       networkWrap.style.display = net ? "" : "none";
     }
 
+    function apiErrorMessage(err) {
+      var msg = (err && err.message) || String(err || "Unknown error");
+      if (/not found/i.test(msg)) {
+        return msg + " — the traceability API route is missing on the server (nginx may need the /traceability/api/v1/ block; ask ops to reload nginx).";
+      }
+      return msg;
+    }
+
     function setStatus(msg, isError) {
+      var cls = "print-labels-status " + (isError ? "error-box" : "muted");
       status.textContent = msg || "";
-      status.className = "print-labels-status " + (isError ? "error-box" : "muted");
+      status.className = cls;
+      runStatus.textContent = msg || "";
+      runStatus.className = "print-labels-status print-labels-run-status " + (isError ? "error-box" : "muted");
+      if (isError && runStatus.scrollIntoView) {
+        runStatus.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
     }
 
     function setBusy(busy) {
@@ -300,8 +321,10 @@
         : "<p class=\"print-labels-field-hint\">Physical printing needs desktop CIS on Windows with a configured printer. You can download ZPL instead.</p>";
       modalBody.appendChild(ui.el("div", { html: htmlBody + extra }));
       modalPrintBtn.textContent = printLabel;
-      modalPrintBtn.disabled = !canPhysicalPrint();
-      modalDownloadBtn.style.display = showDownload ? "" : "none";
+      var canPrint = canPhysicalPrint();
+      modalPrintBtn.disabled = !canPrint;
+      // Download ZPL is for web CIS / troubleshooting — hide when desktop can print directly.
+      modalDownloadBtn.style.display = showDownload && !canPrint ? "" : "none";
       modalBackdrop.classList.remove("hidden");
     }
 
@@ -413,8 +436,11 @@
       var qty = run.quantity;
       var printer = run.printer_name || printerSummary();
       if (mode === "reprint") {
+        var title = pendingRecovery
+          ? "You are about to print a missing label from a failed run"
+          : "You are about to reprint 1 label";
         return (
-          "<p><strong>You are about to reprint 1 label</strong></p>" +
+          "<p><strong>" + title + "</strong></p>" +
           "<p>Bag ID:<br><code>" + run.first_serial + "</code></p>" +
           "<p>Printer:<br><strong>" + printer + "</strong></p>"
         );
@@ -438,6 +464,7 @@
       pendingRun = null;
       pendingLabels = [];
       pendingMode = null;
+      pendingRecovery = false;
       hideModal();
     }
 
@@ -459,11 +486,19 @@
         }
         setStatus("Printing…");
         var sent = 0;
-        for (var i = 0; i < serials.length; i += CHUNK) {
-          var chunk = serials.slice(i, i + CHUNK);
-          var res = await sendZpl(ZPL.zplBatch(chunk, spec));
-          if (!res || !res.ok) throw new Error((res && res.error) || "Printer error");
-          sent += chunk.length;
+        for (var i = 0; i < serials.length; i++) {
+          var one = serials[i];
+          var res = await sendZpl(ZPL.zplOneLabel(one, spec));
+          if (!res || !res.ok) {
+            throw new Error((res && res.error) || ("Printer error on " + one));
+          }
+          if (!isReprint) {
+            await ctx.api.traceability("/labels/print-runs/" + runId + "/label-printed", {
+              method: "POST",
+              body: { serial: one },
+            });
+          }
+          sent += 1;
           progressBar.style.width = Math.round((sent / serials.length) * 100) + "%";
         }
         if (isReprint) {
@@ -483,13 +518,18 @@
             body: { error: String(e.message || e) },
           });
         } catch (ignore) {}
-        setStatus("Print failed: " + (e.message || e) + " — Bag IDs remain reserved; check Print run history.", true);
+        setStatus(
+          "Print failed: " + (e.message || e) +
+          " - labels already printed are saved. Use Reprint label for any missing Bag ID (e.g. from a failed run).",
+          true
+        );
         await loadHistory();
         await loadInventory();
       } finally {
         pendingRun = null;
         pendingLabels = [];
         pendingMode = null;
+        pendingRecovery = false;
         hideModal();
         setBusy(false);
         progressWrap.style.display = "none";
@@ -539,7 +579,7 @@
         );
         setStatus("Bag IDs reserved — confirm or cancel before printing.");
       } catch (e) {
-        setStatus("Prepare failed: " + (e.message || e), true);
+        setStatus("Prepare failed: " + apiErrorMessage(e), true);
       } finally {
         setBusy(false);
       }
@@ -569,16 +609,19 @@
         pendingRun = data.print_run;
         pendingLabels = [{ serial: data.serial }];
         pendingMode = "reprint";
+        pendingRecovery = !!data.recovery;
         paintPreview(data.serial);
         showModal(
-          "Confirm reprint",
+          pendingRecovery ? "Confirm recovery print" : "Confirm reprint",
           confirmHtml(pendingRun, "reprint"),
-          "Reprint label",
+          pendingRecovery ? "Print missing label" : "Reprint label",
           true
         );
-        setStatus("Reprint prepared — confirm or cancel.");
+        setStatus(pendingRecovery
+          ? "Recovery print prepared — confirm or cancel."
+          : "Reprint prepared — confirm or cancel.");
       } catch (e) {
-        setStatus("Reprint prepare failed: " + (e.message || e), true);
+        setStatus("Reprint prepare failed: " + apiErrorMessage(e), true);
       } finally {
         setBusy(false);
       }
