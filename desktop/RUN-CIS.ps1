@@ -36,7 +36,8 @@ if (-not $pythonw) {
 
 $app = Join-Path $Root 'app.py'
 try {
-    Start-Process -FilePath $pythonw -ArgumentList @($app) -WorkingDirectory $Root -WindowStyle Hidden | Out-Null
+    # pythonw has no console; do NOT use -WindowStyle Hidden here — that hides the CIS window too.
+    Start-Process -FilePath $pythonw -ArgumentList @($app) -WorkingDirectory $Root | Out-Null
 } catch {
     Show-LaunchError ("Failed to start CIS:`n`n" + $_.Exception.Message)
     exit 1

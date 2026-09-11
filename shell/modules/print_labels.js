@@ -80,6 +80,10 @@
     var saved = loadSettings();
     var bridge = desktopBridge();
     var isDesktop = !!(bridge && (bridge.send_zpl_usb || bridge.send_zpl));
+    if (isDesktop && saved.connection === "network") {
+      saved.connection = "usb";
+      saveSettings(saved);
+    }
     var pendingRun = null;
     var pendingLabels = [];
     var pendingMode = null;
@@ -108,8 +112,8 @@
       ]));
     }
     var connEl = ui.el("select", {}, [
-      ui.el("option", { value: "usb", selected: saved.connection !== "network" }, ["USB (Windows)"]),
-      ui.el("option", { value: "network", selected: saved.connection === "network" }, ["Network (IP)"]),
+      ui.el("option", { value: "usb", selected: true }, ["USB (Windows)"]),
+      ui.el("option", { value: "network", selected: false }, ["Network (IP)"]),
     ]);
     var printerEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["— Refresh list —"])]);
     var refreshBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh list"]);
@@ -126,13 +130,23 @@
     var networkWrap = ui.el("div", { class: "print-labels-network-fields" });
     networkWrap.appendChild(field(ui, "Printer IP", hostEl));
     networkWrap.appendChild(field(ui, "Port", portEl));
-    printerPanel.body.appendChild(field(ui, "Connection", connEl));
-    printerPanel.body.appendChild(field(ui, "Windows printer", usbRow));
-    printerPanel.body.appendChild(field(ui, "Or type printer name", printerManualEl));
-    printerPanel.body.appendChild(networkWrap);
+    if (isDesktop) {
+      printerPanel.body.appendChild(field(ui, "Windows printer (USB)", usbRow,
+        "Select your Zebra from the Windows printer list."));
+      printerPanel.body.appendChild(field(ui, "Or type printer name", printerManualEl));
+    } else {
+      connEl.querySelector('option[value="network"]').selected = saved.connection === "network";
+      connEl.querySelector('option[value="usb"]').selected = saved.connection !== "network";
+      printerPanel.body.appendChild(field(ui, "Connection", connEl));
+      printerPanel.body.appendChild(field(ui, "Windows printer", usbRow));
+      printerPanel.body.appendChild(field(ui, "Or type printer name", printerManualEl));
+      printerPanel.body.appendChild(networkWrap);
+    }
 
     var runPanel = panel(ui, "Print run");
     mainCol.appendChild(runPanel.root);
+    var sequenceEl = ui.el("div", { class: "print-labels-sequence muted" }, ["Loading sequence…"]);
+    runPanel.body.appendChild(sequenceEl);
     var qtyEl = ui.el("input", {
       type: "text",
       inputmode: "numeric",
@@ -220,7 +234,7 @@
 
     function readSaved() {
       return {
-        connection: connEl.value === "network" ? "network" : "usb",
+        connection: isDesktop ? "usb" : (connEl.value === "network" ? "network" : "usb"),
         printerName: printerEl.value,
         printerNameManual: printerManualEl.value.trim(),
         printerHost: hostEl.value.trim(),
@@ -242,6 +256,7 @@
     }
 
     function syncConnectionUi() {
+      if (isDesktop) return;
       var net = connEl.value === "network";
       if (usbRow.parentElement) usbRow.parentElement.style.display = net ? "none" : "";
       networkWrap.style.display = net ? "" : "none";
@@ -276,6 +291,17 @@
       modalDownloadBtn.disabled = busy;
     }
 
+    function syncPreviewScale(stock, lay) {
+      var w = stock.clientWidth;
+      if (!w || !lay) return;
+      var dotPx = w / lay.dots.pw;
+      stock.style.fontSize = dotPx + "px";
+      var gapEm = lay.dots.gap / lay.dots.pw;
+      stock.style.gap = gapEm + "em";
+      stock.style.paddingLeft = (lay.dots.margin / lay.dots.pw) + "em";
+      stock.style.paddingRight = (lay.dots.margin / lay.dots.pw) + "em";
+    }
+
     function paintPreview(serial) {
       preview.innerHTML = "";
       summary.innerHTML = "";
@@ -290,6 +316,8 @@
       summary.appendChild(card);
       var stock = ui.el("div", { class: "print-labels-preview-inner" });
       var qrBox = ui.el("div", { class: "print-labels-preview-qr" });
+      qrBox.style.width = lay.qrSize + "em";
+      qrBox.style.height = lay.qrSize + "em";
       if (typeof qrcode === "function") {
         var qr = qrcode(0, "M");
         qr.addData(serial);
@@ -297,8 +325,45 @@
         qrBox.appendChild(ui.el("div", { html: qr.createSvgTag(3, 0) }));
       }
       stock.appendChild(qrBox);
-      stock.appendChild(ui.el("div", { class: "print-labels-preview-text" }, [serial]));
+      var textEl = ui.el("div", { class: "print-labels-preview-text" }, [serial]);
+      textEl.style.fontSize = lay.fontH + "em";
+      textEl.style.maxWidth = lay.textAreaW + "em";
+      stock.appendChild(textEl);
       preview.appendChild(stock);
+      syncPreviewScale(stock, lay);
+      if (typeof ResizeObserver !== "undefined") {
+        var ro = new ResizeObserver(function () { syncPreviewScale(stock, lay); });
+        ro.observe(stock);
+      }
+    }
+
+    async function loadSequence() {
+      if (!ctx.api.traceability) {
+        sequenceEl.textContent = "Traceability API not configured.";
+        return;
+      }
+      try {
+        var data = await ctx.api.traceability("/labels/sequence");
+        var parts = [];
+        if (data.last_allocated_serial) {
+          parts.push(
+            "Last in system: <code>" + data.last_allocated_serial + "</code>" +
+            (data.last_allocated_status ? " (" + data.last_allocated_status + ")" : "")
+          );
+        } else {
+          parts.push("No Bag IDs allocated for " + data.year + " yet.");
+        }
+        if (data.last_completed_print_serial) {
+          parts.push(
+            "Last completed print run ended at: <code>" + data.last_completed_print_serial + "</code>"
+          );
+        }
+        sequenceEl.innerHTML = parts.join("<br>") +
+          "<div class=\"print-labels-sequence-next\">Next new run starts at: <code>" +
+          (data.next_serial || "—") + "</code></div>";
+      } catch (e) {
+        sequenceEl.textContent = "Could not load sequence: " + (e.message || e);
+      }
     }
 
     function hideModal() {
@@ -458,6 +523,8 @@
         await ctx.api.traceability("/labels/print-runs/" + pendingRun.print_run_id + "/cancel", {
           method: "POST",
         });
+        await loadSequence();
+        await loadInventory();
       } catch (e) {
         setStatus("Cancel failed: " + (e.message || e), true);
       }
@@ -511,6 +578,7 @@
         noteEl.value = "";
         await loadHistory();
         await loadInventory();
+        await loadSequence();
       } catch (e) {
         try {
           await ctx.api.traceability("/labels/print-runs/" + runId + "/fail", {
@@ -525,6 +593,7 @@
         );
         await loadHistory();
         await loadInventory();
+        await loadSequence();
       } finally {
         pendingRun = null;
         pendingLabels = [];
@@ -637,7 +706,9 @@
       if (ev.target === modalBackdrop) cancelPending();
     });
 
-    connEl.addEventListener("change", function () { syncConnectionUi(); persistForm(); });
+    if (!isDesktop) {
+      connEl.addEventListener("change", function () { syncConnectionUi(); persistForm(); });
+    }
     refreshBtn.addEventListener("click", refreshPrinters);
     prepareBtn.addEventListener("click", prepareBatch);
     reprintBtn.addEventListener("click", prepareReprint);
@@ -651,6 +722,7 @@
     setStatus("Enter a quantity and click Continue. Bag IDs come from the server — nothing prints until you confirm.");
     loadInventory();
     loadHistory();
+    loadSequence();
     if (bridge && bridge.list_printers && saved.connection !== "network") refreshPrinters();
   }
 
