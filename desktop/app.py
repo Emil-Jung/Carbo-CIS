@@ -32,9 +32,12 @@ WINDOW_TITLE = f"Carbo Integrated System  —  v{CIS_VERSION}"
 def _prepare_shell_dir() -> str:
     """Copy the bundled shell to a writable temp dir and write a runtime config.json."""
     dest = os.path.join(tempfile.gettempdir(), "carbo_cis_shell")
-    if os.path.isdir(dest):
+    if os.path.lexists(dest):
         shutil.rmtree(dest, ignore_errors=True)
-    shutil.copytree(config.SHELL_DIR, dest)
+    if os.path.lexists(dest):
+        # Previous CIS or Explorer may still hold files — use a fresh folder.
+        dest = tempfile.mkdtemp(prefix="carbo_cis_shell_", dir=tempfile.gettempdir())
+    shutil.copytree(config.SHELL_DIR, dest, dirs_exist_ok=os.path.isdir(dest))
 
     runtime_config = {
         "appName": "Carbo Integrated System",
