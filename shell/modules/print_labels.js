@@ -160,6 +160,11 @@
     var reprintBtn = ui.el("button", { class: "btn-secondary", type: "button" }, ["Prepare reprint"]);
     reprintPanel.body.appendChild(reprintBtn);
 
+    var inventoryPanel = panel(ui, "Label inventory (server)");
+    mainCol.appendChild(inventoryPanel.root);
+    var inventoryEl = ui.el("div", { class: "print-labels-inventory muted" }, ["Loading…"]);
+    inventoryPanel.body.appendChild(inventoryEl);
+
     var historyPanel = panel(ui, "Print run history");
     mainCol.appendChild(historyPanel.root);
     var historyWrap = ui.el("div", { class: "print-labels-history-wrap" });
@@ -348,6 +353,24 @@
       return bridge.send_zpl_usb(name, zpl);
     }
 
+    async function loadInventory() {
+      if (!ctx.api.traceability) {
+        inventoryEl.textContent = "Traceability API not configured.";
+        return;
+      }
+      try {
+        var inv = await ctx.api.traceability("/labels/inventory");
+        var c = (inv && inv.counts) || {};
+        inventoryEl.textContent =
+          "Available to use: " + (inv.available_to_use != null ? inv.available_to_use : c.available || 0) +
+          " · Allocated (pending print): " + (c.allocated || 0) +
+          " · Used: " + (c.used || 0) +
+          " · Void: " + (c.void || 0);
+      } catch (e) {
+        inventoryEl.textContent = "Could not load inventory: " + (e.message || e);
+      }
+    }
+
     async function loadHistory() {
       if (!ctx.api.traceability) return;
       try {
@@ -452,6 +475,7 @@
         qtyEl.value = "";
         noteEl.value = "";
         await loadHistory();
+        await loadInventory();
       } catch (e) {
         try {
           await ctx.api.traceability("/labels/print-runs/" + runId + "/fail", {
@@ -461,6 +485,7 @@
         } catch (ignore) {}
         setStatus("Print failed: " + (e.message || e) + " — Bag IDs remain reserved; check Print run history.", true);
         await loadHistory();
+        await loadInventory();
       } finally {
         pendingRun = null;
         pendingLabels = [];
@@ -580,7 +605,8 @@
 
     syncConnectionUi();
     paintPreview(null);
-    setStatus("Enter a quantity and click Continue. Nothing prints until you confirm.");
+    setStatus("Enter a quantity and click Continue. Bag IDs come from the server — nothing prints until you confirm.");
+    loadInventory();
     loadHistory();
     if (bridge && bridge.list_printers && saved.connection !== "network") refreshPrinters();
   }
