@@ -671,6 +671,70 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   flex: 1;
   min-width: 0;
 }
+.print-labels-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.print-labels-modal-backdrop.hidden { display: none; }
+.print-labels-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  max-width: 440px;
+  width: 100%;
+  padding: 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+.print-labels-modal h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+.print-labels-modal-body {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.print-labels-modal-body code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+}
+.print-labels-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.print-labels-history-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.print-labels-history {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.print-labels-history th,
+.print-labels-history td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+.print-labels-history th {
+  background: var(--panel-2);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 11px;
+}
+.print-labels-history tr:last-child td { border-bottom: none; }
 
 .bag-labels-preview {
   display: flex;

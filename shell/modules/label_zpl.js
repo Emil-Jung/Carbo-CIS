@@ -2,8 +2,6 @@
 (function (root) {
   "use strict";
 
-  var MM_TO_DOTS_203 = 8; // 203 dpi ≈ 8 dots/mm
-
   var DEFAULT_SPEC = {
     dpi: 203,
     widthMm: 54,
@@ -16,8 +14,8 @@
     symbol: "qr",
   };
 
-  var TEST_SERIAL = "TEST-000001";
-  var PHYSICAL_TEST_COUNT = 10;
+  /** Physically verified on ZT231 — do not change without a new physical test. */
+  var PRODUCTION_QR_BOOST_MAG = 2;
 
   function mmToDots(mm, dpi) {
     return Math.round((mm * dpi) / 25.4);
@@ -37,11 +35,9 @@
     };
   }
 
-  /** What goes inside the 2D symbol — QR carries internal Bag ID only until GS1 is activated. */
   function symbolPayload(serial, spec) {
     var s = (serial || "").trim();
     if (spec.symbol === "datamatrix") {
-      // Future: return GS1 element string from backend when GTIN exists — not used yet.
       return { kind: "datamatrix", data: s, field: "FD" };
     }
     return { kind: "qr", data: s, field: "QA" };
@@ -89,8 +85,15 @@
     var qrX = d.margin;
     var qrY = d.margin + Math.round((usableH - qrSize) / 2);
     var textX = qrX + qrSize + d.gap;
+    var textAreaW = d.pw - d.margin - textX;
     var fontH = Math.min(32, Math.max(22, Math.round(usableH * 0.18)));
     var fontW = Math.round(fontH * 0.9);
+    var estTextW = (serial || "").length * fontW * 0.55;
+    while (fontH > 18 && estTextW > textAreaW) {
+      fontH -= 2;
+      fontW = Math.round(fontH * 0.9);
+      estTextW = (serial || "").length * fontW * 0.55;
+    }
     var textY = d.margin + Math.round((usableH - fontH) / 2);
     return {
       dots: d,
@@ -132,36 +135,32 @@
     return (serials || []).map(function (s) { return zplOneLabel(s, spec); }).join("");
   }
 
-  /** ~2–3 mm larger QR vs auto-only; keeps margins and vertical centring unchanged. */
-  function physicalTestSpec(spec) {
-    return Object.assign({}, spec || {}, { qrBoostMag: 1 });
-  }
-
-  function physicalTestSerials() {
-    var out = [];
-    for (var i = 1; i <= PHYSICAL_TEST_COUNT; i++) {
-      out.push("TEST-" + String(i).padStart(6, "0"));
-    }
-    return out;
+  function productionSpec(overrides) {
+    return Object.assign(
+      {
+        dpi: 203,
+        widthMm: 54,
+        heightMm: 25,
+        marginMm: 2.5,
+        gapMm: 1.5,
+        textReserveMm: 22,
+        qrMag: 0,
+        qrBoostMag: PRODUCTION_QR_BOOST_MAG,
+        symbol: "qr",
+      },
+      overrides || {}
+    );
   }
 
   root.CIS_LABEL_ZPL = {
     DEFAULT_SPEC: DEFAULT_SPEC,
-    TEST_SERIAL: TEST_SERIAL,
-    PHYSICAL_TEST_COUNT: PHYSICAL_TEST_COUNT,
+    PRODUCTION_QR_BOOST_MAG: PRODUCTION_QR_BOOST_MAG,
     mmToDots: mmToDots,
     specToDots: specToDots,
     symbolPayload: symbolPayload,
     layoutLabel: layoutLabel,
     zplOneLabel: zplOneLabel,
     zplBatch: zplBatch,
-    physicalTestSpec: physicalTestSpec,
-    physicalTestSerials: physicalTestSerials,
-    zplTestLabel: function (spec) {
-      return zplOneLabel(TEST_SERIAL, physicalTestSpec(spec));
-    },
-    zplPhysicalTestBatch: function (spec) {
-      return zplBatch(physicalTestSerials(), physicalTestSpec(spec));
-    },
+    productionSpec: productionSpec,
   };
 })(window);

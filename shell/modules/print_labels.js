@@ -1,24 +1,22 @@
-/* Print Labels — ZT231 54×25 mm bag identity labels (QR + serial). */
+/* Print Labels — production ZT231 bag identity labels (server-allocated Bag IDs). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
   var ZPL = window.CIS_LABEL_ZPL;
 
-  var LS = "cis_print_labels_v3";
+  var LS = "cis_print_labels_v4";
   var CHUNK = 50;
+  var MAX_QUANTITY = 10000;
+  var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
 
   function loadSettings() {
-    var d = ZPL ? ZPL.DEFAULT_SPEC : {};
     var s = {
       connection: "usb",
       printerName: "",
       printerNameManual: "",
       printerHost: "",
       printerPort: 9100,
-      labelCount: 1,
-      marginMm: d.marginMm,
-      qrMag: d.qrMag || 0,
     };
     try {
       var raw = localStorage.getItem(LS);
@@ -32,19 +30,6 @@
     localStorage.setItem(LS, JSON.stringify(s));
   }
 
-  function labelSpec(saved) {
-    return {
-      dpi: 203,
-      widthMm: 54,
-      heightMm: 25,
-      marginMm: parseFloat(saved.marginMm) || 2.5,
-      gapMm: 1.5,
-      textReserveMm: 22,
-      qrMag: parseInt(saved.qrMag, 10) || 0,
-      symbol: "qr",
-    };
-  }
-
   function desktopBridge() {
     return window.pywebview && window.pywebview.api ? window.pywebview.api : null;
   }
@@ -56,10 +41,6 @@
     a.download = filename;
     a.click();
     URL.revokeObjectURL(a.href);
-  }
-
-  function serialsOf(batch) {
-    return batch.map(function (l) { return l.serial; });
   }
 
   function panel(ui, title) {
@@ -78,23 +59,37 @@
     return w;
   }
 
+  function parseQuantity(raw) {
+    var t = (raw || "").trim();
+    if (!t) return { error: "Enter the number of labels required." };
+    if (!/^\d+$/.test(t)) return { error: "Quantity must be a whole number (no decimals or text)." };
+    var n = parseInt(t, 10);
+    if (n < 1) return { error: "Quantity must be at least 1." };
+    if (n > MAX_QUANTITY) {
+      return { error: "Maximum print run size is " + MAX_QUANTITY + " labels per job." };
+    }
+    return { value: n };
+  }
+
   function render(container, ctx) {
     if (!ZPL) {
       container.textContent = "Label module failed to load (label_zpl.js).";
       return;
     }
     var ui = CIS.ui;
-    var batch = [];
     var saved = loadSettings();
     var bridge = desktopBridge();
-    var isDesktop = !!(bridge && bridge.send_zpl_usb);
+    var isDesktop = !!(bridge && (bridge.send_zpl_usb || bridge.send_zpl));
+    var pendingRun = null;
+    var pendingLabels = [];
+    var pendingMode = null;
 
     container.innerHTML = "";
     container.className = "module-content print-labels-host";
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Print Labels"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "ZT231 · 54 × 25 mm · 203 dpi · QR encodes the Bag ID only (no GS1 yet).",
+      "Production bag identity labels · ZT231 · 54 × 25 mm · 203 dpi · Bag IDs allocated by the server.",
     ]));
 
     var layout = ui.el("div", { class: "print-labels-layout" });
@@ -107,27 +102,22 @@
     var printerPanel = panel(ui, "Printer");
     mainCol.appendChild(printerPanel.root);
     if (!isDesktop) {
-      printerPanel.body.appendChild(ui.el("p", { class: "error-box" }, [
-        "You are in browser CIS — USB printers cannot be listed here. ",
-        "Close this tab and run desktop CIS: Carbo-CIS\\desktop\\RUN-CIS.cmd",
-      ]));
-    } else {
       printerPanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
-        "Desktop CIS — USB printing is available when Windows sees the Zebra as a printer.",
+        "Browser CIS — you can prepare a run and download ZPL. USB printing requires desktop CIS on Windows.",
       ]));
     }
     var connEl = ui.el("select", {}, [
       ui.el("option", { value: "usb", selected: saved.connection !== "network" }, ["USB (Windows)"]),
       ui.el("option", { value: "network", selected: saved.connection === "network" }, ["Network (IP)"]),
     ]);
-    var printerEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["— Refresh after USB connect —"])]);
+    var printerEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["— Refresh list —"])]);
     var refreshBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh list"]);
     var usbRow = ui.el("div", { class: "print-labels-printer-row" });
     usbRow.appendChild(printerEl);
     usbRow.appendChild(refreshBtn);
     var printerManualEl = ui.el("input", {
       type: "text",
-      placeholder: "Exact name from Windows Settings → Printers",
+      placeholder: "Exact Windows printer name",
       value: saved.printerNameManual || saved.printerName || "",
     });
     var hostEl = ui.el("input", { type: "text", placeholder: "192.168.x.x", value: saved.printerHost || "" });
@@ -136,54 +126,48 @@
     networkWrap.appendChild(field(ui, "Printer IP", hostEl));
     networkWrap.appendChild(field(ui, "Port", portEl));
     printerPanel.body.appendChild(field(ui, "Connection", connEl));
-    printerPanel.body.appendChild(field(ui, "Windows printer", usbRow, "Refresh after USB is plugged in and driver installed."));
-    printerPanel.body.appendChild(field(ui, "Or type printer name", printerManualEl,
-      "Use if the dropdown is empty — copy the name exactly from Windows."));
+    printerPanel.body.appendChild(field(ui, "Windows printer", usbRow));
+    printerPanel.body.appendChild(field(ui, "Or type printer name", printerManualEl));
     printerPanel.body.appendChild(networkWrap);
 
-    var tunePanel = panel(ui, "Layout tuning");
-    mainCol.appendChild(tunePanel.root);
-    var marginEl = ui.el("input", { type: "number", min: "1", max: "6", step: "0.5", value: String(saved.marginMm || 2.5) });
-    var qrMagEl = ui.el("input", { type: "number", min: "0", max: "10", step: "1", value: String(saved.qrMag || 0) });
-    var tuneGrid = ui.el("div", { class: "print-labels-grid" });
-    tuneGrid.appendChild(field(ui, "Safe margin (mm)", marginEl, "From each edge; default 2.5"));
-    tuneGrid.appendChild(field(ui, "QR magnification", qrMagEl, "0 = auto from 54×25 mm"));
-    tunePanel.body.appendChild(tuneGrid);
-    tunePanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
-      "Printer: darkness 30, speed 4. Adjust margin or QR mag after the physical test scan.",
-    ]));
+    var runPanel = panel(ui, "Print run");
+    mainCol.appendChild(runPanel.root);
+    var qtyEl = ui.el("input", {
+      type: "text",
+      inputmode: "numeric",
+      autocomplete: "off",
+      placeholder: "Enter quantity",
+      value: "",
+    });
+    var noteEl = ui.el("input", { type: "text", placeholder: "Optional note", value: "" });
+    runPanel.body.appendChild(field(ui, "Quantity", qtyEl,
+      "Required — no default. Maximum " + MAX_QUANTITY + " labels per run."));
+    runPanel.body.appendChild(field(ui, "Note", noteEl));
+    var prepareBtn = ui.el("button", { class: "btn-primary", type: "button" }, ["Continue"]);
+    runPanel.body.appendChild(prepareBtn);
 
-    var testPanel = panel(ui, "Physical test (non-production)");
-    mainCol.appendChild(testPanel.root);
-    testPanel.body.appendChild(ui.el("p", { class: "muted", style: "margin:0 0 10px" }, [
-      "Uses ",
-      ui.el("code", {}, ["TEST-000001"]),
-      " … ",
-      ui.el("code", {}, ["TEST-000010"]),
-      " only. QR payload matches the printed text. Never allocated or written to traceability.",
-    ]));
-    testPanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint", style: "margin:0 0 10px" }, [
-      "QR is ~2–3 mm larger than the previous single-label test; margins and centring unchanged.",
-    ]));
-    var testBtn = ui.el("button", { class: "btn-secondary", type: "button" }, ["Print one test label"]);
-    var run10Btn = ui.el("button", { class: "btn-primary", type: "button" }, ["Print 10-label alignment test"]);
-    var testActions = ui.el("div", { class: "print-labels-actions" });
-    testActions.appendChild(testBtn);
-    testActions.appendChild(run10Btn);
-    testPanel.body.appendChild(testActions);
+    var reprintPanel = panel(ui, "Reprint label");
+    mainCol.appendChild(reprintPanel.root);
+    var reprintSerialEl = ui.el("input", {
+      type: "text",
+      placeholder: "BAG-2026-000137",
+      value: "",
+      autocomplete: "off",
+    });
+    var reprintReasonEl = ui.el("input", { type: "text", placeholder: "Optional reason", value: "" });
+    reprintPanel.body.appendChild(field(ui, "Bag ID", reprintSerialEl, "Reprints the same Bag ID — never mints a new one."));
+    reprintPanel.body.appendChild(field(ui, "Reason", reprintReasonEl));
+    var reprintBtn = ui.el("button", { class: "btn-secondary", type: "button" }, ["Prepare reprint"]);
+    reprintPanel.body.appendChild(reprintBtn);
 
-    var jobPanel = panel(ui, "Production run");
-    mainCol.appendChild(jobPanel.root);
-    var countEl = ui.el("input", { type: "number", min: "1", max: "10000", value: String(saved.labelCount || 1) });
-    var yearEl = ui.el("input", { type: "number", min: "2020", max: "2100", value: String(new Date().getFullYear()) });
-    var noteEl = ui.el("input", { type: "text", placeholder: "Optional", value: "" });
-    var jobGrid = ui.el("div", { class: "print-labels-grid print-labels-grid--job" });
-    jobGrid.appendChild(field(ui, "Labels", countEl));
-    jobGrid.appendChild(field(ui, "Year", yearEl));
-    jobGrid.appendChild(field(ui, "Note", noteEl));
-    jobPanel.body.appendChild(jobGrid);
-    var allocBtn = ui.el("button", { class: "btn-primary", type: "button" }, ["Allocate serials"]);
-    jobPanel.body.appendChild(allocBtn);
+    var historyPanel = panel(ui, "Print run history");
+    mainCol.appendChild(historyPanel.root);
+    var historyWrap = ui.el("div", { class: "print-labels-history-wrap" });
+    var historyTable = ui.el("table", { class: "print-labels-history" });
+    historyWrap.appendChild(historyTable);
+    historyPanel.body.appendChild(historyWrap);
+    var refreshHistoryBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh history"]);
+    historyPanel.body.appendChild(refreshHistoryBtn);
 
     var previewPanel = panel(ui, "Preview");
     sideCol.appendChild(previewPanel.root);
@@ -191,18 +175,11 @@
     previewPanel.body.appendChild(preview);
     var summary = ui.el("div", { class: "cards print-labels-summary" });
     previewPanel.body.appendChild(summary);
-    var actions = ui.el("div", { class: "print-labels-actions" });
-    var printBtn = ui.el("button", { class: "btn-primary", type: "button", disabled: true }, ["Print batch"]);
-    var dlBtn = ui.el("button", { class: "btn-secondary", type: "button", disabled: true }, ["Download ZPL"]);
-    var markBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button", disabled: true }, ["Mark printed"]);
-    actions.appendChild(printBtn);
-    actions.appendChild(dlBtn);
-    actions.appendChild(markBtn);
-    previewPanel.body.appendChild(actions);
     var progressWrap = ui.el("div", { class: "bag-labels-progress" });
     progressWrap.appendChild(ui.el("div", { class: "bag-labels-progress-bar" }));
     previewPanel.body.appendChild(progressWrap);
     var progressBar = progressWrap.firstChild;
+    progressWrap.style.display = "none";
     var status = ui.el("p", { class: "print-labels-status muted" }, [""]);
     previewPanel.body.appendChild(status);
 
@@ -212,6 +189,23 @@
       onclick: function () { if (CIS.openModule) CIS.openModule("traceability"); },
     }, ["Back to Traceability"]));
 
+    var modalBackdrop = ui.el("div", { class: "print-labels-modal-backdrop hidden" });
+    var modal = ui.el("div", { class: "print-labels-modal" });
+    var modalTitle = ui.el("h3", {}, ["Confirm print run"]);
+    var modalBody = ui.el("div", { class: "print-labels-modal-body" });
+    var modalActions = ui.el("div", { class: "print-labels-modal-actions" });
+    var modalCancelBtn = ui.el("button", { class: "btn-ghost", type: "button" }, ["Cancel"]);
+    var modalPrintBtn = ui.el("button", { class: "btn-primary", type: "button" }, ["Print"]);
+    var modalDownloadBtn = ui.el("button", { class: "btn-secondary", type: "button" }, ["Download ZPL"]);
+    modalActions.appendChild(modalCancelBtn);
+    modalActions.appendChild(modalDownloadBtn);
+    modalActions.appendChild(modalPrintBtn);
+    modal.appendChild(modalTitle);
+    modal.appendChild(modalBody);
+    modal.appendChild(modalActions);
+    modalBackdrop.appendChild(modal);
+    container.appendChild(modalBackdrop);
+
     function readSaved() {
       return {
         connection: connEl.value === "network" ? "network" : "usb",
@@ -219,9 +213,6 @@
         printerNameManual: printerManualEl.value.trim(),
         printerHost: hostEl.value.trim(),
         printerPort: parseInt(portEl.value, 10) || 9100,
-        labelCount: parseInt(countEl.value, 10) || 1,
-        marginMm: parseFloat(marginEl.value) || 2.5,
-        qrMag: parseInt(qrMagEl.value, 10) || 0,
       };
     }
 
@@ -234,15 +225,8 @@
       saveSettings(readSaved());
     }
 
-    function currentSpec() {
-      return labelSpec(readSaved());
-    }
-
-    function previewSpec(serial) {
-      if (/^TEST-\d{6}$/.test((serial || "").trim())) {
-        return ZPL.physicalTestSpec(currentSpec());
-      }
-      return currentSpec();
+    function labelSpec() {
+      return ZPL.productionSpec();
     }
 
     function syncConnectionUi() {
@@ -257,28 +241,27 @@
     }
 
     function setBusy(busy) {
-      testBtn.disabled = busy;
-      run10Btn.disabled = busy;
-      allocBtn.disabled = busy;
-      printBtn.disabled = busy || !batch.length;
-      dlBtn.disabled = busy || !batch.length;
-      markBtn.disabled = busy || !batch.length;
+      prepareBtn.disabled = busy;
+      reprintBtn.disabled = busy;
+      refreshBtn.disabled = busy;
+      refreshHistoryBtn.disabled = busy;
+      modalPrintBtn.disabled = busy;
+      modalCancelBtn.disabled = busy;
+      modalDownloadBtn.disabled = busy;
     }
 
     function paintPreview(serial) {
       preview.innerHTML = "";
       summary.innerHTML = "";
-      if (!serial) return;
-      var lay = ZPL.layoutLabel(serial, previewSpec(serial));
+      if (!serial) {
+        preview.appendChild(ui.el("p", { class: "muted" }, ["Enter a quantity to preview the first label."]));
+        return;
+      }
+      var lay = ZPL.layoutLabel(serial, labelSpec());
       var card = ui.el("div", { class: "card" });
-      card.appendChild(ui.el("div", { class: "label" }, ["Serial"]));
+      card.appendChild(ui.el("div", { class: "label" }, ["Bag ID"]));
       card.appendChild(ui.el("div", { class: "value" }, [serial]));
       summary.appendChild(card);
-      var card2 = ui.el("div", { class: "card" });
-      card2.appendChild(ui.el("div", { class: "label" }, ["QR mag (dots)"]));
-      card2.appendChild(ui.el("div", { class: "value" }, [String(lay.mag) + " · ~" + lay.qrSize + " dots"]));
-      summary.appendChild(card2);
-
       var stock = ui.el("div", { class: "print-labels-preview-inner" });
       var qrBox = ui.el("div", { class: "print-labels-preview-qr" });
       if (typeof qrcode === "function") {
@@ -290,16 +273,43 @@
       stock.appendChild(qrBox);
       stock.appendChild(ui.el("div", { class: "print-labels-preview-text" }, [serial]));
       preview.appendChild(stock);
-      preview.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
-        "Screen preview — trust the printed label for scan margin and size (432×200 dots).",
-      ]));
+    }
+
+    function hideModal() {
+      modalBackdrop.classList.add("hidden");
+    }
+
+    function canPhysicalPrint() {
+      var s = readSaved();
+      if (s.connection === "network") {
+        return !!(bridge && bridge.send_zpl && s.printerHost);
+      }
+      return !!(bridge && bridge.send_zpl_usb && resolvedPrinterName(s));
+    }
+
+    function showModal(title, htmlBody, printLabel, showDownload) {
+      modalTitle.textContent = title;
+      modalBody.innerHTML = "";
+      var extra = canPhysicalPrint()
+        ? ""
+        : "<p class=\"print-labels-field-hint\">Physical printing needs desktop CIS on Windows with a configured printer. You can download ZPL instead.</p>";
+      modalBody.appendChild(ui.el("div", { html: htmlBody + extra }));
+      modalPrintBtn.textContent = printLabel;
+      modalPrintBtn.disabled = !canPhysicalPrint();
+      modalDownloadBtn.style.display = showDownload ? "" : "none";
+      modalBackdrop.classList.remove("hidden");
+    }
+
+    function printerSummary() {
+      var s = readSaved();
+      if (s.connection === "network") {
+        return (s.printerHost || "Network printer") + (s.printerPort ? ":" + s.printerPort : "");
+      }
+      return resolvedPrinterName(s) || "USB printer";
     }
 
     async function refreshPrinters() {
-      if (!bridge || !bridge.list_printers) {
-        setStatus("Printer list needs desktop CIS (RUN-CIS.cmd), not the browser.", true);
-        return;
-      }
+      if (!bridge || !bridge.list_printers) return;
       refreshBtn.disabled = true;
       try {
         var res = await bridge.list_printers();
@@ -308,15 +318,9 @@
         printerEl.innerHTML = "";
         if (!names.length) {
           printerEl.appendChild(ui.el("option", { value: "" }, ["No printers in Windows"]));
-          setStatus(
-            (res && res.error) ||
-            "Windows reports no printers. Check: USB cable · power on · Zebra driver installed · printer visible in Settings → Printers. Then type the name manually above.",
-            true
-          );
           return;
         }
         var pick = sel;
-        if (!pick && res.default_printer) pick = res.default_printer;
         if (!pick) {
           names.forEach(function (n) {
             if (/zebra|zdesigner|zt231/i.test(n)) pick = n;
@@ -326,9 +330,6 @@
           printerEl.appendChild(ui.el("option", { value: name, selected: name === pick }, [name]));
         });
         if (pick) printerManualEl.value = pick;
-        setStatus("Found " + names.length + " printer(s). " + (pick ? "Selected: " + pick : "Select your Zebra."));
-      } catch (e) {
-        setStatus(String(e.message || e), true);
       } finally {
         refreshBtn.disabled = false;
       }
@@ -337,61 +338,154 @@
     async function sendZpl(zpl) {
       var s = readSaved();
       if (s.connection === "network") {
-        if (!bridge || !bridge.send_zpl) throw new Error("Network print needs installed CIS.");
+        if (!bridge || !bridge.send_zpl) throw new Error("Network print needs desktop CIS.");
         if (!s.printerHost) throw new Error("Enter printer IP.");
         return bridge.send_zpl(s.printerHost, s.printerPort, zpl);
       }
-      if (!bridge || !bridge.send_zpl_usb) throw new Error("USB print needs desktop CIS (RUN-CIS.cmd).");
+      if (!bridge || !bridge.send_zpl_usb) throw new Error("USB print needs desktop CIS on Windows.");
       var name = resolvedPrinterName(s);
-      if (!name) throw new Error("Select a printer from the list or type its Windows name exactly.");
+      if (!name) throw new Error("Select or enter the Windows printer name.");
       return bridge.send_zpl_usb(name, zpl);
     }
 
-    async function printTestLabel() {
-      persistForm();
-      setBusy(true);
-      setStatus("Sending test label " + ZPL.TEST_SERIAL + "…");
-      paintPreview(ZPL.TEST_SERIAL);
+    async function loadHistory() {
+      if (!ctx.api.traceability) return;
       try {
-        var res = await sendZpl(ZPL.zplTestLabel(currentSpec()));
-        if (!res || !res.ok) throw new Error((res && res.error) || "Printer error");
-        setStatus("Test label sent. Inspect print and scan before the 10-label run.");
+        var data = await ctx.api.traceability("/labels/print-runs?limit=50");
+        var runs = (data && data.print_runs) || [];
+        historyTable.innerHTML = "";
+        var thead = ui.el("thead");
+        var hr = ui.el("tr");
+        ["Run", "When", "User", "Qty", "First ID", "Last ID", "Printer", "Status"].forEach(function (h) {
+          hr.appendChild(ui.el("th", {}, [h]));
+        });
+        thead.appendChild(hr);
+        historyTable.appendChild(thead);
+        var tbody = ui.el("tbody");
+        if (!runs.length) {
+          var empty = ui.el("tr");
+          empty.appendChild(ui.el("td", { colspan: "8", class: "muted" }, ["No print runs yet."]));
+          tbody.appendChild(empty);
+        } else {
+          runs.forEach(function (run) {
+            var tr = ui.el("tr");
+            tr.appendChild(ui.el("td", {}, ["#" + run.print_run_id + (run.run_type === "reprint" ? " R" : "")]));
+            tr.appendChild(ui.el("td", {}, [run.created_at ? run.created_at.replace("T", " ").replace("Z", "") : ""]));
+            tr.appendChild(ui.el("td", {}, [run.operator_login || ""]));
+            tr.appendChild(ui.el("td", {}, [String(run.quantity)]));
+            tr.appendChild(ui.el("td", {}, [run.first_serial || ""]));
+            tr.appendChild(ui.el("td", {}, [run.last_serial || ""]));
+            tr.appendChild(ui.el("td", {}, [run.printer_name || ""]));
+            tr.appendChild(ui.el("td", {}, [run.status || ""]));
+            tbody.appendChild(tr);
+          });
+        }
+        historyTable.appendChild(tbody);
       } catch (e) {
-        setStatus("Test print failed: " + (e.message || e), true);
-      } finally {
-        setBusy(false);
+        setStatus("Could not load history: " + (e.message || e), true);
       }
     }
 
-    async function printPhysicalAlignmentTest() {
+    function confirmHtml(run, mode) {
+      var qty = run.quantity;
+      var printer = run.printer_name || printerSummary();
+      if (mode === "reprint") {
+        return (
+          "<p><strong>You are about to reprint 1 label</strong></p>" +
+          "<p>Bag ID:<br><code>" + run.first_serial + "</code></p>" +
+          "<p>Printer:<br><strong>" + printer + "</strong></p>"
+        );
+      }
+      return (
+        "<p><strong>You are about to print:</strong><br>" + qty + " label" + (qty === 1 ? "" : "s") + "</p>" +
+        "<p>Bag IDs:<br><code>" + run.first_serial + "</code><br>to<br><code>" + run.last_serial + "</code></p>" +
+        "<p>Printer:<br><strong>" + printer + "</strong></p>"
+      );
+    }
+
+    async function cancelPending() {
+      if (!pendingRun || !ctx.api.traceability) return;
+      try {
+        await ctx.api.traceability("/labels/print-runs/" + pendingRun.print_run_id + "/cancel", {
+          method: "POST",
+        });
+      } catch (e) {
+        setStatus("Cancel failed: " + (e.message || e), true);
+      }
+      pendingRun = null;
+      pendingLabels = [];
+      pendingMode = null;
+      hideModal();
+    }
+
+    async function executePrint() {
+      if (!pendingRun || !pendingLabels.length) return;
       persistForm();
-      var serials = ZPL.physicalTestSerials();
       setBusy(true);
       progressWrap.style.display = "block";
       progressBar.style.width = "0%";
-      paintPreview(serials[0]);
-      setStatus("Sending 10 non-production labels (" + serials[0] + " … " + serials[serials.length - 1] + ")…");
+      var runId = pendingRun.print_run_id;
+      var serials = pendingLabels.map(function (l) { return l.serial; });
+      var spec = labelSpec();
+      var isReprint = pendingMode === "reprint";
       try {
-        var res = await sendZpl(ZPL.zplPhysicalTestBatch(currentSpec()));
-        if (!res || !res.ok) throw new Error((res && res.error) || "Printer error");
-        progressBar.style.width = "100%";
-        setStatus(
-          "10 TEST labels sent. STOP — inspect alignment, drift, QR scan on every label before any layout changes."
-        );
+        if (isReprint) {
+          await ctx.api.traceability("/labels/print-runs/" + runId + "/start", { method: "POST" });
+        } else {
+          await ctx.api.traceability("/labels/print-runs/" + runId + "/start", { method: "POST" });
+        }
+        setStatus("Printing…");
+        var sent = 0;
+        for (var i = 0; i < serials.length; i += CHUNK) {
+          var chunk = serials.slice(i, i + CHUNK);
+          var res = await sendZpl(ZPL.zplBatch(chunk, spec));
+          if (!res || !res.ok) throw new Error((res && res.error) || "Printer error");
+          sent += chunk.length;
+          progressBar.style.width = Math.round((sent / serials.length) * 100) + "%";
+        }
+        if (isReprint) {
+          await ctx.api.traceability("/labels/print-runs/reprint/" + runId + "/complete", { method: "POST" });
+        } else {
+          await ctx.api.traceability("/labels/print-runs/" + runId + "/complete", { method: "POST" });
+        }
+        setStatus("Print run #" + runId + " completed (" + sent + " label" + (sent === 1 ? "" : "s") + ").");
+        qtyEl.value = "";
+        noteEl.value = "";
+        await loadHistory();
       } catch (e) {
-        setStatus("10-label test failed: " + (e.message || e), true);
+        try {
+          await ctx.api.traceability("/labels/print-runs/" + runId + "/fail", {
+            method: "POST",
+            body: { error: String(e.message || e) },
+          });
+        } catch (ignore) {}
+        setStatus("Print failed: " + (e.message || e) + " — Bag IDs remain reserved; check Print run history.", true);
+        await loadHistory();
       } finally {
+        pendingRun = null;
+        pendingLabels = [];
+        pendingMode = null;
+        hideModal();
         setBusy(false);
         progressWrap.style.display = "none";
       }
     }
 
-    async function allocate() {
+    function downloadPendingZpl() {
+      if (!pendingLabels.length) return;
+      var serials = pendingLabels.map(function (l) { return l.serial; });
+      var name = serials.length === 1
+        ? serials[0] + ".zpl"
+        : serials[0] + "_" + serials[serials.length - 1] + ".zpl";
+      downloadText(name, ZPL.zplBatch(serials, labelSpec()));
+      setStatus("ZPL downloaded for " + serials.length + " label(s).");
+    }
+
+    async function prepareBatch() {
       persistForm();
-      var count = parseInt(countEl.value, 10);
-      var y = parseInt(yearEl.value, 10);
-      if (!count || count < 1 || count > 10000) {
-        setStatus("Count must be 1–10000.", true);
+      var parsed = parseQuantity(qtyEl.value);
+      if (parsed.error) {
+        setStatus(parsed.error, true);
         return;
       }
       if (!ctx.api.traceability) {
@@ -400,98 +494,95 @@
       }
       setBusy(true);
       try {
-        var body = { count: count, year: y };
+        var body = {
+          quantity: parsed.value,
+          printer_name: resolvedPrinterName() || null,
+          printer_connection: readSaved().connection,
+        };
         var note = noteEl.value.trim();
         if (note) body.note = note;
-        var data = await ctx.api.traceability("/labels/allocate", { method: "POST", body: body });
-        batch = data.labels || [];
-        setStatus("Allocated " + batch.length + " serial(s).");
-        if (batch.length) paintPreview(batch[0].serial);
+        var data = await ctx.api.traceability("/labels/print-runs/prepare", { method: "POST", body: body });
+        pendingRun = data.print_run;
+        pendingLabels = data.labels || [];
+        pendingMode = "batch";
+        if (pendingLabels.length) paintPreview(pendingLabels[0].serial);
+        showModal(
+          "Confirm print run",
+          confirmHtml(pendingRun, "batch"),
+          "Print " + pendingRun.quantity + " labels",
+          true
+        );
+        setStatus("Bag IDs reserved — confirm or cancel before printing.");
       } catch (e) {
-        setStatus("Allocate failed: " + (e.message || e), true);
+        setStatus("Prepare failed: " + (e.message || e), true);
       } finally {
         setBusy(false);
       }
     }
 
-    async function markPrinted() {
-      if (!batch.length) return;
+    async function prepareReprint() {
+      persistForm();
+      var serial = reprintSerialEl.value.trim();
+      if (!SERIAL_RE.test(serial)) {
+        setStatus("Enter a valid Bag ID (BAG-YYYY-NNNNNN).", true);
+        return;
+      }
+      if (!ctx.api.traceability) {
+        setStatus("Traceability API not configured.", true);
+        return;
+      }
       setBusy(true);
       try {
-        var data = await ctx.api.traceability("/labels/mark-printed", {
-          method: "POST",
-          body: { serials: serialsOf(batch) },
-        });
-        setStatus("Marked " + (data.updated != null ? data.updated : batch.length) + " printed.");
+        var body = {
+          serial: serial,
+          printer_name: resolvedPrinterName() || null,
+          printer_connection: readSaved().connection,
+        };
+        var reason = reprintReasonEl.value.trim();
+        if (reason) body.reason = reason;
+        var data = await ctx.api.traceability("/labels/print-runs/reprint/prepare", { method: "POST", body: body });
+        pendingRun = data.print_run;
+        pendingLabels = [{ serial: data.serial }];
+        pendingMode = "reprint";
+        paintPreview(data.serial);
+        showModal(
+          "Confirm reprint",
+          confirmHtml(pendingRun, "reprint"),
+          "Reprint label",
+          true
+        );
+        setStatus("Reprint prepared — confirm or cancel.");
       } catch (e) {
-        setStatus(e.message || String(e), true);
+        setStatus("Reprint prepare failed: " + (e.message || e), true);
       } finally {
         setBusy(false);
       }
     }
 
-    async function printRoll() {
-      persistForm();
-      if (!batch.length) return;
-      var serials = serialsOf(batch);
-      var spec = currentSpec();
-      setBusy(true);
-      progressWrap.style.display = serials.length > 1 ? "block" : "none";
-      progressBar.style.width = "0%";
-      var sent = 0;
-      try {
-        for (var i = 0; i < serials.length; i += CHUNK) {
-          var chunk = serials.slice(i, i + CHUNK);
-          var res = await sendZpl(ZPL.zplBatch(chunk, spec));
-          if (!res || !res.ok) throw new Error((res && res.error) || "Printer error");
-          sent += chunk.length;
-          if (serials.length > 1) progressBar.style.width = Math.round((sent / serials.length) * 100) + "%";
-        }
-        var marked = await ctx.api.traceability("/labels/mark-printed", {
-          method: "POST",
-          body: { serials: serials },
-        });
-        setStatus("Printed and marked " + (marked.updated != null ? marked.updated : sent) + ".");
-      } catch (e) {
-        setStatus("Print failed: " + (e.message || e), true);
-      } finally {
-        setBusy(false);
-        progressWrap.style.display = "none";
-      }
-    }
-
-    function download() {
-      persistForm();
-      if (!batch.length) return;
-      var serials = serialsOf(batch);
-      downloadText(
-        serials.length === 1 ? serials[0] + ".zpl" : serials[0] + "_" + serials[serials.length - 1] + ".zpl",
-        ZPL.zplBatch(serials, currentSpec())
-      );
-      setStatus("ZPL downloaded.");
-    }
+    modalCancelBtn.addEventListener("click", function () {
+      cancelPending();
+      setStatus("Print run cancelled — Bag IDs were not printed.");
+    });
+    modalPrintBtn.addEventListener("click", executePrint);
+    modalDownloadBtn.addEventListener("click", downloadPendingZpl);
+    modalBackdrop.addEventListener("click", function (ev) {
+      if (ev.target === modalBackdrop) cancelPending();
+    });
 
     connEl.addEventListener("change", function () { syncConnectionUi(); persistForm(); });
     refreshBtn.addEventListener("click", refreshPrinters);
-    [marginEl, qrMagEl, printerEl, printerManualEl].forEach(function (el) {
-      el.addEventListener("change", function () {
-        persistForm();
-        paintPreview(batch.length ? batch[0].serial : ZPL.TEST_SERIAL);
-      });
+    prepareBtn.addEventListener("click", prepareBatch);
+    reprintBtn.addEventListener("click", prepareReprint);
+    refreshHistoryBtn.addEventListener("click", loadHistory);
+    [printerEl, printerManualEl].forEach(function (el) {
+      el.addEventListener("change", persistForm);
     });
-    testBtn.addEventListener("click", printTestLabel);
-    run10Btn.addEventListener("click", printPhysicalAlignmentTest);
-    allocBtn.addEventListener("click", allocate);
-    printBtn.addEventListener("click", printRoll);
-    dlBtn.addEventListener("click", download);
-    markBtn.addEventListener("click", markPrinted);
 
     syncConnectionUi();
-    paintPreview(ZPL.TEST_SERIAL);
-    setStatus(isDesktop
-      ? "Run the 10-label alignment test when ready. TEST-* IDs never enter production."
-      : "Use installed CIS on Windows for USB print, or Download ZPL.");
-    if (isDesktop && saved.connection !== "network") refreshPrinters();
+    paintPreview(null);
+    setStatus("Enter a quantity and click Continue. Nothing prints until you confirm.");
+    loadHistory();
+    if (bridge && bridge.list_printers && saved.connection !== "network") refreshPrinters();
   }
 
   CIS.modules.push({
