@@ -13,6 +13,7 @@
     var s = {
       connection: "usb",
       printerName: "",
+      printerNameManual: "",
       printerHost: "",
       printerPort: 9100,
       labelCount: 1,
@@ -105,6 +106,16 @@
 
     var printerPanel = panel(ui, "Printer");
     mainCol.appendChild(printerPanel.root);
+    if (!isDesktop) {
+      printerPanel.body.appendChild(ui.el("p", { class: "error-box" }, [
+        "You are in browser CIS — USB printers cannot be listed here. ",
+        "Close this tab and run desktop CIS: Carbo-CIS\\desktop\\RUN-CIS.cmd",
+      ]));
+    } else {
+      printerPanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
+        "Desktop CIS — USB printing is available when Windows sees the Zebra as a printer.",
+      ]));
+    }
     var connEl = ui.el("select", {}, [
       ui.el("option", { value: "usb", selected: saved.connection !== "network" }, ["USB (Windows)"]),
       ui.el("option", { value: "network", selected: saved.connection === "network" }, ["Network (IP)"]),
@@ -114,15 +125,20 @@
     var usbRow = ui.el("div", { class: "print-labels-printer-row" });
     usbRow.appendChild(printerEl);
     usbRow.appendChild(refreshBtn);
+    var printerManualEl = ui.el("input", {
+      type: "text",
+      placeholder: "Exact name from Windows Settings → Printers",
+      value: saved.printerNameManual || saved.printerName || "",
+    });
     var hostEl = ui.el("input", { type: "text", placeholder: "192.168.x.x", value: saved.printerHost || "" });
     var portEl = ui.el("input", { type: "number", min: "1", max: "65535", value: String(saved.printerPort || 9100) });
     var networkWrap = ui.el("div", { class: "print-labels-network-fields" });
     networkWrap.appendChild(field(ui, "Printer IP", hostEl));
     networkWrap.appendChild(field(ui, "Port", portEl));
     printerPanel.body.appendChild(field(ui, "Connection", connEl));
-    printerPanel.body.appendChild(field(ui, "Windows printer", usbRow, isDesktop
-      ? "Zebra driver installed; connect USB then Refresh."
-      : "USB print requires installed CIS on Windows."));
+    printerPanel.body.appendChild(field(ui, "Windows printer", usbRow, "Refresh after USB is plugged in and driver installed."));
+    printerPanel.body.appendChild(field(ui, "Or type printer name", printerManualEl,
+      "Use if the dropdown is empty — copy the name exactly from Windows."));
     printerPanel.body.appendChild(networkWrap);
 
     var tunePanel = panel(ui, "Layout tuning");
@@ -191,12 +207,18 @@
       return {
         connection: connEl.value === "network" ? "network" : "usb",
         printerName: printerEl.value,
+        printerNameManual: printerManualEl.value.trim(),
         printerHost: hostEl.value.trim(),
         printerPort: parseInt(portEl.value, 10) || 9100,
         labelCount: parseInt(countEl.value, 10) || 1,
         marginMm: parseFloat(marginEl.value) || 2.5,
         qrMag: parseInt(qrMagEl.value, 10) || 0,
       };
+    }
+
+    function resolvedPrinterName(s) {
+      s = s || readSaved();
+      return (s.printerName || s.printerNameManual || "").trim();
     }
 
     function persistForm() {
@@ -258,24 +280,36 @@
 
     async function refreshPrinters() {
       if (!bridge || !bridge.list_printers) {
-        setStatus("Printer list needs the installed CIS app.", true);
+        setStatus("Printer list needs desktop CIS (RUN-CIS.cmd), not the browser.", true);
         return;
       }
       refreshBtn.disabled = true;
       try {
         var res = await bridge.list_printers();
         var names = (res && res.printers) || [];
-        var sel = saved.printerName;
+        var sel = resolvedPrinterName(saved);
         printerEl.innerHTML = "";
         if (!names.length) {
-          printerEl.appendChild(ui.el("option", { value: "" }, ["No printers — connect USB"]));
-          setStatus((res && res.error) || "No Windows printers found.", true);
+          printerEl.appendChild(ui.el("option", { value: "" }, ["No printers in Windows"]));
+          setStatus(
+            (res && res.error) ||
+            "Windows reports no printers. Check: USB cable · power on · Zebra driver installed · printer visible in Settings → Printers. Then type the name manually above.",
+            true
+          );
           return;
         }
+        var pick = sel;
+        if (!pick && res.default_printer) pick = res.default_printer;
+        if (!pick) {
+          names.forEach(function (n) {
+            if (/zebra|zdesigner|zt231/i.test(n)) pick = n;
+          });
+        }
         names.forEach(function (name) {
-          printerEl.appendChild(ui.el("option", { value: name, selected: name === sel }, [name]));
+          printerEl.appendChild(ui.el("option", { value: name, selected: name === pick }, [name]));
         });
-        setStatus("Select your Zebra printer.");
+        if (pick) printerManualEl.value = pick;
+        setStatus("Found " + names.length + " printer(s). " + (pick ? "Selected: " + pick : "Select your Zebra."));
       } catch (e) {
         setStatus(String(e.message || e), true);
       } finally {
@@ -290,9 +324,10 @@
         if (!s.printerHost) throw new Error("Enter printer IP.");
         return bridge.send_zpl(s.printerHost, s.printerPort, zpl);
       }
-      if (!bridge || !bridge.send_zpl_usb) throw new Error("USB print needs installed CIS on Windows.");
-      if (!s.printerName) throw new Error("Select a printer (Refresh list).");
-      return bridge.send_zpl_usb(s.printerName, zpl);
+      if (!bridge || !bridge.send_zpl_usb) throw new Error("USB print needs desktop CIS (RUN-CIS.cmd).");
+      var name = resolvedPrinterName(s);
+      if (!name) throw new Error("Select a printer from the list or type its Windows name exactly.");
+      return bridge.send_zpl_usb(name, zpl);
     }
 
     async function printTestLabel() {
@@ -398,7 +433,7 @@
 
     connEl.addEventListener("change", function () { syncConnectionUi(); persistForm(); });
     refreshBtn.addEventListener("click", refreshPrinters);
-    [marginEl, qrMagEl, printerEl].forEach(function (el) {
+    [marginEl, qrMagEl, printerEl, printerManualEl].forEach(function (el) {
       el.addEventListener("change", function () {
         persistForm();
         paintPreview(batch.length ? batch[0].serial : ZPL.TEST_SERIAL);

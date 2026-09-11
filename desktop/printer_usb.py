@@ -16,9 +16,18 @@ def list_printers() -> dict:
             "printers": [],
             "error": "pywin32 is required for USB printing (pip install pywin32).",
         }
-    flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
+    flags = (
+        win32print.PRINTER_ENUM_LOCAL
+        | win32print.PRINTER_ENUM_CONNECTIONS
+        | win32print.PRINTER_ENUM_NETWORK
+    )
     names = sorted({row[2] for row in win32print.EnumPrinters(flags) if row[2]})
-    return {"ok": True, "printers": names}
+    default = None
+    try:
+        default = win32print.GetDefaultPrinter()
+    except Exception:
+        default = None
+    return {"ok": True, "printers": names, "default_printer": default}
 
 
 def send_zpl(printer_name: str, zpl: str) -> dict:
