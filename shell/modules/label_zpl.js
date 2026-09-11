@@ -12,10 +12,12 @@
     gapMm: 1.5,
     textReserveMm: 22,
     qrMag: 0,
+    qrBoostMag: 0,
     symbol: "qr",
   };
 
-  var TEST_SERIAL = "BAG-2026-000001";
+  var TEST_SERIAL = "TEST-000001";
+  var PHYSICAL_TEST_COUNT = 10;
 
   function mmToDots(mm, dpi) {
     return Math.round((mm * dpi) / 25.4);
@@ -70,6 +72,9 @@
     var usableW = d.pw - 2 * d.margin;
     var usableH = d.ll - 2 * d.margin;
     var mag = d.qrMag > 0 ? d.qrMag : autoQrMag(payload.data, Math.min(usableH, usableW - d.textReserve - d.gap));
+    if (!d.qrMag && (s.qrBoostMag || 0) > 0) {
+      mag = Math.min(mag + parseInt(s.qrBoostMag, 10), 10);
+    }
     var modules = estimateQrModules(payload.data.length);
     var qrSize = qrPrintedSize(modules, mag);
     if (qrSize > usableH) {
@@ -127,17 +132,36 @@
     return (serials || []).map(function (s) { return zplOneLabel(s, spec); }).join("");
   }
 
+  /** ~2–3 mm larger QR vs auto-only; keeps margins and vertical centring unchanged. */
+  function physicalTestSpec(spec) {
+    return Object.assign({}, spec || {}, { qrBoostMag: 1 });
+  }
+
+  function physicalTestSerials() {
+    var out = [];
+    for (var i = 1; i <= PHYSICAL_TEST_COUNT; i++) {
+      out.push("TEST-" + String(i).padStart(6, "0"));
+    }
+    return out;
+  }
+
   root.CIS_LABEL_ZPL = {
     DEFAULT_SPEC: DEFAULT_SPEC,
     TEST_SERIAL: TEST_SERIAL,
+    PHYSICAL_TEST_COUNT: PHYSICAL_TEST_COUNT,
     mmToDots: mmToDots,
     specToDots: specToDots,
     symbolPayload: symbolPayload,
     layoutLabel: layoutLabel,
     zplOneLabel: zplOneLabel,
     zplBatch: zplBatch,
+    physicalTestSpec: physicalTestSpec,
+    physicalTestSerials: physicalTestSerials,
     zplTestLabel: function (spec) {
-      return zplOneLabel(TEST_SERIAL, spec);
+      return zplOneLabel(TEST_SERIAL, physicalTestSpec(spec));
+    },
+    zplPhysicalTestBatch: function (spec) {
+      return zplBatch(physicalTestSerials(), physicalTestSpec(spec));
     },
   };
 })(window);

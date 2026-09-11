@@ -153,15 +153,24 @@
       "Printer: darkness 30, speed 4. Adjust margin or QR mag after the physical test scan.",
     ]));
 
-    var testPanel = panel(ui, "Physical test (one label)");
+    var testPanel = panel(ui, "Physical test (non-production)");
     mainCol.appendChild(testPanel.root);
     testPanel.body.appendChild(ui.el("p", { class: "muted", style: "margin:0 0 10px" }, [
-      "Print a single layout test using ",
-      ui.el("code", {}, [ZPL.TEST_SERIAL]),
-      ". Does not allocate or mark printed — inspect and scan before production runs.",
+      "Uses ",
+      ui.el("code", {}, ["TEST-000001"]),
+      " … ",
+      ui.el("code", {}, ["TEST-000010"]),
+      " only. QR payload matches the printed text. Never allocated or written to traceability.",
     ]));
-    var testBtn = ui.el("button", { class: "btn-secondary", type: "button" }, ["Print test label"]);
-    testPanel.body.appendChild(testBtn);
+    testPanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint", style: "margin:0 0 10px" }, [
+      "QR is ~2–3 mm larger than the previous single-label test; margins and centring unchanged.",
+    ]));
+    var testBtn = ui.el("button", { class: "btn-secondary", type: "button" }, ["Print one test label"]);
+    var run10Btn = ui.el("button", { class: "btn-primary", type: "button" }, ["Print 10-label alignment test"]);
+    var testActions = ui.el("div", { class: "print-labels-actions" });
+    testActions.appendChild(testBtn);
+    testActions.appendChild(run10Btn);
+    testPanel.body.appendChild(testActions);
 
     var jobPanel = panel(ui, "Production run");
     mainCol.appendChild(jobPanel.root);
@@ -229,6 +238,10 @@
       return labelSpec(readSaved());
     }
 
+    function previewSpec() {
+      return ZPL.physicalTestSpec(currentSpec());
+    }
+
     function syncConnectionUi() {
       var net = connEl.value === "network";
       if (usbRow.parentElement) usbRow.parentElement.style.display = net ? "none" : "";
@@ -242,6 +255,7 @@
 
     function setBusy(busy) {
       testBtn.disabled = busy;
+      run10Btn.disabled = busy;
       allocBtn.disabled = busy;
       printBtn.disabled = busy || !batch.length;
       dlBtn.disabled = busy || !batch.length;
@@ -252,7 +266,7 @@
       preview.innerHTML = "";
       summary.innerHTML = "";
       if (!serial) return;
-      var lay = ZPL.layoutLabel(serial, currentSpec());
+      var lay = ZPL.layoutLabel(serial, previewSpec());
       var card = ui.el("div", { class: "card" });
       card.appendChild(ui.el("div", { class: "label" }, ["Serial"]));
       card.appendChild(ui.el("div", { class: "value" }, [serial]));
@@ -338,11 +352,34 @@
       try {
         var res = await sendZpl(ZPL.zplTestLabel(currentSpec()));
         if (!res || !res.ok) throw new Error((res && res.error) || "Printer error");
-        setStatus("Test label sent. Inspect print and scan with Ulefone before production runs.");
+        setStatus("Test label sent. Inspect print and scan before the 10-label run.");
       } catch (e) {
         setStatus("Test print failed: " + (e.message || e), true);
       } finally {
         setBusy(false);
+      }
+    }
+
+    async function printPhysicalAlignmentTest() {
+      persistForm();
+      var serials = ZPL.physicalTestSerials();
+      setBusy(true);
+      progressWrap.style.display = "block";
+      progressBar.style.width = "0%";
+      paintPreview(serials[0]);
+      setStatus("Sending 10 non-production labels (" + serials[0] + " … " + serials[serials.length - 1] + ")…");
+      try {
+        var res = await sendZpl(ZPL.zplPhysicalTestBatch(currentSpec()));
+        if (!res || !res.ok) throw new Error((res && res.error) || "Printer error");
+        progressBar.style.width = "100%";
+        setStatus(
+          "10 TEST labels sent. STOP — inspect alignment, drift, QR scan on every label before any layout changes."
+        );
+      } catch (e) {
+        setStatus("10-label test failed: " + (e.message || e), true);
+      } finally {
+        setBusy(false);
+        progressWrap.style.display = "none";
       }
     }
 
@@ -440,6 +477,7 @@
       });
     });
     testBtn.addEventListener("click", printTestLabel);
+    run10Btn.addEventListener("click", printPhysicalAlignmentTest);
     allocBtn.addEventListener("click", allocate);
     printBtn.addEventListener("click", printRoll);
     dlBtn.addEventListener("click", download);
@@ -448,7 +486,7 @@
     syncConnectionUi();
     paintPreview(ZPL.TEST_SERIAL);
     setStatus(isDesktop
-      ? "Run Print test label when the Zebra is connected, then scan before allocating a batch."
+      ? "Run the 10-label alignment test when ready. TEST-* IDs never enter production."
       : "Use installed CIS on Windows for USB print, or Download ZPL.");
     if (isDesktop && saved.connection !== "network") refreshPrinters();
   }
