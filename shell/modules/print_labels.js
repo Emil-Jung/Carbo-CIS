@@ -238,8 +238,11 @@
       return labelSpec(readSaved());
     }
 
-    function previewSpec() {
-      return ZPL.physicalTestSpec(currentSpec());
+    function previewSpec(serial) {
+      if (/^TEST-\d{6}$/.test((serial || "").trim())) {
+        return ZPL.physicalTestSpec(currentSpec());
+      }
+      return currentSpec();
     }
 
     function syncConnectionUi() {
@@ -266,7 +269,7 @@
       preview.innerHTML = "";
       summary.innerHTML = "";
       if (!serial) return;
-      var lay = ZPL.layoutLabel(serial, previewSpec());
+      var lay = ZPL.layoutLabel(serial, previewSpec(serial));
       var card = ui.el("div", { class: "card" });
       card.appendChild(ui.el("div", { class: "label" }, ["Serial"]));
       card.appendChild(ui.el("div", { class: "value" }, [serial]));
