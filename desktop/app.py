@@ -24,6 +24,7 @@ import config
 import cis_update
 from version import CIS_VERSION
 import maintenance_host
+import printer_usb
 
 WINDOW_TITLE = f"Carbo Integrated System  —  v{CIS_VERSION}"
 
@@ -144,6 +145,14 @@ class Api:
             "path": maintenance_host.manager_install_dir(config.DATA_DIR),
             "exe": maintenance_host.manager_exe_path(config.DATA_DIR),
         }
+
+    def list_printers(self):
+        """Windows spooler names (USB / local). Desktop CIS only."""
+        return printer_usb.list_printers()
+
+    def send_zpl_usb(self, printer_name, zpl=""):
+        """Send ZPL to a Windows printer by name (USB). Desktop CIS only."""
+        return printer_usb.send_zpl(printer_name, zpl)
 
     def send_zpl(self, host, port=9100, zpl=""):
         """Send ZPL to a Zebra printer over RAW TCP (port 9100). Desktop CIS only."""
