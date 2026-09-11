@@ -14,7 +14,7 @@
 
     CIS.placeholderPage(container, ctx, {
 
-      title: "Carbo Big-K Bag Stock",
+      title: "Bag stock",
 
       description: "Bag inventory and session totals at Carbo Namibia sites.",
 
@@ -23,6 +23,9 @@
         "This application is not connected yet. It will link to traceability stock data when that service is live on bkweb3.",
 
       ],
+
+      backModule: "traceability",
+      backLabel: "Back to Traceability",
 
     });
 
@@ -34,7 +37,7 @@
 
     id: "bag_stock",
 
-    title: "Carbo Big-K Bag Stock",
+    title: "Bag stock",
 
     kind: "app",
 

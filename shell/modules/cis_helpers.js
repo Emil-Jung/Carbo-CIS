@@ -373,8 +373,9 @@
       class: "btn-ghost btn-sm",
       type: "button",
       onclick: function () {
-        if (CIS.showDashboard) CIS.showDashboard();
+        if (opts.backModule && CIS.openModule) CIS.openModule(opts.backModule);
+        else if (CIS.showDashboard) CIS.showDashboard();
       },
-    }, ["Back"]));
+    }, [opts.backLabel || "Back"]));
   };
 })();

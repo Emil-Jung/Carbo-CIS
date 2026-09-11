@@ -11,6 +11,34 @@
     return (p && (p.key || p.permission)) || "";
   }
 
+  /** Roots first; nested catalog keys (parent = module id) indented under them. */
+  function orderCatalogGroup(perms) {
+    var roots = [];
+    var childrenByParent = {};
+    (perms || []).forEach(function (p) {
+      if (p.parent) {
+        if (!childrenByParent[p.parent]) childrenByParent[p.parent] = [];
+        childrenByParent[p.parent].push(p);
+      } else {
+        roots.push(p);
+      }
+    });
+    var out = [];
+    var used = {};
+    roots.forEach(function (p) {
+      out.push({ perm: p, nested: false });
+      used[permKey(p)] = true;
+      (childrenByParent[p.module] || []).forEach(function (c) {
+        out.push({ perm: c, nested: true });
+        used[permKey(c)] = true;
+      });
+    });
+    (perms || []).forEach(function (p) {
+      if (!used[permKey(p)]) out.push({ perm: p, nested: !!p.parent });
+    });
+    return out;
+  }
+
   function permissionsForRoles(roleIds) {
     var set = {};
     rolesCache.forEach(function (r) {
@@ -58,7 +86,7 @@
     const ui = CIS.ui;
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Identity Administration"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Each CIS dashboard tile has its own permission. Tick tiles per person — e.g. finance can get Consumption (diesel) without Fleet Status. Use a template to pre-fill, then adjust.",
+      "Each CIS dashboard tile has its own permission. Nested items under a tile are options inside that app, not extra dashboard tiles. Tick per person — e.g. Traceability hub access plus Print Labels for label operators.",
     ]));
 
     const usersWrap = ui.el("div", {});
@@ -287,7 +315,7 @@
 
     modal.appendChild(ui.el("label", {}, ["CIS tiles (access)"]));
     modal.appendChild(ui.el("p", { class: "muted launcher-note" }, [
-      "Tick each dashboard tile this person may open. Saving clears any old role assignments — only checked tiles apply.",
+      "Tick each dashboard tile this person may open. Indented items are options inside that tile. Saving clears any old role assignments — only checked tiles apply.",
     ]));
 
     var tileChecks = ui.el("div", { class: "checks tile-perm-checks" });
@@ -301,11 +329,12 @@
     });
     Object.keys(bySection).sort().forEach(function (sec) {
       tileChecks.appendChild(ui.el("div", { class: "checks-section-title" }, [sec]));
-      bySection[sec].forEach(function (p) {
+      orderCatalogGroup(bySection[sec]).forEach(function (item) {
+        var p = item.perm;
         var key = permKey(p);
         var cb = ui.el("input", { type: "checkbox", value: key });
         if (initial.indexOf(key) !== -1) cb.checked = true;
-        var lbl = ui.el("label", { class: "tile-perm-label" }, []);
+        var lbl = ui.el("label", { class: "tile-perm-label" + (item.nested ? " tile-perm-nested" : "") }, []);
         lbl.appendChild(cb);
         lbl.appendChild(document.createTextNode(p.label + " (" + key + ")"));
         tileChecks.appendChild(lbl);

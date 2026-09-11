@@ -512,8 +512,103 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   width: 100%;
 }
 .tile-perm-label { display: block; margin-bottom: 4px; }
+.tile-perm-nested { padding-left: 22px; }
 .modal .copy-status { font-size: 12px; color: var(--ok); min-height: 1.2em; margin-top: 8px; }
 .modal .checks { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .modal .checks label { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); }
 .modal .checks input { width: auto; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+
+.traceability-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  max-width: 720px;
+  margin-bottom: 22px;
+}
+.hub-back { margin-top: 8px; }
+
+.bag-labels-host { max-width: 820px; }
+.bag-labels-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+.bag-labels-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.bag-labels-form input,
+.bag-labels-form select {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.bag-labels-preview {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.bag-labels-stock {
+  position: relative;
+  width: 240px;
+  height: 100px;
+  background: #f4f1ea;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  color: #1a1200;
+}
+.bag-labels-stock.band-trailing .bag-labels-band { right: 0; }
+.bag-labels-stock.band-leading .bag-labels-band { left: 0; }
+.bag-labels-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10%;
+  background: #3d5a80;
+}
+.bag-labels-stock.band-trailing .bag-labels-white { right: 10%; left: 0; }
+.bag-labels-stock.band-leading .bag-labels-white { left: 10%; right: 0; }
+.bag-labels-white {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  gap: 8px;
+}
+.bag-labels-white svg { width: 72px; height: 72px; flex-shrink: 0; }
+.bag-labels-serial {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  word-break: break-all;
+}
+.bag-labels-progress {
+  height: 8px;
+  background: var(--panel-2);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 8px 0 16px;
+  display: none;
+}
+.bag-labels-progress-bar {
+  height: 100%;
+  width: 0;
+  background: var(--gold);
+}
