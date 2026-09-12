@@ -193,6 +193,7 @@
     historyPanel.body.appendChild(refreshHistoryBtn);
 
     var previewPanel = panel(ui, "Preview");
+    previewPanel.root.classList.add("print-labels-panel--preview");
     sideCol.appendChild(previewPanel.root);
     var preview = ui.el("div", { class: "print-labels-preview-stock" });
     previewPanel.body.appendChild(preview);
@@ -291,15 +292,12 @@
       modalDownloadBtn.disabled = busy;
     }
 
-    function syncPreviewScale(stock, lay) {
-      var w = stock.clientWidth;
-      if (!w || !lay) return;
-      var dotPx = w / lay.dots.pw;
-      stock.style.fontSize = dotPx + "px";
-      var gapEm = lay.dots.gap / lay.dots.pw;
-      stock.style.gap = gapEm + "em";
-      stock.style.paddingLeft = (lay.dots.margin / lay.dots.pw) + "em";
-      stock.style.paddingRight = (lay.dots.margin / lay.dots.pw) + "em";
+    function fitPreviewFrame(frame, canvas, labelW, labelH) {
+      var fw = frame.clientWidth;
+      if (!fw || !labelW) return;
+      var scale = fw / labelW;
+      canvas.style.transform = "scale(" + scale + ")";
+      frame.style.height = Math.ceil(labelH * scale) + "px";
     }
 
     function paintPreview(serial) {
@@ -314,26 +312,45 @@
       card.appendChild(ui.el("div", { class: "label" }, ["Bag ID"]));
       card.appendChild(ui.el("div", { class: "value" }, [serial]));
       summary.appendChild(card);
-      var stock = ui.el("div", { class: "print-labels-preview-inner" });
-      var qrBox = ui.el("div", { class: "print-labels-preview-qr" });
-      qrBox.style.width = lay.qrSize + "em";
-      qrBox.style.height = lay.qrSize + "em";
+
+      var labelW = lay.dots.pw;
+      var labelH = lay.dots.ll;
+      var frame = ui.el("div", { class: "print-labels-preview-frame" });
+      var canvas = ui.el("div", { class: "print-labels-preview-canvas" });
+      canvas.style.width = labelW + "px";
+      canvas.style.height = labelH + "px";
+
+      var qrBox = ui.el("div", { class: "print-labels-preview-qr-abs" });
+      qrBox.style.left = lay.qrX + "px";
+      qrBox.style.top = lay.qrY + "px";
+      qrBox.style.width = lay.qrSize + "px";
+      qrBox.style.height = lay.qrSize + "px";
       if (typeof qrcode === "function") {
         var qr = qrcode(0, "M");
         qr.addData(serial);
         qr.make();
         qrBox.appendChild(ui.el("div", { html: qr.createSvgTag(3, 0) }));
       }
-      stock.appendChild(qrBox);
-      var textEl = ui.el("div", { class: "print-labels-preview-text" }, [serial]);
-      textEl.style.fontSize = lay.fontH + "em";
-      textEl.style.maxWidth = lay.textAreaW + "em";
-      stock.appendChild(textEl);
-      preview.appendChild(stock);
-      syncPreviewScale(stock, lay);
+      canvas.appendChild(qrBox);
+
+      var textEl = ui.el("div", { class: "print-labels-preview-text-abs" }, [serial]);
+      textEl.style.left = lay.textX + "px";
+      textEl.style.top = lay.textY + "px";
+      textEl.style.width = lay.textAreaW + "px";
+      textEl.style.fontSize = lay.fontH + "px";
+      textEl.style.lineHeight = lay.fontH + "px";
+      canvas.appendChild(textEl);
+
+      frame.appendChild(canvas);
+      preview.appendChild(frame);
+
+      function refit() {
+        fitPreviewFrame(frame, canvas, labelW, labelH);
+      }
+      requestAnimationFrame(refit);
       if (typeof ResizeObserver !== "undefined") {
-        var ro = new ResizeObserver(function () { syncPreviewScale(stock, lay); });
-        ro.observe(stock);
+        var ro = new ResizeObserver(refit);
+        ro.observe(frame);
       }
     }
 
