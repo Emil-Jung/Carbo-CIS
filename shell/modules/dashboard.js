@@ -14,7 +14,7 @@
 
     administration: ["identity_admin", "device_keys"],
 
-    applications: ["producers_office", "traceability", "quality_capture", "maintenance_manager"],
+    applications: ["producers_office", "control_room", "traceability", "quality_capture", "maintenance_manager"],
 
     reportsRow1: ["producers_view", "permit_status", "quality_view"],
 
@@ -69,6 +69,10 @@
       traceability:
 
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h16v2H4V6zm0 5h7v2H4v-2zm0 5h7v2H4v-2zm9-8h7v2h-7V8zm0 5h7v2h-7v-2zm0 5h7v2h-7v-2z"/></svg>',
+
+      control:
+
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5h8V3H3v2zm0 8h8v-2H3v2zm0 8h8v-2H3v2zm10-16v2h8V3h-8zm0 8h8v-2h-8v2zm0 8h8v-2h-8v2z"/></svg>',
 
       bags:
 

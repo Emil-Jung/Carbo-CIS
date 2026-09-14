@@ -23,8 +23,10 @@
   CIS.modules.push({
     id: "control_room",
     title: "Control Room",
+    section: "Production",
     kind: "app",
-    icon: "traceability",
+    order: 4,
+    icon: "control",
     description: "Open trucks, factory scales, bag handoff",
     requires: "traceability.control_room",
     render: render,
