@@ -11,10 +11,11 @@
   "maintenanceManagerUrl": "/maintenance/manager/",
   "traceabilityScannerUrl": "/traceability/scanner/",
   "traceabilitySupervisorUrl": "/traceability/supervisor/",
+  "controlRoomUrl": "/traceability/control-room/",
   "bagStockUrl": "/traceability/supervisor/",
   "traceabilityApiBase": "/traceability/api/v1",
   "displayTimezone": "Africa/Windhoek",
   "qualityReportsApiBase": "/quality/reports/api",
   "supplierTrackingApiBase": "/supplier-tracking/api",
-  "cisVersion": "1.5.6"
+  "cisVersion": "1.6.0"
 }

@@ -7,6 +7,13 @@
 
   var OPTIONS = [
     {
+      id: "control_room",
+      title: "Control Room",
+      description: "Open trucks, capture arrival details, enter factory scale weights.",
+      requires: "traceability.control_room",
+      icon: "control",
+    },
+    {
       id: "print_labels",
       title: "Print Labels",
       description: "Allocate serials and print QR labels on the Zebra.",
@@ -16,6 +23,8 @@
   ];
 
   var ICONS = {
+    control:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5h8V3H3v2zm0 8h8v-2H3v2zm0 8h8v-2H3v2zm10-16v2h8V3h-8zm0 8h8v-2h-8v2zm0 8h8v-2h-8v2z"/></svg>',
     labels:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h10l6 6v10H4V4zm2 2v12h12V11h-5V6H6zm9 1.4V10h2.6L15 7.4zM7 13h6v2H7v-2zm0 4h10v2H7v-2z"/></svg>',
   };
@@ -57,7 +66,7 @@
 
     if (!shown) {
       container.appendChild(ui.el("p", { class: "muted" }, [
-        "No Traceability options are assigned to your account. Ask an administrator to grant Print Labels access.",
+        "No Traceability options are assigned to your account. Ask an administrator to grant Control Room or Print Labels access.",
       ]));
     } else {
       container.appendChild(grid);
@@ -77,7 +86,7 @@
     title: "Traceability",
     kind: "app",
     icon: "traceability",
-    description: "Bag labels, stock, and later intake and scanning",
+    description: "Control room, bag labels, and scanning",
     requires: "traceability.access",
     render: render,
   });
