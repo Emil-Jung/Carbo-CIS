@@ -343,7 +343,12 @@
     function sendAuth() {
       var token = CIS.getToken && CIS.getToken();
       if (!token || !iframe.contentWindow) return;
-      iframe.contentWindow.postMessage({ type: "cis-auth", token: token }, "*");
+      var permissions =
+        (CIS._state && Array.isArray(CIS._state.permissions) && CIS._state.permissions) || [];
+      iframe.contentWindow.postMessage(
+        { type: "cis-auth", token: token, permissions: permissions },
+        "*"
+      );
     }
 
     iframe.addEventListener("load", sendAuth);
