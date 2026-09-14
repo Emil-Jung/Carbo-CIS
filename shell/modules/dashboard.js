@@ -14,7 +14,7 @@
 
     administration: ["identity_admin", "device_keys"],
 
-    applications: ["producers_office", "control_room", "traceability", "quality_capture", "maintenance_manager"],
+    applications: ["producers_office", "traceability", "quality_capture", "maintenance_manager"],
 
     reportsRow1: ["producers_view", "permit_status", "quality_view"],
 

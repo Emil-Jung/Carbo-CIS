@@ -1,4 +1,5 @@
-/* Traceability hub — nested application tiles, each gated by its own permission. */
+/* Traceability hub — all traceability entry points live here (not top-level dashboard tiles).
+   Control Room (factory PC via CIS), Print Labels, etc. Scanner/kiosk uses device keys — not CIS. */
 
 (function () {
   "use strict";
