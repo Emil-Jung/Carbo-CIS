@@ -436,6 +436,14 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .card-warn .value { color: #fbbf24; }
 .card-danger .value { color: #f87171; }
 .maintenance-ops-faults-title { margin-top: 26px; }
+.maintenance-ops-nav { margin-bottom: 14px; }
+.maintenance-ops-hint { margin: 0 0 10px; font-size: 13px; }
+.maintenance-ops-subhead { margin-bottom: 10px; }
+.maintenance-ops-row-click { cursor: pointer; }
+.maintenance-ops-row-click:hover td { background: rgba(201, 162, 39, 0.1) !important; }
+.maintenance-ops-issues-table { min-width: 1100px; }
+.ops-note-cell { max-width: 220px; font-size: 12px; }
+.btn-sm-active { box-shadow: inset 0 0 0 2px rgba(201, 162, 39, 0.55); }
 
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .toolbar input, .toolbar select {
