@@ -41,6 +41,17 @@
       deviceNoun: "laptop",
       registerStep: "Register, then bookmark the page",
     },
+    {
+      id: "traceability_kiosk",
+      label: "Traceability kiosk",
+      api: "traceability",
+      filter: "all",
+      pwaUrlKey: "traceabilityKioskUrl",
+      pwaDefault: "/traceability/kiosk/",
+      intro: "One key per Zebra scanner at the weighing station (Fransina).",
+      deviceNoun: "scanner",
+      registerStep: "Paste the key on the registration screen (or History → Device key)",
+    },
   ];
 
   function cfg(ctx, key, fallback) {
@@ -70,6 +81,7 @@
 
   function apiFor(ctx, pool) {
     if (pool.api === "quality") return ctx.api.quality;
+    if (pool.api === "traceability") return ctx.api.traceability;
     return ctx.api.maintenance;
   }
 
@@ -317,33 +329,11 @@
       tabs.appendChild(tab);
     });
 
-    var staticTabs = [
-      {
-        id: "traceability",
-        label: "Traceability",
-        intro: "Scanner and supervisor devices for charcoal traceability.",
-        paragraphs: [
-          "Per-device keys for traceability will be issued here when the traceability API is connected.",
-          "Until then: configure scanner Bearer keys (FACTORY / WALVISBAY) and CHARCOAL_TRACEABILITY_POST_KEY on the traceability server.",
-          "Field scanner: " + cfg(ctx, "traceabilityScannerUrl", "/traceability/scanner/"),
-          " · Supervisor: " + cfg(ctx, "traceabilitySupervisorUrl", "/traceability/supervisor/"),
-        ],
-      },
-    ];
-
-    staticTabs.forEach(function (st) {
-      var tab = ui.el("button", { class: "device-keys-tab", type: "button", "data-pool": st.id }, [st.label]);
-      tabs.appendChild(tab);
-    });
-
     container.appendChild(tabs);
     container.appendChild(panelsWrap);
 
     POOLS.forEach(function (pool) {
       panelEls[pool.id] = renderPool(panelsWrap, ctx, pool, ui);
-    });
-    staticTabs.forEach(function (st) {
-      panelEls[st.id] = renderStaticPanel(panelsWrap, ui, st);
     });
 
     function showPool(id) {

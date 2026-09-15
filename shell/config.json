@@ -11,6 +11,7 @@
   "maintenanceManagerUrl": "/maintenance/manager/",
   "traceabilityScannerUrl": "/traceability/scanner/",
   "traceabilitySupervisorUrl": "/traceability/supervisor/",
+  "traceabilityKioskUrl": "/traceability/kiosk/",
   "controlRoomUrl": "/cis/control-room/",
   "bagStockUrl": "/traceability/supervisor/",
   "traceabilityApiBase": "/traceability/api/v1",
