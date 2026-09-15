@@ -610,7 +610,8 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   letter-spacing: 0.04em;
 }
 .print-labels-field input,
-.print-labels-field select {
+.print-labels-field select,
+.print-labels-field textarea {
   background: var(--panel-2);
   border: 1px solid var(--border);
   color: var(--text);
@@ -644,6 +645,33 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .print-labels-summary { margin-top: 12px; }
 .print-labels-status { margin-top: 10px; font-size: 13px; line-height: 1.45; }
 .print-labels-run-status { margin-top: 12px; }
+.print-labels-reprint-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+.print-labels-reprint-count { margin-left: auto; font-size: 12px; }
+.print-labels-reprint-list {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: rgba(0, 0, 0, 0.15);
+}
+.print-labels-reprint-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+.print-labels-reprint-row input { flex-shrink: 0; }
+.print-labels-reprint-serial { font-family: ui-monospace, monospace; font-size: 12px; }
 
 .bag-labels-form {
   display: grid;

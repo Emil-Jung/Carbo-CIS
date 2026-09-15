@@ -112,6 +112,7 @@
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Fleet Status"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "Fleet overview, open faults, and drill-down to issues and corrective actions recorded in Namibia.",
+      " (UI v1.1 — click a vehicle row or use the tabs below.)",
     ]));
     container.appendChild(
       navBar(ui, navigate, [

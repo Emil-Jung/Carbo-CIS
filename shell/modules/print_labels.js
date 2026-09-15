@@ -12,7 +12,7 @@
 
   function loadSettings() {
     var s = {
-      connection: "usb",
+      connection: "network",
       printerName: "",
       printerNameManual: "",
       printerHost: "",
@@ -59,6 +59,60 @@
     return w;
   }
 
+  function canonicalSerial(year, seq) {
+    var y = parseInt(year, 10);
+    var n = parseInt(seq, 10);
+    if (!y || !n) return "";
+    var pad = String(n);
+    while (pad.length < 6) pad = "0" + pad;
+    return "BAG-" + y + "-" + pad;
+  }
+
+  function parseSerialToken(token, defaultYear) {
+    var t = (token || "").trim();
+    if (!t) return null;
+    if (SERIAL_RE.test(t)) return t;
+    if (/^\d+$/.test(t)) {
+      return canonicalSerial(defaultYear, parseInt(t, 10));
+    }
+    return null;
+  }
+
+  /** Expand "321-330", "BAG-2026-000321 - 000330", etc. */
+  function expandReprintRange(raw, defaultYear) {
+    var text = (raw || "").trim();
+    if (!text) return { error: "Enter a range, e.g. 321-330 or BAG-2026-000321 - BAG-2026-000330." };
+    var m = text.match(/^(.+?)\s*(?:-|–|to)\s*(.+)$/i);
+    if (!m) {
+      var one = parseSerialToken(text, defaultYear);
+      if (!one) return { error: "Could not parse range. Use 321-330 or full Bag IDs." };
+      return { value: [one] };
+    }
+    var start = parseSerialToken(m[1], defaultYear);
+    var end = parseSerialToken(m[2], defaultYear);
+    if (!start || !end) return { error: "Could not parse range endpoints." };
+    var sm = start.match(SERIAL_RE);
+    var em = end.match(SERIAL_RE);
+    if (!sm || !em) return { error: "Invalid Bag ID in range." };
+    var year = parseInt(sm[1], 10);
+    if (parseInt(em[1], 10) !== year) {
+      return { error: "Range must be within the same year." };
+    }
+    var a = parseInt(sm[2], 10);
+    var b = parseInt(em[2], 10);
+    if (a > b) {
+      var tmp = a;
+      a = b;
+      b = tmp;
+    }
+    if (b - a + 1 > MAX_QUANTITY) {
+      return { error: "Range is too large (max " + MAX_QUANTITY + ")." };
+    }
+    var serials = [];
+    for (var i = a; i <= b; i++) serials.push(canonicalSerial(year, i));
+    return { value: serials };
+  }
+
   function parseQuantity(raw) {
     var t = (raw || "").trim();
     if (!t) return { error: "Enter the number of labels required." };
@@ -80,10 +134,6 @@
     var saved = loadSettings();
     var bridge = desktopBridge();
     var isDesktop = !!(bridge && (bridge.send_zpl_usb || bridge.send_zpl));
-    if (isDesktop && saved.connection === "network") {
-      saved.connection = "usb";
-      saveSettings(saved);
-    }
     var pendingRun = null;
     var pendingLabels = [];
     var pendingMode = null;
@@ -108,12 +158,16 @@
     mainCol.appendChild(printerPanel.root);
     if (!isDesktop) {
       printerPanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
-        "Browser CIS — you can prepare a run and download ZPL. USB printing requires desktop CIS on Windows.",
+        "Browser CIS — you can prepare a run and download ZPL. Physical printing requires desktop CIS on Windows.",
+      ]));
+    } else {
+      printerPanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
+        "Network (IP) is the normal path. Use USB (Windows spooler) only if the printer is not reachable on the LAN.",
       ]));
     }
     var connEl = ui.el("select", {}, [
-      ui.el("option", { value: "usb", selected: true }, ["USB (Windows)"]),
-      ui.el("option", { value: "network", selected: false }, ["Network (IP)"]),
+      ui.el("option", { value: "network", selected: saved.connection === "network" }, ["Network (IP)"]),
+      ui.el("option", { value: "usb", selected: saved.connection !== "network" }, ["USB (Windows)"]),
     ]);
     var printerEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["— Refresh list —"])]);
     var refreshBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh list"]);
@@ -130,18 +184,14 @@
     var networkWrap = ui.el("div", { class: "print-labels-network-fields" });
     networkWrap.appendChild(field(ui, "Printer IP", hostEl));
     networkWrap.appendChild(field(ui, "Port", portEl));
-    if (isDesktop) {
-      printerPanel.body.appendChild(field(ui, "Windows printer (USB)", usbRow,
-        "Select your Zebra from the Windows printer list."));
-      printerPanel.body.appendChild(field(ui, "Or type printer name", printerManualEl));
-    } else {
-      connEl.querySelector('option[value="network"]').selected = saved.connection === "network";
-      connEl.querySelector('option[value="usb"]').selected = saved.connection !== "network";
-      printerPanel.body.appendChild(field(ui, "Connection", connEl));
-      printerPanel.body.appendChild(field(ui, "Windows printer", usbRow));
-      printerPanel.body.appendChild(field(ui, "Or type printer name", printerManualEl));
-      printerPanel.body.appendChild(networkWrap);
-    }
+    var usbField = field(ui, "Windows printer (USB)", usbRow,
+      "Select your Zebra from the Windows printer list (USB mode only).");
+    var manualField = field(ui, "Or type printer name", printerManualEl,
+      "USB mode only — exact name from Windows Printers.");
+    printerPanel.body.appendChild(field(ui, "Connection", connEl));
+    printerPanel.body.appendChild(usbField);
+    printerPanel.body.appendChild(manualField);
+    printerPanel.body.appendChild(networkWrap);
 
     var runPanel = panel(ui, "Print run");
     mainCol.appendChild(runPanel.root);
@@ -163,20 +213,41 @@
     var runStatus = ui.el("p", { class: "print-labels-status print-labels-run-status muted" }, [""]);
     runPanel.body.appendChild(runStatus);
 
-    var reprintPanel = panel(ui, "Reprint label");
+    var reprintPanel = panel(ui, "Reprint labels");
     mainCol.appendChild(reprintPanel.root);
-    var reprintSerialEl = ui.el("input", {
+    var reprintRunEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["Loading print runs…"])]);
+    var reprintRangeEl = ui.el("input", {
       type: "text",
-      placeholder: "BAG-2026-000137",
+      placeholder: "e.g. 321-330 or BAG-2026-000321 - BAG-2026-000330",
       value: "",
       autocomplete: "off",
     });
+    var reprintRangeBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Apply range"]);
+    var reprintRangeRow = ui.el("div", { class: "print-labels-printer-row" });
+    reprintRangeRow.appendChild(reprintRangeEl);
+    reprintRangeRow.appendChild(reprintRangeBtn);
+    var reprintListEl = ui.el("div", { class: "print-labels-reprint-list muted" }, ["Select a print run above."]);
+    var reprintToolbar = ui.el("div", { class: "print-labels-reprint-toolbar" });
+    var reprintSelectAllBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Select all"]);
+    var reprintClearBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Clear"]);
+    var reprintCountEl = ui.el("span", { class: "print-labels-reprint-count muted" }, ["0 selected"]);
+    reprintToolbar.appendChild(reprintSelectAllBtn);
+    reprintToolbar.appendChild(reprintClearBtn);
+    reprintToolbar.appendChild(reprintCountEl);
     var reprintReasonEl = ui.el("input", { type: "text", placeholder: "Optional reason", value: "" });
-    reprintPanel.body.appendChild(field(ui, "Bag ID", reprintSerialEl,
-      "Reprints an existing Bag ID, or recovers one left allocated after a failed print run (e.g. BAG-2026-000002)."));
+    reprintPanel.body.appendChild(field(ui, "Print run", reprintRunEl,
+      "Pick the failed (or completed) run, then tick the Bag IDs to reprint."));
+    reprintPanel.body.appendChild(field(ui, "Range", reprintRangeRow,
+      "Tick a contiguous block without scrolling — e.g. 321-330."));
+    reprintPanel.body.appendChild(reprintToolbar);
+    reprintPanel.body.appendChild(reprintListEl);
     reprintPanel.body.appendChild(field(ui, "Reason", reprintReasonEl));
-    var reprintBtn = ui.el("button", { class: "btn-secondary", type: "button" }, ["Prepare reprint"]);
+    var reprintBtn = ui.el("button", { class: "btn-secondary", type: "button" }, ["Prepare reprint batch"]);
     reprintPanel.body.appendChild(reprintBtn);
+
+    var reprintCatalog = [];
+    var reprintDefaultYear = new Date().getFullYear();
+    var reprintSelected = {};
 
     var inventoryPanel = panel(ui, "Label inventory (server)");
     mainCol.appendChild(inventoryPanel.root);
@@ -235,7 +306,7 @@
 
     function readSaved() {
       return {
-        connection: isDesktop ? "usb" : (connEl.value === "network" ? "network" : "usb"),
+        connection: connEl.value === "network" ? "network" : "usb",
         printerName: printerEl.value,
         printerNameManual: printerManualEl.value.trim(),
         printerHost: hostEl.value.trim(),
@@ -257,9 +328,9 @@
     }
 
     function syncConnectionUi() {
-      if (isDesktop) return;
       var net = connEl.value === "network";
-      if (usbRow.parentElement) usbRow.parentElement.style.display = net ? "none" : "";
+      usbField.style.display = net ? "none" : "";
+      manualField.style.display = net ? "none" : "";
       networkWrap.style.display = net ? "" : "none";
     }
 
@@ -374,6 +445,12 @@
           parts.push(
             "Last completed print run ended at: <code>" + data.last_completed_print_serial + "</code>"
           );
+        }
+        if (data.next_serial) {
+          var hm = String(data.next_serial).match(SERIAL_RE);
+          if (hm) reprintDefaultYear = parseInt(hm[1], 10);
+        } else if (data.year) {
+          reprintDefaultYear = parseInt(data.year, 10);
         }
         sequenceEl.innerHTML = parts.join("<br>") +
           "<div class=\"print-labels-sequence-next\">Next new run starts at: <code>" +
@@ -518,12 +595,20 @@
       var qty = run.quantity;
       var printer = run.printer_name || printerSummary();
       if (mode === "reprint") {
+        var n = qty || 1;
         var title = pendingRecovery
-          ? "You are about to print a missing label from a failed run"
-          : "You are about to reprint 1 label";
+          ? "You are about to print missing label(s) from a failed run"
+          : "You are about to reprint " + n + " label" + (n === 1 ? "" : "s");
+        if (n === 1) {
+          return (
+            "<p><strong>" + title + "</strong></p>" +
+            "<p>Bag ID:<br><code>" + run.first_serial + "</code></p>" +
+            "<p>Printer:<br><strong>" + printer + "</strong></p>"
+          );
+        }
         return (
           "<p><strong>" + title + "</strong></p>" +
-          "<p>Bag ID:<br><code>" + run.first_serial + "</code></p>" +
+          "<p>Bag IDs:<br><code>" + run.first_serial + "</code><br>to<br><code>" + run.last_serial + "</code></p>" +
           "<p>Printer:<br><strong>" + printer + "</strong></p>"
         );
       }
@@ -596,6 +681,7 @@
         await loadHistory();
         await loadInventory();
         await loadSequence();
+        if (reprintRunEl.value) loadReprintForRun(reprintRunEl.value);
       } catch (e) {
         try {
           await ctx.api.traceability("/labels/print-runs/" + runId + "/fail", {
@@ -671,11 +757,133 @@
       }
     }
 
+    function updateReprintCount() {
+      var n = Object.keys(reprintSelected).filter(function (k) { return reprintSelected[k]; }).length;
+      reprintCountEl.textContent = n + " selected";
+    }
+
+    function renderReprintChecklist() {
+      reprintListEl.innerHTML = "";
+      reprintListEl.className = "print-labels-reprint-list";
+      if (!reprintCatalog.length) {
+        reprintListEl.className = "print-labels-reprint-list muted";
+        reprintListEl.textContent = "No reprintable labels for this run.";
+        updateReprintCount();
+        return;
+      }
+      reprintCatalog.forEach(function (item) {
+        if (!item.reprint_ok) return;
+        var row = ui.el("label", { class: "print-labels-reprint-row" });
+        var cb = ui.el("input", { type: "checkbox", value: item.serial });
+        cb.checked = !!reprintSelected[item.serial];
+        cb.addEventListener("change", function () {
+          if (cb.checked) reprintSelected[item.serial] = true;
+          else delete reprintSelected[item.serial];
+          updateReprintCount();
+        });
+        row.appendChild(cb);
+        var tag = item.recovery ? "recovery" : item.status;
+        row.appendChild(ui.el("span", { class: "print-labels-reprint-serial" }, [item.serial]));
+        row.appendChild(ui.el("span", { class: "print-labels-reprint-tag muted" }, [" · " + tag]));
+        reprintListEl.appendChild(row);
+      });
+      updateReprintCount();
+    }
+
+    function getSelectedReprintSerials() {
+      return reprintCatalog
+        .map(function (item) { return item.serial; })
+        .filter(function (s) { return reprintSelected[s]; })
+        .sort();
+    }
+
+    function setReprintSelection(serials, on) {
+      (serials || []).forEach(function (s) {
+        if (on) reprintSelected[s] = true;
+        else delete reprintSelected[s];
+      });
+      renderReprintChecklist();
+    }
+
+    function applyReprintRangeSelection() {
+      var expanded = expandReprintRange(reprintRangeEl.value, reprintDefaultYear);
+      if (expanded.error) {
+        setStatus(expanded.error, true);
+        return;
+      }
+      var known = {};
+      reprintCatalog.forEach(function (item) {
+        if (item.reprint_ok) known[item.serial] = true;
+      });
+      var matched = expanded.value.filter(function (s) { return known[s]; });
+      if (!matched.length) {
+        setStatus("No labels in that range are on this print run (or not reprintable).", true);
+        return;
+      }
+      setReprintSelection(matched, true);
+      setStatus("Selected " + matched.length + " label(s) from range.");
+    }
+
+    async function loadReprintRuns() {
+      if (!ctx.api.traceability) return;
+      try {
+        var data = await ctx.api.traceability("/labels/print-runs?limit=100");
+        var runs = (data && data.print_runs) || [];
+        reprintRunEl.innerHTML = "";
+        reprintRunEl.appendChild(ui.el("option", { value: "" }, ["— Select print run —"]));
+        runs.forEach(function (run) {
+          if (run.status !== "failed" && run.status !== "completed") return;
+          var label = "#" + run.print_run_id + " · " + run.status;
+          if (run.first_serial && run.last_serial) {
+            label += " · " + run.first_serial + " … " + run.last_serial;
+          }
+          if (run.run_type === "reprint") label += " (reprint)";
+          reprintRunEl.appendChild(ui.el("option", { value: String(run.print_run_id) }, [label]));
+        });
+      } catch (e) {
+        reprintRunEl.innerHTML = "";
+        reprintRunEl.appendChild(ui.el("option", { value: "" }, ["Could not load print runs"]));
+      }
+    }
+
+    async function loadReprintForRun(runId) {
+      reprintCatalog = [];
+      reprintSelected = {};
+      if (!runId || !ctx.api.traceability) {
+        reprintListEl.className = "print-labels-reprint-list muted";
+        reprintListEl.textContent = "Select a print run above.";
+        updateReprintCount();
+        return;
+      }
+      reprintListEl.className = "print-labels-reprint-list muted";
+      reprintListEl.textContent = "Loading labels…";
+      try {
+        var data = await ctx.api.traceability("/labels/print-runs/" + runId + "/labels");
+        reprintCatalog = (data && data.labels) || [];
+        reprintCatalog.forEach(function (item) {
+          if (item.recovery) reprintSelected[item.serial] = true;
+        });
+        renderReprintChecklist();
+        var auto = reprintCatalog.filter(function (i) { return i.recovery; }).length;
+        if (auto) {
+          setStatus("Print run #" + runId + ": " + auto + " recovery label(s) pre-selected.");
+        }
+      } catch (e) {
+        reprintListEl.className = "print-labels-reprint-list muted";
+        reprintListEl.textContent = "Could not load labels for run #" + runId + ". Deploy latest API if this is new.";
+        setStatus(apiErrorMessage(e), true);
+      }
+    }
+
     async function prepareReprint() {
       persistForm();
-      var serial = reprintSerialEl.value.trim();
-      if (!SERIAL_RE.test(serial)) {
-        setStatus("Enter a valid Bag ID (BAG-YYYY-NNNNNN).", true);
+      var serials = getSelectedReprintSerials();
+      if (!serials.length) {
+        setStatus("Select at least one label to reprint (tick boxes or use a range).", true);
+        return;
+      }
+      if (serials.length > MAX_QUANTITY) {
+        setStatus("Maximum reprint batch size is " + MAX_QUANTITY + ".", true);
         return;
       }
       if (!ctx.api.traceability) {
@@ -685,7 +893,7 @@
       setBusy(true);
       try {
         var body = {
-          serial: serial,
+          serials: serials,
           printer_name: resolvedPrinterName() || null,
           printer_connection: readSaved().connection,
         };
@@ -693,19 +901,25 @@
         if (reason) body.reason = reason;
         var data = await ctx.api.traceability("/labels/print-runs/reprint/prepare", { method: "POST", body: body });
         pendingRun = data.print_run;
-        pendingLabels = [{ serial: data.serial }];
+        pendingLabels = data.labels || [];
+        if (!pendingLabels.length && data.serial) {
+          pendingLabels = [{ serial: data.serial }];
+        }
         pendingMode = "reprint";
-        pendingRecovery = !!data.recovery;
-        paintPreview(data.serial);
+        pendingRecovery = !!(data.recovery || (data.recovery_count && data.recovery_count > 0));
+        if (pendingLabels.length) paintPreview(pendingLabels[0].serial);
+        var n = pendingRun.quantity || pendingLabels.length || 1;
         showModal(
-          pendingRecovery ? "Confirm recovery print" : "Confirm reprint",
+          pendingRecovery ? "Confirm recovery print" : "Confirm reprint batch",
           confirmHtml(pendingRun, "reprint"),
-          pendingRecovery ? "Print missing label" : "Reprint label",
+          pendingRecovery
+            ? "Print " + n + " missing label" + (n === 1 ? "" : "s")
+            : "Reprint " + n + " label" + (n === 1 ? "" : "s"),
           true
         );
         setStatus(pendingRecovery
-          ? "Recovery print prepared — confirm or cancel."
-          : "Reprint prepared — confirm or cancel.");
+          ? "Recovery batch prepared — confirm or cancel."
+          : "Reprint batch prepared — confirm or cancel.");
       } catch (e) {
         setStatus("Reprint prepare failed: " + apiErrorMessage(e), true);
       } finally {
@@ -723,15 +937,34 @@
       if (ev.target === modalBackdrop) cancelPending();
     });
 
-    if (!isDesktop) {
-      connEl.addEventListener("change", function () { syncConnectionUi(); persistForm(); });
-    }
+    connEl.addEventListener("change", function () { syncConnectionUi(); persistForm(); });
     refreshBtn.addEventListener("click", refreshPrinters);
     prepareBtn.addEventListener("click", prepareBatch);
     reprintBtn.addEventListener("click", prepareReprint);
-    refreshHistoryBtn.addEventListener("click", loadHistory);
-    [printerEl, printerManualEl].forEach(function (el) {
+    reprintRunEl.addEventListener("change", function () {
+      loadReprintForRun(reprintRunEl.value);
+    });
+    reprintRangeBtn.addEventListener("click", applyReprintRangeSelection);
+    reprintRangeEl.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") applyReprintRangeSelection();
+    });
+    reprintSelectAllBtn.addEventListener("click", function () {
+      setReprintSelection(
+        reprintCatalog.filter(function (i) { return i.reprint_ok; }).map(function (i) { return i.serial; }),
+        true
+      );
+    });
+    reprintClearBtn.addEventListener("click", function () {
+      reprintSelected = {};
+      renderReprintChecklist();
+    });
+    refreshHistoryBtn.addEventListener("click", function () {
+      loadHistory();
+      loadReprintRuns();
+    });
+    [printerEl, printerManualEl, hostEl, portEl].forEach(function (el) {
       el.addEventListener("change", persistForm);
+      el.addEventListener("input", persistForm);
     });
 
     syncConnectionUi();
@@ -740,6 +973,7 @@
     loadInventory();
     loadHistory();
     loadSequence();
+    loadReprintRuns();
     if (bridge && bridge.list_printers && saved.connection !== "network") refreshPrinters();
   }
 
