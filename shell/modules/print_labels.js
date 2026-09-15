@@ -216,6 +216,16 @@
     var reprintPanel = panel(ui, "Reprint labels");
     mainCol.appendChild(reprintPanel.root);
     var reprintRunEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["Loading print runs…"])]);
+    var reprintManualEl = ui.el("input", {
+      type: "text",
+      placeholder: "BAG-2026-000137 or 137",
+      value: "",
+      autocomplete: "off",
+    });
+    var reprintManualBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Add label"]);
+    var reprintManualRow = ui.el("div", { class: "print-labels-printer-row" });
+    reprintManualRow.appendChild(reprintManualEl);
+    reprintManualRow.appendChild(reprintManualBtn);
     var reprintRangeEl = ui.el("input", {
       type: "text",
       placeholder: "e.g. 321-330 or BAG-2026-000321 - BAG-2026-000330",
@@ -235,10 +245,12 @@
     reprintToolbar.appendChild(reprintClearBtn);
     reprintToolbar.appendChild(reprintCountEl);
     var reprintReasonEl = ui.el("input", { type: "text", placeholder: "Optional reason", value: "" });
+    reprintPanel.body.appendChild(field(ui, "Bag ID", reprintManualRow,
+      "Smudged or misprinted — enter one Bag ID and Add (no print run needed)."));
     reprintPanel.body.appendChild(field(ui, "Print run", reprintRunEl,
-      "Pick the failed (or completed) run, then tick the Bag IDs to reprint."));
+      "Optional — pick a failed/completed run to tick many labels, or use range below."));
     reprintPanel.body.appendChild(field(ui, "Range", reprintRangeRow,
-      "Tick a contiguous block without scrolling — e.g. 321-330."));
+      "Within the selected run — e.g. 321-330, then Apply range."));
     reprintPanel.body.appendChild(reprintToolbar);
     reprintPanel.body.appendChild(reprintListEl);
     reprintPanel.body.appendChild(field(ui, "Reason", reprintReasonEl));
@@ -783,6 +795,7 @@
         });
         row.appendChild(cb);
         var tag = item.recovery ? "recovery" : item.status;
+        if (item.manual) tag += " · added";
         row.appendChild(ui.el("span", { class: "print-labels-reprint-serial" }, [item.serial]));
         row.appendChild(ui.el("span", { class: "print-labels-reprint-tag muted" }, [" · " + tag]));
         reprintListEl.appendChild(row);
@@ -791,10 +804,57 @@
     }
 
     function getSelectedReprintSerials() {
-      return reprintCatalog
-        .map(function (item) { return item.serial; })
+      return Object.keys(reprintSelected)
         .filter(function (s) { return reprintSelected[s]; })
         .sort();
+    }
+
+    function reprintOkStatus(status, recovery) {
+      if (recovery) return true;
+      return status === "available" || status === "used";
+    }
+
+    async function addManualReprintSerial() {
+      if (!ctx.api.traceability) {
+        setStatus("Traceability API not configured.", true);
+        return;
+      }
+      var serial = parseSerialToken(reprintManualEl.value, reprintDefaultYear);
+      if (!serial || !SERIAL_RE.test(serial)) {
+        setStatus("Enter a valid Bag ID (BAG-YYYY-NNNNNN or sequence number).", true);
+        return;
+      }
+      if (reprintCatalog.some(function (item) { return item.serial === serial; })) {
+        reprintSelected[serial] = true;
+        reprintManualEl.value = "";
+        renderReprintChecklist();
+        setStatus("Selected " + serial + " (already in list).");
+        return;
+      }
+      try {
+        var label = await ctx.api.traceability("/labels/" + encodeURIComponent(serial));
+        var recovery = label.status === "allocated";
+        if (!reprintOkStatus(label.status, recovery)) {
+          setStatus(
+            serial + " is " + label.status + " — only available, used, or recovery (allocated) labels can be reprinted.",
+            true
+          );
+          return;
+        }
+        reprintCatalog.push({
+          serial: label.serial,
+          status: label.status,
+          recovery: recovery,
+          reprint_ok: true,
+          manual: true,
+        });
+        reprintSelected[serial] = true;
+        reprintManualEl.value = "";
+        renderReprintChecklist();
+        setStatus("Added " + serial + " for reprint.");
+      } catch (e) {
+        setStatus("Could not look up " + serial + ": " + apiErrorMessage(e), true);
+      }
     }
 
     function setReprintSelection(serials, on) {
@@ -847,19 +907,33 @@
     }
 
     async function loadReprintForRun(runId) {
-      reprintCatalog = [];
-      reprintSelected = {};
+      var manualItems = reprintCatalog.filter(function (item) { return item.manual; });
+      var manualSel = {};
+      manualItems.forEach(function (item) {
+        if (reprintSelected[item.serial]) manualSel[item.serial] = true;
+      });
+      reprintCatalog = manualItems.slice();
+      reprintSelected = manualSel;
       if (!runId || !ctx.api.traceability) {
-        reprintListEl.className = "print-labels-reprint-list muted";
-        reprintListEl.textContent = "Select a print run above.";
-        updateReprintCount();
+        if (reprintCatalog.length) {
+          renderReprintChecklist();
+        } else {
+          reprintListEl.className = "print-labels-reprint-list muted";
+          reprintListEl.textContent = "Enter a Bag ID above, or select a print run.";
+          updateReprintCount();
+        }
         return;
       }
       reprintListEl.className = "print-labels-reprint-list muted";
       reprintListEl.textContent = "Loading labels…";
       try {
         var data = await ctx.api.traceability("/labels/print-runs/" + runId + "/labels");
-        reprintCatalog = (data && data.labels) || [];
+        var runLabels = (data && data.labels) || [];
+        runLabels.forEach(function (item) {
+          if (!reprintCatalog.some(function (m) { return m.serial === item.serial; })) {
+            reprintCatalog.push(item);
+          }
+        });
         reprintCatalog.forEach(function (item) {
           if (item.recovery) reprintSelected[item.serial] = true;
         });
@@ -943,6 +1017,10 @@
     reprintBtn.addEventListener("click", prepareReprint);
     reprintRunEl.addEventListener("change", function () {
       loadReprintForRun(reprintRunEl.value);
+    });
+    reprintManualBtn.addEventListener("click", addManualReprintSerial);
+    reprintManualEl.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") addManualReprintSerial();
     });
     reprintRangeBtn.addEventListener("click", applyReprintRangeSelection);
     reprintRangeEl.addEventListener("keydown", function (ev) {
