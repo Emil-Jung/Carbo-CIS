@@ -4,17 +4,26 @@
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
-  var STREAMS = [
+  var STREAM_FILTERS = [
     { id: "all", label: "All streams" },
     { id: "restaurant", label: "Restaurant" },
     { id: "lumpwood", label: "Lumpwood" },
     { id: "fines", label: "Fines" },
   ];
 
-  var STREAM_META = {
-    restaurant: { label: "Restaurant", className: "bm-stream--rest" },
-    lumpwood: { label: "Lumpwood", className: "bm-stream--lump" },
-    fines: { label: "Fines", className: "bm-stream--fines" },
+  var STATUS_FILTERS = [
+    { id: "all", label: "All statuses" },
+    { id: "in_storage", label: "In storage" },
+    { id: "sold", label: "Sold / weathered" },
+    { id: "on_truck_walvisbay", label: "On truck Walvis Bay" },
+    { id: "storage_walvisbay", label: "Storage Walvis Bay" },
+    { id: "in_container", label: "In container" },
+  ];
+
+  var STREAM_TITLES = {
+    restaurant: "Restaurant",
+    lumpwood: "Lumpwood",
+    fines: "Fines",
   };
 
   function fmt(n, d) {
@@ -34,8 +43,7 @@
 
   function monthShort(m) {
     var names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    var n = parseInt(m, 10);
-    return names[n - 1] || m;
+    return names[parseInt(m, 10) - 1] || m;
   }
 
   function todayIso() {
@@ -57,27 +65,44 @@
     return c;
   }
 
-  function streamChip(label, count, kg) {
-    if (!count) return label + " 0";
-    return label + " " + count + " · " + fmt(kg, 0) + " kg";
+  function rowMatchesFilters(row, streamFilter, statusFilter) {
+    if (streamFilter !== "all" && row.product_stream !== streamFilter) return false;
+    if (statusFilter === "all") return true;
+    var eff = row.effective_status || row.storage_status || "in_storage";
+    if (statusFilter === "sold") {
+      return eff === "sold";
+    }
+    return eff === statusFilter;
   }
 
-  function renderBagTable(rows, ui) {
-    var table = ui.el("table", { class: "data bags-movement-table bags-movement-table--compact" });
+  function renderTable(rows, ui) {
+    var table = ui.el("table", { class: "data bags-movement-table" });
     table.innerHTML =
       "<thead><tr>" +
-      "<th>#</th><th>Net kg</th><th>Days left</th><th>Status</th><th>Tag</th>" +
+      "<th>#</th><th>Producer</th><th>Net kg</th>" +
+      "<th>Weathering start</th><th>Weathering end</th><th>Timer</th>" +
+      "<th>Status</th><th>Tag</th>" +
       "</tr></thead>";
     var tbody = ui.el("tbody");
-    rows.forEach(function (row) {
+    rows.forEach(function (row, i) {
       var tr = ui.el("tr");
+      var timerText;
+      if (row.effective_status === "sold" && row.status_is_computed) {
+        timerText = "Sold (weathered)";
+      } else if (row.weathered) {
+        timerText = "Weathered";
+      } else {
+        timerText = String(row.days_remaining) + " days left";
+      }
       var daysClass = row.weathered ? "bags-movement-days bags-movement-days--done" : "bags-movement-days";
-      var daysText = row.weathered ? "0 (ready)" : String(row.days_remaining);
       tr.innerHTML =
-        "<td>" + ui.escape(String(row.seq)) + "</td>" +
+        "<td>" + ui.escape(String(i + 1)) + "</td>" +
+        "<td>" + ui.escape(row.producer_name || "—") + "</td>" +
         "<td>" + fmt(row.net_weight_kg, 0) + "</td>" +
-        "<td class='" + daysClass + "'>" + ui.escape(daysText) + "</td>" +
-        "<td>" + ui.escape(row.storage_status_display || row.storage_status_label || "—") + "</td>" +
+        "<td>" + ui.escape(fmtDate(row.weathering_start_date)) + "</td>" +
+        "<td>" + ui.escape(fmtDate(row.weathering_end_date)) + "</td>" +
+        "<td class='" + daysClass + "'>" + ui.escape(timerText) + "</td>" +
+        "<td>" + ui.escape(row.effective_status_display || row.storage_status_display || "—") + "</td>" +
         "<td class='bags-movement-tag'>" + ui.escape(row.serial || "—") + "</td>";
       tbody.appendChild(tr);
     });
@@ -85,128 +110,78 @@
     return table;
   }
 
-  function paintReport(body, data, ui, streamFilter) {
+  function paintReport(body, data, ui, streamFilter, statusFilter) {
     body.innerHTML = "";
-    streamFilter = streamFilter || "all";
     var streams = data.streams || {};
-    var groups = data.producer_groups || [];
+    var sections = data.stream_sections || [];
 
     var cards = ui.el("div", { class: "cards" });
-    cards.appendChild(card(ui, "Producers this day", fmt(data.producer_count || groups.length)));
     cards.appendChild(card(ui, "Bags this day", fmt(data.bag_count)));
     cards.appendChild(
-      card(
-        ui,
-        "Restaurant",
-        fmt((streams.restaurant && streams.restaurant.bags) || 0) +
-          " · " + fmt((streams.restaurant && streams.restaurant.kg) || 0, 0) + " kg"
-      )
+      card(ui, "Restaurant", fmt((streams.restaurant && streams.restaurant.bags) || 0) + " · " + fmt((streams.restaurant && streams.restaurant.kg) || 0, 0) + " kg")
     );
     cards.appendChild(
-      card(
-        ui,
-        "Lumpwood",
-        fmt((streams.lumpwood && streams.lumpwood.bags) || 0) +
-          " · " + fmt((streams.lumpwood && streams.lumpwood.kg) || 0, 0) + " kg"
-      )
+      card(ui, "Lumpwood", fmt((streams.lumpwood && streams.lumpwood.bags) || 0) + " · " + fmt((streams.lumpwood && streams.lumpwood.kg) || 0, 0) + " kg")
     );
     cards.appendChild(
-      card(
-        ui,
-        "Fines",
-        fmt((streams.fines && streams.fines.bags) || 0) +
-          " · " + fmt((streams.fines && streams.fines.kg) || 0, 0) + " kg"
-      )
+      card(ui, "Fines", fmt((streams.fines && streams.fines.bags) || 0) + " · " + fmt((streams.fines && streams.fines.kg) || 0, 0) + " kg")
     );
     body.appendChild(cards);
 
-    if (!groups.length) {
-      body.appendChild(ui.el("p", { class: "muted" }, ["No bags recorded on this date."]));
-      return;
-    }
-
-    var hint = ui.el("p", { class: "muted bm-hint" }, [
-      groups.length + " producer load(s). Each section is collapsed by default on busy days — expand to see bag lines split into Restaurant, Lumpwood, and Fines.",
-    ]);
-    body.appendChild(hint);
-
-    var collapseDefault = (data.bag_count || 0) > 30;
-    var list = ui.el("div", { class: "bm-producer-list" });
-
-    groups.forEach(function (group) {
-      var visibleStreams = ["restaurant", "lumpwood", "fines"].filter(function (sid) {
-        if (streamFilter !== "all" && streamFilter !== sid) return false;
-        var block = group.streams && group.streams[sid];
-        return block && block.bags > 0;
+    var any = false;
+    sections.forEach(function (section) {
+      if (streamFilter !== "all" && section.stream !== streamFilter) return;
+      var rows = (section.rows || []).filter(function (row) {
+        return rowMatchesFilters(row, "all", statusFilter);
       });
-      if (!visibleStreams.length) return;
+      if (!rows.length) return;
+      any = true;
 
-      var details = ui.el("details", { class: "bm-producer" });
-      if (!collapseDefault) details.open = true;
-
-      var summaryParts = [
-        ui.escape(group.producer_name || "—"),
-        " — ",
-        streamChip("R", (group.streams.restaurant && group.streams.restaurant.bags) || 0, (group.streams.restaurant && group.streams.restaurant.kg) || 0),
-        " · ",
-        streamChip("L", (group.streams.lumpwood && group.streams.lumpwood.bags) || 0, (group.streams.lumpwood && group.streams.lumpwood.kg) || 0),
-        " · ",
-        streamChip("F", (group.streams.fines && group.streams.fines.bags) || 0, (group.streams.fines && group.streams.fines.kg) || 0),
-      ];
-      if (group.weathering_end_date) {
-        summaryParts.push(" · weathering to " + ui.escape(fmtDate(group.weathering_end_date)));
-      }
-      var summary = ui.el("summary", { class: "bm-producer-summary" });
-      summary.innerHTML = summaryParts.join("");
-      details.appendChild(summary);
-
-      var inner = ui.el("div", { class: "bm-producer-body" });
-      inner.appendChild(
-        ui.el("p", { class: "bm-producer-meta muted" }, [
-          fmt(group.bag_count) + " bags · " + fmt(group.total_kg, 0) + " kg total" +
-            (group.min_days_remaining != null
-              ? " · " + (group.min_days_remaining <= 0 ? "weathered" : group.min_days_remaining + " days left")
-              : ""),
+      var title = STREAM_TITLES[section.stream] || section.stream;
+      body.appendChild(
+        ui.el("h3", { class: "bm-stream-heading bm-stream-heading--" + section.stream }, [
+          title + " — " + rows.length + " bag(s) · " + fmt(rows.reduce(function (s, r) { return s + (r.net_weight_kg || 0); }, 0), 0) + " kg",
         ])
       );
-
-      visibleStreams.forEach(function (sid) {
-        var meta = STREAM_META[sid];
-        var block = group.streams[sid];
-        var section = ui.el("section", { class: "bm-stream " + (meta ? meta.className : "") });
-        section.appendChild(
-          ui.el("h4", { class: "bm-stream-title" }, [
-            (meta ? meta.label : sid) + " (" + block.bags + " bags · " + fmt(block.kg, 0) + " kg)",
-          ])
-        );
-        section.appendChild(renderBagTable(block.rows || [], ui));
-        inner.appendChild(section);
-      });
-
-      details.appendChild(inner);
-      list.appendChild(details);
+      body.appendChild(renderTable(rows, ui));
     });
 
-    body.appendChild(list);
+    if (!any) {
+      body.appendChild(ui.el("p", { class: "muted" }, ["No bags match the selected filters for this date."]));
+    }
 
     body.appendChild(
       ui.el("p", { class: "muted" }, [
-        "Weathering: " + String(data.weathering_days || 21) +
-          " calendar days after scan-in · " + ui.escape(data.timezone || "Africa/Windhoek") + ".",
+        "Listed in order: Restaurant, then Lumpwood, then Fines. Within each stream, bags group by producer. ",
+        "After " + String(data.weathering_days || 21) + " days weathering, status shows as Sold (weathered) until scanned to a new location.",
       ])
     );
+  }
+
+  function buildFilterBar(ui, items, activeId, className) {
+    var bar = ui.el("div", { class: "toolbar bm-filter-bar " + (className || "") });
+    var btns = ui.el("div", { class: "bm-filter-btns" });
+    items.forEach(function (item) {
+      btns.appendChild(ui.el("button", {
+        type: "button",
+        class: "btn-ghost btn-sm bm-filter-btn" + (item.id === activeId ? " bm-filter-btn--active" : ""),
+        "data-filter-id": item.id,
+      }, [item.label]));
+    });
+    bar.appendChild(btns);
+    return { bar: bar, btns: btns };
   }
 
   async function render(container, ctx) {
     var ui = CIS.ui;
     var streamFilter = "all";
+    var statusFilter = "all";
+    var lastData = null;
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Movement"]));
-    container.appendChild(
-      ui.el("p", { class: "module-desc" }, [
-        "Daily scan-in by producer — Restaurant, Lumpwood, and Fines kept separate. Expand a producer to see individual bags.",
-      ])
-    );
+    container.appendChild(ui.el("p", { class: "module-desc" }, [
+      "Daily scan-in list — Restaurant, then Lumpwood, then Fines. Filter by stream or storage status.",
+    ]));
 
     var toolbar = ui.el("div", { class: "toolbar bm-toolbar" });
     toolbar.appendChild(ui.el("label", { for: "bags-movement-date" }, ["Date"]));
@@ -217,40 +192,46 @@
     toolbar.appendChild(ui.el("button", { type: "button", class: "btn-ghost btn-sm", id: "bm-today" }, ["Today"]));
     container.appendChild(toolbar);
 
-    var filterBar = ui.el("div", { class: "toolbar bm-filter-bar" });
-    filterBar.appendChild(ui.el("span", { class: "bm-filter-label" }, ["Show:"]));
-    var filterBtns = ui.el("div", { class: "bm-filter-btns" });
-    STREAMS.forEach(function (s) {
-      var btn = ui.el("button", {
-        type: "button",
-        class: "btn-ghost btn-sm bm-filter-btn" + (s.id === streamFilter ? " bm-filter-btn--active" : ""),
-        "data-stream": s.id,
-      }, [s.label]);
-      filterBtns.appendChild(btn);
+    var streamFilterUi = buildFilterBar(ui, STREAM_FILTERS, streamFilter, "bm-stream-filters");
+    streamFilterUi.bar.insertBefore(ui.el("span", { class: "bm-filter-label" }, ["Stream:"]), streamFilterUi.btns);
+    container.appendChild(streamFilterUi.bar);
+
+    var statusFilterUi = buildFilterBar(ui, STATUS_FILTERS, statusFilter, "bm-status-filters");
+    statusFilterUi.bar.insertBefore(ui.el("span", { class: "bm-filter-label" }, ["Status:"]), statusFilterUi.btns);
+    container.appendChild(statusFilterUi.bar);
+
+    function syncFilterButtons() {
+      streamFilterUi.btns.querySelectorAll(".bm-filter-btn").forEach(function (btn) {
+        btn.classList.toggle("bm-filter-btn--active", btn.getAttribute("data-filter-id") === streamFilter);
+      });
+      statusFilterUi.btns.querySelectorAll(".bm-filter-btn").forEach(function (btn) {
+        btn.classList.toggle("bm-filter-btn--active", btn.getAttribute("data-filter-id") === statusFilter);
+      });
+    }
+
+    function repaint() {
+      if (lastData) paintReport(body, lastData, ui, streamFilter, statusFilter);
+    }
+
+    streamFilterUi.btns.addEventListener("click", function (ev) {
+      var btn = ev.target.closest(".bm-filter-btn");
+      if (!btn) return;
+      streamFilter = btn.getAttribute("data-filter-id") || "all";
+      syncFilterButtons();
+      repaint();
     });
-    filterBar.appendChild(filterBtns);
-    container.appendChild(filterBar);
+    statusFilterUi.btns.addEventListener("click", function (ev) {
+      var btn = ev.target.closest(".bm-filter-btn");
+      if (!btn) return;
+      statusFilter = btn.getAttribute("data-filter-id") || "all";
+      syncFilterButtons();
+      repaint();
+    });
 
     var status = ui.el("p", { class: "muted" }, ["Loading…"]);
     container.appendChild(status);
     var body = ui.el("div", { class: "report-body" });
     container.appendChild(body);
-
-    var lastData = null;
-
-    function setFilter(next) {
-      streamFilter = next;
-      filterBtns.querySelectorAll(".bm-filter-btn").forEach(function (btn) {
-        btn.classList.toggle("bm-filter-btn--active", btn.getAttribute("data-stream") === streamFilter);
-      });
-      if (lastData) paintReport(body, lastData, ui, streamFilter);
-    }
-
-    filterBtns.addEventListener("click", function (ev) {
-      var btn = ev.target.closest(".bm-filter-btn");
-      if (!btn) return;
-      setFilter(btn.getAttribute("data-stream") || "all");
-    });
 
     async function loadReport(isoDate) {
       status.textContent = "Loading…";
@@ -262,16 +243,12 @@
         return;
       }
       try {
-        var data = await ctx.api.traceability(
-          "/reports/bags-movement?date=" + encodeURIComponent(isoDate)
-        );
-        lastData = data;
+        lastData = await ctx.api.traceability("/reports/bags-movement?date=" + encodeURIComponent(isoDate));
         status.style.display = "none";
-        paintReport(body, data, ui, streamFilter);
+        paintReport(body, lastData, ui, streamFilter, statusFilter);
       } catch (e) {
         lastData = null;
         status.textContent = "";
-        body.innerHTML = "";
         body.appendChild(ui.error("Could not load report: " + (e.message || e)));
       }
     }

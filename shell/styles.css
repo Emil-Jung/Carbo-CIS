@@ -250,45 +250,18 @@ body {
 .bm-hint {
   margin: 12px 0 8px;
 }
-.bm-producer-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.bm-producer {
-  border: 1px solid var(--border, #333);
-  border-radius: 8px;
-  background: var(--panel, #1a1a1a);
-  overflow: hidden;
-}
-.bm-producer-summary {
-  cursor: pointer;
-  padding: 12px 14px;
-  font-weight: 600;
-  list-style: none;
-}
-.bm-producer-summary::-webkit-details-marker {
-  display: none;
-}
-.bm-producer-body {
-  padding: 0 14px 14px;
-  border-top: 1px solid var(--border, #333);
-}
-.bm-producer-meta {
-  margin: 10px 0 12px;
-  font-size: 12px;
-}
-.bm-stream {
-  margin-bottom: 16px;
-}
-.bm-stream-title {
-  margin: 0 0 6px;
-  font-size: 13px;
+.bm-stream-heading {
+  margin: 20px 0 8px;
+  font-size: 1rem;
   font-weight: 600;
 }
-.bm-stream--rest .bm-stream-title { color: #e57373; }
-.bm-stream--lump .bm-stream-title { color: #81c784; }
-.bm-stream--fines .bm-stream-title { color: #ffb74d; }
+.bm-stream-heading--restaurant { color: #e57373; }
+.bm-stream-heading--lumpwood { color: #81c784; }
+.bm-stream-heading--fines { color: #ffb74d; }
+.bm-stream-filters,
+.bm-status-filters {
+  margin-top: 4px;
+}
 
 .report-supplier-title {
   margin: 0 0 8px;
