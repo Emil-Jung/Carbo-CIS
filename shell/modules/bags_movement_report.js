@@ -13,19 +13,21 @@
 
   var STATUS_FILTERS = [
     { id: "all", label: "All statuses" },
-    { id: "in_storage", label: "In storage" },
-    { id: "sold", label: "Sold / weathered" },
+    { id: "in_storage_weathering", label: "In Storage — weathering" },
+    { id: "in_storage", label: "In Storage" },
     { id: "on_truck_walvisbay", label: "On truck Walvis Bay" },
     { id: "storage_walvisbay", label: "Storage Walvis Bay" },
     { id: "in_container", label: "In container" },
+    { id: "sold", label: "Sold" },
   ];
 
   var STATUS_COUNTER_KEYS = [
-    { id: "in_storage", label: "In storage" },
-    { id: "sold", label: "Sold / weathered" },
+    { id: "in_storage_weathering", label: "In Storage — weathering" },
+    { id: "in_storage", label: "In Storage (weathered)" },
     { id: "on_truck_walvisbay", label: "On truck WB" },
     { id: "storage_walvisbay", label: "Storage WB" },
     { id: "in_container", label: "In container" },
+    { id: "sold", label: "Sold" },
   ];
 
   var STREAM_TITLES = {
@@ -92,14 +94,21 @@
     rows.forEach(function (row, i) {
       var tr = ui.el("tr");
       var timerText;
-      if (row.effective_status === "sold" && row.status_is_computed) {
-        timerText = "Sold (weathered)";
+      if (row.effective_status === "in_storage_weathering") {
+        timerText = String(row.days_remaining) + " days left";
+      } else if (row.effective_status === "in_storage" && row.weathered) {
+        timerText = "Weathered";
       } else if (row.weathered) {
         timerText = "Weathered";
       } else {
-        timerText = String(row.days_remaining) + " days left";
+        timerText = "—";
       }
-      var daysClass = row.weathered ? "bags-movement-days bags-movement-days--done" : "bags-movement-days";
+      var daysClass =
+        row.effective_status === "in_storage_weathering"
+          ? "bags-movement-days"
+          : row.weathered
+            ? "bags-movement-days bags-movement-days--done"
+            : "bags-movement-days";
       var html =
         "<td>" + ui.escape(String(i + 1)) + "</td>" +
         "<td>" + ui.escape(row.producer_name || "—") + "</td>";
@@ -204,8 +213,8 @@
         isAll
           ? "Showing all recorded bags. Counters are cumulative across every scan date. "
           : "Showing bags scanned on " + fmtDate(data.date) + ". ",
-        "After " + String(data.weathering_days || 21) +
-          " days weathering, in-storage bags count as Sold / weathered until scanned to a new location.",
+        "In Storage — weathering = within " + String(data.weathering_days || 21) +
+          " days of scan-in. In Storage (weathered) = weathering complete, still on site until scanned out.",
       ])
     );
   }
