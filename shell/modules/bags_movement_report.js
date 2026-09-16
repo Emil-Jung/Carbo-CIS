@@ -228,7 +228,7 @@
     order: 16,
     icon: "bags",
     description: "Daily bag scan-in — producer, stream, weathering, storage status",
-    requires: "traceability.stock.view",
+    requires: "traceability.bags_movement",
     render: render,
   });
 })();
