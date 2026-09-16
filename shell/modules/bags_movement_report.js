@@ -1,4 +1,4 @@
-/* Bags Movement — daily sieve scan-in report (CIS). */
+/* Bags Movement — cumulative bag stock + optional single-day view (CIS). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -17,6 +17,14 @@
     { id: "sold", label: "Sold / weathered" },
     { id: "on_truck_walvisbay", label: "On truck Walvis Bay" },
     { id: "storage_walvisbay", label: "Storage Walvis Bay" },
+    { id: "in_container", label: "In container" },
+  ];
+
+  var STATUS_COUNTER_KEYS = [
+    { id: "in_storage", label: "In storage" },
+    { id: "sold", label: "Sold / weathered" },
+    { id: "on_truck_walvisbay", label: "On truck WB" },
+    { id: "storage_walvisbay", label: "Storage WB" },
     { id: "in_container", label: "In container" },
   ];
 
@@ -58,8 +66,8 @@
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
 
-  function card(ui, label, value) {
-    var c = ui.el("div", { class: "card" });
+  function card(ui, label, value, extraClass) {
+    var c = ui.el("div", { class: "card" + (extraClass ? " " + extraClass : "") });
     c.appendChild(ui.el("div", { class: "label" }, [label]));
     c.appendChild(ui.el("div", { class: "value" }, [value]));
     return c;
@@ -69,20 +77,17 @@
     if (streamFilter !== "all" && row.product_stream !== streamFilter) return false;
     if (statusFilter === "all") return true;
     var eff = row.effective_status || row.storage_status || "in_storage";
-    if (statusFilter === "sold") {
-      return eff === "sold";
-    }
     return eff === statusFilter;
   }
 
-  function renderTable(rows, ui) {
+  function renderTable(rows, ui, showScannedDate) {
     var table = ui.el("table", { class: "data bags-movement-table" });
-    table.innerHTML =
-      "<thead><tr>" +
-      "<th>#</th><th>Producer</th><th>Net kg</th>" +
-      "<th>Weathering start</th><th>Weathering end</th><th>Timer</th>" +
-      "<th>Status</th><th>Tag</th>" +
-      "</tr></thead>";
+    var head =
+      "<thead><tr><th>#</th><th>Producer</th>" +
+      (showScannedDate ? "<th>Scanned</th>" : "") +
+      "<th>Net kg</th><th>Weathering start</th><th>Weathering end</th><th>Timer</th>" +
+      "<th>Status</th><th>Tag</th></tr></thead>";
+    table.innerHTML = head;
     var tbody = ui.el("tbody");
     rows.forEach(function (row, i) {
       var tr = ui.el("tr");
@@ -95,28 +100,48 @@
         timerText = String(row.days_remaining) + " days left";
       }
       var daysClass = row.weathered ? "bags-movement-days bags-movement-days--done" : "bags-movement-days";
-      tr.innerHTML =
+      var html =
         "<td>" + ui.escape(String(i + 1)) + "</td>" +
-        "<td>" + ui.escape(row.producer_name || "—") + "</td>" +
+        "<td>" + ui.escape(row.producer_name || "—") + "</td>";
+      if (showScannedDate) {
+        html += "<td>" + ui.escape(fmtDate(row.recorded_date)) + "</td>";
+      }
+      html +=
         "<td>" + fmt(row.net_weight_kg, 0) + "</td>" +
         "<td>" + ui.escape(fmtDate(row.weathering_start_date)) + "</td>" +
         "<td>" + ui.escape(fmtDate(row.weathering_end_date)) + "</td>" +
         "<td class='" + daysClass + "'>" + ui.escape(timerText) + "</td>" +
         "<td>" + ui.escape(row.effective_status_display || row.storage_status_display || "—") + "</td>" +
         "<td class='bags-movement-tag'>" + ui.escape(row.serial || "—") + "</td>";
+      tr.innerHTML = html;
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
     return table;
   }
 
-  function paintReport(body, data, ui, streamFilter, statusFilter) {
+  function statusCounterValue(totals, key) {
+    var t = totals && totals[key];
+    if (!t || !t.bags) return "0";
+    return (
+      fmt(t.bags) +
+      " (R " + fmt(t.restaurant || 0) +
+      " · L " + fmt(t.lumpwood || 0) +
+      " · F " + fmt(t.fines || 0) + ")"
+    );
+  }
+
+  function paintReport(body, data, ui, streamFilter, statusFilter, onStatusCardClick) {
     body.innerHTML = "";
     var streams = data.streams || {};
     var sections = data.stream_sections || [];
+    var totals = data.status_totals || {};
+    var isAll = data.scope === "all";
 
     var cards = ui.el("div", { class: "cards" });
-    cards.appendChild(card(ui, "Bags this day", fmt(data.bag_count)));
+    cards.appendChild(
+      card(ui, isAll ? "All bags" : "Bags this day", fmt(data.bag_count), "card--highlight")
+    );
     cards.appendChild(
       card(ui, "Restaurant", fmt((streams.restaurant && streams.restaurant.bags) || 0) + " · " + fmt((streams.restaurant && streams.restaurant.kg) || 0, 0) + " kg")
     );
@@ -126,7 +151,31 @@
     cards.appendChild(
       card(ui, "Fines", fmt((streams.fines && streams.fines.bags) || 0) + " · " + fmt((streams.fines && streams.fines.kg) || 0, 0) + " kg")
     );
+    cards.appendChild(card(ui, "Total net kg", fmt(data.total_kg, 0) + " kg"));
     body.appendChild(cards);
+
+    body.appendChild(ui.el("h3", { class: "bm-subheading" }, ["By status (click to filter list)"]));
+    var statusCards = ui.el("div", { class: "cards bm-status-cards" });
+    STATUS_COUNTER_KEYS.forEach(function (item) {
+      var active = statusFilter === item.id;
+      var c = card(
+        ui,
+        item.label,
+        statusCounterValue(totals, item.id),
+        "bm-status-card" + (active ? " bm-status-card--active" : "")
+      );
+      c.setAttribute("role", "button");
+      c.tabIndex = 0;
+      c.addEventListener("click", function () {
+        onStatusCardClick(statusFilter === item.id ? "all" : item.id);
+      });
+      statusCards.appendChild(c);
+    });
+    var totalBucket = totals.total || {};
+    statusCards.appendChild(
+      card(ui, "Total", fmt(totalBucket.bags || data.bag_count || 0), "bm-status-card bm-status-card--total")
+    );
+    body.appendChild(statusCards);
 
     var any = false;
     sections.forEach(function (section) {
@@ -136,24 +185,27 @@
       });
       if (!rows.length) return;
       any = true;
-
       var title = STREAM_TITLES[section.stream] || section.stream;
       body.appendChild(
         ui.el("h3", { class: "bm-stream-heading bm-stream-heading--" + section.stream }, [
-          title + " — " + rows.length + " bag(s) · " + fmt(rows.reduce(function (s, r) { return s + (r.net_weight_kg || 0); }, 0), 0) + " kg",
+          title + " — " + rows.length + " bag(s) · " +
+            fmt(rows.reduce(function (s, r) { return s + (r.net_weight_kg || 0); }, 0), 0) + " kg",
         ])
       );
-      body.appendChild(renderTable(rows, ui));
+      body.appendChild(renderTable(rows, ui, isAll));
     });
 
     if (!any) {
-      body.appendChild(ui.el("p", { class: "muted" }, ["No bags match the selected filters for this date."]));
+      body.appendChild(ui.el("p", { class: "muted" }, ["No bags match the selected filters."]));
     }
 
     body.appendChild(
       ui.el("p", { class: "muted" }, [
-        "Listed in order: Restaurant, then Lumpwood, then Fines. Within each stream, bags group by producer. ",
-        "After " + String(data.weathering_days || 21) + " days weathering, status shows as Sold (weathered) until scanned to a new location.",
+        isAll
+          ? "Showing all recorded bags. Counters are cumulative across every scan date. "
+          : "Showing bags scanned on " + fmtDate(data.date) + ". ",
+        "After " + String(data.weathering_days || 21) +
+          " days weathering, in-storage bags count as Sold / weathered until scanned to a new location.",
       ])
     );
   }
@@ -174,22 +226,33 @@
 
   async function render(container, ctx) {
     var ui = CIS.ui;
+    var scope = "all";
     var streamFilter = "all";
     var statusFilter = "all";
     var lastData = null;
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Movement"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Daily scan-in list — Restaurant, then Lumpwood, then Fines. Filter by stream or storage status.",
+      "Cumulative bag stock with status counters. Switch to single day to see only bags scanned on that date.",
     ]));
+
+    var scopeBar = ui.el("div", { class: "toolbar bm-scope-bar" });
+    var scopeAllBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm bm-scope-btn bm-scope-btn--active", "data-scope": "all" }, ["All bags"]);
+    var scopeDayBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm bm-scope-btn", "data-scope": "day" }, ["Single day"]);
+    scopeBar.appendChild(scopeAllBtn);
+    scopeBar.appendChild(scopeDayBtn);
+    container.appendChild(scopeBar);
 
     var toolbar = ui.el("div", { class: "toolbar bm-toolbar" });
     toolbar.appendChild(ui.el("label", { for: "bags-movement-date" }, ["Date"]));
-    var dateInput = ui.el("input", { id: "bags-movement-date", type: "date", value: todayIso() });
+    var dateInput = ui.el("input", { id: "bags-movement-date", type: "date", value: todayIso(), disabled: true });
     toolbar.appendChild(dateInput);
-    toolbar.appendChild(ui.el("button", { type: "button", class: "btn-ghost btn-sm", id: "bm-prev" }, ["Previous day"]));
-    toolbar.appendChild(ui.el("button", { type: "button", class: "btn-ghost btn-sm", id: "bm-next" }, ["Next day"]));
-    toolbar.appendChild(ui.el("button", { type: "button", class: "btn-ghost btn-sm", id: "bm-today" }, ["Today"]));
+    var prevBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm", id: "bm-prev", disabled: true }, ["Previous day"]);
+    var nextBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm", id: "bm-next", disabled: true }, ["Next day"]);
+    var todayBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm", id: "bm-today", disabled: true }, ["Today"]);
+    toolbar.appendChild(prevBtn);
+    toolbar.appendChild(nextBtn);
+    toolbar.appendChild(todayBtn);
     container.appendChild(toolbar);
 
     var streamFilterUi = buildFilterBar(ui, STREAM_FILTERS, streamFilter, "bm-stream-filters");
@@ -199,6 +262,21 @@
     var statusFilterUi = buildFilterBar(ui, STATUS_FILTERS, statusFilter, "bm-status-filters");
     statusFilterUi.bar.insertBefore(ui.el("span", { class: "bm-filter-label" }, ["Status:"]), statusFilterUi.btns);
     container.appendChild(statusFilterUi.bar);
+
+    function setScope(next) {
+      scope = next;
+      var dayMode = scope === "day";
+      scopeAllBtn.classList.toggle("bm-scope-btn--active", !dayMode);
+      scopeDayBtn.classList.toggle("bm-scope-btn--active", dayMode);
+      dateInput.disabled = !dayMode;
+      prevBtn.disabled = !dayMode;
+      nextBtn.disabled = !dayMode;
+      todayBtn.disabled = !dayMode;
+      loadReport();
+    }
+
+    scopeAllBtn.addEventListener("click", function () { setScope("all"); });
+    scopeDayBtn.addEventListener("click", function () { setScope("day"); });
 
     function syncFilterButtons() {
       streamFilterUi.btns.querySelectorAll(".bm-filter-btn").forEach(function (btn) {
@@ -210,7 +288,12 @@
     }
 
     function repaint() {
-      if (lastData) paintReport(body, lastData, ui, streamFilter, statusFilter);
+      if (!lastData) return;
+      paintReport(body, lastData, ui, streamFilter, statusFilter, function (nextStatus) {
+        statusFilter = nextStatus;
+        syncFilterButtons();
+        repaint();
+      });
     }
 
     streamFilterUi.btns.addEventListener("click", function (ev) {
@@ -233,7 +316,14 @@
     var body = ui.el("div", { class: "report-body" });
     container.appendChild(body);
 
-    async function loadReport(isoDate) {
+    function reportUrl() {
+      if (scope === "day") {
+        return "/reports/bags-movement?scope=day&date=" + encodeURIComponent(dateInput.value || todayIso());
+      }
+      return "/reports/bags-movement?scope=all";
+    }
+
+    async function loadReport() {
       status.textContent = "Loading…";
       status.style.display = "";
       body.innerHTML = "";
@@ -243,9 +333,9 @@
         return;
       }
       try {
-        lastData = await ctx.api.traceability("/reports/bags-movement?date=" + encodeURIComponent(isoDate));
+        lastData = await ctx.api.traceability(reportUrl());
         status.style.display = "none";
-        paintReport(body, lastData, ui, streamFilter, statusFilter);
+        repaint();
       } catch (e) {
         lastData = null;
         status.textContent = "";
@@ -253,25 +343,23 @@
       }
     }
 
-    function currentDate() {
-      return dateInput.value || todayIso();
-    }
-
-    dateInput.addEventListener("change", function () { loadReport(currentDate()); });
-    container.querySelector("#bm-prev").addEventListener("click", function () {
-      dateInput.value = shiftDate(currentDate(), -1);
-      loadReport(dateInput.value);
+    dateInput.addEventListener("change", function () {
+      if (scope === "day") loadReport();
     });
-    container.querySelector("#bm-next").addEventListener("click", function () {
-      dateInput.value = shiftDate(currentDate(), 1);
-      loadReport(dateInput.value);
+    prevBtn.addEventListener("click", function () {
+      dateInput.value = shiftDate(dateInput.value || todayIso(), -1);
+      loadReport();
     });
-    container.querySelector("#bm-today").addEventListener("click", function () {
+    nextBtn.addEventListener("click", function () {
+      dateInput.value = shiftDate(dateInput.value || todayIso(), 1);
+      loadReport();
+    });
+    todayBtn.addEventListener("click", function () {
       dateInput.value = todayIso();
-      loadReport(dateInput.value);
+      loadReport();
     });
 
-    await loadReport(currentDate());
+    await loadReport();
   }
 
   CIS.modules.push({
@@ -281,7 +369,7 @@
     kind: "lookup",
     order: 16,
     icon: "bags",
-    description: "Daily bag scan-in — producer, stream, weathering, storage status",
+    description: "Cumulative bag stock — stream and status counters",
     requires: "traceability.bags_movement",
     requiresAny: ["traceability.bags_movement", "traceability.stock.view"],
     render: render,

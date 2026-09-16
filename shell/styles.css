@@ -250,6 +250,32 @@ body {
 .bm-hint {
   margin: 12px 0 8px;
 }
+.bm-subheading {
+  margin: 16px 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.bm-status-cards .bm-status-card {
+  cursor: pointer;
+}
+.bm-status-card--active {
+  border-color: var(--accent, #7cb342);
+  box-shadow: 0 0 0 1px var(--accent, #7cb342);
+}
+.bm-status-card--total {
+  cursor: default;
+  opacity: 0.95;
+}
+.card--highlight .value {
+  font-size: 1.35rem;
+}
+.bm-scope-bar {
+  margin-bottom: 4px;
+}
+.bm-scope-btn--active {
+  border-color: var(--accent, #7cb342);
+  color: var(--accent, #7cb342);
+}
 .bm-stream-heading {
   margin: 20px 0 8px;
   font-size: 1rem;
