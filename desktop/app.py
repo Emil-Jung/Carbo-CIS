@@ -228,9 +228,13 @@ def _startup_update_check():
 
 
 def main():
-    shell_dir = _prepare_shell_dir()
-    _httpd, port = _start_local_server(shell_dir)
-    url = f"http://127.0.0.1:{port}/index.html"
+    httpd = None
+    if _remote_shell_available():
+        url = REMOTE_SHELL_URL
+    else:
+        shell_dir = _prepare_shell_dir()
+        httpd, port = _start_local_server(shell_dir)
+        url = f"http://127.0.0.1:{port}/index.html"
 
     webview.create_window(WINDOW_TITLE, url, js_api=Api(), width=1240, height=820)
 
