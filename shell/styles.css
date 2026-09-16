@@ -216,12 +216,79 @@ body {
   color: var(--muted);
   white-space: nowrap;
 }
+.bags-movement-table--compact th,
+.bags-movement-table--compact td {
+  padding: 4px 8px;
+  font-size: 12px;
+}
 .bags-movement-days {
   font-weight: 600;
 }
 .bags-movement-days--done {
   color: #7cb342;
 }
+.bm-toolbar,
+.bm-filter-bar {
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.bm-filter-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-right: 4px;
+}
+.bm-filter-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bm-filter-btn--active {
+  border-color: var(--accent, #7cb342);
+  color: var(--accent, #7cb342);
+}
+.bm-hint {
+  margin: 12px 0 8px;
+}
+.bm-producer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bm-producer {
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  background: var(--panel, #1a1a1a);
+  overflow: hidden;
+}
+.bm-producer-summary {
+  cursor: pointer;
+  padding: 12px 14px;
+  font-weight: 600;
+  list-style: none;
+}
+.bm-producer-summary::-webkit-details-marker {
+  display: none;
+}
+.bm-producer-body {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--border, #333);
+}
+.bm-producer-meta {
+  margin: 10px 0 12px;
+  font-size: 12px;
+}
+.bm-stream {
+  margin-bottom: 16px;
+}
+.bm-stream-title {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.bm-stream--rest .bm-stream-title { color: #e57373; }
+.bm-stream--lump .bm-stream-title { color: #81c784; }
+.bm-stream--fines .bm-stream-title { color: #ffb74d; }
 
 .report-supplier-title {
   margin: 0 0 8px;
