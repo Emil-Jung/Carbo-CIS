@@ -119,6 +119,10 @@
 
   function canAccessModule(mod) {
 
+    if (mod.requiresAny && mod.requiresAny.length) {
+      return mod.requiresAny.some(function (p) { return CIS.hasPermission(p); });
+    }
+
     return !mod.requires || CIS.hasPermission(mod.requires);
 
   }

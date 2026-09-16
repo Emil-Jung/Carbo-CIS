@@ -28,6 +28,31 @@ import printer_usb
 
 WINDOW_TITLE = f"Carbo Integrated System  —  v{CIS_VERSION}"
 
+REMOTE_SHELL_URL = (
+    os.environ.get("CIS_SHELL_URL", "").strip()
+    or "https://bkweb3.bigk.co.uk/cis/index.html"
+)
+
+
+def _use_local_shell_only() -> bool:
+    return os.environ.get("CIS_LOCAL_SHELL", "").strip().lower() in ("1", "true", "yes")
+
+
+def _remote_shell_available() -> bool:
+    """When online, desktop loads the same shell as web CIS (stays in sync)."""
+    if _use_local_shell_only():
+        return False
+    try:
+        import urllib.error
+        import urllib.request
+
+        cfg_url = REMOTE_SHELL_URL.rsplit("/", 1)[0] + "/config.json"
+        req = urllib.request.Request(cfg_url, method="GET")
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
 
 def _prepare_shell_dir() -> str:
     """Copy the bundled shell to a writable temp dir and write a runtime config.json."""

@@ -229,6 +229,7 @@
     icon: "bags",
     description: "Daily bag scan-in — producer, stream, weathering, storage status",
     requires: "traceability.bags_movement",
+    requiresAny: ["traceability.bags_movement", "traceability.stock.view"],
     render: render,
   });
 })();

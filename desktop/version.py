@@ -9,7 +9,7 @@ See VERSIONING.md for the rules and examples.
 """
 
 CIS_MAJOR = 1      # X — CIS version
-CIS_MODULE = 5     # Y — Print Labels USB + layout
-CIS_INTERNAL = 5   # Z — production print runs, confirm dialog, history
+CIS_MODULE = 6     # Y — Bags Movement report + remote shell sync
+CIS_INTERNAL = 0   # Z — permission fixes for web + desktop
 
 CIS_VERSION = f"{CIS_MAJOR}.{CIS_MODULE}.{CIS_INTERNAL}"
