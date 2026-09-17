@@ -340,6 +340,137 @@ body {
   color: var(--gold-bright, #e4c04a);
   border-bottom: 1px solid var(--border, #333);
 }
+.bm-cumulative-panel {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border, #333);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(228, 192, 74, 0.08), rgba(0, 0, 0, 0));
+}
+.bm-panel-title {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold-bright, #e4c04a);
+}
+.bm-panel-lead {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+.bm-backlog-note {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+}
+.bm-cumulative-body,
+.bm-day-visual-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+.bm-donut-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  min-width: 220px;
+}
+.bm-donut {
+  width: 108px;
+  height: 108px;
+  flex: 0 0 auto;
+}
+.bm-donut-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 180px;
+}
+.bm-legend-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.bm-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+.bm-donut-caption {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.bm-stream-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(88px, 1fr));
+  gap: 10px;
+  flex: 1 1 240px;
+  min-width: 240px;
+}
+.bm-stream-card {
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #333);
+  background: var(--panel, #1a1a1a);
+}
+.bm-stream-card--restaurant { border-color: rgba(229, 115, 115, 0.55); background: rgba(229, 115, 115, 0.08); }
+.bm-stream-card--lumpwood { border-color: rgba(129, 199, 132, 0.55); background: rgba(129, 199, 132, 0.08); }
+.bm-stream-card--fines { border-color: rgba(255, 183, 77, 0.55); background: rgba(255, 183, 77, 0.08); }
+.bm-stream-card__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.bm-stream-card__value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-top: 4px;
+  line-height: 1.1;
+}
+.bm-stream-card--restaurant .bm-stream-card__value { color: #e57373; }
+.bm-stream-card--lumpwood .bm-stream-card__value { color: #81c784; }
+.bm-stream-card--fines .bm-stream-card__value { color: #ffb74d; }
+.bm-stream-card__sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.bm-day-visual {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border, #333);
+  border-radius: 10px;
+  background: var(--panel, #1a1a1a);
+}
+.bm-day-daily-total {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+.bm-day-daily-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bm-day-daily-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
 .bm-drill-header {
   margin: 0 0 16px;
 }

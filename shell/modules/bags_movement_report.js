@@ -31,6 +31,12 @@
 
   var STREAM_ORDER = { restaurant: 0, lumpwood: 1, fines: 2 };
 
+  var STREAM_META = [
+    { key: "restaurant", label: "Restaurant", color: "#e57373" },
+    { key: "lumpwood", label: "Lumpwood", color: "#81c784" },
+    { key: "fines", label: "Fines", color: "#ffb74d" },
+  ];
+
   function streamSortRank(stream) {
     var key = String(stream || "").toLowerCase();
     return Object.prototype.hasOwnProperty.call(STREAM_ORDER, key) ? STREAM_ORDER[key] : 99;
@@ -192,7 +198,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.4.9";
+  var BM_UI_VERSION = "1.5.0";
 
   var RETURN_BTN_STYLE =
     "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
@@ -204,21 +210,220 @@
     if (group) onDrillDown(group);
   }
 
+  function emptyStreamTotals() {
+    return {
+      restaurant: 0,
+      lumpwood: 0,
+      fines: 0,
+      restaurant_kg: 0,
+      lumpwood_kg: 0,
+      fines_kg: 0,
+    };
+  }
+
+  function addRowToStreamTotals(totals, row) {
+    var stream = row.product_stream;
+    var kg = float(row.net_weight_kg);
+    if (stream === "restaurant") {
+      totals.restaurant += 1;
+      totals.restaurant_kg += kg;
+    } else if (stream === "lumpwood") {
+      totals.lumpwood += 1;
+      totals.lumpwood_kg += kg;
+    } else if (stream === "fines") {
+      totals.fines += 1;
+      totals.fines_kg += kg;
+    }
+  }
+
+  function streamTotalsFromRows(rows) {
+    var totals = emptyStreamTotals();
+    (rows || []).forEach(function (row) {
+      addRowToStreamTotals(totals, row);
+    });
+    totals.restaurant_kg = Math.round(totals.restaurant_kg * 1000) / 1000;
+    totals.lumpwood_kg = Math.round(totals.lumpwood_kg * 1000) / 1000;
+    totals.fines_kg = Math.round(totals.fines_kg * 1000) / 1000;
+    return totals;
+  }
+
+  function streamBagTotal(totals) {
+    return totals.restaurant + totals.lumpwood + totals.fines;
+  }
+
+  function polar(cx, cy, r, deg) {
+    var rad = ((deg - 90) * Math.PI) / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+
+  function donutSegment(cx, cy, rOuter, rInner, startAngle, endAngle) {
+    if (endAngle - startAngle >= 359.99) {
+      endAngle = startAngle + 359.99;
+    }
+    var so = polar(cx, cy, rOuter, startAngle);
+    var eo = polar(cx, cy, rOuter, endAngle);
+    var si = polar(cx, cy, rInner, endAngle);
+    var ei = polar(cx, cy, rInner, startAngle);
+    var large = endAngle - startAngle > 180 ? 1 : 0;
+    return (
+      "M " + so.x + " " + so.y +
+      " A " + rOuter + " " + rOuter + " 0 " + large + " 1 " + eo.x + " " + eo.y +
+      " L " + si.x + " " + si.y +
+      " A " + rInner + " " + rInner + " 0 " + large + " 0 " + ei.x + " " + ei.y +
+      " Z"
+    );
+  }
+
+  function renderStreamDonut(totals, ui, caption) {
+    var wrap = ui.el("div", { class: "bm-donut-wrap" });
+    var total = streamBagTotal(totals);
+    if (!total) {
+      wrap.appendChild(ui.el("p", { class: "muted bm-donut-empty" }, ["No bags"]));
+      return wrap;
+    }
+
+    var cx = 54;
+    var cy = 54;
+    var rOuter = 46;
+    var rInner = 28;
+    var angle = 0;
+    var svgParts = [
+      "<rect width='108' height='108' fill='transparent'/>",
+      "<circle cx='" + cx + "' cy='" + cy + "' r='" + rInner + "' fill='#1a1a1a'/>",
+    ];
+
+    STREAM_META.forEach(function (meta) {
+      var count = totals[meta.key] || 0;
+      if (!count) return;
+      var sweep = (count / total) * 360;
+      if (sweep <= 0) return;
+      svgParts.push(
+        "<path d='" + donutSegment(cx, cy, rOuter, rInner, angle, angle + sweep) +
+          "' fill='" + meta.color + "' stroke='#111' stroke-width='1'/>"
+      );
+      angle += sweep;
+    });
+
+    svgParts.push(
+      "<text x='" + cx + "' y='" + (cy - 2) + "' text-anchor='middle' fill='#f0f0f0' font-size='16' font-weight='700'>" +
+        fmt(total) + "</text>"
+    );
+    svgParts.push(
+      "<text x='" + cx + "' y='" + (cy + 12) + "' text-anchor='middle' fill='#aaa' font-size='9'>bags</text>"
+    );
+
+    var svg = ui.el("svg", {
+      class: "bm-donut",
+      viewBox: "0 0 108 108",
+      role: "img",
+      "aria-label": caption || "Bags by stream",
+    });
+    svg.innerHTML = svgParts.join("");
+
+    var legend = ui.el("ul", { class: "bm-donut-legend" });
+    STREAM_META.forEach(function (meta) {
+      var count = totals[meta.key] || 0;
+      if (!count) return;
+      var kgKey = meta.key + "_kg";
+      var li = ui.el("li", { class: "bm-legend-item bm-legend-item--" + meta.key });
+      li.innerHTML =
+        "<span class='bm-legend-swatch' style='background:" + meta.color + "'></span>" +
+        "<span class='bm-legend-text'>" +
+        ui.escape(meta.label) + " · " + fmt(count) + " bag(s) · " + fmt(totals[kgKey], 0) + " kg" +
+        "</span>";
+      legend.appendChild(li);
+    });
+
+    wrap.appendChild(svg);
+    wrap.appendChild(legend);
+    if (caption) {
+      wrap.appendChild(ui.el("p", { class: "bm-donut-caption" }, [caption]));
+    }
+    return wrap;
+  }
+
+  function renderStreamCards(totals, ui) {
+    var row = ui.el("div", { class: "bm-stream-cards" });
+    STREAM_META.forEach(function (meta) {
+      var kgKey = meta.key + "_kg";
+      var card = ui.el("div", {
+        class: "bm-stream-card bm-stream-card--" + meta.key,
+      });
+      card.innerHTML =
+        "<div class='bm-stream-card__label'>" + ui.escape(meta.label) + "</div>" +
+        "<div class='bm-stream-card__value'>" + fmt(totals[meta.key]) + "</div>" +
+        "<div class='bm-stream-card__sub'>" + fmt(totals[kgKey], 0) + " kg</div>";
+      row.appendChild(card);
+    });
+    return row;
+  }
+
+  function renderCumulativePanel(data, allRows, ui) {
+    var panel = ui.el("section", { class: "bm-cumulative-panel" });
+    panel.appendChild(ui.el("h3", { class: "bm-panel-title" }, ["Cumulative total (database)"]));
+    panel.appendChild(
+      ui.el("p", { class: "bm-panel-lead" }, [
+        fmt(data.bag_count) + " bags · " + fmt(data.total_kg, 0) + " kg in the system",
+      ])
+    );
+    panel.appendChild(
+      ui.el("p", { class: "muted bm-backlog-note" }, [
+        "Physical stock may be higher until backlog bags are entered. Totals rise as catch-up continues.",
+      ])
+    );
+    var totals = streamTotalsFromRows(allRows);
+    var body = ui.el("div", { class: "bm-cumulative-body" });
+    body.appendChild(renderStreamDonut(totals, ui, "All streams — bag count"));
+    body.appendChild(renderStreamCards(totals, ui));
+    panel.appendChild(body);
+    return panel;
+  }
+
+  function renderDayVisual(section, ui) {
+    var panel = ui.el("div", { class: "bm-day-visual" });
+    var headline = ui.el("div", { class: "bm-day-daily-total" });
+    headline.appendChild(ui.el("span", { class: "bm-day-daily-label" }, ["Daily total"]));
+    headline.appendChild(
+      ui.el("span", { class: "bm-day-daily-value" }, [
+        fmt(section.bags) + " bags · " + fmt(section.kg, 0) + " kg · " +
+          fmt(section.producers.length) + " producer(s)",
+      ])
+    );
+    panel.appendChild(headline);
+    var body = ui.el("div", { class: "bm-day-visual-body" });
+    body.appendChild(renderStreamDonut(section.streams, ui, "This day — bag count"));
+    body.appendChild(renderStreamCards(section.streams, ui));
+    panel.appendChild(body);
+    return panel;
+  }
+
   function buildDaySections(summaryRows) {
     var byDay = {};
     summaryRows.forEach(function (group) {
       var day = group.recorded_date || "";
       if (!byDay[day]) {
-        byDay[day] = { date: day, producers: [], bags: 0, kg: 0 };
+        byDay[day] = {
+          date: day,
+          producers: [],
+          bags: 0,
+          kg: 0,
+          streams: emptyStreamTotals(),
+        };
       }
       var section = byDay[day];
       section.producers.push(group);
       section.bags += group.bags;
       section.kg += group.kg;
+      (group.detail_rows || []).forEach(function (row) {
+        addRowToStreamTotals(section.streams, row);
+      });
     });
     var sections = Object.keys(byDay).map(function (k) {
       var s = byDay[k];
       s.kg = Math.round(s.kg * 1000) / 1000;
+      s.streams.restaurant_kg = Math.round(s.streams.restaurant_kg * 1000) / 1000;
+      s.streams.lumpwood_kg = Math.round(s.streams.lumpwood_kg * 1000) / 1000;
+      s.streams.fines_kg = Math.round(s.streams.fines_kg * 1000) / 1000;
       s.producers.sort(function (a, b) {
         return (a.producer_name || "").localeCompare(b.producer_name || "", undefined, { sensitivity: "base" });
       });
@@ -274,13 +479,9 @@
     buildDaySections(summaryRows).forEach(function (section) {
       var block = ui.el("section", { class: "bm-day-section" });
       block.appendChild(
-        ui.el("h3", { class: "bm-day-heading" }, [
-          fmtDate(section.date) +
-            " — " + fmt(section.bags) + " bag(s) · " +
-            fmt(section.producers.length) + " producer(s) · " +
-            fmt(section.kg, 0) + " kg",
-        ])
+        ui.el("h3", { class: "bm-day-heading" }, [fmtDate(section.date)])
       );
+      block.appendChild(renderDayVisual(section, ui));
       block.appendChild(renderProducerTable(section.producers, ui, onDrillDown));
       wrap.appendChild(block);
     });
@@ -332,11 +533,7 @@
       return;
     }
 
-    body.appendChild(
-      ui.el("p", { class: "bm-totals-line" }, [
-        fmt(data.bag_count) + " bags · " + fmt(data.total_kg, 0) + " kg total",
-      ])
-    );
+    body.appendChild(renderCumulativePanel(data, allRows, ui));
     body.appendChild(
       ui.el("p", { class: "muted bm-hint" }, ["Click a row to open bag detail for that producer and day."])
     );
