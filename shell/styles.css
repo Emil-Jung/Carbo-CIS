@@ -287,6 +287,22 @@ body {
 .bm-summary-table .bm-summary-row:hover {
   background: rgba(255, 255, 255, 0.06);
 }
+.bm-day-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.bm-day-section {
+  margin: 0;
+}
+.bm-day-heading {
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gold-bright, #e4c04a);
+  border-bottom: 1px solid var(--border, #333);
+}
 .bm-drill-header {
   margin: 0 0 16px;
 }

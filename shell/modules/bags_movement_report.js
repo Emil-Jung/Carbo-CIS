@@ -108,7 +108,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.4.3";
+  var BM_UI_VERSION = "1.4.4";
 
   var RETURN_BTN_STYLE =
     "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
@@ -120,19 +120,44 @@
     if (group) onDrillDown(group);
   }
 
-  function renderSummaryTable(summaryRows, ui, onDrillDown) {
+  function buildDaySections(summaryRows) {
+    var byDay = {};
+    summaryRows.forEach(function (group) {
+      var day = group.recorded_date || "";
+      if (!byDay[day]) {
+        byDay[day] = { date: day, producers: [], bags: 0, kg: 0 };
+      }
+      var section = byDay[day];
+      section.producers.push(group);
+      section.bags += group.bags;
+      section.kg += group.kg;
+    });
+    var sections = Object.keys(byDay).map(function (k) {
+      var s = byDay[k];
+      s.kg = Math.round(s.kg * 1000) / 1000;
+      s.producers.sort(function (a, b) {
+        return (a.producer_name || "").localeCompare(b.producer_name || "", undefined, { sensitivity: "base" });
+      });
+      return s;
+    });
+    sections.sort(function (a, b) {
+      return (b.date || "").localeCompare(a.date || "");
+    });
+    return sections;
+  }
+
+  function renderProducerTable(producers, ui, onDrillDown) {
     var table = ui.el("table", { class: "data bags-movement-table bm-summary-table" });
     table.innerHTML =
-      "<thead><tr><th>Date</th><th>Producer</th><th>Bags</th><th>R</th><th>L</th><th>F</th><th>Total kg</th></tr></thead>";
+      "<thead><tr><th>Producer</th><th>Bags</th><th>R</th><th>L</th><th>F</th><th>Total kg</th></tr></thead>";
     var tbody = ui.el("tbody");
-    summaryRows.forEach(function (group) {
+    producers.forEach(function (group) {
       var tr = ui.el("tr", {
         class: "bm-summary-row",
         title: "Click to view individual bags",
       });
       tr.style.cursor = "pointer";
       tr.innerHTML =
-        "<td>" + ui.escape(fmtDate(group.recorded_date)) + "</td>" +
         "<td>" + ui.escape(group.producer_name) + "</td>" +
         "<td>" + fmt(group.bags) + "</td>" +
         "<td>" + fmt(group.restaurant) + "</td>" +
@@ -149,6 +174,24 @@
     });
     table.appendChild(tbody);
     return table;
+  }
+
+  function renderDaySections(summaryRows, ui, onDrillDown) {
+    var wrap = ui.el("div", { class: "bm-day-sections" });
+    buildDaySections(summaryRows).forEach(function (section) {
+      var block = ui.el("section", { class: "bm-day-section" });
+      block.appendChild(
+        ui.el("h3", { class: "bm-day-heading" }, [
+          fmtDate(section.date) +
+            " — " + fmt(section.bags) + " bag(s) · " +
+            fmt(section.producers.length) + " producer(s) · " +
+            fmt(section.kg, 0) + " kg",
+        ])
+      );
+      block.appendChild(renderProducerTable(section.producers, ui, onDrillDown));
+      wrap.appendChild(block);
+    });
+    return wrap;
   }
 
   function paintDrillHeader(slot, drillDown, ui, onDrillBack) {
@@ -209,7 +252,7 @@
     if (!summaryRows.length) {
       body.appendChild(ui.el("p", { class: "muted" }, ["No bags recorded yet."]));
     } else {
-      body.appendChild(renderSummaryTable(summaryRows, ui, onDrillDown));
+      body.appendChild(renderDaySections(summaryRows, ui, onDrillDown));
     }
   }
 
