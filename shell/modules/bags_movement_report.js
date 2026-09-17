@@ -12,11 +12,47 @@
     });
   }
 
+  var DISPLAY_TZ = "Africa/Windhoek";
+
   function fmtDate(iso) {
     if (!iso) return "—";
     var parts = String(iso).split("-");
     if (parts.length !== 3) return iso;
     return parts[2] + " " + monthShort(parts[1]) + " " + parts[0];
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return "—";
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return "—";
+      return d.toLocaleTimeString("en-GB", {
+        timeZone: DISPLAY_TZ,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    } catch (e) {
+      return "—";
+    }
+  }
+
+  function detailRowsChronological(rows) {
+    return (rows || []).slice().sort(function (a, b) {
+      var ta = a.recorded_at || "";
+      var tb = b.recorded_at || "";
+      if (ta !== tb) return ta.localeCompare(tb);
+      return String(a.serial || "").localeCompare(String(b.serial || ""));
+    });
+  }
+
+  function sievingTimeSpan(rows) {
+    var stamps = detailRowsChronological(rows)
+      .map(function (r) { return r.recorded_at; })
+      .filter(Boolean);
+    if (!stamps.length) return "";
+    if (stamps.length === 1) return "Recorded " + fmtTime(stamps[0]);
+    return "Sieving " + fmtTime(stamps[0]) + " \u2192 " + fmtTime(stamps[stamps.length - 1]);
   }
 
   function monthShort(m) {
@@ -166,6 +202,7 @@
     "<col class='bm-col-seq'>" +
     "<col class='bm-col-stream'>" +
     "<col class='bm-col-kg'>" +
+    "<col class='bm-col-time'>" +
     "<col class='bm-col-date'>" +
     "<col class='bm-col-timer'>" +
     "<col class='bm-col-status'>" +
@@ -174,19 +211,22 @@
     "</colgroup>";
 
   function renderDetailTable(rows, ui) {
+    var ordered = detailRowsChronological(rows);
     var table = ui.el("table", { class: "data bags-movement-table bags-movement-table--compact bm-detail-table" });
     table.innerHTML =
       DETAIL_COLGROUP +
       "<thead><tr>" +
-      "<th class='bm-num'>#</th><th>Stream</th><th class='bm-num'>Net kg</th><th>Weathering end</th>" +
+      "<th class='bm-num'>#</th><th>Stream</th><th class='bm-num'>Net kg</th>" +
+      "<th class='bm-num' title='Recorded time (Windhoek)'>Time</th><th>Weathering end</th>" +
       "<th>Timer</th><th>Status</th><th>FSC</th><th>Tag</th></tr></thead>";
     var tbody = ui.el("tbody");
-    rows.forEach(function (row, i) {
+    ordered.forEach(function (row, i) {
       var tr = ui.el("tr");
       tr.innerHTML =
         "<td class='bm-num'>" + ui.escape(String(i + 1)) + "</td>" +
         "<td>" + ui.escape(row.product_stream || "—") + "</td>" +
         "<td class='bm-num'>" + fmt(row.net_weight_kg, 0) + "</td>" +
+        "<td class='bm-num bm-time'>" + ui.escape(fmtTime(row.recorded_at)) + "</td>" +
         "<td>" + ui.escape(fmtDate(row.weathering_end_date)) + "</td>" +
         "<td>" + ui.escape(timerText(row)) + "</td>" +
         "<td>" + ui.escape(row.effective_status_display || row.storage_status_display || "—") + "</td>" +
@@ -198,7 +238,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.5.0";
+  var BM_UI_VERSION = "1.5.1";
 
   var RETURN_BTN_STYLE =
     "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
@@ -528,6 +568,12 @@
           titleParts.join(" · ") + " — " + fmt(drillDown.bags) + " bag(s) · " + fmt(drillDown.kg, 0) + " kg",
         ])
       );
+      var sieving = sievingTimeSpan(drillDown.detail_rows || []);
+      if (sieving) {
+        panel.appendChild(
+          ui.el("p", { class: "bm-drill-sieving" }, [sieving + " (Windhoek)"])
+        );
+      }
       panel.appendChild(renderDetailTable(drillDown.detail_rows || [], ui));
       body.appendChild(panel);
       return;

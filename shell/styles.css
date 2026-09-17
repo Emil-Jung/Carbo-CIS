@@ -288,13 +288,23 @@ body {
 .bm-summary-table col.bm-col-num { width: 7%; }
 .bm-summary-table col.bm-col-kg { width: 11%; }
 .bm-detail-table col.bm-col-seq { width: 4%; }
-.bm-detail-table col.bm-col-stream { width: 11%; }
-.bm-detail-table col.bm-col-kg { width: 8%; }
-.bm-detail-table col.bm-col-date { width: 13%; }
-.bm-detail-table col.bm-col-timer { width: 11%; }
-.bm-detail-table col.bm-col-status { width: 18%; }
-.bm-detail-table col.bm-col-fsc { width: 11%; }
-.bm-detail-table col.bm-col-tag { width: 24%; }
+.bm-detail-table col.bm-col-stream { width: 10%; }
+.bm-detail-table col.bm-col-kg { width: 7%; }
+.bm-detail-table col.bm-col-time { width: 7%; }
+.bm-detail-table col.bm-col-date { width: 12%; }
+.bm-detail-table col.bm-col-timer { width: 10%; }
+.bm-detail-table col.bm-col-status { width: 16%; }
+.bm-detail-table col.bm-col-fsc { width: 10%; }
+.bm-detail-table col.bm-col-tag { width: 22%; }
+.bm-detail-table .bm-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.bm-drill-sieving {
+  margin: 0 0 10px;
+  font-size: 0.92rem;
+  color: var(--gold-bright, #e4c04a);
+}
 .bm-summary-table .bm-producer {
   overflow: hidden;
   text-overflow: ellipsis;
