@@ -37,17 +37,17 @@
     }
   }
 
-  function detailRowsChronological(rows) {
+  function detailRowsByRecorded(rows, newestFirst) {
     return (rows || []).slice().sort(function (a, b) {
       var ta = a.recorded_at || "";
       var tb = b.recorded_at || "";
-      if (ta !== tb) return ta.localeCompare(tb);
+      if (ta !== tb) return newestFirst ? tb.localeCompare(ta) : ta.localeCompare(tb);
       return String(a.serial || "").localeCompare(String(b.serial || ""));
     });
   }
 
   function sievingTimeSpan(rows) {
-    var stamps = detailRowsChronological(rows)
+    var stamps = detailRowsByRecorded(rows, false)
       .map(function (r) { return r.recorded_at; })
       .filter(Boolean);
     if (!stamps.length) return "";
@@ -211,7 +211,7 @@
     "</colgroup>";
 
   function renderDetailTable(rows, ui) {
-    var ordered = detailRowsChronological(rows);
+    var ordered = detailRowsByRecorded(rows, true);
     var table = ui.el("table", { class: "data bags-movement-table bags-movement-table--compact bm-detail-table" });
     table.innerHTML =
       DETAIL_COLGROUP +
@@ -238,7 +238,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.5.1";
+  var BM_UI_VERSION = "1.5.2";
 
   var RETURN_BTN_STYLE =
     "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
