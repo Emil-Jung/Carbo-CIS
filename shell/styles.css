@@ -221,12 +221,6 @@ body {
   padding: 4px 8px;
   font-size: 12px;
 }
-.bags-movement-days {
-  font-weight: 600;
-}
-.bags-movement-days--done {
-  color: #7cb342;
-}
 .bm-toolbar,
 .bm-filter-bar {
   flex-wrap: wrap;
@@ -288,23 +282,56 @@ body {
   cursor: pointer;
 }
 .bm-summary-table .bm-summary-row:hover {
-  background: rgba(124, 179, 66, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+}
+.bm-report-body {
+  margin-top: 8px;
+}
+.bm-totals-line {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: var(--text, #e8e8e8);
 }
 .bm-drill-panel {
-  margin-top: 12px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border, #333);
+  margin-top: 4px;
 }
-.bm-drill-back {
-  margin-bottom: 8px;
+.bm-return-bar {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: var(--panel-2, #252525);
+  border: 1px solid var(--border, #444);
+  border-radius: 10px;
+}
+.bm-return-btn {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 0 10px;
+  padding: 14px 18px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #fff;
+  background: #3d6b4f;
+  border: 2px solid #5a9a6e;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+}
+.bm-return-btn:hover {
+  background: #4a805f;
+}
+.bm-return-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted, #999);
+  line-height: 1.4;
 }
 .bm-drill-title {
-  margin: 0 0 10px;
-  font-size: 0.95rem;
+  margin: 0 0 12px;
+  font-size: 1rem;
   font-weight: 600;
-}
-.bm-footer-note {
-  margin-top: 16px;
+  color: var(--text, #e8e8e8);
 }
 .bm-stream-filters,
 .bm-status-filters {

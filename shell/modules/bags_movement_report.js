@@ -4,22 +4,6 @@
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
-  var STREAM_FILTERS = [
-    { id: "all", label: "All streams" },
-    { id: "restaurant", label: "Restaurant" },
-    { id: "lumpwood", label: "Lumpwood" },
-    { id: "fines", label: "Fines" },
-  ];
-
-  var STATUS_COUNTER_KEYS = [
-    { id: "in_storage_weathering", label: "In Storage — weathering" },
-    { id: "in_storage", label: "In Storage (weathered)" },
-    { id: "on_truck_walvisbay", label: "On truck WB" },
-    { id: "storage_walvisbay", label: "Storage WB" },
-    { id: "in_container", label: "In container" },
-    { id: "sold", label: "Sold" },
-  ];
-
   function fmt(n, d) {
     if (n == null || isNaN(n)) return "—";
     return Number(n).toLocaleString(undefined, {
@@ -40,40 +24,18 @@
     return names[parseInt(m, 10) - 1] || m;
   }
 
-  function todayIso() {
-    var d = new Date();
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  }
-
-  function shiftDate(iso, deltaDays) {
-    var parts = String(iso).split("-");
-    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-    d.setDate(d.getDate() + deltaDays);
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  }
-
-  function card(ui, label, value, extraClass) {
-    var c = ui.el("div", { class: "card" + (extraClass ? " " + extraClass : "") });
-    c.appendChild(ui.el("div", { class: "label" }, [label]));
-    c.appendChild(ui.el("div", { class: "value" }, [value]));
-    return c;
-  }
-
-  function rowMatchesFilters(row, streamFilter, statusFilter) {
-    if (streamFilter !== "all" && row.product_stream !== streamFilter) return false;
-    if (statusFilter === "all") return true;
-    var eff = row.effective_status || row.storage_status || "in_storage";
-    return eff === statusFilter;
+  function float(v) {
+    var n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
   }
 
   function summaryKey(row) {
     return String(row.recorded_date || "") + "\0" + String(row.producer_name || "Unknown producer").trim();
   }
 
-  function buildSummaryRows(rows, streamFilter, statusFilter) {
+  function buildSummaryRows(rows) {
     var map = {};
     rows.forEach(function (row) {
-      if (!rowMatchesFilters(row, streamFilter, statusFilter)) return;
       var key = summaryKey(row);
       if (!map[key]) {
         map[key] = {
@@ -115,11 +77,6 @@
     return list;
   }
 
-  function float(v) {
-    var n = parseFloat(v);
-    return isNaN(n) ? 0 : n;
-  }
-
   function timerText(row) {
     if (row.effective_status === "in_storage_weathering") {
       return String(row.days_remaining) + " days left";
@@ -137,18 +94,12 @@
     var tbody = ui.el("tbody");
     rows.forEach(function (row, i) {
       var tr = ui.el("tr");
-      var daysClass =
-        row.effective_status === "in_storage_weathering"
-          ? "bags-movement-days"
-          : row.weathered
-            ? "bags-movement-days bags-movement-days--done"
-            : "bags-movement-days";
       tr.innerHTML =
         "<td>" + ui.escape(String(i + 1)) + "</td>" +
         "<td>" + ui.escape(row.product_stream || "—") + "</td>" +
         "<td>" + fmt(row.net_weight_kg, 0) + "</td>" +
         "<td>" + ui.escape(fmtDate(row.weathering_end_date)) + "</td>" +
-        "<td class='" + daysClass + "'>" + ui.escape(timerText(row)) + "</td>" +
+        "<td>" + ui.escape(timerText(row)) + "</td>" +
         "<td>" + ui.escape(row.effective_status_display || row.storage_status_display || "—") + "</td>" +
         "<td class='bags-movement-tag'>" + ui.escape(row.serial || "—") + "</td>";
       tbody.appendChild(tr);
@@ -157,32 +108,24 @@
     return table;
   }
 
-  function renderSummaryTable(summaryRows, ui, showDateCol, onDrillDown) {
+  function renderSummaryTable(summaryRows, ui, onDrillDown) {
     var table = ui.el("table", { class: "data bags-movement-table bm-summary-table" });
-    var head =
-      "<thead><tr>" +
-      (showDateCol ? "<th>Date</th>" : "") +
-      "<th>Producer</th><th>Bags</th><th>R</th><th>L</th><th>F</th><th>Total kg</th>" +
-      "</tr></thead>";
-    table.innerHTML = head;
+    table.innerHTML =
+      "<thead><tr><th>Date</th><th>Producer</th><th>Bags</th><th>R</th><th>L</th><th>F</th><th>Total kg</th></tr></thead>";
     var tbody = ui.el("tbody");
     summaryRows.forEach(function (group) {
       var tr = ui.el("tr", {
         class: "bm-summary-row",
         title: "Double-click to view individual bags",
       });
-      var html = "";
-      if (showDateCol) {
-        html += "<td>" + ui.escape(fmtDate(group.recorded_date)) + "</td>";
-      }
-      html +=
+      tr.innerHTML =
+        "<td>" + ui.escape(fmtDate(group.recorded_date)) + "</td>" +
         "<td>" + ui.escape(group.producer_name) + "</td>" +
         "<td>" + fmt(group.bags) + "</td>" +
         "<td>" + fmt(group.restaurant) + "</td>" +
         "<td>" + fmt(group.lumpwood) + "</td>" +
         "<td>" + fmt(group.fines) + "</td>" +
         "<td>" + fmt(group.kg, 0) + "</td>";
-      tr.innerHTML = html;
       tr.addEventListener("dblclick", function () {
         onDrillDown(group);
       });
@@ -192,70 +135,28 @@
     return table;
   }
 
-  function statusCounterValue(totals, key) {
-    var t = totals && totals[key];
-    if (!t || !t.bags) return "0";
-    return (
-      fmt(t.bags) +
-      " (R " + fmt(t.restaurant || 0) +
-      " · L " + fmt(t.lumpwood || 0) +
-      " · F " + fmt(t.fines || 0) + ")"
-    );
-  }
-
-  function paintReport(body, data, ui, streamFilter, statusFilter, drillDown, onStatusCardClick, onDrillDown, onDrillBack) {
+  function paintReport(body, data, ui, drillDown, onDrillDown, onDrillBack) {
     body.innerHTML = "";
-    var streams = data.streams || {};
-    var totals = data.status_totals || {};
-    var isAll = data.scope === "all";
     var allRows = data.rows || [];
-
-    var cards = ui.el("div", { class: "cards" });
-    cards.appendChild(
-      card(ui, isAll ? "All bags" : "Bags this day", fmt(data.bag_count), "card--highlight")
-    );
-    cards.appendChild(
-      card(ui, "Restaurant", fmt((streams.restaurant && streams.restaurant.bags) || 0) + " · " + fmt((streams.restaurant && streams.restaurant.kg) || 0, 0) + " kg")
-    );
-    cards.appendChild(
-      card(ui, "Lumpwood", fmt((streams.lumpwood && streams.lumpwood.bags) || 0) + " · " + fmt((streams.lumpwood && streams.lumpwood.kg) || 0, 0) + " kg")
-    );
-    cards.appendChild(
-      card(ui, "Fines", fmt((streams.fines && streams.fines.bags) || 0) + " · " + fmt((streams.fines && streams.fines.kg) || 0, 0) + " kg")
-    );
-    cards.appendChild(card(ui, "Total net kg", fmt(data.total_kg, 0) + " kg"));
-    body.appendChild(cards);
-
-    body.appendChild(ui.el("h3", { class: "bm-subheading" }, ["By status (click to filter)"]));
-    var statusCards = ui.el("div", { class: "cards bm-status-cards" });
-    STATUS_COUNTER_KEYS.forEach(function (item) {
-      var active = statusFilter === item.id;
-      var c = card(
-        ui,
-        item.label,
-        statusCounterValue(totals, item.id),
-        "bm-status-card" + (active ? " bm-status-card--active" : "")
-      );
-      c.setAttribute("role", "button");
-      c.tabIndex = 0;
-      c.addEventListener("click", function () {
-        onStatusCardClick(statusFilter === item.id ? "all" : item.id);
-      });
-      statusCards.appendChild(c);
-    });
-    var totalBucket = totals.total || {};
-    statusCards.appendChild(
-      card(ui, "Total", fmt(totalBucket.bags || data.bag_count || 0), "bm-status-card bm-status-card--total")
-    );
-    body.appendChild(statusCards);
 
     if (drillDown) {
       var panel = ui.el("div", { class: "bm-drill-panel" });
-      var backBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm bm-drill-back" }, ["← Back to summary"]);
+      var returnBar = ui.el("div", { class: "bm-return-bar" });
+      var backBtn = ui.el("button", {
+        type: "button",
+        class: "bm-return-btn",
+      }, ["← Return to producer summary"]);
       backBtn.addEventListener("click", onDrillBack);
-      panel.appendChild(backBtn);
+      returnBar.appendChild(backBtn);
+      returnBar.appendChild(
+        ui.el("p", { class: "bm-return-hint" }, [
+          "Use this button to stay in Bags Movement. The Back control at the top of CIS returns to the main menu.",
+        ])
+      );
+      panel.appendChild(returnBar);
+
       var titleParts = [drillDown.producer_name];
-      if (isAll && drillDown.recorded_date) {
+      if (drillDown.recorded_date) {
         titleParts.push(fmtDate(drillDown.recorded_date));
       }
       panel.appendChild(
@@ -268,108 +169,42 @@
       return;
     }
 
-    var summaryRows = buildSummaryRows(allRows, streamFilter, statusFilter);
     body.appendChild(
-      ui.el("h3", { class: "bm-subheading" }, [
-        isAll ? "Summary by day and producer" : "Summary by producer",
+      ui.el("p", { class: "bm-totals-line" }, [
+        fmt(data.bag_count) + " bags · " + fmt(data.total_kg, 0) + " kg total",
       ])
     );
     body.appendChild(
-      ui.el("p", { class: "muted bm-hint" }, ["Double-click a row to open bag-level detail."])
+      ui.el("p", { class: "muted bm-hint" }, ["Double-click a row to open bag detail for that producer and day."])
     );
 
+    var summaryRows = buildSummaryRows(allRows);
     if (!summaryRows.length) {
-      body.appendChild(ui.el("p", { class: "muted" }, ["No bags match the selected filters."]));
+      body.appendChild(ui.el("p", { class: "muted" }, ["No bags recorded yet."]));
     } else {
-      body.appendChild(renderSummaryTable(summaryRows, ui, isAll, onDrillDown));
+      body.appendChild(renderSummaryTable(summaryRows, ui, onDrillDown));
     }
-
-    body.appendChild(
-      ui.el("p", { class: "muted bm-footer-note" }, [
-        isAll
-          ? "All recorded bags grouped by scan date and producer. "
-          : "Bags scanned on " + fmtDate(data.date) + ", grouped by producer. ",
-        "Status filters apply to both the summary counts and drill-down detail.",
-      ])
-    );
-  }
-
-  function buildFilterBar(ui, items, activeId, className) {
-    var bar = ui.el("div", { class: "toolbar bm-filter-bar " + (className || "") });
-    var btns = ui.el("div", { class: "bm-filter-btns" });
-    items.forEach(function (item) {
-      btns.appendChild(ui.el("button", {
-        type: "button",
-        class: "btn-ghost btn-sm bm-filter-btn" + (item.id === activeId ? " bm-filter-btn--active" : ""),
-        "data-filter-id": item.id,
-      }, [item.label]));
-    });
-    bar.appendChild(btns);
-    return { bar: bar, btns: btns };
   }
 
   async function render(container, ctx) {
     var ui = CIS.ui;
-    var scope = "all";
-    var streamFilter = "all";
-    var statusFilter = "all";
     var lastData = null;
     var drillDown = null;
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Movement"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Bag stock by day and producer. Double-click a producer row to see individual bags.",
+      "All recorded bags, grouped by scan date and producer.",
     ]));
 
-    var scopeBar = ui.el("div", { class: "toolbar bm-scope-bar" });
-    var scopeAllBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm bm-scope-btn bm-scope-btn--active", "data-scope": "all" }, ["All bags"]);
-    var scopeDayBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm bm-scope-btn", "data-scope": "day" }, ["Single day"]);
-    scopeBar.appendChild(scopeAllBtn);
-    scopeBar.appendChild(scopeDayBtn);
-    container.appendChild(scopeBar);
-
-    var toolbar = ui.el("div", { class: "toolbar bm-toolbar" });
-    toolbar.appendChild(ui.el("label", { for: "bags-movement-date" }, ["Date"]));
-    var dateInput = ui.el("input", { id: "bags-movement-date", type: "date", value: todayIso(), disabled: true });
-    toolbar.appendChild(dateInput);
-    var prevBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm", id: "bm-prev", disabled: true }, ["Previous day"]);
-    var nextBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm", id: "bm-next", disabled: true }, ["Next day"]);
-    var todayBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm", id: "bm-today", disabled: true }, ["Today"]);
-    toolbar.appendChild(prevBtn);
-    toolbar.appendChild(nextBtn);
-    toolbar.appendChild(todayBtn);
-    container.appendChild(toolbar);
-
-    var streamFilterUi = buildFilterBar(ui, STREAM_FILTERS, streamFilter, "bm-stream-filters");
-    streamFilterUi.bar.insertBefore(ui.el("span", { class: "bm-filter-label" }, ["Stream:"]), streamFilterUi.btns);
-    container.appendChild(streamFilterUi.bar);
-
-    function setScope(next) {
-      scope = next;
-      drillDown = null;
-      var dayMode = scope === "day";
-      scopeAllBtn.classList.toggle("bm-scope-btn--active", !dayMode);
-      scopeDayBtn.classList.toggle("bm-scope-btn--active", dayMode);
-      dateInput.disabled = !dayMode;
-      prevBtn.disabled = !dayMode;
-      nextBtn.disabled = !dayMode;
-      todayBtn.disabled = !dayMode;
-      loadReport();
-    }
-
-    scopeAllBtn.addEventListener("click", function () { setScope("all"); });
-    scopeDayBtn.addEventListener("click", function () { setScope("day"); });
-
-    function syncFilterButtons() {
-      streamFilterUi.btns.querySelectorAll(".bm-filter-btn").forEach(function (btn) {
-        btn.classList.toggle("bm-filter-btn--active", btn.getAttribute("data-filter-id") === streamFilter);
-      });
-    }
+    var status = ui.el("p", { class: "muted" }, ["Loading…"]);
+    container.appendChild(status);
+    var body = ui.el("div", { class: "report-body bm-report-body" });
+    container.appendChild(body);
 
     function repaint() {
       if (!lastData) return;
       if (drillDown) {
-        var refreshed = buildSummaryRows(lastData.rows || [], streamFilter, statusFilter);
+        var refreshed = buildSummaryRows(lastData.rows || []);
         var match = refreshed.find(function (g) { return g.key === drillDown.key; });
         drillDown = match || null;
       }
@@ -377,14 +212,7 @@
         body,
         lastData,
         ui,
-        streamFilter,
-        statusFilter,
         drillDown,
-        function (nextStatus) {
-          statusFilter = nextStatus;
-          drillDown = null;
-          repaint();
-        },
         function (group) {
           drillDown = group;
           repaint();
@@ -394,27 +222,6 @@
           repaint();
         }
       );
-    }
-
-    streamFilterUi.btns.addEventListener("click", function (ev) {
-      var btn = ev.target.closest(".bm-filter-btn");
-      if (!btn) return;
-      streamFilter = btn.getAttribute("data-filter-id") || "all";
-      drillDown = null;
-      syncFilterButtons();
-      repaint();
-    });
-
-    var status = ui.el("p", { class: "muted" }, ["Loading…"]);
-    container.appendChild(status);
-    var body = ui.el("div", { class: "report-body" });
-    container.appendChild(body);
-
-    function reportUrl() {
-      if (scope === "day") {
-        return "/reports/bags-movement?scope=day&date=" + encodeURIComponent(dateInput.value || todayIso());
-      }
-      return "/reports/bags-movement?scope=all";
     }
 
     async function loadReport() {
@@ -428,7 +235,7 @@
         return;
       }
       try {
-        lastData = await ctx.api.traceability(reportUrl());
+        lastData = await ctx.api.traceability("/reports/bags-movement?scope=all");
         status.style.display = "none";
         repaint();
       } catch (e) {
@@ -437,22 +244,6 @@
         body.appendChild(ui.error("Could not load report: " + (e.message || e)));
       }
     }
-
-    dateInput.addEventListener("change", function () {
-      if (scope === "day") loadReport();
-    });
-    prevBtn.addEventListener("click", function () {
-      dateInput.value = shiftDate(dateInput.value || todayIso(), -1);
-      loadReport();
-    });
-    nextBtn.addEventListener("click", function () {
-      dateInput.value = shiftDate(dateInput.value || todayIso(), 1);
-      loadReport();
-    });
-    todayBtn.addEventListener("click", function () {
-      dateInput.value = todayIso();
-      loadReport();
-    });
 
     await loadReport();
   }
