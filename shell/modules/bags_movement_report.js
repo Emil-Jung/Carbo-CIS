@@ -108,6 +108,18 @@
     return table;
   }
 
+  var BM_UI_VERSION = "1.4.3";
+
+  var RETURN_BTN_STYLE =
+    "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
+    "line-height:1.3;color:#1a1200;cursor:pointer;text-align:center;" +
+    "background:linear-gradient(180deg,#e4c04a,#c9a227);border:2px solid #8a7420;border-radius:10px;" +
+    "box-shadow:0 2px 8px rgba(0,0,0,0.25);";
+
+  function openDrillDown(group, onDrillDown) {
+    if (group) onDrillDown(group);
+  }
+
   function renderSummaryTable(summaryRows, ui, onDrillDown) {
     var table = ui.el("table", { class: "data bags-movement-table bm-summary-table" });
     table.innerHTML =
@@ -116,8 +128,9 @@
     summaryRows.forEach(function (group) {
       var tr = ui.el("tr", {
         class: "bm-summary-row",
-        title: "Double-click to view individual bags",
+        title: "Click to view individual bags",
       });
+      tr.style.cursor = "pointer";
       tr.innerHTML =
         "<td>" + ui.escape(fmtDate(group.recorded_date)) + "</td>" +
         "<td>" + ui.escape(group.producer_name) + "</td>" +
@@ -126,8 +139,11 @@
         "<td>" + fmt(group.lumpwood) + "</td>" +
         "<td>" + fmt(group.fines) + "</td>" +
         "<td>" + fmt(group.kg, 0) + "</td>";
-      tr.addEventListener("dblclick", function () {
-        onDrillDown(group);
+      Array.from(tr.children).forEach(function (td) {
+        td.style.cursor = "pointer";
+      });
+      tr.addEventListener("click", function () {
+        openDrillDown(group, onDrillDown);
       });
       tbody.appendChild(tr);
     });
@@ -140,20 +156,24 @@
     slot.style.display = "none";
     if (!drillDown) return;
 
-    slot.style.display = "";
-    var wrap = ui.el("div", { class: "bm-return-bar" });
+    slot.style.display = "block";
     var backBtn = ui.el("button", {
       type: "button",
       class: "bm-return-btn",
     }, ["← Return to producer summary"]);
+    backBtn.setAttribute("style", RETURN_BTN_STYLE);
     backBtn.addEventListener("click", onDrillBack);
-    wrap.appendChild(backBtn);
-    wrap.appendChild(
+    slot.appendChild(backBtn);
+    slot.appendChild(
       ui.el("p", { class: "bm-return-hint" }, [
-        "Stay in Bags Movement with this button. The Back control at the top of CIS returns to the main menu.",
+        "This returns to the day/producer list. The Back button at the top of CIS goes to the main menu.",
       ])
     );
-    slot.appendChild(wrap);
+    try {
+      slot.scrollIntoView({ block: "start", behavior: "smooth" });
+    } catch (e) {
+      slot.scrollIntoView(true);
+    }
   }
 
   function paintReport(body, data, ui, drillDown, onDrillDown) {
@@ -182,7 +202,7 @@
       ])
     );
     body.appendChild(
-      ui.el("p", { class: "muted bm-hint" }, ["Double-click a row to open bag detail for that producer and day."])
+      ui.el("p", { class: "muted bm-hint" }, ["Click a row to open bag detail for that producer and day."])
     );
 
     var summaryRows = buildSummaryRows(allRows);
@@ -198,13 +218,13 @@
     var lastData = null;
     var drillDown = null;
 
+    var drillHeader = ui.el("div", { class: "bm-drill-header", style: "display:none" });
+    container.insertBefore(drillHeader, container.firstChild);
+
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Movement"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "All recorded bags, grouped by scan date and producer.",
+      "All recorded bags, grouped by scan date and producer. UI " + BM_UI_VERSION + ".",
     ]));
-
-    var drillHeader = ui.el("div", { class: "bm-drill-header", style: "display:none" });
-    container.appendChild(drillHeader);
 
     var status = ui.el("p", { class: "muted" }, ["Loading…"]);
     container.appendChild(status);
