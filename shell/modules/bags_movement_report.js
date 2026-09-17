@@ -29,6 +29,13 @@
     return isNaN(n) ? 0 : n;
   }
 
+  var STREAM_ORDER = { restaurant: 0, lumpwood: 1, fines: 2 };
+
+  function streamSortRank(stream) {
+    var key = String(stream || "").toLowerCase();
+    return Object.prototype.hasOwnProperty.call(STREAM_ORDER, key) ? STREAM_ORDER[key] : 99;
+  }
+
   function summaryKey(row) {
     return String(row.recorded_date || "") + "\0" + String(row.producer_name || "Unknown producer").trim();
   }
@@ -68,9 +75,9 @@
     list.forEach(function (g) {
       g.kg = Math.round(g.kg * 1000) / 1000;
       g.detail_rows.sort(function (x, y) {
-        var sx = x.product_stream || "";
-        var sy = y.product_stream || "";
-        if (sx !== sy) return sx.localeCompare(sy);
+        var rx = streamSortRank(x.product_stream);
+        var ry = streamSortRank(y.product_stream);
+        if (rx !== ry) return rx - ry;
         return String(x.serial || "").localeCompare(String(y.serial || ""));
       });
     });
@@ -108,7 +115,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.4.4";
+  var BM_UI_VERSION = "1.4.5";
 
   var RETURN_BTN_STYLE =
     "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
