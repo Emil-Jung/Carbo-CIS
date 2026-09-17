@@ -144,30 +144,55 @@
     return "—";
   }
 
+  var SUMMARY_COLGROUP =
+    "<colgroup>" +
+    "<col class='bm-col-producer'>" +
+    "<col class='bm-col-fsc'>" +
+    "<col class='bm-col-num'>" +
+    "<col class='bm-col-num'>" +
+    "<col class='bm-col-num'>" +
+    "<col class='bm-col-num'>" +
+    "<col class='bm-col-kg'>" +
+    "</colgroup>";
+
+  var DETAIL_COLGROUP =
+    "<colgroup>" +
+    "<col class='bm-col-seq'>" +
+    "<col class='bm-col-stream'>" +
+    "<col class='bm-col-kg'>" +
+    "<col class='bm-col-date'>" +
+    "<col class='bm-col-timer'>" +
+    "<col class='bm-col-status'>" +
+    "<col class='bm-col-fsc'>" +
+    "<col class='bm-col-tag'>" +
+    "</colgroup>";
+
   function renderDetailTable(rows, ui) {
-    var table = ui.el("table", { class: "data bags-movement-table bags-movement-table--compact" });
+    var table = ui.el("table", { class: "data bags-movement-table bags-movement-table--compact bm-detail-table" });
     table.innerHTML =
-      "<thead><tr><th>#</th><th>Stream</th><th>Net kg</th><th>Weathering end</th>" +
+      DETAIL_COLGROUP +
+      "<thead><tr>" +
+      "<th class='bm-num'>#</th><th>Stream</th><th class='bm-num'>Net kg</th><th>Weathering end</th>" +
       "<th>Timer</th><th>Status</th><th>FSC</th><th>Tag</th></tr></thead>";
     var tbody = ui.el("tbody");
     rows.forEach(function (row, i) {
       var tr = ui.el("tr");
       tr.innerHTML =
-        "<td>" + ui.escape(String(i + 1)) + "</td>" +
+        "<td class='bm-num'>" + ui.escape(String(i + 1)) + "</td>" +
         "<td>" + ui.escape(row.product_stream || "—") + "</td>" +
-        "<td>" + fmt(row.net_weight_kg, 0) + "</td>" +
+        "<td class='bm-num'>" + fmt(row.net_weight_kg, 0) + "</td>" +
         "<td>" + ui.escape(fmtDate(row.weathering_end_date)) + "</td>" +
         "<td>" + ui.escape(timerText(row)) + "</td>" +
         "<td>" + ui.escape(row.effective_status_display || row.storage_status_display || "—") + "</td>" +
-        "<td>" + ui.escape(fscText(row)) + "</td>" +
-        "<td class='bags-movement-tag'>" + ui.escape(row.serial || "—") + "</td>";
+        "<td class='bm-fsc'>" + ui.escape(fscText(row)) + "</td>" +
+        "<td class='bags-movement-tag bm-col-tag'>" + ui.escape(row.serial || "—") + "</td>";
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
     return table;
   }
 
-  var BM_UI_VERSION = "1.4.8";
+  var BM_UI_VERSION = "1.4.9";
 
   var RETURN_BTN_STYLE =
     "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
@@ -208,7 +233,15 @@
   function renderProducerTable(producers, ui, onDrillDown) {
     var table = ui.el("table", { class: "data bags-movement-table bm-summary-table" });
     table.innerHTML =
-      "<thead><tr><th>Producer</th><th>FSC</th><th>Bags</th><th>R</th><th>L</th><th>F</th><th>Total kg</th></tr></thead>";
+      SUMMARY_COLGROUP +
+      "<thead><tr>" +
+      "<th>Producer</th><th>FSC</th>" +
+      "<th class='bm-num' title='Bag count'>Bags</th>" +
+      "<th class='bm-num' title='Restaurant'>R</th>" +
+      "<th class='bm-num' title='Lumpwood'>L</th>" +
+      "<th class='bm-num' title='Fines'>Fn</th>" +
+      "<th class='bm-num'>Total kg</th>" +
+      "</tr></thead>";
     var tbody = ui.el("tbody");
     producers.forEach(function (group) {
       var tr = ui.el("tr", {
@@ -217,13 +250,13 @@
       });
       tr.style.cursor = "pointer";
       tr.innerHTML =
-        "<td>" + ui.escape(group.producer_name) + "</td>" +
-        "<td>" + ui.escape(groupFscText(group)) + "</td>" +
-        "<td>" + fmt(group.bags) + "</td>" +
-        "<td>" + fmt(group.restaurant) + "</td>" +
-        "<td>" + fmt(group.lumpwood) + "</td>" +
-        "<td>" + fmt(group.fines) + "</td>" +
-        "<td>" + fmt(group.kg, 0) + "</td>";
+        "<td class='bm-producer'>" + ui.escape(group.producer_name) + "</td>" +
+        "<td class='bm-fsc'>" + ui.escape(groupFscText(group)) + "</td>" +
+        "<td class='bm-num'>" + fmt(group.bags) + "</td>" +
+        "<td class='bm-num'>" + fmt(group.restaurant) + "</td>" +
+        "<td class='bm-num'>" + fmt(group.lumpwood) + "</td>" +
+        "<td class='bm-num'>" + fmt(group.fines) + "</td>" +
+        "<td class='bm-num'>" + fmt(group.kg, 0) + "</td>";
       Array.from(tr.children).forEach(function (td) {
         td.style.cursor = "pointer";
       });
