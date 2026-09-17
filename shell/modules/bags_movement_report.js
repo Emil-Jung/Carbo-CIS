@@ -123,6 +123,18 @@
     return "—";
   }
 
+  function groupFscText(group) {
+    var labels = {};
+    (group.detail_rows || []).forEach(function (row) {
+      var label = fscText(row);
+      if (label && label !== "—") labels[label] = true;
+    });
+    var unique = Object.keys(labels).sort();
+    if (unique.length === 1) return unique[0];
+    if (unique.length > 1) return unique.join(", ");
+    return "—";
+  }
+
   function timerText(row) {
     if (row.effective_status === "in_storage_weathering") {
       return String(row.days_remaining) + " days left";
@@ -155,7 +167,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.4.7";
+  var BM_UI_VERSION = "1.4.8";
 
   var RETURN_BTN_STYLE =
     "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
@@ -196,7 +208,7 @@
   function renderProducerTable(producers, ui, onDrillDown) {
     var table = ui.el("table", { class: "data bags-movement-table bm-summary-table" });
     table.innerHTML =
-      "<thead><tr><th>Producer</th><th>Bags</th><th>R</th><th>L</th><th>F</th><th>Total kg</th></tr></thead>";
+      "<thead><tr><th>Producer</th><th>FSC</th><th>Bags</th><th>R</th><th>L</th><th>F</th><th>Total kg</th></tr></thead>";
     var tbody = ui.el("tbody");
     producers.forEach(function (group) {
       var tr = ui.el("tr", {
@@ -206,6 +218,7 @@
       tr.style.cursor = "pointer";
       tr.innerHTML =
         "<td>" + ui.escape(group.producer_name) + "</td>" +
+        "<td>" + ui.escape(groupFscText(group)) + "</td>" +
         "<td>" + fmt(group.bags) + "</td>" +
         "<td>" + fmt(group.restaurant) + "</td>" +
         "<td>" + fmt(group.lumpwood) + "</td>" +
