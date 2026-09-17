@@ -284,6 +284,28 @@ body {
 .bm-stream-heading--restaurant { color: #e57373; }
 .bm-stream-heading--lumpwood { color: #81c784; }
 .bm-stream-heading--fines { color: #ffb74d; }
+.bm-summary-table .bm-summary-row {
+  cursor: pointer;
+}
+.bm-summary-table .bm-summary-row:hover {
+  background: rgba(124, 179, 66, 0.08);
+}
+.bm-drill-panel {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border, #333);
+}
+.bm-drill-back {
+  margin-bottom: 8px;
+}
+.bm-drill-title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.bm-footer-note {
+  margin-top: 16px;
+}
 .bm-stream-filters,
 .bm-status-filters {
   margin-top: 4px;

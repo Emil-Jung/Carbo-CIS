@@ -1,4 +1,4 @@
-/* Bags Movement — cumulative bag stock + optional single-day view (CIS). */
+/* Bags Movement — day/producer summary with drill-down to bag detail (CIS). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -11,16 +11,6 @@
     { id: "fines", label: "Fines" },
   ];
 
-  var STATUS_FILTERS = [
-    { id: "all", label: "All statuses" },
-    { id: "in_storage_weathering", label: "In Storage — weathering" },
-    { id: "in_storage", label: "In Storage" },
-    { id: "on_truck_walvisbay", label: "On truck Walvis Bay" },
-    { id: "storage_walvisbay", label: "Storage Walvis Bay" },
-    { id: "in_container", label: "In container" },
-    { id: "sold", label: "Sold" },
-  ];
-
   var STATUS_COUNTER_KEYS = [
     { id: "in_storage_weathering", label: "In Storage — weathering" },
     { id: "in_storage", label: "In Storage (weathered)" },
@@ -29,12 +19,6 @@
     { id: "in_container", label: "In container" },
     { id: "sold", label: "Sold" },
   ];
-
-  var STREAM_TITLES = {
-    restaurant: "Restaurant",
-    lumpwood: "Lumpwood",
-    fines: "Fines",
-  };
 
   function fmt(n, d) {
     if (n == null || isNaN(n)) return "—";
@@ -82,47 +66,126 @@
     return eff === statusFilter;
   }
 
-  function renderTable(rows, ui, showScannedDate) {
-    var table = ui.el("table", { class: "data bags-movement-table" });
-    var head =
-      "<thead><tr><th>#</th><th>Producer</th>" +
-      (showScannedDate ? "<th>Scanned</th>" : "") +
-      "<th>Net kg</th><th>Weathering start</th><th>Weathering end</th><th>Timer</th>" +
-      "<th>Status</th><th>Tag</th></tr></thead>";
-    table.innerHTML = head;
+  function summaryKey(row) {
+    return String(row.recorded_date || "") + "\0" + String(row.producer_name || "Unknown producer").trim();
+  }
+
+  function buildSummaryRows(rows, streamFilter, statusFilter) {
+    var map = {};
+    rows.forEach(function (row) {
+      if (!rowMatchesFilters(row, streamFilter, statusFilter)) return;
+      var key = summaryKey(row);
+      if (!map[key]) {
+        map[key] = {
+          key: key,
+          recorded_date: row.recorded_date,
+          producer_name: row.producer_name || "Unknown producer",
+          bags: 0,
+          restaurant: 0,
+          lumpwood: 0,
+          fines: 0,
+          kg: 0,
+          detail_rows: [],
+        };
+      }
+      var g = map[key];
+      g.bags += 1;
+      g.kg += float(row.net_weight_kg);
+      if (row.product_stream === "restaurant") g.restaurant += 1;
+      else if (row.product_stream === "lumpwood") g.lumpwood += 1;
+      else if (row.product_stream === "fines") g.fines += 1;
+      g.detail_rows.push(row);
+    });
+    var list = Object.keys(map).map(function (k) { return map[k]; });
+    list.sort(function (a, b) {
+      var da = a.recorded_date || "";
+      var db = b.recorded_date || "";
+      if (da !== db) return db.localeCompare(da);
+      return (a.producer_name || "").localeCompare(b.producer_name || "", undefined, { sensitivity: "base" });
+    });
+    list.forEach(function (g) {
+      g.kg = Math.round(g.kg * 1000) / 1000;
+      g.detail_rows.sort(function (x, y) {
+        var sx = x.product_stream || "";
+        var sy = y.product_stream || "";
+        if (sx !== sy) return sx.localeCompare(sy);
+        return String(x.serial || "").localeCompare(String(y.serial || ""));
+      });
+    });
+    return list;
+  }
+
+  function float(v) {
+    var n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function timerText(row) {
+    if (row.effective_status === "in_storage_weathering") {
+      return String(row.days_remaining) + " days left";
+    }
+    if (row.effective_status === "in_storage" && row.weathered) return "Weathered";
+    if (row.weathered) return "Weathered";
+    return "—";
+  }
+
+  function renderDetailTable(rows, ui) {
+    var table = ui.el("table", { class: "data bags-movement-table bags-movement-table--compact" });
+    table.innerHTML =
+      "<thead><tr><th>#</th><th>Stream</th><th>Net kg</th><th>Weathering end</th>" +
+      "<th>Timer</th><th>Status</th><th>Tag</th></tr></thead>";
     var tbody = ui.el("tbody");
     rows.forEach(function (row, i) {
       var tr = ui.el("tr");
-      var timerText;
-      if (row.effective_status === "in_storage_weathering") {
-        timerText = String(row.days_remaining) + " days left";
-      } else if (row.effective_status === "in_storage" && row.weathered) {
-        timerText = "Weathered";
-      } else if (row.weathered) {
-        timerText = "Weathered";
-      } else {
-        timerText = "—";
-      }
       var daysClass =
         row.effective_status === "in_storage_weathering"
           ? "bags-movement-days"
           : row.weathered
             ? "bags-movement-days bags-movement-days--done"
             : "bags-movement-days";
-      var html =
+      tr.innerHTML =
         "<td>" + ui.escape(String(i + 1)) + "</td>" +
-        "<td>" + ui.escape(row.producer_name || "—") + "</td>";
-      if (showScannedDate) {
-        html += "<td>" + ui.escape(fmtDate(row.recorded_date)) + "</td>";
-      }
-      html +=
+        "<td>" + ui.escape(row.product_stream || "—") + "</td>" +
         "<td>" + fmt(row.net_weight_kg, 0) + "</td>" +
-        "<td>" + ui.escape(fmtDate(row.weathering_start_date)) + "</td>" +
         "<td>" + ui.escape(fmtDate(row.weathering_end_date)) + "</td>" +
-        "<td class='" + daysClass + "'>" + ui.escape(timerText) + "</td>" +
+        "<td class='" + daysClass + "'>" + ui.escape(timerText(row)) + "</td>" +
         "<td>" + ui.escape(row.effective_status_display || row.storage_status_display || "—") + "</td>" +
         "<td class='bags-movement-tag'>" + ui.escape(row.serial || "—") + "</td>";
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    return table;
+  }
+
+  function renderSummaryTable(summaryRows, ui, showDateCol, onDrillDown) {
+    var table = ui.el("table", { class: "data bags-movement-table bm-summary-table" });
+    var head =
+      "<thead><tr>" +
+      (showDateCol ? "<th>Date</th>" : "") +
+      "<th>Producer</th><th>Bags</th><th>R</th><th>L</th><th>F</th><th>Total kg</th>" +
+      "</tr></thead>";
+    table.innerHTML = head;
+    var tbody = ui.el("tbody");
+    summaryRows.forEach(function (group) {
+      var tr = ui.el("tr", {
+        class: "bm-summary-row",
+        title: "Double-click to view individual bags",
+      });
+      var html = "";
+      if (showDateCol) {
+        html += "<td>" + ui.escape(fmtDate(group.recorded_date)) + "</td>";
+      }
+      html +=
+        "<td>" + ui.escape(group.producer_name) + "</td>" +
+        "<td>" + fmt(group.bags) + "</td>" +
+        "<td>" + fmt(group.restaurant) + "</td>" +
+        "<td>" + fmt(group.lumpwood) + "</td>" +
+        "<td>" + fmt(group.fines) + "</td>" +
+        "<td>" + fmt(group.kg, 0) + "</td>";
       tr.innerHTML = html;
+      tr.addEventListener("dblclick", function () {
+        onDrillDown(group);
+      });
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
@@ -140,12 +203,12 @@
     );
   }
 
-  function paintReport(body, data, ui, streamFilter, statusFilter, onStatusCardClick) {
+  function paintReport(body, data, ui, streamFilter, statusFilter, drillDown, onStatusCardClick, onDrillDown, onDrillBack) {
     body.innerHTML = "";
     var streams = data.streams || {};
-    var sections = data.stream_sections || [];
     var totals = data.status_totals || {};
     var isAll = data.scope === "all";
+    var allRows = data.rows || [];
 
     var cards = ui.el("div", { class: "cards" });
     cards.appendChild(
@@ -163,7 +226,7 @@
     cards.appendChild(card(ui, "Total net kg", fmt(data.total_kg, 0) + " kg"));
     body.appendChild(cards);
 
-    body.appendChild(ui.el("h3", { class: "bm-subheading" }, ["By status (click to filter list)"]));
+    body.appendChild(ui.el("h3", { class: "bm-subheading" }, ["By status (click to filter)"]));
     var statusCards = ui.el("div", { class: "cards bm-status-cards" });
     STATUS_COUNTER_KEYS.forEach(function (item) {
       var active = statusFilter === item.id;
@@ -186,35 +249,47 @@
     );
     body.appendChild(statusCards);
 
-    var any = false;
-    sections.forEach(function (section) {
-      if (streamFilter !== "all" && section.stream !== streamFilter) return;
-      var rows = (section.rows || []).filter(function (row) {
-        return rowMatchesFilters(row, "all", statusFilter);
-      });
-      if (!rows.length) return;
-      any = true;
-      var title = STREAM_TITLES[section.stream] || section.stream;
-      body.appendChild(
-        ui.el("h3", { class: "bm-stream-heading bm-stream-heading--" + section.stream }, [
-          title + " — " + rows.length + " bag(s) · " +
-            fmt(rows.reduce(function (s, r) { return s + (r.net_weight_kg || 0); }, 0), 0) + " kg",
+    if (drillDown) {
+      var panel = ui.el("div", { class: "bm-drill-panel" });
+      var backBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm bm-drill-back" }, ["← Back to summary"]);
+      backBtn.addEventListener("click", onDrillBack);
+      panel.appendChild(backBtn);
+      var titleParts = [drillDown.producer_name];
+      if (isAll && drillDown.recorded_date) {
+        titleParts.push(fmtDate(drillDown.recorded_date));
+      }
+      panel.appendChild(
+        ui.el("h3", { class: "bm-drill-title" }, [
+          titleParts.join(" · ") + " — " + fmt(drillDown.bags) + " bag(s) · " + fmt(drillDown.kg, 0) + " kg",
         ])
       );
-      body.appendChild(renderTable(rows, ui, isAll));
-    });
+      panel.appendChild(renderDetailTable(drillDown.detail_rows || [], ui));
+      body.appendChild(panel);
+      return;
+    }
 
-    if (!any) {
+    var summaryRows = buildSummaryRows(allRows, streamFilter, statusFilter);
+    body.appendChild(
+      ui.el("h3", { class: "bm-subheading" }, [
+        isAll ? "Summary by day and producer" : "Summary by producer",
+      ])
+    );
+    body.appendChild(
+      ui.el("p", { class: "muted bm-hint" }, ["Double-click a row to open bag-level detail."])
+    );
+
+    if (!summaryRows.length) {
       body.appendChild(ui.el("p", { class: "muted" }, ["No bags match the selected filters."]));
+    } else {
+      body.appendChild(renderSummaryTable(summaryRows, ui, isAll, onDrillDown));
     }
 
     body.appendChild(
-      ui.el("p", { class: "muted" }, [
+      ui.el("p", { class: "muted bm-footer-note" }, [
         isAll
-          ? "Showing all recorded bags. Counters are cumulative across every scan date. "
-          : "Showing bags scanned on " + fmtDate(data.date) + ". ",
-        "In Storage — weathering = within " + String(data.weathering_days || 21) +
-          " days of scan-in. In Storage (weathered) = weathering complete, still on site until scanned out.",
+          ? "All recorded bags grouped by scan date and producer. "
+          : "Bags scanned on " + fmtDate(data.date) + ", grouped by producer. ",
+        "Status filters apply to both the summary counts and drill-down detail.",
       ])
     );
   }
@@ -239,10 +314,11 @@
     var streamFilter = "all";
     var statusFilter = "all";
     var lastData = null;
+    var drillDown = null;
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Movement"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Cumulative bag stock with status counters. Switch to single day to see only bags scanned on that date.",
+      "Bag stock by day and producer. Double-click a producer row to see individual bags.",
     ]));
 
     var scopeBar = ui.el("div", { class: "toolbar bm-scope-bar" });
@@ -268,12 +344,9 @@
     streamFilterUi.bar.insertBefore(ui.el("span", { class: "bm-filter-label" }, ["Stream:"]), streamFilterUi.btns);
     container.appendChild(streamFilterUi.bar);
 
-    var statusFilterUi = buildFilterBar(ui, STATUS_FILTERS, statusFilter, "bm-status-filters");
-    statusFilterUi.bar.insertBefore(ui.el("span", { class: "bm-filter-label" }, ["Status:"]), statusFilterUi.btns);
-    container.appendChild(statusFilterUi.bar);
-
     function setScope(next) {
       scope = next;
+      drillDown = null;
       var dayMode = scope === "day";
       scopeAllBtn.classList.toggle("bm-scope-btn--active", !dayMode);
       scopeDayBtn.classList.toggle("bm-scope-btn--active", dayMode);
@@ -291,31 +364,43 @@
       streamFilterUi.btns.querySelectorAll(".bm-filter-btn").forEach(function (btn) {
         btn.classList.toggle("bm-filter-btn--active", btn.getAttribute("data-filter-id") === streamFilter);
       });
-      statusFilterUi.btns.querySelectorAll(".bm-filter-btn").forEach(function (btn) {
-        btn.classList.toggle("bm-filter-btn--active", btn.getAttribute("data-filter-id") === statusFilter);
-      });
     }
 
     function repaint() {
       if (!lastData) return;
-      paintReport(body, lastData, ui, streamFilter, statusFilter, function (nextStatus) {
-        statusFilter = nextStatus;
-        syncFilterButtons();
-        repaint();
-      });
+      if (drillDown) {
+        var refreshed = buildSummaryRows(lastData.rows || [], streamFilter, statusFilter);
+        var match = refreshed.find(function (g) { return g.key === drillDown.key; });
+        drillDown = match || null;
+      }
+      paintReport(
+        body,
+        lastData,
+        ui,
+        streamFilter,
+        statusFilter,
+        drillDown,
+        function (nextStatus) {
+          statusFilter = nextStatus;
+          drillDown = null;
+          repaint();
+        },
+        function (group) {
+          drillDown = group;
+          repaint();
+        },
+        function () {
+          drillDown = null;
+          repaint();
+        }
+      );
     }
 
     streamFilterUi.btns.addEventListener("click", function (ev) {
       var btn = ev.target.closest(".bm-filter-btn");
       if (!btn) return;
       streamFilter = btn.getAttribute("data-filter-id") || "all";
-      syncFilterButtons();
-      repaint();
-    });
-    statusFilterUi.btns.addEventListener("click", function (ev) {
-      var btn = ev.target.closest(".bm-filter-btn");
-      if (!btn) return;
-      statusFilter = btn.getAttribute("data-filter-id") || "all";
+      drillDown = null;
       syncFilterButtons();
       repaint();
     });
@@ -336,6 +421,7 @@
       status.textContent = "Loading…";
       status.style.display = "";
       body.innerHTML = "";
+      drillDown = null;
       if (!ctx.api.traceability) {
         status.style.display = "none";
         body.appendChild(ui.error("Traceability API is not configured in CIS."));
@@ -378,7 +464,7 @@
     kind: "lookup",
     order: 16,
     icon: "bags",
-    description: "Cumulative bag stock — stream and status counters",
+    description: "Bag stock by day and producer — drill down to individual bags",
     requires: "traceability.bags_movement",
     requiresAny: ["traceability.bags_movement", "traceability.stock.view"],
     render: render,
