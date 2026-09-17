@@ -97,7 +97,7 @@
     var table = ui.el("table", { class: "data bags-movement-table bags-movement-table--compact" });
     table.innerHTML =
       "<thead><tr><th>#</th><th>Stream</th><th>Net kg</th><th>Weathering end</th>" +
-      "<th>Timer</th><th>Status</th><th>Tag</th></tr></thead>";
+      "<th>Timer</th><th>Status</th><th>FSC</th><th>Tag</th></tr></thead>";
     var tbody = ui.el("tbody");
     rows.forEach(function (row, i) {
       var tr = ui.el("tr");
@@ -108,6 +108,7 @@
         "<td>" + ui.escape(fmtDate(row.weathering_end_date)) + "</td>" +
         "<td>" + ui.escape(timerText(row)) + "</td>" +
         "<td>" + ui.escape(row.effective_status_display || row.storage_status_display || "—") + "</td>" +
+        "<td>" + ui.escape(row.fsc_status || row.fsc_classification || "—") + "</td>" +
         "<td class='bags-movement-tag'>" + ui.escape(row.serial || "—") + "</td>";
       tbody.appendChild(tr);
     });
@@ -115,7 +116,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.4.5";
+  var BM_UI_VERSION = "1.4.6";
 
   var RETURN_BTN_STYLE =
     "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
