@@ -84,6 +84,45 @@
     return list;
   }
 
+  var SUPPLIER_MODE_FSC = {
+    carbo_fsc: "FSC Carbo",
+    noncarbo_fsc: "FSC Other",
+    non_fsc: "Non-FSC",
+    unknown: "Unknown",
+  };
+
+  function normalizeFscLabel(raw) {
+    var text = String(raw || "").trim();
+    if (!text || text === "—") return "";
+    var key = text.toUpperCase().replace(/[\s-]+/g, "_");
+    if (key === "FSC_CARBO" || (key.indexOf("FSC") >= 0 && key.indexOf("CARBO") >= 0)) return "FSC Carbo";
+    if (key === "FSC_OTHER" || (key.indexOf("FSC") >= 0 && key.indexOf("OTHER") >= 0)) return "FSC Other";
+    if (key === "NON_FSC" || key === "NONFSC" || text.toLowerCase().replace(/-/g, " ") === "non fsc") {
+      return "Non-FSC";
+    }
+    return text;
+  }
+
+  function fscText(row) {
+    var label = normalizeFscLabel(row.fsc_status);
+    if (label) return label;
+    label = normalizeFscLabel(row.fsc_classification);
+    if (label) return label;
+    var snap = row.producer_snapshot;
+    if (snap && typeof snap === "string") {
+      try { snap = JSON.parse(snap); } catch (e) { snap = null; }
+    }
+    if (snap && snap.classification) {
+      label = normalizeFscLabel(snap.classification);
+      if (label) return label;
+    }
+    var mode = String(row.supplier_mode || "").toLowerCase();
+    if (SUPPLIER_MODE_FSC[mode]) return SUPPLIER_MODE_FSC[mode];
+    if (row.is_fsc === true) return "FSC";
+    if (row.is_fsc === false) return "Non-FSC";
+    return "—";
+  }
+
   function timerText(row) {
     if (row.effective_status === "in_storage_weathering") {
       return String(row.days_remaining) + " days left";
@@ -108,7 +147,7 @@
         "<td>" + ui.escape(fmtDate(row.weathering_end_date)) + "</td>" +
         "<td>" + ui.escape(timerText(row)) + "</td>" +
         "<td>" + ui.escape(row.effective_status_display || row.storage_status_display || "—") + "</td>" +
-        "<td>" + ui.escape(row.fsc_status || row.fsc_classification || "—") + "</td>" +
+        "<td>" + ui.escape(fscText(row)) + "</td>" +
         "<td class='bags-movement-tag'>" + ui.escape(row.serial || "—") + "</td>";
       tbody.appendChild(tr);
     });
@@ -116,7 +155,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.4.6";
+  var BM_UI_VERSION = "1.4.7";
 
   var RETURN_BTN_STYLE =
     "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
