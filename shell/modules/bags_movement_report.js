@@ -135,26 +135,33 @@
     return table;
   }
 
-  function paintReport(body, data, ui, drillDown, onDrillDown, onDrillBack) {
+  function paintDrillHeader(slot, drillDown, ui, onDrillBack) {
+    slot.innerHTML = "";
+    slot.style.display = "none";
+    if (!drillDown) return;
+
+    slot.style.display = "";
+    var wrap = ui.el("div", { class: "bm-return-bar" });
+    var backBtn = ui.el("button", {
+      type: "button",
+      class: "bm-return-btn",
+    }, ["← Return to producer summary"]);
+    backBtn.addEventListener("click", onDrillBack);
+    wrap.appendChild(backBtn);
+    wrap.appendChild(
+      ui.el("p", { class: "bm-return-hint" }, [
+        "Stay in Bags Movement with this button. The Back control at the top of CIS returns to the main menu.",
+      ])
+    );
+    slot.appendChild(wrap);
+  }
+
+  function paintReport(body, data, ui, drillDown, onDrillDown) {
     body.innerHTML = "";
     var allRows = data.rows || [];
 
     if (drillDown) {
       var panel = ui.el("div", { class: "bm-drill-panel" });
-      var returnBar = ui.el("div", { class: "bm-return-bar" });
-      var backBtn = ui.el("button", {
-        type: "button",
-        class: "bm-return-btn",
-      }, ["← Return to producer summary"]);
-      backBtn.addEventListener("click", onDrillBack);
-      returnBar.appendChild(backBtn);
-      returnBar.appendChild(
-        ui.el("p", { class: "bm-return-hint" }, [
-          "Use this button to stay in Bags Movement. The Back control at the top of CIS returns to the main menu.",
-        ])
-      );
-      panel.appendChild(returnBar);
-
       var titleParts = [drillDown.producer_name];
       if (drillDown.recorded_date) {
         titleParts.push(fmtDate(drillDown.recorded_date));
@@ -196,10 +203,18 @@
       "All recorded bags, grouped by scan date and producer.",
     ]));
 
+    var drillHeader = ui.el("div", { class: "bm-drill-header", style: "display:none" });
+    container.appendChild(drillHeader);
+
     var status = ui.el("p", { class: "muted" }, ["Loading…"]);
     container.appendChild(status);
     var body = ui.el("div", { class: "report-body bm-report-body" });
     container.appendChild(body);
+
+    function onDrillBack() {
+      drillDown = null;
+      repaint();
+    }
 
     function repaint() {
       if (!lastData) return;
@@ -208,6 +223,7 @@
         var match = refreshed.find(function (g) { return g.key === drillDown.key; });
         drillDown = match || null;
       }
+      paintDrillHeader(drillHeader, drillDown, ui, onDrillBack);
       paintReport(
         body,
         lastData,
@@ -215,10 +231,6 @@
         drillDown,
         function (group) {
           drillDown = group;
-          repaint();
-        },
-        function () {
-          drillDown = null;
           repaint();
         }
       );
