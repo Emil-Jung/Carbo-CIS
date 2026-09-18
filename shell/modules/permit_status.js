@@ -83,6 +83,7 @@
       rows.forEach(function (r) {
         var rowClass = "fleet-row-ok";
         if (r.member_status === "Suspended") rowClass = "fleet-row-due";
+        else if (r.member_status === "Dormant") rowClass = "fleet-row-soon";
         else if (r.permit_status === "expired") rowClass = "fleet-row-due";
         else if (r.permit_status === "due_soon") rowClass = "fleet-row-soon";
         var tr = ui.el("tr", { class: rowClass });
@@ -90,6 +91,11 @@
         var ms = r.member_status || "—";
         if (r.member_status === "Suspended" && r.suspension_reason) {
           ms = ms + " — " + r.suspension_reason;
+        } else if (r.member_status === "Dormant") {
+          var dormParts = [];
+          if (r.dormant_started_date) dormParts.push("since " + formatDate(r.dormant_started_date));
+          if (r.dormant_inactive_by_date) dormParts.push("until " + formatDate(r.dormant_inactive_by_date));
+          if (dormParts.length) ms = ms + " (" + dormParts.join(", ") + ")";
         }
         tr.appendChild(ui.el("td", {}, [ms]));
         tr.appendChild(ui.el("td", {}, [r.harvesting_permit_number || "—"]));
