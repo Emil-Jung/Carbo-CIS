@@ -142,9 +142,25 @@
     return table;
   }
 
-  /** One day's worth of bags in this status — collapsible, newest day first. */
-  function renderDateSection(section, ui) {
+  function fmtTime(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  /** A load is one event: same day, same destination, usually one scheduled job. */
+  function eventTimeText(section) {
+    var from = fmtTime(section.first_at);
+    var to = fmtTime(section.last_at);
+    if (!from) return "";
+    return from === to ? from : from + "–" + to;
+  }
+
+  /** One movement event — collapsible, most recent first. */
+  function renderEventSection(section, ui) {
     var block = ui.el("div", { class: "bags-status-day" });
+
     var summary = [
       section.bags + (section.bags === 1 ? " bag" : " bags"),
       fmtKg(section.kg) + " kg",
@@ -156,6 +172,13 @@
     if (section.open) details.setAttribute("open", "open");
     var head = ui.el("summary", { class: "bags-status-day-head" });
     head.appendChild(ui.el("span", { class: "bags-status-day-date" }, [fmtDayHeading(section.date)]));
+
+    var when = eventTimeText(section);
+    if (when) head.appendChild(ui.el("span", { class: "bags-status-event-time" }, [when]));
+    var dest = section.client_name || section.container_number;
+    if (dest) head.appendChild(ui.el("span", { class: "bags-status-event-dest" }, [dest]));
+    if (section.job_id) head.appendChild(ui.el("span", { class: "pill" }, ["Scheduled"]));
+
     head.appendChild(ui.el("span", { class: "muted" }, [summary.join(" · ")]));
     details.appendChild(head);
     details.appendChild(renderDrillTable(section.rows || [], ui));
@@ -195,7 +218,7 @@
           body.appendChild(ui.el("p", { class: "muted" }, ["No bags are in this status."]));
         } else {
           selected.sections.forEach(function (section) {
-            body.appendChild(renderDateSection(section, ui));
+            body.appendChild(renderEventSection(section, ui));
           });
         }
         return;
@@ -212,7 +235,7 @@
       status.style.display = "";
       try {
         var data = await ctx.api.traceability("/reports/bags-status?status=" + encodeURIComponent(st.key));
-        var sections = data.date_sections || [];
+        var sections = data.event_sections || [];
         // Most recent batch open, older ones collapsed to keep the list short.
         sections.forEach(function (s, i) { s.open = i === 0; });
         selected = {

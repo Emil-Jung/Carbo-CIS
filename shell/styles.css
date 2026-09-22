@@ -291,6 +291,14 @@ body {
 .bags-status-day-date {
   font-weight: 600;
 }
+.bags-status-event-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.bags-status-event-dest {
+  color: var(--gold-bright, #c9a227);
+  font-weight: 600;
+}
 .bags-status-day-details[open] .bags-status-day-head {
   border-radius: 8px 8px 0 0;
 }
