@@ -782,6 +782,13 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   font-size: 14px;
 }
 .btn-sm { padding: 7px 12px; font-size: 13px; background: var(--gold); color: #1a1200; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+/* Containers — preload form */
+.ct-form { align-items: flex-end; margin-top: 18px; }
+.ct-form .btn { align-self: flex-end; width: auto; }
+.ct-field { display: flex; flex-direction: column; gap: 5px; }
+.ct-field-label { font-size: 12px; color: var(--muted); }
+.ct-form .ct-field input[type="number"] { width: 110px; }
 .muted { color: var(--muted); }
 .error-box {
   background: rgba(220, 38, 38, 0.12);
