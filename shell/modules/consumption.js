@@ -15,7 +15,7 @@
     const ui = CIS.ui;
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Consumption"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Diesel consumption in litres — forklifts FL-01 to FL-06 (more vehicles later). Trailers are excluded.",
+      "Diesel consumption in litres — forklifts FL-01 to FL-08. Trailers are excluded.",
     ]));
 
     const cards = ui.el("div", { class: "cards" });
@@ -98,7 +98,7 @@
     kind: "lookup",
     order: 20,
     icon: "consumption",
-    description: "Diesel litres — forklifts FL-01–FL-06",
+    description: "Diesel litres — forklifts FL-01–FL-08",
     requires: "maintenance.fuel.view",
     render,
   });
