@@ -1,21 +1,24 @@
-/* Bag label ZPL — 203 dpi ZT231, 54×25 mm. Symbol layer swappable (QR now, GS1 Data Matrix later). */
+/* Bag label ZPL — 203 dpi ZT231, 61×28 mm. Symbol layer swappable (QR now, GS1 Data Matrix later). */
 (function (root) {
   "use strict";
 
   var DEFAULT_SPEC = {
     dpi: 203,
-    widthMm: 54,
-    heightMm: 25,
+    widthMm: 61,
+    heightMm: 28,
     marginMm: 2.5,
     gapMm: 1.5,
-    textReserveMm: 22,
+    textReserveMm: 27,
     qrMag: 0,
     qrBoostMag: 0,
     symbol: "qr",
   };
 
-  /** Physically verified on ZT231 — do not change without a new physical test. */
+  /** Physically verified on ZT231 54×25 stock — re-test after 61×28 go-live. */
   var PRODUCTION_QR_BOOST_MAG = 2;
+
+  /** Nudge entire layout down on 28 mm face (QR + text together). ~1.5 mm @ 203 dpi. */
+  var PRODUCTION_LAYOUT_Y_OFFSET_DOTS = 12;
 
   function mmToDots(mm, dpi) {
     return Math.round((mm * dpi) / 25.4);
@@ -90,14 +93,16 @@
     var qrY = d.margin + Math.round((usableH - qrSize) / 2);
     var textX = qrX + qrSize + d.gap;
     var textAreaW = Math.max(40, d.pw - d.margin - textX);
-    // Slightly smaller than the original single-line layout (~22–32 pt).
-    var fontH = Math.min(26, Math.max(19, Math.round(usableH * 0.17)));
+    var fontH = Math.min(28, Math.max(20, Math.round(usableH * 0.18)));
     var fontW = Math.round(fontH * 0.9);
-    while (fontH > 17 && estimateTextWidth(serial, fontW) > textAreaW) {
+    while (fontH > 18 && estimateTextWidth(serial, fontW) > textAreaW) {
       fontH -= 1;
       fontW = Math.round(fontH * 0.9);
     }
     var textY = d.margin + Math.round((usableH - fontH) / 2);
+    var yOffset = parseInt(s.layoutYOffsetDots, 10) || 0;
+    qrY += yOffset;
+    textY += yOffset;
     return {
       dots: d,
       payload: payload,
@@ -150,13 +155,14 @@
     return Object.assign(
       {
         dpi: 203,
-        widthMm: 54,
-        heightMm: 25,
+        widthMm: 61,
+        heightMm: 28,
         marginMm: 2.5,
         gapMm: 1.5,
-        textReserveMm: 24,
+        textReserveMm: 27,
         qrMag: 0,
         qrBoostMag: PRODUCTION_QR_BOOST_MAG,
+        layoutYOffsetDots: PRODUCTION_LAYOUT_Y_OFFSET_DOTS,
         symbol: "qr",
       },
       overrides || {}
@@ -166,6 +172,7 @@
   root.CIS_LABEL_ZPL = {
     DEFAULT_SPEC: DEFAULT_SPEC,
     PRODUCTION_QR_BOOST_MAG: PRODUCTION_QR_BOOST_MAG,
+    PRODUCTION_LAYOUT_Y_OFFSET_DOTS: PRODUCTION_LAYOUT_Y_OFFSET_DOTS,
     mmToDots: mmToDots,
     specToDots: specToDots,
     symbolPayload: symbolPayload,
