@@ -55,9 +55,9 @@
   function renderSummaryCards(data, ui) {
     var wrap = ui.el("div", { class: "cards" });
     [
-      { label: "In the system", value: data.in_system, highlight: true },
-      { label: "Closed", value: data.closed },
-      { label: "Bags on record", value: { bags: data.bag_count } },
+      { label: "Active in system", value: data.in_system, highlight: true },
+      { label: "End of life", value: data.closed },
+      { label: "All bags in system", value: { bags: data.bag_count } },
     ].forEach(function (item) {
       var card = ui.el("div", { class: "card" + (item.highlight ? " card--highlight" : "") });
       card.appendChild(ui.el("span", { class: "label" }, [item.label]));
