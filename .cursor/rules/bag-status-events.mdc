@@ -1,0 +1,16 @@
+---
+description: Bags Status drill-down is status → event date → bags
+globs: shell/modules/bags_status.js
+alwaysApply: false
+---
+
+# Bags Status drill-down
+
+Three levels only: status tile → event date (bags, kg, destination) → bag list.
+
+One Windhoek calendar day plus the same destination is one cluster. Three
+Erongo timeslots on the same date are one event. Do not open bag detail on
+the first click.
+
+The date is when the bag **changed status**, not when it was scanned at sieving.
+This applies to Sold and to the briquette-plant / pallet statuses.

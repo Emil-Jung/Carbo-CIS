@@ -142,54 +142,32 @@
     return table;
   }
 
-  function fmtTime(iso) {
-    if (!iso) return "";
-    var d = new Date(iso);
-    if (isNaN(d.getTime())) return "";
-    return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  }
-
-  /** A load is one event: same day, same destination, usually one scheduled job. */
-  function eventTimeText(section) {
-    var from = fmtTime(section.first_at);
-    var to = fmtTime(section.last_at);
-    if (!from) return "";
-    return from === to ? from : from + "–" + to;
-  }
-
-  /** One movement event — collapsible, most recent first. */
-  function renderEventSection(section, ui) {
-    var block = ui.el("div", { class: "bags-status-day" });
-
-    var summary = [
-      section.bags + (section.bags === 1 ? " bag" : " bags"),
-      fmtKg(section.kg) + " kg",
-    ];
-    var split = streamSplitText(section.streams);
-    if (split) summary.push(split);
-
-    var details = ui.el("details", { class: "bags-status-day-details" });
-    if (section.open) details.setAttribute("open", "open");
-    var head = ui.el("summary", { class: "bags-status-day-head" });
-    head.appendChild(ui.el("span", { class: "bags-status-day-date" }, [fmtDayHeading(section.date)]));
-
-    var when = eventTimeText(section);
-    if (when) head.appendChild(ui.el("span", { class: "bags-status-event-time" }, [when]));
-    var dest = section.client_name || section.container_number;
-    if (dest) head.appendChild(ui.el("span", { class: "bags-status-event-dest" }, [dest]));
-    if (section.job_id) head.appendChild(ui.el("span", { class: "pill" }, ["Scheduled"]));
-
-    head.appendChild(ui.el("span", { class: "muted" }, [summary.join(" · ")]));
-    details.appendChild(head);
-    details.appendChild(renderDrillTable(section.rows || [], ui));
-    block.appendChild(details);
-    return block;
+  /** Date clusters only — bag detail waits for a second click. */
+  function renderEventCards(sections, ui, onOpen) {
+    var wrap = ui.el("div", { class: "cards bm-status-cards" });
+    sections.forEach(function (section) {
+      var card = ui.el("button", {
+        class: "card bm-status-card",
+        type: "button",
+        onclick: function () { onOpen(section); },
+      });
+      card.appendChild(ui.el("span", { class: "label" }, [fmtDayHeading(section.date)]));
+      card.appendChild(ui.el("div", { class: "value" }, [String(section.bags)]));
+      card.appendChild(ui.el("span", { class: "muted" }, [fmtKg(section.kg) + " kg"]));
+      var dest = section.client_name || section.container_number;
+      if (dest) card.appendChild(ui.el("div", { class: "bags-status-event-dest" }, [dest]));
+      var split = streamSplitText(section.streams);
+      if (split) card.appendChild(ui.el("div", { class: "muted" }, [split]));
+      wrap.appendChild(card);
+    });
+    return wrap;
   }
 
   async function render(container, ctx) {
     var ui = CIS.ui;
     var summary = null;
     var selected = null;
+    var selectedEvent = null;
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Status"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
@@ -207,19 +185,45 @@
 
       if (selected) {
         var back = ui.el("button", { class: "btn-ghost btn-sm", type: "button", onclick: function () {
-          selected = null;
+          if (selectedEvent) {
+            selectedEvent = null;
+          } else {
+            selected = null;
+          }
           paint();
-        } }, ["← All statuses"]);
+        } }, [selectedEvent ? "← Event dates" : "← All statuses"]);
         body.appendChild(back);
+
+        if (selectedEvent) {
+          var dest = selectedEvent.client_name || selectedEvent.container_number;
+          body.appendChild(ui.el("h3", { class: "bm-subheading" }, [
+            selected.label + " — " + fmtDayHeading(selectedEvent.date)
+              + (dest ? " — " + dest : "")
+              + " — " + selectedEvent.bags + (selectedEvent.bags === 1 ? " bag" : " bags"),
+          ]));
+          if (!(selectedEvent.rows || []).length) {
+            body.appendChild(ui.el("p", { class: "muted" }, ["No bags in this event."]));
+          } else {
+            body.appendChild(renderDrillTable(selectedEvent.rows, ui));
+          }
+          return;
+        }
+
         body.appendChild(ui.el("h3", { class: "bm-subheading" }, [
-          selected.label + " — " + selected.count + (selected.count === 1 ? " bag" : " bags"),
+          selected.label + " — " + selected.count + (selected.count === 1 ? " bag" : " bags")
+            + " across " + selected.sections.length
+            + (selected.sections.length === 1 ? " date" : " dates"),
         ]));
         if (!selected.sections.length) {
           body.appendChild(ui.el("p", { class: "muted" }, ["No bags are in this status."]));
         } else {
-          selected.sections.forEach(function (section) {
-            body.appendChild(renderEventSection(section, ui));
-          });
+          body.appendChild(ui.el("p", { class: "muted bags-status-note" }, [
+            "Each date is one cluster — three loads to the same destination on the same day count as one event. Click a date for the bags.",
+          ]));
+          body.appendChild(renderEventCards(selected.sections, ui, function (section) {
+            selectedEvent = section;
+            paint();
+          }));
         }
         return;
       }
@@ -235,14 +239,12 @@
       status.style.display = "";
       try {
         var data = await ctx.api.traceability("/reports/bags-status?status=" + encodeURIComponent(st.key));
-        var sections = data.event_sections || [];
-        // Most recent batch open, older ones collapsed to keep the list short.
-        sections.forEach(function (s, i) { s.open = i === 0; });
+        selectedEvent = null;
         selected = {
           key: st.key,
           label: st.label,
           count: data.drill_bag_count || 0,
-          sections: sections,
+          sections: data.event_sections || [],
         };
         status.style.display = "none";
         paint();
