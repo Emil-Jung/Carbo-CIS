@@ -20,7 +20,7 @@
 
     reportsRow2: ["maintenance_ops", "consumption", "restaurant_report"],
 
-    reportsRow3: ["bags_movement_report", "supplier_contacts", "containers", "movement_schedule"],
+    reportsRow3: ["bags_movement_report", "bags_status_report", "supplier_contacts"],
 
   };
 

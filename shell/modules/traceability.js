@@ -21,6 +21,20 @@
       requires: "traceability.labels.print",
       icon: "labels",
     },
+    {
+      id: "movement_schedule",
+      title: "Movement schedule",
+      description: "Schedule a load so the scanner confirms each bag with one tap.",
+      requires: "traceability.movement_jobs",
+      icon: "schedule",
+    },
+    {
+      id: "containers",
+      title: "Containers",
+      description: "Preload container numbers and bookings for Walvis Bay.",
+      requires: "traceability.containers",
+      icon: "container",
+    },
   ];
 
   var ICONS = {
@@ -28,6 +42,10 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5h8V3H3v2zm0 8h8v-2H3v2zm0 8h8v-2H3v2zm10-16v2h8V3h-8zm0 8h8v-2h-8v2zm0 8h8v-2h-8v2z"/></svg>',
     labels:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h10l6 6v10H4V4zm2 2v12h12V11h-5V6H6zm9 1.4V10h2.6L15 7.4zM7 13h6v2H7v-2zm0 4h10v2H7v-2z"/></svg>',
+    schedule:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zM5 9h14v10H5V9zm2 2v2h2v-2H7zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H7zm4 0v2h2v-2h-2z"/></svg>',
+    container:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5h18v14H3V5zm2 2v10h2V7H5zm4 0v10h2V7H9zm4 0v10h2V7h-2zm4 0v10h2V7h-2z"/></svg>',
   };
 
   function render(container, ctx) {
