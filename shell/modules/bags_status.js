@@ -22,9 +22,28 @@
 
   function fmtDate(iso) {
     if (!iso) return "—";
-    var d = new Date(iso);
+    var d;
+    // Plain YYYY-MM-DD is a calendar day, not an instant — build it locally so
+    // the browser's timezone cannot shift it to the day before.
+    var parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+    if (parts) {
+      d = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
+    } else {
+      d = new Date(iso);
+    }
     if (isNaN(d.getTime())) return String(iso);
     return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  function fmtDayHeading(iso) {
+    if (!iso) return "Date unknown";
+    var parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+    if (!parts) return fmtDate(iso);
+    var d = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
+    if (isNaN(d.getTime())) return String(iso);
+    return d.toLocaleDateString("en-GB", {
+      weekday: "short", day: "2-digit", month: "short", year: "numeric",
+    });
   }
 
   function streamText(row) {
@@ -123,6 +142,27 @@
     return table;
   }
 
+  /** One day's worth of bags in this status — collapsible, newest day first. */
+  function renderDateSection(section, ui) {
+    var block = ui.el("div", { class: "bags-status-day" });
+    var summary = [
+      section.bags + (section.bags === 1 ? " bag" : " bags"),
+      fmtKg(section.kg) + " kg",
+    ];
+    var split = streamSplitText(section.streams);
+    if (split) summary.push(split);
+
+    var details = ui.el("details", { class: "bags-status-day-details" });
+    if (section.open) details.setAttribute("open", "open");
+    var head = ui.el("summary", { class: "bags-status-day-head" });
+    head.appendChild(ui.el("span", { class: "bags-status-day-date" }, [fmtDayHeading(section.date)]));
+    head.appendChild(ui.el("span", { class: "muted" }, [summary.join(" · ")]));
+    details.appendChild(head);
+    details.appendChild(renderDrillTable(section.rows || [], ui));
+    block.appendChild(details);
+    return block;
+  }
+
   async function render(container, ctx) {
     var ui = CIS.ui;
     var summary = null;
@@ -149,12 +189,14 @@
         } }, ["← All statuses"]);
         body.appendChild(back);
         body.appendChild(ui.el("h3", { class: "bm-subheading" }, [
-          selected.label + " — " + selected.rows.length + (selected.rows.length === 1 ? " bag" : " bags"),
+          selected.label + " — " + selected.count + (selected.count === 1 ? " bag" : " bags"),
         ]));
-        if (!selected.rows.length) {
+        if (!selected.sections.length) {
           body.appendChild(ui.el("p", { class: "muted" }, ["No bags are in this status."]));
         } else {
-          body.appendChild(renderDrillTable(selected.rows, ui));
+          selected.sections.forEach(function (section) {
+            body.appendChild(renderDateSection(section, ui));
+          });
         }
         return;
       }
@@ -170,7 +212,15 @@
       status.style.display = "";
       try {
         var data = await ctx.api.traceability("/reports/bags-status?status=" + encodeURIComponent(st.key));
-        selected = { key: st.key, label: st.label, rows: data.rows || [] };
+        var sections = data.date_sections || [];
+        // Most recent batch open, older ones collapsed to keep the list short.
+        sections.forEach(function (s, i) { s.open = i === 0; });
+        selected = {
+          key: st.key,
+          label: st.label,
+          count: data.drill_bag_count || 0,
+          sections: sections,
+        };
         status.style.display = "none";
         paint();
       } catch (e) {

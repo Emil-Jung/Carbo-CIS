@@ -263,6 +263,41 @@ body {
   font-size: 12px;
   margin-top: 4px;
 }
+.bags-status-day {
+  margin-bottom: 14px;
+}
+.bags-status-day-head {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  cursor: pointer;
+  padding: 10px 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  list-style: none;
+}
+.bags-status-day-head::-webkit-details-marker {
+  display: none;
+}
+.bags-status-day-head::before {
+  content: "▸";
+  color: var(--muted);
+}
+.bags-status-day-details[open] .bags-status-day-head::before {
+  content: "▾";
+}
+.bags-status-day-date {
+  font-weight: 600;
+}
+.bags-status-day-details[open] .bags-status-day-head {
+  border-radius: 8px 8px 0 0;
+}
+.bags-status-day-details table.data {
+  border-radius: 0 0 8px 8px;
+  border-top: none;
+}
 .bags-status-note {
   max-width: 70ch;
   margin: -2px 0 10px;
