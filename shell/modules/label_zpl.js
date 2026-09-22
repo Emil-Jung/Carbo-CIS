@@ -14,7 +14,7 @@
     symbol: "qr",
   };
 
-  /** Physically verified on ZT231 54×25 stock — re-test after 61×28 go-live. */
+  /** Physically verified on ZT231 61×28 stock — do not change without a new physical test. */
   var PRODUCTION_QR_BOOST_MAG = 2;
 
   /** Nudge entire layout down on 28 mm face (QR + text together). ~1.5 mm @ 203 dpi. */
