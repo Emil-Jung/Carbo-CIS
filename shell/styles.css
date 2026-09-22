@@ -263,6 +263,12 @@ body {
   font-size: 12px;
   margin-top: 4px;
 }
+.bags-status-note {
+  max-width: 70ch;
+  margin: -2px 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
 .bm-status-card--active {
   border-color: var(--accent, #7cb342);
   box-shadow: 0 0 0 1px var(--accent, #7cb342);

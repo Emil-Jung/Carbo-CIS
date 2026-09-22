@@ -1,4 +1,6 @@
-/* Bags Movement — day/producer summary with drill-down to bag detail (CIS). */
+/* Bags Created — day/producer summary with drill-down to bag detail (CIS).
+   Module id and permission keys stay bags_movement / stock.view so existing
+   grants keep working; only the label changed. */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -600,7 +602,7 @@
     var drillHeader = ui.el("div", { class: "bm-drill-header", style: "display:none" });
     container.insertBefore(drillHeader, container.firstChild);
 
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Movement"]));
+    container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Created"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "All recorded bags, grouped by scan date and producer. UI " + BM_UI_VERSION + ".",
     ]));
@@ -661,12 +663,12 @@
 
   CIS.modules.push({
     id: "bags_movement_report",
-    title: "Bags Movement",
+    title: "Bags Created",
     section: "Production",
     kind: "lookup",
     order: 16,
     icon: "bags",
-    description: "Bag stock by day and producer — drill down to individual bags",
+    description: "Bags created by day and producer — drill down to individual bags",
     requires: "traceability.bags_movement",
     requiresAny: ["traceability.bags_movement", "traceability.stock.view"],
     render: render,

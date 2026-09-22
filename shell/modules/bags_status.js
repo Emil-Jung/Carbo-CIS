@@ -75,6 +75,9 @@
     block.appendChild(ui.el("h3", { class: "bm-subheading" }, [
       group.label + " — " + group.bags + (group.bags === 1 ? " bag" : " bags"),
     ]));
+    if (group.note) {
+      block.appendChild(ui.el("p", { class: "muted bags-status-note" }, [group.note]));
+    }
     var cards = ui.el("div", { class: "cards bm-status-cards" });
     group.statuses.forEach(function (st) {
       var cls = "card bm-status-card";
@@ -160,9 +163,6 @@
       summary.groups.forEach(function (group) {
         body.appendChild(renderGroup(group, ui, null, openStatus));
       });
-      body.appendChild(ui.el("p", { class: "muted bm-hint" }, [
-        "Weathering runs " + summary.weathering_days + " days from the charcoal's origin. Converted bags inherit what is left of their inputs' clock.",
-      ]));
     }
 
     async function openStatus(st) {
