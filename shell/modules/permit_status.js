@@ -36,7 +36,7 @@
     );
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
-        "FSC® certified members only — harvesting permit expiry and member status. " +
+        "FSC® certified members only — harvesting permit expiry and member status (including prospective members). " +
           "Permits and suspensions are managed in FSC Management System; this view refreshes from cloud sync.",
       ])
     );
@@ -86,6 +86,9 @@
         else if (r.member_status === "Dormant") rowClass = "fleet-row-soon";
         else if (r.permit_status === "expired") rowClass = "fleet-row-due";
         else if (r.permit_status === "due_soon") rowClass = "fleet-row-soon";
+        if ((r.member_status || "").toLowerCase().indexOf("prospective") !== -1) {
+          rowClass = rowClass ? rowClass + " prospective-row" : "prospective-row";
+        }
         var tr = ui.el("tr", { class: rowClass });
         tr.appendChild(ui.el("td", {}, [r.display_label || "—"]));
         var ms = r.member_status || "—";
