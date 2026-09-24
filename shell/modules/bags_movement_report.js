@@ -48,6 +48,23 @@
     });
   }
 
+  /** Latest bag scan in a producer/day group — drives summary table order. */
+  function latestRecordedAt(group) {
+    var latest = "";
+    (group.detail_rows || []).forEach(function (row) {
+      var t = row.recorded_at || "";
+      if (t > latest) latest = t;
+    });
+    return latest;
+  }
+
+  function compareProducerGroupsByScanOrder(a, b) {
+    var da = a.recorded_date || "";
+    var db = b.recorded_date || "";
+    if (da !== db) return db.localeCompare(da);
+    return latestRecordedAt(b).localeCompare(latestRecordedAt(a));
+  }
+
   function sievingTimeSpan(rows) {
     var stamps = detailRowsByRecorded(rows, false)
       .map(function (r) { return r.recorded_at; })
@@ -110,20 +127,10 @@
       g.detail_rows.push(row);
     });
     var list = Object.keys(map).map(function (k) { return map[k]; });
-    list.sort(function (a, b) {
-      var da = a.recorded_date || "";
-      var db = b.recorded_date || "";
-      if (da !== db) return db.localeCompare(da);
-      return (a.producer_name || "").localeCompare(b.producer_name || "", undefined, { sensitivity: "base" });
-    });
+    list.sort(compareProducerGroupsByScanOrder);
     list.forEach(function (g) {
       g.kg = Math.round(g.kg * 1000) / 1000;
-      g.detail_rows.sort(function (x, y) {
-        var rx = streamSortRank(x.product_stream);
-        var ry = streamSortRank(y.product_stream);
-        if (rx !== ry) return rx - ry;
-        return String(x.serial || "").localeCompare(String(y.serial || ""));
-      });
+      g.detail_rows = detailRowsByRecorded(g.detail_rows, true);
     });
     return list;
   }
@@ -240,7 +247,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.5.2";
+  var BM_UI_VERSION = "1.5.4";
 
   var RETURN_BTN_STYLE =
     "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
@@ -467,7 +474,7 @@
       s.streams.lumpwood_kg = Math.round(s.streams.lumpwood_kg * 1000) / 1000;
       s.streams.fines_kg = Math.round(s.streams.fines_kg * 1000) / 1000;
       s.producers.sort(function (a, b) {
-        return (a.producer_name || "").localeCompare(b.producer_name || "", undefined, { sensitivity: "base" });
+        return latestRecordedAt(b).localeCompare(latestRecordedAt(a));
       });
       return s;
     });
