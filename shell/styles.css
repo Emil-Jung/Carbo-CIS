@@ -1274,3 +1274,39 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   width: 0;
   background: var(--gold);
 }
+
+/* Manager Override (daily PIN) */
+.manager-override-host { max-width: 520px; }
+.manager-override-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 16px 0;
+}
+.manager-override-panel-body p { margin: 8px 0; }
+.manager-override-pin-reveal {
+  margin: 20px 0;
+  padding: 20px;
+  text-align: center;
+  background: rgba(201, 162, 39, 0.08);
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+}
+.manager-override-pin-label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.manager-override-pin-value {
+  margin: 0;
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: 0.35em;
+  font-family: ui-monospace, Consolas, monospace;
+  color: var(--gold-bright);
+}
+.manager-override-pin-hint { margin: 12px 0 0; font-size: 13px; }
+.manager-override-msg.is-error { color: #f87171; }
