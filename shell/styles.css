@@ -410,13 +410,46 @@ body {
   color: var(--gold-bright, #e4c04a);
   border-bottom: 1px solid var(--border, #333);
 }
-.bm-label-inventory-panel {
-  margin-bottom: 20px;
+.bm-label-info-box {
+  display: inline-block;
+  max-width: 100%;
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
 }
-.bm-label-ratio,
-.bm-label-total {
-  margin: 12px 0 0;
+.bm-label-info-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #999);
+  margin-bottom: 4px;
+}
+.bm-label-info-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+}
+.bm-label-info-stat strong {
   font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #eee);
+}
+.bm-label-info-stat--ok strong { color: #4ade80; }
+.bm-label-info-stat--warn strong { color: #fbbf24; }
+.bm-label-info-stat--danger strong { color: #f87171; }
+.bm-label-info-sep {
+  color: var(--muted, #666);
+  user-select: none;
+}
+.bm-label-info-note {
+  margin-top: 4px;
+  font-size: 11px;
 }
 .bm-cumulative-panel {
   margin: 0 0 18px;

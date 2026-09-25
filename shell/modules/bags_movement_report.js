@@ -247,59 +247,47 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.5.5";
+  var BM_UI_VERSION = "1.5.6";
 
-  function summaryCard(ui, label, value, className) {
-    var c = ui.el("div", { class: "card" + (className ? " " + className : "") });
-    c.appendChild(ui.el("div", { class: "label" }, [label]));
-    c.appendChild(ui.el("div", { class: "value" }, [value]));
-    return c;
+  function labelStat(ui, value, label, tone) {
+    var item = ui.el("span", { class: "bm-label-info-stat" + (tone ? " bm-label-info-stat--" + tone : "") });
+    item.appendChild(ui.el("strong", {}, [fmt(value)]));
+    item.appendChild(document.createTextNode(" " + label));
+    return item;
   }
 
   function renderLabelInventoryPanel(inv, ui) {
     if (!inv) return null;
-    var panel = ui.el("section", { class: "bm-label-inventory-panel bm-cumulative-panel" });
-    panel.appendChild(ui.el("h3", { class: "bm-panel-title" }, ["Bag label stock"]));
-    panel.appendChild(
-      ui.el("p", { class: "bm-panel-lead" }, [
-        "Printed labels registered as available versus labels already used on recorded bags.",
-      ])
-    );
-    var cards = ui.el("div", { class: "cards bm-status-cards" });
-    cards.appendChild(
-      summaryCard(ui, "Available (printed, unused)", fmt(inv.available), "card-ok")
-    );
-    cards.appendChild(
-      summaryCard(ui, "Used (assigned to bags)", fmt(inv.used), "bm-status-card--total")
-    );
+    var box = ui.el("aside", { class: "bm-label-info-box" });
+    box.appendChild(ui.el("div", { class: "bm-label-info-title" }, ["Bag label stock"]));
+    var stats = ui.el("div", { class: "bm-label-info-stats" });
+    stats.appendChild(labelStat(ui, inv.available, "available", "ok"));
+    stats.appendChild(ui.el("span", { class: "bm-label-info-sep" }, ["·"]));
+    stats.appendChild(labelStat(ui, inv.used, "used", ""));
     if ((inv.allocated || 0) > 0) {
-      cards.appendChild(
-        summaryCard(ui, "Allocated (awaiting print)", fmt(inv.allocated), "card-warn")
-      );
+      stats.appendChild(ui.el("span", { class: "bm-label-info-sep" }, ["·"]));
+      stats.appendChild(labelStat(ui, inv.allocated, "awaiting print", "warn"));
     }
     if ((inv.void || 0) > 0) {
-      cards.appendChild(summaryCard(ui, "Void", fmt(inv.void), "card-danger"));
+      stats.appendChild(ui.el("span", { class: "bm-label-info-sep" }, ["·"]));
+      stats.appendChild(labelStat(ui, inv.void, "void", "danger"));
     }
-    panel.appendChild(cards);
+    box.appendChild(stats);
     var available = inv.available || 0;
     var used = inv.used || 0;
     var active = available + used;
+    var noteParts = [];
     if (active > 0) {
       var pct = Math.round((available / active) * 100);
-      panel.appendChild(
-        ui.el("p", { class: "muted bm-label-ratio" }, [
-          fmt(available) + " of " + fmt(active) + " issued labels still unused (" + pct + "%).",
-        ])
-      );
+      noteParts.push(fmt(available) + " of " + fmt(active) + " issued still unused (" + pct + "%)");
     }
     if (inv.total != null) {
-      panel.appendChild(
-        ui.el("p", { class: "muted bm-label-total" }, [
-          fmt(inv.total) + " labels allocated in the registry (all statuses).",
-        ])
-      );
+      noteParts.push(fmt(inv.total) + " in registry");
     }
-    return panel;
+    if (noteParts.length) {
+      box.appendChild(ui.el("div", { class: "bm-label-info-note muted" }, [noteParts.join(" · ")]));
+    }
+    return box;
   }
 
   var RETURN_BTN_STYLE =
