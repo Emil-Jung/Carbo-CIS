@@ -247,47 +247,25 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.5.6";
-
-  function labelStat(ui, value, label, tone) {
-    var item = ui.el("span", { class: "bm-label-info-stat" + (tone ? " bm-label-info-stat--" + tone : "") });
-    item.appendChild(ui.el("strong", {}, [fmt(value)]));
-    item.appendChild(document.createTextNode(" " + label));
-    return item;
-  }
+  var BM_UI_VERSION = "1.5.7";
 
   function renderLabelInventoryPanel(inv, ui) {
     if (!inv) return null;
-    var box = ui.el("aside", { class: "bm-label-info-box" });
-    box.appendChild(ui.el("div", { class: "bm-label-info-title" }, ["Bag label stock"]));
-    var stats = ui.el("div", { class: "bm-label-info-stats" });
-    stats.appendChild(labelStat(ui, inv.available, "available", "ok"));
-    stats.appendChild(ui.el("span", { class: "bm-label-info-sep" }, ["·"]));
-    stats.appendChild(labelStat(ui, inv.used, "used", ""));
+    var tag = ui.el("aside", { class: "bm-label-tag", title: "Printed labels ready vs labels already on bags" });
+    tag.appendChild(ui.el("span", { class: "bm-label-tag__badge" }, ["Labels"]));
+    var line = ui.el("span", { class: "bm-label-tag__line" });
+    var avail = ui.el("span", { class: "bm-label-tag__avail" });
+    avail.appendChild(document.createTextNode(fmt(inv.available) + " ready"));
+    line.appendChild(avail);
+    line.appendChild(document.createTextNode(" · " + fmt(inv.used) + " on bags"));
     if ((inv.allocated || 0) > 0) {
-      stats.appendChild(ui.el("span", { class: "bm-label-info-sep" }, ["·"]));
-      stats.appendChild(labelStat(ui, inv.allocated, "awaiting print", "warn"));
+      line.appendChild(document.createTextNode(" · " + fmt(inv.allocated) + " awaiting print"));
     }
     if ((inv.void || 0) > 0) {
-      stats.appendChild(ui.el("span", { class: "bm-label-info-sep" }, ["·"]));
-      stats.appendChild(labelStat(ui, inv.void, "void", "danger"));
+      line.appendChild(document.createTextNode(" · " + fmt(inv.void) + " void"));
     }
-    box.appendChild(stats);
-    var available = inv.available || 0;
-    var used = inv.used || 0;
-    var active = available + used;
-    var noteParts = [];
-    if (active > 0) {
-      var pct = Math.round((available / active) * 100);
-      noteParts.push(fmt(available) + " of " + fmt(active) + " issued still unused (" + pct + "%)");
-    }
-    if (inv.total != null) {
-      noteParts.push(fmt(inv.total) + " in registry");
-    }
-    if (noteParts.length) {
-      box.appendChild(ui.el("div", { class: "bm-label-info-note muted" }, [noteParts.join(" · ")]));
-    }
-    return box;
+    tag.appendChild(line);
+    return tag;
   }
 
   var RETURN_BTN_STYLE =
