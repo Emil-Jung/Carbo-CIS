@@ -247,7 +247,60 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.5.4";
+  var BM_UI_VERSION = "1.5.5";
+
+  function summaryCard(ui, label, value, className) {
+    var c = ui.el("div", { class: "card" + (className ? " " + className : "") });
+    c.appendChild(ui.el("div", { class: "label" }, [label]));
+    c.appendChild(ui.el("div", { class: "value" }, [value]));
+    return c;
+  }
+
+  function renderLabelInventoryPanel(inv, ui) {
+    if (!inv) return null;
+    var panel = ui.el("section", { class: "bm-label-inventory-panel bm-cumulative-panel" });
+    panel.appendChild(ui.el("h3", { class: "bm-panel-title" }, ["Bag label stock"]));
+    panel.appendChild(
+      ui.el("p", { class: "bm-panel-lead" }, [
+        "Printed labels registered as available versus labels already used on recorded bags.",
+      ])
+    );
+    var cards = ui.el("div", { class: "cards bm-status-cards" });
+    cards.appendChild(
+      summaryCard(ui, "Available (printed, unused)", fmt(inv.available), "card-ok")
+    );
+    cards.appendChild(
+      summaryCard(ui, "Used (assigned to bags)", fmt(inv.used), "bm-status-card--total")
+    );
+    if ((inv.allocated || 0) > 0) {
+      cards.appendChild(
+        summaryCard(ui, "Allocated (awaiting print)", fmt(inv.allocated), "card-warn")
+      );
+    }
+    if ((inv.void || 0) > 0) {
+      cards.appendChild(summaryCard(ui, "Void", fmt(inv.void), "card-danger"));
+    }
+    panel.appendChild(cards);
+    var available = inv.available || 0;
+    var used = inv.used || 0;
+    var active = available + used;
+    if (active > 0) {
+      var pct = Math.round((available / active) * 100);
+      panel.appendChild(
+        ui.el("p", { class: "muted bm-label-ratio" }, [
+          fmt(available) + " of " + fmt(active) + " issued labels still unused (" + pct + "%).",
+        ])
+      );
+    }
+    if (inv.total != null) {
+      panel.appendChild(
+        ui.el("p", { class: "muted bm-label-total" }, [
+          fmt(inv.total) + " labels allocated in the registry (all statuses).",
+        ])
+      );
+    }
+    return panel;
+  }
 
   var RETURN_BTN_STYLE =
     "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
@@ -588,6 +641,8 @@
       return;
     }
 
+    var labelPanel = renderLabelInventoryPanel(data.label_inventory, ui);
+    if (labelPanel) body.appendChild(labelPanel);
     body.appendChild(renderCumulativePanel(data, allRows, ui));
     body.appendChild(
       ui.el("p", { class: "muted bm-hint" }, ["Click a row to open bag detail for that producer and day."])

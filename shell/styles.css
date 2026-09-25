@@ -410,6 +410,14 @@ body {
   color: var(--gold-bright, #e4c04a);
   border-bottom: 1px solid var(--border, #333);
 }
+.bm-label-inventory-panel {
+  margin-bottom: 20px;
+}
+.bm-label-ratio,
+.bm-label-total {
+  margin: 12px 0 0;
+  font-size: 13px;
+}
 .bm-cumulative-panel {
   margin: 0 0 18px;
   padding: 14px 16px;
