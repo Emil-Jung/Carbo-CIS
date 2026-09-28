@@ -247,7 +247,36 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.3";
+  var BM_UI_VERSION = "1.6.4";
+
+  function renderStreamSummaryTag(group, ui) {
+    if (!group) return null;
+    var totals = streamTotalsFromRows(group.detail_rows || []);
+    var tag = ui.el("aside", { class: "bm-stream-tag", title: "Bags by stream for this producer and day" });
+    tag.appendChild(ui.el("span", { class: "bm-stream-tag__badge" }, ["By stream"]));
+
+    var line = ui.el("span", { class: "bm-stream-tag__line" });
+    var parts = [];
+    STREAM_META.forEach(function (meta) {
+      var count = totals[meta.key] || 0;
+      if (count > 0) parts.push({ meta: meta, count: count, kg: totals[meta.key + "_kg"] || 0 });
+    });
+    if (!parts.length) return null;
+
+    parts.forEach(function (part, idx) {
+      if (idx > 0) {
+        line.appendChild(ui.el("span", { class: "bm-stream-tag__sep" }, ["·"]));
+      }
+      var item = ui.el("span", {
+        class: "bm-stream-tag__item bm-stream-tag__item--" + part.meta.key,
+      });
+      item.appendChild(ui.el("strong", {}, [fmt(part.count)]));
+      item.appendChild(document.createTextNode(" " + part.meta.label.toLowerCase()));
+      line.appendChild(item);
+    });
+    tag.appendChild(line);
+    return tag;
+  }
 
   function renderLabelInventoryPanel(inv, ui) {
     if (!inv) return null;
@@ -687,11 +716,15 @@
       if (drillDown.recorded_date) {
         titleParts.push(fmtDate(drillDown.recorded_date));
       }
-      panel.appendChild(
+      var headline = ui.el("div", { class: "bm-drill-headline" });
+      headline.appendChild(
         ui.el("h3", { class: "bm-drill-title" }, [
           titleParts.join(" · ") + " — " + fmt(drillDown.bags) + " bag(s) · " + fmt(drillDown.kg, 0) + " kg",
         ])
       );
+      var streamTag = renderStreamSummaryTag(drillDown, ui);
+      if (streamTag) headline.appendChild(streamTag);
+      panel.appendChild(headline);
       var sieving = sievingTimeSpan(drillDown.detail_rows || []);
       if (sieving) {
         panel.appendChild(
