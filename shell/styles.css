@@ -748,17 +748,19 @@ body {
   line-height: 1.4;
 }
 .bm-drill-headline {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
+  gap: 10px 12px;
   margin: 0 0 12px;
+  max-width: 100%;
 }
 .bm-drill-title {
   margin: 0;
-  flex: 1 1 16rem;
+  flex: 0 1 auto;
   font-size: 1rem;
   font-weight: 600;
+  line-height: 1.4;
   color: var(--text, #e8e8e8);
 }
 .bm-stream-tag {

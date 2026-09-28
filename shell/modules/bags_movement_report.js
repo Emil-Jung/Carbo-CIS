@@ -247,7 +247,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.5";
+  var BM_UI_VERSION = "1.6.7";
 
   function renderStreamSummaryTag(group, ui) {
     if (!group) return null;
