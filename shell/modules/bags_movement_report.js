@@ -247,25 +247,38 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.1";
+  var BM_UI_VERSION = "1.6.2";
 
   function renderLabelInventoryPanel(inv, ui) {
     if (!inv) return null;
-    var tag = ui.el("aside", { class: "bm-label-tag", title: "Printed labels ready vs labels already on bags" });
-    tag.appendChild(ui.el("span", { class: "bm-label-tag__badge" }, ["Labels"]));
-    var line = ui.el("span", { class: "bm-label-tag__line" });
-    var avail = ui.el("span", { class: "bm-label-tag__avail" });
-    avail.appendChild(document.createTextNode(fmt(inv.available) + " ready"));
-    line.appendChild(avail);
-    line.appendChild(document.createTextNode(" · " + fmt(inv.used) + " on bags"));
+    var panel = ui.el("section", {
+      class: "bm-label-stock",
+      title: "Printed bag labels ready to assign versus labels already linked to bags",
+    });
+    panel.appendChild(ui.el("h3", { class: "bm-label-stock__title" }, ["Bag label stock"]));
+    panel.appendChild(
+      ui.el("p", { class: "bm-label-stock__lead" }, [
+        "Ready = printed labels not yet on a bag. On bags = labels already linked to recorded bags.",
+      ])
+    );
+
+    var stats = ui.el("div", { class: "bm-label-stock__stats" });
+    function addStat(label, value, tone) {
+      var stat = ui.el("div", { class: "bm-label-stock__stat bm-label-stock__stat--" + tone });
+      stat.appendChild(ui.el("span", { class: "bm-label-stock__value" }, [fmt(value)]));
+      stat.appendChild(ui.el("span", { class: "bm-label-stock__label" }, [label]));
+      stats.appendChild(stat);
+    }
+    addStat("Ready to print", inv.available, "ready");
+    addStat("Already on bags", inv.used, "used");
     if ((inv.allocated || 0) > 0) {
-      line.appendChild(document.createTextNode(" · " + fmt(inv.allocated) + " awaiting print"));
+      addStat("Awaiting print", inv.allocated, "pending");
     }
     if ((inv.void || 0) > 0) {
-      line.appendChild(document.createTextNode(" · " + fmt(inv.void) + " void"));
+      addStat("Void (cancelled run)", inv.void, "void");
     }
-    tag.appendChild(line);
-    return tag;
+    panel.appendChild(stats);
+    return panel;
   }
 
   var RETURN_BTN_STYLE =
