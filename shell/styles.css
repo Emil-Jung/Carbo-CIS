@@ -394,6 +394,65 @@ body {
 .bm-day-section .bm-summary-table {
   margin-bottom: 0;
 }
+.bm-week-block {
+  margin: 0 0 1.25rem;
+}
+.bm-week-block-title,
+.bm-past-weeks-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold-bright, #e4c04a);
+}
+.bm-past-weeks-title {
+  margin-top: 0.5rem;
+}
+.bm-week-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.bm-week-section {
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+.bm-week-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--text, #eee);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bm-week-toggle:hover {
+  background: rgba(228, 192, 74, 0.08);
+}
+.bm-week-toggle-icon {
+  flex-shrink: 0;
+  width: 1rem;
+  color: var(--gold-bright, #e4c04a);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.bm-week-toggle-text {
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.bm-week-detail {
+  padding: 0 0.5rem 0.75rem;
+  border-top: 1px solid var(--border, #333);
+}
 .bm-day-sections {
   display: flex;
   flex-direction: column;

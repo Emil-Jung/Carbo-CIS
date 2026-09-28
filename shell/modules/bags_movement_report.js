@@ -247,7 +247,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.5.7";
+  var BM_UI_VERSION = "1.6.0";
 
   function renderLabelInventoryPanel(inv, ui) {
     if (!inv) return null;
@@ -313,6 +313,27 @@
     totals.lumpwood_kg = Math.round(totals.lumpwood_kg * 1000) / 1000;
     totals.fines_kg = Math.round(totals.fines_kg * 1000) / 1000;
     return totals;
+  }
+
+  function streamTotalsFromApi(streams) {
+    var s = streams || {};
+    return {
+      restaurant: (s.restaurant && s.restaurant.bags) || 0,
+      lumpwood: (s.lumpwood && s.lumpwood.bags) || 0,
+      fines: (s.fines && s.fines.bags) || 0,
+      restaurant_kg: (s.restaurant && s.restaurant.kg) || 0,
+      lumpwood_kg: (s.lumpwood && s.lumpwood.kg) || 0,
+      fines_kg: (s.fines && s.fines.kg) || 0,
+    };
+  }
+
+  function fmtWeekRange(weekStart, weekEnd) {
+    if (!weekStart) return "Week";
+    var start = fmtDate(weekStart);
+    if (!weekEnd || weekEnd === weekStart) return start;
+    var endParts = String(weekEnd).split("-");
+    if (endParts.length !== 3) return start + " – " + fmtDate(weekEnd);
+    return start + " – " + endParts[2] + " " + monthShort(endParts[1]) + " " + endParts[0];
   }
 
   function streamBagTotal(totals) {
@@ -426,7 +447,7 @@
     return row;
   }
 
-  function renderCumulativePanel(data, allRows, ui) {
+  function renderCumulativePanel(data, ui) {
     var panel = ui.el("section", { class: "bm-cumulative-panel" });
     panel.appendChild(ui.el("h3", { class: "bm-panel-title" }, ["Cumulative total (database)"]));
     panel.appendChild(
@@ -439,7 +460,7 @@
         "Physical stock may be higher until backlog bags are entered. Totals rise as catch-up continues.",
       ])
     );
-    var totals = streamTotalsFromRows(allRows);
+    var totals = streamTotalsFromApi(data.streams);
     var body = ui.el("div", { class: "bm-cumulative-body" });
     body.appendChild(renderStreamDonut(totals, ui, "All streams — bag count"));
     body.appendChild(renderStreamCards(totals, ui));
@@ -556,6 +577,67 @@
     return wrap;
   }
 
+  function renderWeekBlock(heading, summaryRows, ui, onDrillDown, loading) {
+    var block = ui.el("section", { class: "bm-week-block" });
+    block.appendChild(ui.el("h3", { class: "bm-week-block-title" }, [heading]));
+    if (loading) {
+      block.appendChild(ui.el("p", { class: "muted" }, ["Loading week…"]));
+      return block;
+    }
+    if (!summaryRows.length) {
+      block.appendChild(ui.el("p", { class: "muted" }, ["No bags this week."]));
+      return block;
+    }
+    block.appendChild(renderDaySections(summaryRows, ui, onDrillDown));
+    return block;
+  }
+
+  function renderPastWeekSections(data, ui, onDrillDown, weekCache, expandedWeeks, onToggleWeek) {
+    var wrap = ui.el("div", { class: "bm-week-sections" });
+    var summaries = (data && data.week_summaries) || [];
+    if (!summaries.length) return wrap;
+
+    wrap.appendChild(ui.el("h3", { class: "bm-past-weeks-title" }, ["Earlier weeks"]));
+    summaries.forEach(function (summary) {
+      var weekKey = summary.week_start;
+      var expanded = !!expandedWeeks[weekKey];
+      var section = ui.el("section", { class: "bm-week-section" });
+      var toggle = ui.el("button", {
+        type: "button",
+        class: "bm-week-toggle" + (expanded ? " bm-week-toggle--open" : ""),
+      });
+      toggle.innerHTML =
+        "<span class='bm-week-toggle-icon'>" + (expanded ? "▼" : "▶") + "</span>" +
+        "<span class='bm-week-toggle-text'>" +
+        ui.escape(fmtWeekRange(summary.week_start, summary.week_end)) +
+        " · " + fmt(summary.bags) + " bags · " + fmt(summary.kg, 0) + " kg · " +
+        fmt(summary.days_with_bags) + " day(s)" +
+        "</span>";
+      toggle.addEventListener("click", function () {
+        onToggleWeek(weekKey);
+      });
+      section.appendChild(toggle);
+
+      if (expanded) {
+        var cached = weekCache[weekKey];
+        var detail = ui.el("div", { class: "bm-week-detail" });
+        if (!cached || cached.loading) {
+          detail.appendChild(ui.el("p", { class: "muted" }, ["Loading week…"]));
+        } else if (cached.error) {
+          detail.appendChild(ui.el("p", { class: "error-box" }, [cached.error]));
+        } else {
+          var rows = (cached.data && cached.data.rows) || [];
+          detail.appendChild(
+            renderDaySections(buildSummaryRows(rows), ui, onDrillDown)
+          );
+        }
+        section.appendChild(detail);
+      }
+      wrap.appendChild(section);
+    });
+    return wrap;
+  }
+
   function paintDrillHeader(slot, drillDown, ui, onDrillBack) {
     slot.innerHTML = "";
     slot.style.display = "none";
@@ -581,9 +663,8 @@
     }
   }
 
-  function paintReport(body, data, ui, drillDown, onDrillDown) {
+  function paintReport(body, data, ui, drillDown, onDrillDown, weekCache, expandedWeeks, onToggleWeek) {
     body.innerHTML = "";
-    var allRows = data.rows || [];
 
     if (drillDown) {
       var panel = ui.el("div", { class: "bm-drill-panel" });
@@ -609,16 +690,32 @@
 
     var labelPanel = renderLabelInventoryPanel(data.label_inventory, ui);
     if (labelPanel) body.appendChild(labelPanel);
-    body.appendChild(renderCumulativePanel(data, allRows, ui));
+    body.appendChild(renderCumulativePanel(data, ui));
     body.appendChild(
-      ui.el("p", { class: "muted bm-hint" }, ["Click a row to open bag detail for that producer and day."])
+      ui.el("p", { class: "muted bm-hint" }, [
+        "This week by day — click a row for bag detail. Earlier weeks are collapsed; tap a week to expand.",
+      ])
     );
 
-    var summaryRows = buildSummaryRows(allRows);
-    if (!summaryRows.length) {
+    var currentRows = data.rows || [];
+    var currentSummary = buildSummaryRows(currentRows);
+    var weekHeading = data.current_week_start
+      ? "This week (from " + fmtDate(data.current_week_start) + ")"
+      : "This week";
+    body.appendChild(renderWeekBlock(weekHeading, currentSummary, ui, onDrillDown, false));
+
+    var pastWeeks = renderPastWeekSections(
+      data,
+      ui,
+      onDrillDown,
+      weekCache,
+      expandedWeeks,
+      onToggleWeek
+    );
+    if (pastWeeks.childNodes.length) body.appendChild(pastWeeks);
+
+    if (!currentSummary.length && !(data.week_summaries || []).length) {
       body.appendChild(ui.el("p", { class: "muted" }, ["No bags recorded yet."]));
-    } else {
-      body.appendChild(renderDaySections(summaryRows, ui, onDrillDown));
     }
   }
 
@@ -626,13 +723,15 @@
     var ui = CIS.ui;
     var lastData = null;
     var drillDown = null;
+    var weekCache = {};
+    var expandedWeeks = {};
 
     var drillHeader = ui.el("div", { class: "bm-drill-header", style: "display:none" });
     container.insertBefore(drillHeader, container.firstChild);
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Created"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "All recorded bags, grouped by scan date and producer. UI " + BM_UI_VERSION + ".",
+      "All recorded bags — current week by day, earlier weeks collapsed. UI " + BM_UI_VERSION + ".",
     ]));
 
     var status = ui.el("p", { class: "muted" }, ["Loading…"]);
@@ -640,15 +739,56 @@
     var body = ui.el("div", { class: "report-body bm-report-body" });
     container.appendChild(body);
 
+    function allLoadedRows() {
+      var rows = (lastData && lastData.rows) ? lastData.rows.slice() : [];
+      Object.keys(weekCache).forEach(function (weekKey) {
+        var cached = weekCache[weekKey];
+        if (cached && cached.data && cached.data.rows) {
+          rows = rows.concat(cached.data.rows);
+        }
+      });
+      return rows;
+    }
+
     function onDrillBack() {
       drillDown = null;
+      repaint();
+    }
+
+    async function ensureWeekLoaded(weekStart) {
+      if (weekCache[weekStart] && weekCache[weekStart].data) {
+        return weekCache[weekStart].data;
+      }
+      weekCache[weekStart] = { loading: true };
+      repaint();
+      try {
+        var data = await ctx.api.traceability(
+          "/reports/bags-movement?scope=week&week_start=" + encodeURIComponent(weekStart)
+        );
+        weekCache[weekStart] = { data: data };
+        return data;
+      } catch (e) {
+        weekCache[weekStart] = { error: e.message || String(e) };
+        return null;
+      }
+    }
+
+    async function onToggleWeek(weekStart) {
+      if (expandedWeeks[weekStart]) {
+        delete expandedWeeks[weekStart];
+        repaint();
+        return;
+      }
+      expandedWeeks[weekStart] = true;
+      repaint();
+      await ensureWeekLoaded(weekStart);
       repaint();
     }
 
     function repaint() {
       if (!lastData) return;
       if (drillDown) {
-        var refreshed = buildSummaryRows(lastData.rows || []);
+        var refreshed = buildSummaryRows(allLoadedRows());
         var match = refreshed.find(function (g) { return g.key === drillDown.key; });
         drillDown = match || null;
       }
@@ -661,7 +801,10 @@
         function (group) {
           drillDown = group;
           repaint();
-        }
+        },
+        weekCache,
+        expandedWeeks,
+        onToggleWeek
       );
     }
 
@@ -670,6 +813,8 @@
       status.style.display = "";
       body.innerHTML = "";
       drillDown = null;
+      weekCache = {};
+      expandedWeeks = {};
       if (!ctx.api.traceability) {
         status.style.display = "none";
         body.appendChild(ui.error("Traceability API is not configured in CIS."));
