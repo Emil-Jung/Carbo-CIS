@@ -247,7 +247,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.0";
+  var BM_UI_VERSION = "1.6.1";
 
   function renderLabelInventoryPanel(inv, ui) {
     if (!inv) return null;
@@ -688,8 +688,6 @@
       return;
     }
 
-    var labelPanel = renderLabelInventoryPanel(data.label_inventory, ui);
-    if (labelPanel) body.appendChild(labelPanel);
     body.appendChild(renderCumulativePanel(data, ui));
     body.appendChild(
       ui.el("p", { class: "muted bm-hint" }, [
@@ -719,9 +717,16 @@
     }
   }
 
+  function paintLabelTag(slot, inv, ui) {
+    slot.innerHTML = "";
+    var labelPanel = renderLabelInventoryPanel(inv, ui);
+    if (labelPanel) slot.appendChild(labelPanel);
+  }
+
   async function render(container, ctx) {
     var ui = CIS.ui;
     var lastData = null;
+    var labelInventory = null;
     var drillDown = null;
     var weekCache = {};
     var expandedWeeks = {};
@@ -733,6 +738,8 @@
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "All recorded bags — current week by day, earlier weeks collapsed. UI " + BM_UI_VERSION + ".",
     ]));
+    var labelSlot = ui.el("div", { class: "bm-label-slot" });
+    container.appendChild(labelSlot);
 
     var status = ui.el("p", { class: "muted" }, ["Loading…"]);
     container.appendChild(status);
@@ -787,6 +794,7 @@
 
     function repaint() {
       if (!lastData) return;
+      paintLabelTag(labelSlot, labelInventory, ui);
       if (drillDown) {
         var refreshed = buildSummaryRows(allLoadedRows());
         var match = refreshed.find(function (g) { return g.key === drillDown.key; });
@@ -812,6 +820,8 @@
       status.textContent = "Loading…";
       status.style.display = "";
       body.innerHTML = "";
+      labelInventory = null;
+      paintLabelTag(labelSlot, null, ui);
       drillDown = null;
       weekCache = {};
       expandedWeeks = {};
@@ -822,6 +832,8 @@
       }
       try {
         lastData = await ctx.api.traceability("/reports/bags-movement?scope=all");
+        labelInventory = (lastData && lastData.label_inventory) || null;
+        paintLabelTag(labelSlot, labelInventory, ui);
         status.style.display = "none";
         repaint();
       } catch (e) {
