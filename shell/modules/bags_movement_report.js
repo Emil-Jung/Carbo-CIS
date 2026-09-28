@@ -247,19 +247,22 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.7";
+  var BM_UI_VERSION = "1.6.8";
 
   function renderStreamSummaryTag(group, ui) {
     if (!group) return null;
     var totals = streamTotalsFromRows(group.detail_rows || []);
-    var tag = ui.el("aside", { class: "bm-stream-tag", title: "Bags by stream for this producer and day" });
+    var tag = ui.el("aside", {
+      class: "bm-stream-tag",
+      title: "Scanned kg by stream for this producer and day",
+    });
     tag.appendChild(ui.el("span", { class: "bm-stream-tag__badge" }, ["By stream"]));
 
     var line = ui.el("span", { class: "bm-stream-tag__line" });
     var parts = [];
     STREAM_META.forEach(function (meta) {
-      var count = totals[meta.key] || 0;
-      if (count > 0) parts.push({ meta: meta, count: count, kg: totals[meta.key + "_kg"] || 0 });
+      var kg = totals[meta.key + "_kg"] || 0;
+      if (kg > 0) parts.push({ meta: meta, kg: kg });
     });
     if (!parts.length) return null;
 
@@ -270,8 +273,8 @@
       var item = ui.el("span", {
         class: "bm-stream-tag__item bm-stream-tag__item--" + part.meta.key,
       });
-      item.appendChild(ui.el("strong", {}, [fmt(part.count)]));
-      item.appendChild(document.createTextNode(" " + part.meta.label.toLowerCase()));
+      item.appendChild(ui.el("strong", {}, [fmt(part.kg, 0)]));
+      item.appendChild(document.createTextNode(" kg " + part.meta.label.toLowerCase()));
       line.appendChild(item);
     });
     tag.appendChild(line);
