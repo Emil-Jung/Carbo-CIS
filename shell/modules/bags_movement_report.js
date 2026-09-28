@@ -247,7 +247,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.4";
+  var BM_UI_VERSION = "1.6.5";
 
   function renderStreamSummaryTag(group, ui) {
     if (!group) return null;
@@ -311,12 +311,6 @@
     tag.appendChild(line);
     return tag;
   }
-
-  var RETURN_BTN_STYLE =
-    "display:block;width:100%;margin:0 0 10px;padding:18px 22px;font-size:1.25rem;font-weight:700;" +
-    "line-height:1.3;color:#1a1200;cursor:pointer;text-align:center;" +
-    "background:linear-gradient(180deg,#e4c04a,#c9a227);border:2px solid #8a7420;border-radius:10px;" +
-    "box-shadow:0 2px 8px rgba(0,0,0,0.25);";
 
   function openDrillDown(group, onDrillDown) {
     if (group) onDrillDown(group);
@@ -682,31 +676,6 @@
     return wrap;
   }
 
-  function paintDrillHeader(slot, drillDown, ui, onDrillBack) {
-    slot.innerHTML = "";
-    slot.style.display = "none";
-    if (!drillDown) return;
-
-    slot.style.display = "block";
-    var backBtn = ui.el("button", {
-      type: "button",
-      class: "bm-return-btn",
-    }, ["← Return to producer summary"]);
-    backBtn.setAttribute("style", RETURN_BTN_STYLE);
-    backBtn.addEventListener("click", onDrillBack);
-    slot.appendChild(backBtn);
-    slot.appendChild(
-      ui.el("p", { class: "bm-return-hint" }, [
-        "This returns to the day/producer list. The Back button at the top of CIS goes to the main menu.",
-      ])
-    );
-    try {
-      slot.scrollIntoView({ block: "start", behavior: "smooth" });
-    } catch (e) {
-      slot.scrollIntoView(true);
-    }
-  }
-
   function paintReport(body, data, ui, drillDown, onDrillDown, weekCache, expandedWeeks, onToggleWeek) {
     body.innerHTML = "";
 
@@ -779,9 +748,6 @@
     var weekCache = {};
     var expandedWeeks = {};
 
-    var drillHeader = ui.el("div", { class: "bm-drill-header", style: "display:none" });
-    container.insertBefore(drillHeader, container.firstChild);
-
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Created"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "All recorded bags — current week by day, earlier weeks collapsed. UI " + BM_UI_VERSION + ".",
@@ -803,6 +769,18 @@
         }
       });
       return rows;
+    }
+
+    function syncFloatingNav() {
+      if (!ctx.setFloatingBack) return;
+      if (drillDown) {
+        ctx.setFloatingBack({
+          label: "← Return to producer summary",
+          onClick: onDrillBack,
+        });
+      } else {
+        ctx.setFloatingBack(null);
+      }
     }
 
     function onDrillBack() {
@@ -848,7 +826,7 @@
         var match = refreshed.find(function (g) { return g.key === drillDown.key; });
         drillDown = match || null;
       }
-      paintDrillHeader(drillHeader, drillDown, ui, onDrillBack);
+      syncFloatingNav();
       paintReport(
         body,
         lastData,

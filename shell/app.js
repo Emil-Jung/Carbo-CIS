@@ -21,6 +21,63 @@
   const state = { config: null, token: null, user: null, permissions: [], activeModuleId: null };
   CIS._state = state;
 
+  const floatNavState = { secondary: null };
+
+  function floatNavEl() {
+    return document.getElementById("cis-float-nav");
+  }
+
+  function renderFloatNav() {
+    const nav = floatNavEl();
+    const content = document.getElementById("module-content");
+    if (!nav) return;
+
+    const onDashboard = !state.activeModuleId || state.activeModuleId === "dashboard";
+    nav.innerHTML = "";
+    nav.classList.add("hidden");
+    nav.setAttribute("aria-hidden", "true");
+    if (content) {
+      content.classList.remove("has-float-nav");
+      content.classList.remove("has-float-nav--stacked");
+    }
+
+    if (onDashboard) return;
+
+    function addBtn(label, onClick, extraClass) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cis-float-back-btn" + (extraClass ? " " + extraClass : "");
+      btn.textContent = label;
+      btn.addEventListener("click", onClick);
+      nav.appendChild(btn);
+    }
+
+    const secondary = floatNavState.secondary;
+    if (secondary && typeof secondary.onClick === "function") {
+      addBtn(secondary.label || "← Back", secondary.onClick, "cis-float-back-btn--secondary");
+    }
+
+    addBtn("← Back", () => showDashboard(), "cis-float-back-btn--primary");
+
+    nav.classList.remove("hidden");
+    nav.setAttribute("aria-hidden", "false");
+    if (content) {
+      content.classList.add("has-float-nav");
+      if (floatNavState.secondary) content.classList.add("has-float-nav--stacked");
+    }
+  }
+
+  function setFloatingBack(opts) {
+    if (opts && typeof opts.onClick === "function") {
+      floatNavState.secondary = { label: opts.label, onClick: opts.onClick };
+    } else {
+      floatNavState.secondary = null;
+    }
+    renderFloatNav();
+  }
+
+  CIS.setFloatingBack = setFloatingBack;
+
 
 
   // ---- API helpers -----------------------------------------------------
@@ -300,7 +357,9 @@
 
     state.activeModuleId = "dashboard";
 
+    floatNavState.secondary = null;
     updateTopbarContext();
+    renderFloatNav();
 
     const content = document.getElementById("module-content");
 
@@ -336,7 +395,9 @@
 
     state.activeModuleId = mod.id;
 
+    floatNavState.secondary = null;
     updateTopbarContext();
+    renderFloatNav();
 
     const content = document.getElementById("module-content");
 
@@ -391,7 +452,9 @@
 
     state.activeModuleId = id;
 
+    floatNavState.secondary = null;
     updateTopbarContext();
+    renderFloatNav();
 
     const content = document.getElementById("module-content");
 
@@ -410,6 +473,8 @@
         permissions: state.permissions,
 
         config: state.config,
+
+        setFloatingBack: setFloatingBack,
 
       });
 
