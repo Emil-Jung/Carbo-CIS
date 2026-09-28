@@ -247,38 +247,40 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.2";
+  var BM_UI_VERSION = "1.6.3";
 
   function renderLabelInventoryPanel(inv, ui) {
     if (!inv) return null;
-    var panel = ui.el("section", {
-      class: "bm-label-stock",
-      title: "Printed bag labels ready to assign versus labels already linked to bags",
+    var tag = ui.el("aside", {
+      class: "bm-label-tag",
+      title: "Printed labels ready vs labels already on bags",
     });
-    panel.appendChild(ui.el("h3", { class: "bm-label-stock__title" }, ["Bag label stock"]));
-    panel.appendChild(
-      ui.el("p", { class: "bm-label-stock__lead" }, [
-        "Ready = printed labels not yet on a bag. On bags = labels already linked to recorded bags.",
-      ])
-    );
+    tag.appendChild(ui.el("span", { class: "bm-label-tag__badge" }, ["Bag labels"]));
 
-    var stats = ui.el("div", { class: "bm-label-stock__stats" });
-    function addStat(label, value, tone) {
-      var stat = ui.el("div", { class: "bm-label-stock__stat bm-label-stock__stat--" + tone });
-      stat.appendChild(ui.el("span", { class: "bm-label-stock__value" }, [fmt(value)]));
-      stat.appendChild(ui.el("span", { class: "bm-label-stock__label" }, [label]));
-      stats.appendChild(stat);
+    var line = ui.el("span", { class: "bm-label-tag__line" });
+    function addItem(value, suffix, tone) {
+      var item = ui.el("span", { class: "bm-label-tag__item bm-label-tag__item--" + tone });
+      item.appendChild(ui.el("strong", {}, [fmt(value)]));
+      item.appendChild(document.createTextNode(" " + suffix));
+      line.appendChild(item);
     }
-    addStat("Ready to print", inv.available, "ready");
-    addStat("Already on bags", inv.used, "used");
+    function addSep() {
+      line.appendChild(ui.el("span", { class: "bm-label-tag__sep" }, ["·"]));
+    }
+
+    addItem(inv.available, "ready", "ready");
+    addSep();
+    addItem(inv.used, "on bags", "used");
     if ((inv.allocated || 0) > 0) {
-      addStat("Awaiting print", inv.allocated, "pending");
+      addSep();
+      addItem(inv.allocated, "awaiting print", "pending");
     }
     if ((inv.void || 0) > 0) {
-      addStat("Void (cancelled run)", inv.void, "void");
+      addSep();
+      addItem(inv.void, "void", "void");
     }
-    panel.appendChild(stats);
-    return panel;
+    tag.appendChild(line);
+    return tag;
   }
 
   var RETURN_BTN_STYLE =
