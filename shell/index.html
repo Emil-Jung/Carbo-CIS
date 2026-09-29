@@ -22,7 +22,7 @@
 
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
 
-  <link rel="stylesheet" href="styles.css?v=1.6.7" />
+  <link rel="stylesheet" href="styles.css?v=1.6.9" />
 
 </head>
 
@@ -50,7 +50,12 @@
 
       <label for="login-password">Password</label>
 
-      <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+      <div class="password-field">
+        <input id="login-password" name="password" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required />
+        <button type="button" class="password-toggle" aria-label="Show password" title="Show password">
+          <svg class="password-toggle__icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5C7 5 2.73 8.11 1 12.5 2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 11.5a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>
+        </button>
+      </div>
 
       <button type="submit" id="login-btn">Sign in</button>
 
@@ -69,9 +74,19 @@
       <p class="subtitle">Create your password to sign in</p>
       <p class="setup-user-id">User ID: <strong id="setup-login-id"></strong></p>
       <label for="setup-password">New password (min 6 characters)</label>
-      <input id="setup-password" name="new-password" type="password" autocomplete="new-password" required />
+      <div class="password-field">
+        <input id="setup-password" name="new-password" type="password" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" required />
+        <button type="button" class="password-toggle" aria-label="Show password" title="Show password">
+          <svg class="password-toggle__icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5C7 5 2.73 8.11 1 12.5 2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 11.5a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>
+        </button>
+      </div>
       <label for="setup-password2">Confirm password</label>
-      <input id="setup-password2" name="confirm-password" type="password" autocomplete="new-password" required />
+      <div class="password-field">
+        <input id="setup-password2" name="confirm-password" type="password" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" required />
+        <button type="button" class="password-toggle" aria-label="Show password" title="Show password">
+          <svg class="password-toggle__icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5C7 5 2.73 8.11 1 12.5 2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 11.5a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>
+        </button>
+      </div>
       <button type="submit" id="setup-btn">Create password & sign in</button>
       <button type="button" id="setup-back-btn" class="btn-ghost setup-back">Back to sign in</button>
       <p id="setup-error" class="login-error hidden"></p>
@@ -128,7 +143,7 @@
 
 
 
-  <script src="auth.js"></script>
+  <script src="auth.js?v=1.0.1"></script>
   <script src="vendor/qrcode.min.js"></script>
   <script src="modules/cis_helpers.js?v=1.4.1"></script>
   <script src="modules/dashboard.js?v=1.6.8"></script>

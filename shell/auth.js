@@ -60,7 +60,62 @@
     }
   }
 
+  function passwordToggleKeepFocus(input, update) {
+    var start = input.selectionStart;
+    var end = input.selectionEnd;
+    update();
+    input.focus({ preventScroll: true });
+    requestAnimationFrame(function () {
+      input.focus({ preventScroll: true });
+      try {
+        if (start !== null && end !== null) {
+          input.setSelectionRange(start, end);
+        }
+      } catch (err) {}
+    });
+  }
+
+  function togglePasswordField(btn) {
+    var field = btn.closest(".password-field");
+    var input = field && field.querySelector("input");
+    if (!input) return;
+    passwordToggleKeepFocus(input, function () {
+      var show = input.getAttribute("type") === "password";
+      input.setAttribute("type", show ? "text" : "password");
+      btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+      btn.setAttribute("aria-pressed", show ? "true" : "false");
+      btn.title = show ? "Hide password" : "Show password";
+    });
+  }
+
+  function wirePasswordToggles() {
+    document.querySelectorAll(".password-toggle").forEach(function (btn) {
+      var touchToggle = false;
+      btn.addEventListener("pointerdown", function (e) {
+        e.preventDefault();
+      });
+      btn.addEventListener(
+        "touchend",
+        function (e) {
+          e.preventDefault();
+          touchToggle = true;
+          togglePasswordField(btn);
+        },
+        { passive: false }
+      );
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (touchToggle) {
+          touchToggle = false;
+          return;
+        }
+        togglePasswordField(btn);
+      });
+    });
+  }
+
   function wireAuthForms() {
+    wirePasswordToggles();
     var loginForm = document.getElementById("login-form");
     loginForm.addEventListener("submit", async function (ev) {
       ev.preventDefault();

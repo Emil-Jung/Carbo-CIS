@@ -81,8 +81,45 @@ body {
   margin-bottom: 16px;
   font-size: 15px;
 }
+.login-card .password-field {
+  position: relative;
+  align-self: stretch;
+  margin-bottom: 16px;
+}
+.login-card .password-field input {
+  margin-bottom: 0;
+  padding-right: 2.75rem;
+}
+.password-toggle {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  z-index: 2;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  color: var(--gold-bright);
+  outline: none;
+}
+.password-toggle__icon {
+  display: block;
+}
 .login-card input:focus { outline: none; border-color: var(--gold); }
-.login-card button, .btn {
+.login-card button:not(.password-toggle), .btn {
   align-self: stretch;
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
   color: #1a1200;
