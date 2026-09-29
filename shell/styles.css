@@ -84,23 +84,43 @@ body {
 .login-card .password-field {
   position: relative;
   align-self: stretch;
+  width: 100%;
   margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+.login-card .password-field:focus-within {
+  border-color: var(--gold);
 }
 .login-card .password-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
   margin-bottom: 0;
-  padding-right: 2.75rem;
+  padding: 10px 2.75rem 10px 12px;
+  border: none;
+  background: transparent;
+}
+.login-card .password-field input:focus {
+  outline: none;
+  border-color: transparent;
 }
 .password-toggle {
   position: absolute;
-  right: 0.35rem;
+  right: 0.2rem;
   top: 50%;
   z-index: 2;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
   padding: 0;
   border: none;
   border-radius: 6px;
