@@ -15,9 +15,49 @@
     pallet: "Pallet",
   };
 
+  function fmt(n, d) {
+    if (n == null || isNaN(n)) return "—";
+    return Number(n).toLocaleString(undefined, {
+      minimumFractionDigits: d || 0,
+      maximumFractionDigits: d || 0,
+    });
+  }
+
   function fmtKg(n) {
     var v = Number(n || 0);
     return v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
+
+  function renderLabelInventoryPanel(inv, ui) {
+    if (!inv) return null;
+    var tag = ui.el("aside", {
+      class: "bm-label-tag",
+      title: "Printed labels ready vs labels already on bags",
+    });
+    tag.appendChild(ui.el("span", { class: "bm-label-tag__badge" }, ["Bag labels"]));
+    var line = ui.el("span", { class: "bm-label-tag__line" });
+    function addItem(value, suffix, tone) {
+      var item = ui.el("span", { class: "bm-label-tag__item bm-label-tag__item--" + tone });
+      item.appendChild(ui.el("strong", {}, [fmt(value)]));
+      item.appendChild(document.createTextNode(" " + suffix));
+      line.appendChild(item);
+    }
+    function addSep() {
+      line.appendChild(ui.el("span", { class: "bm-label-tag__sep" }, ["·"]));
+    }
+    addItem(inv.available, "ready", "ready");
+    addSep();
+    addItem(inv.used, "on bags", "used");
+    if ((inv.allocated || 0) > 0) {
+      addSep();
+      addItem(inv.allocated, "awaiting print", "pending");
+    }
+    if ((inv.void || 0) > 0) {
+      addSep();
+      addItem(inv.void, "void", "void");
+    }
+    tag.appendChild(line);
+    return tag;
   }
 
   function fmtDate(iso) {
@@ -72,6 +112,7 @@
   }
 
   function renderSummaryCards(data, ui) {
+    var row = ui.el("div", { class: "bs-summary-row" });
     var wrap = ui.el("div", { class: "cards" });
     [
       { label: "Active in system", value: data.in_system, highlight: true },
@@ -86,7 +127,14 @@
       }
       wrap.appendChild(card);
     });
-    return wrap;
+    row.appendChild(wrap);
+    var labelPanel = renderLabelInventoryPanel(data.label_inventory, ui);
+    if (labelPanel) {
+      var slot = ui.el("div", { class: "bm-label-slot bs-summary-label" });
+      slot.appendChild(labelPanel);
+      row.appendChild(slot);
+    }
+    return row;
   }
 
   function renderGroup(group, ui, selectedStatus, onSelect) {

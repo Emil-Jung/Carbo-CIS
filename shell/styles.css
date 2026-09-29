@@ -1052,6 +1052,20 @@ h2.module-title { margin: 0 0 4px; color: var(--gold-bright); }
 p.module-desc { margin: 0 0 20px; color: var(--muted); }
 
 .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+.bs-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.bs-summary-row .cards {
+  margin-bottom: 0;
+}
+.bs-summary-label {
+  margin: 0;
+  align-self: center;
+}
 .card {
   background: var(--panel);
   border: 1px solid var(--border);
