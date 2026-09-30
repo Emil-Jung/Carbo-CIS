@@ -247,7 +247,8 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.8";
+  var BM_UI_VERSION = "1.6.9";
+  var BM_API_SUFFIX = "&compact=1";
 
   function renderStreamSummaryTag(group, ui) {
     if (!group) return null;
@@ -799,7 +800,8 @@
       repaint();
       try {
         var data = await ctx.api.traceability(
-          "/reports/bags-movement?scope=week&week_start=" + encodeURIComponent(weekStart)
+          "/reports/bags-movement?scope=week&week_start=" +
+            encodeURIComponent(weekStart) + BM_API_SUFFIX
         );
         weekCache[weekStart] = { data: data };
         return data;
@@ -823,26 +825,31 @@
 
     function repaint() {
       if (!lastData) return;
-      paintLabelTag(labelSlot, labelInventory, ui);
-      if (drillDown) {
-        var refreshed = buildSummaryRows(allLoadedRows());
-        var match = refreshed.find(function (g) { return g.key === drillDown.key; });
-        drillDown = match || null;
+      try {
+        paintLabelTag(labelSlot, labelInventory, ui);
+        if (drillDown) {
+          var refreshed = buildSummaryRows(allLoadedRows());
+          var match = refreshed.find(function (g) { return g.key === drillDown.key; });
+          drillDown = match || null;
+        }
+        syncFloatingNav();
+        paintReport(
+          body,
+          lastData,
+          ui,
+          drillDown,
+          function (group) {
+            drillDown = group;
+            repaint();
+          },
+          weekCache,
+          expandedWeeks,
+          onToggleWeek
+        );
+      } catch (e) {
+        body.innerHTML = "";
+        body.appendChild(ui.error("Could not render report: " + (e.message || e)));
       }
-      syncFloatingNav();
-      paintReport(
-        body,
-        lastData,
-        ui,
-        drillDown,
-        function (group) {
-          drillDown = group;
-          repaint();
-        },
-        weekCache,
-        expandedWeeks,
-        onToggleWeek
-      );
     }
 
     async function loadReport() {
@@ -860,9 +867,15 @@
         return;
       }
       try {
-        lastData = await ctx.api.traceability("/reports/bags-movement?scope=all");
+        lastData = await ctx.api.traceability("/reports/bags-movement?scope=all" + BM_API_SUFFIX);
         labelInventory = (lastData && lastData.label_inventory) || null;
         paintLabelTag(labelSlot, labelInventory, ui);
+        status.textContent = "Rendering…";
+        await new Promise(function (resolve) {
+          requestAnimationFrame(function () {
+            requestAnimationFrame(resolve);
+          });
+        });
         status.style.display = "none";
         repaint();
       } catch (e) {

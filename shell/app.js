@@ -462,27 +462,33 @@
 
     content.innerHTML = "";
 
-    try {
+    (async function () {
 
-      mod.render(content, {
+      try {
 
-        api: CIS.api,
+        const result = mod.render(content, {
 
-        user: state.user,
+          api: CIS.api,
 
-        permissions: state.permissions,
+          user: state.user,
 
-        config: state.config,
+          permissions: state.permissions,
 
-        setFloatingBack: setFloatingBack,
+          config: state.config,
 
-      });
+          setFloatingBack: setFloatingBack,
 
-    } catch (e) {
+        });
 
-      content.innerHTML = '<div class="error-box">Module failed to load: ' + (e.message || e) + "</div>";
+        if (result && typeof result.then === "function") await result;
 
-    }
+      } catch (e) {
+
+        content.innerHTML = '<div class="error-box">Module failed to load: ' + (e.message || e) + "</div>";
+
+      }
+
+    })();
 
   }
 
