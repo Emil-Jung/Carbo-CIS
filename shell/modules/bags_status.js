@@ -653,39 +653,34 @@
 
 
 
+    var mixStrip = ui.el("div", { class: "bs-dash-mix-strip" });
     var mixRow = ui.el("div", { class: "bs-dash-mix-row" });
-
     var mixText = ui.el("div", { class: "bs-dash-mix-text" });
-
     var still = (wx.kpis && wx.kpis.still_weathering) || {};
 
-    mixText.appendChild(ui.el("strong", {}, ["Stream mix (still weathering)"]));
+    mixText.appendChild(ui.el("strong", { class: "bs-dash-mix-text__title" }, [
+      "Stream mix (still weathering)",
+    ]));
 
     WX_STREAM_ORDER.forEach(function (key) {
-
       var n = (still.streams || {})[key] || 0;
-
       if (!n) return;
-
       var line = ui.el("div", { class: "bs-dash-mix-line" });
-
       line.appendChild(streamSwatch(key, "bs-dash-mix-dot"));
-
-      var count = ui.el("strong", { class: "bs-dash-mix-line__count" });
+      var count = ui.el("span", { class: "bs-dash-mix-line__count" });
       applyStyles(count, { color: STREAM_COLORS[key] });
       count.appendChild(document.createTextNode(String(n)));
       line.appendChild(count);
-      line.appendChild(document.createTextNode(" " + STREAM_LABELS[key].toLowerCase()));
-
+      line.appendChild(ui.el("span", { class: "bs-dash-mix-line__label" }, [
+        STREAM_LABELS[key].toLowerCase(),
+      ]));
       mixText.appendChild(line);
-
     });
 
     mixRow.appendChild(mixText);
-
     renderDonut(mixRow, still.streams, still.bags, ui);
-
-    card.appendChild(mixRow);
+    mixStrip.appendChild(mixRow);
+    card.appendChild(mixStrip);
 
 
 
