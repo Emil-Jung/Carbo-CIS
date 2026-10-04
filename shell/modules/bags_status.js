@@ -1319,9 +1319,54 @@
 
 
 
-    function showWxDrillLoading(sel) {
+    var BACK_MAIN = "Bags Status";
+
+    function goBackFromWxDrill() {
+      wxDrillToken += 1;
+      wxDrill = null;
+      paint();
+    }
+
+    function wxDrillBackLabel(backTo) {
+      return backTo === "status_buckets" ? "Buckets" : BACK_MAIN;
+    }
+
+    function syncFloatingNav() {
+      if (!ctx.setFloatingBack) return;
+      if (wxDrill) {
+        ctx.setFloatingBack({
+          label: wxDrill.backTo === "status_buckets"
+            ? "← Return to buckets"
+            : "← Return to Bags Status",
+          onClick: goBackFromWxDrill,
+        });
+      } else if (selected) {
+        if (selectedEvent) {
+          ctx.setFloatingBack({
+            label: "← Return to event dates",
+            onClick: function () {
+              selectedEvent = null;
+              paint();
+            },
+          });
+        } else {
+          ctx.setFloatingBack({
+            label: "← Return to Bags Status",
+            onClick: function () {
+              selected = null;
+              paint();
+            },
+          });
+        }
+      } else {
+        ctx.setFloatingBack(null);
+      }
+    }
+
+    function showWxDrillLoading(sel, opts) {
+      opts = opts || {};
       body.innerHTML = "";
-      body.appendChild(renderBack("Dashboard", function () {
+      body.appendChild(renderBack(wxDrillBackLabel(opts.backTo), function () {
         wxDrillToken += 1;
         wxDrill = null;
         paint();
@@ -1331,16 +1376,20 @@
       if (container && typeof container.scrollTop === "number") {
         container.scrollTop = 0;
       }
+      syncFloatingNav();
     }
 
-    async function openWxDrill(sel) {
+    async function openWxDrill(sel, opts) {
+      opts = opts || {};
       var token = wxDrillToken + 1;
       wxDrillToken = token;
       wxDrill = null;
-      selected = null;
-      selectedEvent = null;
+      if (!opts.keepSelected) {
+        selected = null;
+        selectedEvent = null;
+      }
       status.style.display = "none";
-      showWxDrillLoading(sel);
+      showWxDrillLoading(sel, opts);
 
       try {
         var data = await ctx.api.traceability(buildWxDrillQuery(sel));
@@ -1348,16 +1397,18 @@
         wxDrill = {
           label: sel.label,
           rows: (data.drill && data.drill.rows) || [],
+          backTo: opts.backTo || "main",
         };
         paint();
       } catch (e) {
         if (token !== wxDrillToken) return;
         body.innerHTML = "";
-        body.appendChild(renderBack("Dashboard", function () {
+        body.appendChild(renderBack(wxDrillBackLabel(opts.backTo), function () {
           wxDrill = null;
           paint();
         }));
         body.appendChild(ui.error("Could not load bags: " + (e.message || e)));
+        syncFloatingNav();
       }
     }
 
@@ -1389,7 +1440,9 @@
 
       if (wxDrill) {
 
-        body.appendChild(renderBack("Dashboard", function () { wxDrill = null; paint(); }));
+        body.appendChild(renderBack(wxDrillBackLabel(wxDrill.backTo), function () {
+          goBackFromWxDrill();
+        }));
 
         body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
 
@@ -1407,6 +1460,7 @@
 
         }
 
+        syncFloatingNav();
         return;
 
       }
@@ -1415,9 +1469,9 @@
 
       if (selected) {
 
-        var backLabel = selectedEvent ? "Buckets" : "Dashboard";
+        var backLabel = selectedEvent ? "Event dates" : BACK_MAIN;
 
-        if (selected.mode !== "weathering_buckets") backLabel = selectedEvent ? "Event dates" : "Dashboard";
+        if (selected.mode === "weathering_buckets" && !selectedEvent) backLabel = BACK_MAIN;
 
         body.appendChild(renderBack(backLabel, function () {
 
@@ -1457,10 +1511,13 @@
 
           } else {
 
-            body.appendChild(renderWxBucketCards(selected.buckets, ui, openWxDrill));
+            body.appendChild(renderWxBucketCards(selected.buckets, ui, function (bucketSel) {
+              openWxDrill(bucketSel, { backTo: "status_buckets", keepSelected: true });
+            }));
 
           }
 
+          syncFloatingNav();
           return;
 
         }
@@ -1491,6 +1548,7 @@
 
           }
 
+          syncFloatingNav();
           return;
 
         }
@@ -1529,6 +1587,7 @@
 
         }
 
+        syncFloatingNav();
         return;
 
       }
@@ -1561,6 +1620,7 @@
 
       });
 
+      syncFloatingNav();
     }
 
 
