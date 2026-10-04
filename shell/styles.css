@@ -686,6 +686,10 @@ body {
   cursor: pointer;
   transition: background 0.15s;
 }
+.bs-dash-bucket-row,
+.bs-dash-bucket-row .bs-dash-bar-track {
+  cursor: pointer;
+}
 .bs-dash-bucket-row:hover {
   background: #F1F5F9;
 }
@@ -714,9 +718,9 @@ body {
 .bs-dash-col-chart {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  min-height: 180px;
-  padding: 8px 4px 0;
+  gap: 12px;
+  min-height: 280px;
+  padding: 12px 8px 0;
 }
 .bs-dash-col {
   flex: 1;
@@ -725,25 +729,31 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 6px;
   border: none;
   background: transparent;
-  padding: 0 2px 4px;
+  padding: 4px 4px 6px;
   cursor: pointer;
   font: inherit;
   color: inherit;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: background 0.15s;
 }
 .bs-dash-col:hover { background: #F1F5F9; }
+.bs-dash-col:active { background: #E2E8F0; }
 .bs-dash-col__bar {
   width: 100%;
-  max-width: 48px;
-  min-height: 4px;
-  border-radius: 6px 6px 2px 2px;
-  transition: opacity 0.15s;
+  max-width: 72px;
+  min-height: 12px;
+  border-radius: 8px 8px 4px 4px;
+  transition: opacity 0.15s, transform 0.1s;
+  cursor: pointer;
 }
-.bs-dash-col:hover .bs-dash-col__bar { opacity: 0.85; }
+.bs-dash-col:hover .bs-dash-col__bar {
+  opacity: 0.9;
+  transform: scaleY(1.02);
+  transform-origin: bottom;
+}
 .bs-dash-col__val {
   font-size: 12px;
   font-weight: 700;
@@ -980,6 +990,38 @@ body {
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
+}
+
+/* Drill loading spinner */
+.bs-dash-drill-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 56px 24px;
+  min-height: 220px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+.bs-dash-drill-loading p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748B;
+}
+.bs-dash-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #E2E8F0;
+  border-top-color: #3B82F6;
+  border-radius: 50%;
+  animation: bs-dash-spin 0.75s linear infinite;
+}
+@keyframes bs-dash-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Weathering drill — category summary + producer groups */

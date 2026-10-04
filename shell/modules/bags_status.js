@@ -1103,15 +1103,22 @@
     return wrap;
   }
 
+  function renderDrillLoading(label, ui) {
+    var panel = ui.el("div", { class: "bs-dash-drill-loading", role: "status" });
+    panel.appendChild(ui.el("div", { class: "bs-dash-spinner", "aria-hidden": "true" }));
+    panel.appendChild(ui.el("p", {}, ["Loading " + (label || "bags") + "…"]));
+    return panel;
+  }
+
   function renderWxDrillView(rows, ui) {
     var wrap = ui.el("div", { class: "bs-dash-wx-drill" });
     wrap.appendChild(renderStreamCategorySummary(rows, ui));
     var groups = groupRowsByProducerFsc(rows);
     var list = ui.el("div", { class: "bs-dash-producer-list" });
-    groups.forEach(function (group, idx) {
+    groups.forEach(function (group) {
       var details = ui.el("details", {
         class: "bs-dash-producer-group",
-        open: idx === 0,
+        open: true,
       });
       var summary = ui.el("summary", { class: "bs-dash-producer-summary" });
       summary.appendChild(ui.el("span", { class: "bs-dash-producer-summary__name" }, [group.producer]));
@@ -1264,6 +1271,7 @@
     var selectedEvent = null;
 
     var wxDrill = null;
+    var wxDrillToken = 0;
 
 
 
@@ -1311,42 +1319,46 @@
 
 
 
+    function showWxDrillLoading(sel) {
+      body.innerHTML = "";
+      body.appendChild(renderBack("Dashboard", function () {
+        wxDrillToken += 1;
+        wxDrill = null;
+        paint();
+      }));
+      body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [sel.label || "Bags"]));
+      body.appendChild(renderDrillLoading(sel.label, ui));
+      if (container && typeof container.scrollTop === "number") {
+        container.scrollTop = 0;
+      }
+    }
+
     async function openWxDrill(sel) {
-
-      status.textContent = "Loading " + (sel.label || "bags") + "…";
-
-      status.style.display = "";
+      var token = wxDrillToken + 1;
+      wxDrillToken = token;
+      wxDrill = null;
+      selected = null;
+      selectedEvent = null;
+      status.style.display = "none";
+      showWxDrillLoading(sel);
 
       try {
-
         var data = await ctx.api.traceability(buildWxDrillQuery(sel));
-
+        if (token !== wxDrillToken) return;
         wxDrill = {
-
           label: sel.label,
-
           rows: (data.drill && data.drill.rows) || [],
-
         };
-
-        selected = null;
-
-        selectedEvent = null;
-
-        status.style.display = "none";
-
         paint();
-
       } catch (e) {
-
-        status.style.display = "none";
-
+        if (token !== wxDrillToken) return;
         body.innerHTML = "";
-
+        body.appendChild(renderBack("Dashboard", function () {
+          wxDrill = null;
+          paint();
+        }));
         body.appendChild(ui.error("Could not load bags: " + (e.message || e)));
-
       }
-
     }
 
 
