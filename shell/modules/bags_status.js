@@ -1,518 +1,1508 @@
-/* Bags Status — where the charcoal physically is right now.
-   Bags Intake answers "what came off the trucks"; this answers "what is still
-   standing, and where". Each bag counts once, against its current status. */
+/* Bags Status — analytics dashboard: where bags are + 21-day weathering clock. */
+
+
 
 (function () {
+
   "use strict";
+
   var CIS = (window.CIS = window.CIS || {});
+
   CIS.modules = CIS.modules || [];
 
+
+
   var STREAM_LABELS = {
+
     restaurant: "Restaurant",
+
     lumpwood: "Lumpwood",
+
     fines: "Fines",
+
     briquettes: "Briquettes",
+
     pallet: "Pallet",
+
   };
 
-  function fmt(n, d) {
-    if (n == null || isNaN(n)) return "—";
-    return Number(n).toLocaleString(undefined, {
-      minimumFractionDigits: d || 0,
-      maximumFractionDigits: d || 0,
-    });
-  }
 
-  function fmtKg(n) {
-    var v = Number(n || 0);
-    return v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  }
 
-  function renderLabelInventoryPanel(inv, ui) {
-    if (!inv) return null;
-    var tag = ui.el("aside", {
-      class: "bm-label-tag",
-      title: "Printed labels ready vs labels already on bags",
-    });
-    tag.appendChild(ui.el("span", { class: "bm-label-tag__badge" }, ["Bag labels"]));
-    var line = ui.el("span", { class: "bm-label-tag__line" });
-    function addItem(value, suffix, tone) {
-      var item = ui.el("span", { class: "bm-label-tag__item bm-label-tag__item--" + tone });
-      item.appendChild(ui.el("strong", {}, [fmt(value)]));
-      item.appendChild(document.createTextNode(" " + suffix));
-      line.appendChild(item);
-    }
-    function addSep() {
-      line.appendChild(ui.el("span", { class: "bm-label-tag__sep" }, ["·"]));
-    }
-    addItem(inv.available, "ready", "ready");
-    addSep();
-    addItem(inv.used, "on bags", "used");
-    if ((inv.allocated || 0) > 0) {
-      addSep();
-      addItem(inv.allocated, "awaiting print", "pending");
-    }
-    if ((inv.void || 0) > 0) {
-      addSep();
-      addItem(inv.void, "void", "void");
-    }
-    tag.appendChild(line);
-    return tag;
-  }
+  var STREAM_COLORS = {
 
-  function fmtDate(iso) {
-    if (!iso) return "—";
-    var d;
-    // Plain YYYY-MM-DD is a calendar day, not an instant — build it locally so
-    // the browser's timezone cannot shift it to the day before.
-    var parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
-    if (parts) {
-      d = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
-    } else {
-      d = new Date(iso);
-    }
-    if (isNaN(d.getTime())) return String(iso);
-    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-  }
+    restaurant: "#4F46E5",
 
-  function fmtDayHeading(iso) {
-    if (!iso) return "Date unknown";
-    var parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
-    if (!parts) return fmtDate(iso);
-    var d = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
-    if (isNaN(d.getTime())) return String(iso);
-    return d.toLocaleDateString("en-GB", {
-      weekday: "short", day: "2-digit", month: "short", year: "numeric",
-    });
-  }
+    lumpwood: "#059669",
 
-  function streamText(row) {
-    return STREAM_LABELS[row.product_stream] || row.product_stream || "—";
-  }
+    fines: "#EA580C",
 
-  /** Weathering shown as a countdown, or how long it has been ready. */
-  function weatherText(row) {
-    if (row.released_early) return "Released early";
-    var days = row.days_remaining;
-    if (days === null || days === undefined) return "—";
-    days = Number(days);
-    if (days > 0) return days + (days === 1 ? " day left" : " days left");
-    var over = Math.abs(days);
-    if (over === 0) return "Ready today";
-    return "Ready " + over + (over === 1 ? " day" : " days") + " ago";
-  }
+    briquettes: "#7C3AED",
 
-  function streamSplitText(streams) {
-    var parts = [];
-    Object.keys(STREAM_LABELS).forEach(function (key) {
-      var n = (streams || {})[key] || 0;
-      if (n > 0) parts.push(n + " " + STREAM_LABELS[key].toLowerCase());
-    });
-    return parts.join(" · ");
-  }
+    pallet: "#64748B",
+
+  };
+
+
+
+  var BUCKET_ACCENT = {
+
+    ready: "#10B981",
+
+    "1_3": "#EF4444",
+
+    "4_7": "#F97316",
+
+    "8_14": "#3B82F6",
+
+    "15_21": "#8B5CF6",
+
+  };
+
+
 
   var WX_STREAM_ORDER = ["restaurant", "lumpwood", "fines"];
 
-  /** Status tiles that drill by weathering bucket, not scan date. */
+
+
   var WX_BUCKET_STATUS = {
+
     in_storage_weathering: function (key) { return key !== "ready"; },
+
     in_storage: function (key) { return key === "ready"; },
+
   };
 
-  function wxMaxKg(items) {
-    var m = 0;
-    (items || []).forEach(function (item) { m = Math.max(m, Number(item.kg || 0)); });
-    return m || 1;
+
+
+  function fmt(n, d) {
+
+    if (n == null || isNaN(n)) return "—";
+
+    return Number(n).toLocaleString(undefined, {
+
+      minimumFractionDigits: d || 0,
+
+      maximumFractionDigits: d || 0,
+
+    });
+
   }
+
+
+
+  function fmtKg(n) {
+
+    var v = Number(n || 0);
+
+    return v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  }
+
+
+
+  function fmtDate(iso) {
+
+    if (!iso) return "—";
+
+    var d;
+
+    var parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+
+    if (parts) {
+
+      d = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
+
+    } else {
+
+      d = new Date(iso);
+
+    }
+
+    if (isNaN(d.getTime())) return String(iso);
+
+    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+  }
+
+
+
+  function fmtDayHeading(iso) {
+
+    if (!iso) return "Date unknown";
+
+    var parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+
+    if (!parts) return fmtDate(iso);
+
+    var d = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
+
+    if (isNaN(d.getTime())) return String(iso);
+
+    return d.toLocaleDateString("en-GB", {
+
+      weekday: "short", day: "2-digit", month: "short", year: "numeric",
+
+    });
+
+  }
+
+
+
+  function streamText(row) {
+
+    return STREAM_LABELS[row.product_stream] || row.product_stream || "—";
+
+  }
+
+
+
+  function weatherText(row) {
+
+    if (row.released_early) return "Released early";
+
+    var days = row.days_remaining;
+
+    if (days === null || days === undefined) return "—";
+
+    days = Number(days);
+
+    if (days > 0) return days + (days === 1 ? " day left" : " days left");
+
+    var over = Math.abs(days);
+
+    if (over === 0) return "Ready today";
+
+    return "Ready " + over + (over === 1 ? " day" : " days") + " ago";
+
+  }
+
+
+
+  function streamSplitText(streams) {
+
+    var parts = [];
+
+    Object.keys(STREAM_LABELS).forEach(function (key) {
+
+      var n = (streams || {})[key] || 0;
+
+      if (n > 0) parts.push(n + " " + STREAM_LABELS[key].toLowerCase());
+
+    });
+
+    return parts.join(" · ");
+
+  }
+
+
+
+  function wxMaxKg(items, key) {
+
+    var m = 0;
+
+    (items || []).forEach(function (item) {
+
+      m = Math.max(m, Number((key ? item[key] : item.kg) || 0));
+
+    });
+
+    return m || 1;
+
+  }
+
+
+
+  function createSvg(w, h, cls) {
+
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+    svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+
+    svg.setAttribute("class", cls || "bs-dash-svg");
+
+    svg.setAttribute("role", "img");
+
+    return svg;
+
+  }
+
+
+
+  function renderStreamLegend(ui) {
+
+    var leg = ui.el("div", { class: "bs-dash-legend" });
+
+    WX_STREAM_ORDER.forEach(function (key) {
+
+      var item = ui.el("span", { class: "bs-dash-legend__item" });
+
+      item.appendChild(ui.el("i", {
+
+        class: "bs-dash-legend__swatch",
+
+        style: { background: STREAM_COLORS[key] },
+
+      }));
+
+      item.appendChild(document.createTextNode(STREAM_LABELS[key]));
+
+      leg.appendChild(item);
+
+    });
+
+    return leg;
+
+  }
+
+
+
+  function renderDonut(parent, streams, totalBags, ui) {
+
+    var wrap = ui.el("div", { class: "bs-dash-donut-wrap" });
+
+    var svg = createSvg(120, 120, "bs-dash-donut");
+
+    var cx = 60;
+
+    var cy = 60;
+
+    var r = 44;
+
+    var stroke = 14;
+
+    var circumference = 2 * Math.PI * r;
+
+    var offset = 0;
+
+    var order = WX_STREAM_ORDER.filter(function (k) { return (streams || {})[k] > 0; });
+
+    if (!order.length || !totalBags) {
+
+      var bg = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+
+      bg.setAttribute("cx", cx);
+
+      bg.setAttribute("cy", cy);
+
+      bg.setAttribute("r", r);
+
+      bg.setAttribute("fill", "none");
+
+      bg.setAttribute("stroke", "#E2E8F0");
+
+      bg.setAttribute("stroke-width", stroke);
+
+      svg.appendChild(bg);
+
+    } else {
+
+      order.forEach(function (key) {
+
+        var n = (streams || {})[key] || 0;
+
+        var frac = n / totalBags;
+
+        var seg = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+
+        seg.setAttribute("cx", cx);
+
+        seg.setAttribute("cy", cy);
+
+        seg.setAttribute("r", r);
+
+        seg.setAttribute("fill", "none");
+
+        seg.setAttribute("stroke", STREAM_COLORS[key]);
+
+        seg.setAttribute("stroke-width", stroke);
+
+        seg.setAttribute("stroke-dasharray", (frac * circumference) + " " + circumference);
+
+        seg.setAttribute("stroke-dashoffset", String(-offset * circumference + circumference * 0.25));
+
+        seg.setAttribute("stroke-linecap", "butt");
+
+        svg.appendChild(seg);
+
+        offset += frac;
+
+      });
+
+    }
+
+    var hole = document.createElementNS("http://www.w3.org/2000/svg", "text");
+
+    hole.setAttribute("x", cx);
+
+    hole.setAttribute("y", cy - 2);
+
+    hole.setAttribute("text-anchor", "middle");
+
+    hole.setAttribute("class", "bs-dash-donut__total");
+
+    hole.textContent = String(totalBags || 0);
+
+    svg.appendChild(hole);
+
+    var sub = document.createElementNS("http://www.w3.org/2000/svg", "text");
+
+    sub.setAttribute("x", cx);
+
+    sub.setAttribute("y", cy + 14);
+
+    sub.setAttribute("text-anchor", "middle");
+
+    sub.setAttribute("class", "bs-dash-donut__sub");
+
+    sub.textContent = "bags";
+
+    svg.appendChild(sub);
+
+    wrap.appendChild(svg);
+
+    parent.appendChild(wrap);
+
+  }
+
+
 
   function renderWxBarSegments(streamKg, totalKg, scaleMax, ui) {
-    var track = ui.el("div", { class: "bs-wx-bar-track" });
+
+    var track = ui.el("div", { class: "bs-dash-bar-track" });
+
     if (!totalKg) return track;
-    track.style.width = Math.max((totalKg / scaleMax) * 100, 1) + "%";
+
+    track.style.width = Math.max((totalKg / scaleMax) * 100, 2) + "%";
+
     WX_STREAM_ORDER.forEach(function (key) {
+
       var kg = (streamKg || {})[key] || 0;
+
       if (!kg) return;
+
       track.appendChild(ui.el("div", {
-        class: "bs-wx-bar-seg bs-wx-bar-seg--" + key,
-        style: { width: (kg / totalKg * 100) + "%" },
+
+        class: "bs-dash-bar-seg",
+
+        style: {
+
+          width: (kg / totalKg * 100) + "%",
+
+          background: STREAM_COLORS[key],
+
+        },
+
       }));
+
     });
+
     return track;
+
   }
+
+
+
+  function renderWeekChart(endWeeks, ui, onDrill) {
+
+    var card = ui.el("div", { class: "bs-dash-card bs-dash-card--chart" });
+
+    card.appendChild(ui.el("div", { class: "bs-dash-card__head" }, [
+
+      ui.el("h3", {}, ["Release calendar"]),
+
+      ui.el("p", { class: "bs-dash-card__sub" }, ["Bags finishing weathering by week — click a bar"]),
+
+    ]));
+
+    var weeks = (endWeeks || []).filter(function (w) { return (w.bags || 0) > 0; });
+
+    if (!weeks.length) {
+
+      card.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No upcoming releases on the clock."]));
+
+      return card;
+
+    }
+
+    var maxBags = Math.max.apply(null, weeks.map(function (w) { return w.bags || 0; }));
+
+    var chart = ui.el("div", { class: "bs-dash-col-chart" });
+
+    weeks.forEach(function (w, i) {
+
+      var col = ui.el("button", {
+
+        class: "bs-dash-col",
+
+        type: "button",
+
+        title: w.label + ": " + w.bags + " bags",
+
+        onclick: function () {
+
+          if (onDrill) onDrill({ week: w.key, label: w.label });
+
+        },
+
+      });
+
+      var pct = Math.max(((w.bags || 0) / maxBags) * 100, 4);
+
+      var bar = ui.el("div", { class: "bs-dash-col__bar" });
+
+      bar.style.height = pct + "%";
+
+      bar.style.background = i === 0 ? "#F97316" : "#3B82F6";
+
+      col.appendChild(bar);
+
+      col.appendChild(ui.el("span", { class: "bs-dash-col__val" }, [String(w.bags)]));
+
+      col.appendChild(ui.el("span", { class: "bs-dash-col__lbl" }, [w.label]));
+
+      chart.appendChild(col);
+
+    });
+
+    card.appendChild(chart);
+
+    return card;
+
+  }
+
+
+
+  function renderPipelineChart(pipeline, ui) {
+
+    var card = ui.el("div", { class: "bs-dash-card bs-dash-card--wide" });
+
+    card.appendChild(ui.el("div", { class: "bs-dash-card__head" }, [
+
+      ui.el("h3", {}, ["Pipeline by location"]),
+
+      ui.el("p", { class: "bs-dash-card__sub" }, [
+
+        "Still on the clock vs ready to move — in storage, packaging, briquette plant",
+
+      ]),
+
+    ]));
+
+    var rows = pipeline || [];
+
+    if (!rows.length) {
+
+      card.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No pipeline data."]));
+
+      return card;
+
+    }
+
+    var maxKg = wxMaxKg(rows.map(function (loc) {
+
+      return {
+
+        kg: (loc.still_weathering && loc.still_weathering.kg || 0)
+
+          + (loc.ready && loc.ready.kg || 0),
+
+      };
+
+    }));
+
+    var body = ui.el("div", { class: "bs-dash-pipeline" });
+
+    rows.forEach(function (loc) {
+
+      var still = loc.still_weathering || {};
+
+      var ready = loc.ready || {};
+
+      var totalKg = (still.kg || 0) + (ready.kg || 0);
+
+      if (!totalKg) return;
+
+      var row = ui.el("div", { class: "bs-dash-pipeline-row" });
+
+      row.appendChild(ui.el("span", { class: "bs-dash-pipeline-label" }, [loc.label]));
+
+      var trackWrap = ui.el("div", { class: "bs-dash-pipeline-track-wrap" });
+
+      var track = ui.el("div", { class: "bs-dash-pipeline-track" });
+
+      track.style.width = Math.max((totalKg / maxKg) * 100, 8) + "%";
+
+      if (still.kg) {
+
+        track.appendChild(ui.el("div", {
+
+          class: "bs-dash-pipeline-seg bs-dash-pipeline-seg--clock",
+
+          style: { width: (still.kg / totalKg * 100) + "%" },
+
+          title: "Still weathering: " + still.bags + " bags",
+
+        }));
+
+      }
+
+      if (ready.kg) {
+
+        track.appendChild(ui.el("div", {
+
+          class: "bs-dash-pipeline-seg bs-dash-pipeline-seg--ready",
+
+          style: { width: (ready.kg / totalKg * 100) + "%" },
+
+          title: "Ready: " + ready.bags + " bags",
+
+        }));
+
+      }
+
+      trackWrap.appendChild(track);
+
+      row.appendChild(trackWrap);
+
+      row.appendChild(ui.el("span", { class: "bs-dash-pipeline-meta" }, [
+
+        (still.bags || 0) + " clock · " + (ready.bags || 0) + " ready",
+
+      ]));
+
+      body.appendChild(row);
+
+    });
+
+    card.appendChild(body);
+
+    card.appendChild(ui.el("div", { class: "bs-dash-pipeline-legend" }, [
+
+      ui.el("span", { class: "bs-dash-pipeline-key bs-dash-pipeline-key--clock" }, ["Still weathering"]),
+
+      ui.el("span", { class: "bs-dash-pipeline-key bs-dash-pipeline-key--ready" }, ["Ready now"]),
+
+    ]));
+
+    return card;
+
+  }
+
+
 
   function renderWxKpis(kpis, ui) {
-    var row = ui.el("div", { class: "bs-wx-kpi-row" });
+
+    var row = ui.el("div", { class: "bs-dash-wx-kpis" });
+
     [
-      { key: "ready_now", label: "Ready now", hi: true },
-      { key: "freeing_this_week", label: "Freeing this week" },
-      { key: "still_weathering", label: "Still weathering" },
-      { key: "at_packaging", label: "At packaging" },
+
+      { key: "ready_now", label: "Ready now", tone: "green" },
+
+      { key: "freeing_this_week", label: "Freeing this week", tone: "amber" },
+
+      { key: "still_weathering", label: "Still weathering", tone: "blue" },
+
+      { key: "at_packaging", label: "At packaging", tone: "purple" },
+
     ].forEach(function (item) {
+
       var k = (kpis || {})[item.key] || {};
-      var card = ui.el("div", { class: "bs-wx-kpi" + (item.hi ? " bs-wx-kpi--hi" : "") });
-      card.appendChild(ui.el("span", { class: "bs-wx-kpi__label" }, [item.label]));
-      card.appendChild(ui.el("div", { class: "bs-wx-kpi__value" }, [String(k.bags || 0)]));
-      card.appendChild(ui.el("div", { class: "bs-wx-kpi__sub" }, [fmtKg(k.kg) + " kg"]));
+
+      var card = ui.el("div", { class: "bs-dash-wx-kpi bs-dash-wx-kpi--" + item.tone });
+
+      card.appendChild(ui.el("span", { class: "bs-dash-wx-kpi__label" }, [item.label]));
+
+      card.appendChild(ui.el("div", { class: "bs-dash-wx-kpi__value" }, [String(k.bags || 0)]));
+
+      card.appendChild(ui.el("div", { class: "bs-dash-wx-kpi__sub" }, [fmtKg(k.kg) + " kg"]));
+
       row.appendChild(card);
+
     });
+
     return row;
+
   }
+
+
 
   function renderWeatheringPanel(wx, ui, onDrill) {
+
     if (!wx) return null;
-    var panel = ui.el("section", { class: "bs-wx-panel" });
-    panel.appendChild(ui.el("h3", {}, ["Weathering — 21-day clock"]));
-    panel.appendChild(ui.el("p", { class: "bs-wx-note" }, [
-      "How factory stock is progressing on the clock. Click a row to list bags.",
+
+    var card = ui.el("section", { class: "bs-dash-card bs-dash-card--weathering" });
+
+    card.appendChild(ui.el("div", { class: "bs-dash-card__head" }, [
+
+      ui.el("h3", {}, ["Weathering — 21-day clock"]),
+
+      ui.el("p", { class: "bs-dash-card__sub" }, [
+
+        "Factory stock on the clock. Click a row to list bags.",
+
+      ]),
+
     ]));
-    panel.appendChild(renderWxKpis(wx.kpis, ui));
+
+    card.appendChild(renderWxKpis(wx.kpis, ui));
+
+
+
+    var mixRow = ui.el("div", { class: "bs-dash-mix-row" });
+
+    var mixText = ui.el("div", { class: "bs-dash-mix-text" });
+
+    var still = (wx.kpis && wx.kpis.still_weathering) || {};
+
+    mixText.appendChild(ui.el("strong", {}, ["Stream mix (still weathering)"]));
+
+    WX_STREAM_ORDER.forEach(function (key) {
+
+      var n = (still.streams || {})[key] || 0;
+
+      if (!n) return;
+
+      var line = ui.el("div", { class: "bs-dash-mix-line" });
+
+      line.appendChild(ui.el("span", {
+
+        class: "bs-dash-mix-dot",
+
+        style: { background: STREAM_COLORS[key] },
+
+      }));
+
+      line.appendChild(document.createTextNode(n + " " + STREAM_LABELS[key].toLowerCase()));
+
+      mixText.appendChild(line);
+
+    });
+
+    mixRow.appendChild(mixText);
+
+    renderDonut(mixRow, still.streams, still.bags, ui);
+
+    card.appendChild(mixRow);
+
+
+
     var scale = wxMaxKg(wx.days_buckets);
+
+    var bars = ui.el("div", { class: "bs-dash-buckets" });
+
     var any = false;
+
     (wx.days_buckets || []).forEach(function (b) {
+
       if (!(b.bags || 0)) return;
+
       any = true;
+
+      var accent = BUCKET_ACCENT[b.key] || "#64748B";
+
       var row = ui.el("button", {
-        class: "bs-wx-bar-row",
+
+        class: "bs-dash-bucket-row",
+
         type: "button",
+
+        style: { "--bucket-accent": accent },
+
         onclick: function () { onDrill({ bucket: b.key, label: b.label }); },
+
       });
-      row.appendChild(ui.el("span", { class: "bs-wx-bar-label" }, [b.label]));
+
+      row.appendChild(ui.el("span", { class: "bs-dash-bucket-label" }, [b.label]));
+
       row.appendChild(renderWxBarSegments(b.stream_kg, b.kg, scale, ui));
-      row.appendChild(ui.el("span", { class: "bs-wx-bar-meta" }, [
-        b.bags + " · " + fmtKg(b.kg),
+
+      row.appendChild(ui.el("span", { class: "bs-dash-bucket-meta" }, [
+
+        b.bags + " bags · " + fmtKg(b.kg) + " kg",
+
       ]));
-      panel.appendChild(row);
+
+      bars.appendChild(row);
+
     });
-    if (!any) panel.appendChild(ui.el("p", { class: "bs-wx-empty" }, ["No bags on the clock."]));
-    return panel;
+
+    if (!any) {
+
+      card.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No bags on the clock."]));
+
+    } else {
+
+      card.appendChild(bars);
+
+    }
+
+    return card;
+
   }
 
-  function renderWxBucketCards(buckets, ui, onOpen) {
-    var wrap = ui.el("div", { class: "cards bm-status-cards" });
-    buckets.forEach(function (b) {
-      var card = ui.el("button", {
-        class: "card bm-status-card",
-        type: "button",
-        onclick: function () { onOpen({ bucket: b.key, label: b.label }); },
-      });
-      card.appendChild(ui.el("span", { class: "label" }, [b.label]));
-      card.appendChild(ui.el("div", { class: "value" }, [String(b.bags)]));
-      card.appendChild(ui.el("span", { class: "muted" }, [fmtKg(b.kg) + " kg"]));
-      wrap.appendChild(card);
-    });
-    return wrap;
+
+
+  function renderLabelChip(inv, ui) {
+
+    if (!inv) return null;
+
+    var chip = ui.el("div", { class: "bs-dash-label-chip" });
+
+    chip.appendChild(ui.el("span", { class: "bs-dash-label-chip__title" }, ["Bag labels"]));
+
+    var line = ui.el("div", { class: "bs-dash-label-chip__line" });
+
+    function addPart(value, suffix, tone) {
+
+      var p = ui.el("span", { class: "bs-dash-label-chip__part bs-dash-label-chip__part--" + tone });
+
+      p.appendChild(ui.el("strong", {}, [fmt(value)]));
+
+      p.appendChild(document.createTextNode(" " + suffix));
+
+      line.appendChild(p);
+
+    }
+
+    addPart(inv.available, "ready", "ready");
+
+    addPart(inv.used, "on bags", "used");
+
+    if ((inv.void || 0) > 0) addPart(inv.void, "void", "void");
+
+    chip.appendChild(line);
+
+    return chip;
+
   }
 
-  function wxBucketsForStatus(statusKey, wx) {
-    var fn = WX_BUCKET_STATUS[statusKey];
-    if (!fn || !wx) return [];
-    return (wx.days_buckets || []).filter(function (b) {
-      return (b.bags || 0) > 0 && fn(b.key);
-    });
-  }
+
 
   function renderSummaryCards(data, ui) {
-    var row = ui.el("div", { class: "bs-summary-row" });
-    var wrap = ui.el("div", { class: "cards" });
+
+    var row = ui.el("div", { class: "bs-dash-kpi-row" });
+
     [
-      { label: "Active in system", value: data.in_system, highlight: true },
-      { label: "End of life", value: data.closed },
-      { label: "All bags in system", value: { bags: data.bag_count } },
+
+      { label: "Active in system", value: data.in_system, tone: "blue", sub: true },
+
+      { label: "End of life", value: data.closed, tone: "slate", sub: true },
+
+      { label: "All bags in system", value: { bags: data.bag_count }, tone: "indigo", sub: false },
+
     ].forEach(function (item) {
-      var card = ui.el("div", { class: "card" + (item.highlight ? " card--highlight" : "") });
-      card.appendChild(ui.el("span", { class: "label" }, [item.label]));
-      card.appendChild(ui.el("div", { class: "value" }, [String((item.value && item.value.bags) || 0)]));
-      if (item.value && item.value.kg !== undefined) {
-        card.appendChild(ui.el("span", { class: "muted" }, [fmtKg(item.value.kg) + " kg"]));
+
+      var card = ui.el("div", { class: "bs-dash-kpi bs-dash-kpi--" + item.tone });
+
+      card.appendChild(ui.el("span", { class: "bs-dash-kpi__label" }, [item.label]));
+
+      card.appendChild(ui.el("div", { class: "bs-dash-kpi__value" }, [
+
+        String((item.value && item.value.bags) || 0),
+
+      ]));
+
+      if (item.sub && item.value && item.value.kg !== undefined) {
+
+        card.appendChild(ui.el("span", { class: "bs-dash-kpi__sub" }, [fmtKg(item.value.kg) + " kg"]));
+
       }
-      wrap.appendChild(card);
+
+      row.appendChild(card);
+
     });
-    row.appendChild(wrap);
-    var labelPanel = renderLabelInventoryPanel(data.label_inventory, ui);
-    if (labelPanel) {
-      var slot = ui.el("div", { class: "bm-label-slot bs-summary-label" });
-      slot.appendChild(labelPanel);
-      row.appendChild(slot);
-    }
+
+    var labelChip = renderLabelChip(data.label_inventory, ui);
+
+    if (labelChip) row.appendChild(labelChip);
+
     return row;
+
   }
+
+
+
+  function renderWxBucketCards(buckets, ui, onOpen) {
+
+    var wrap = ui.el("div", { class: "bs-dash-status-grid" });
+
+    buckets.forEach(function (b) {
+
+      var accent = BUCKET_ACCENT[b.key] || "#64748B";
+
+      var card = ui.el("button", {
+
+        class: "bs-dash-status-card",
+
+        type: "button",
+
+        style: { "--card-accent": accent },
+
+        onclick: function () { onOpen({ bucket: b.key, label: b.label }); },
+
+      });
+
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [b.label]));
+
+      card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(b.bags)]));
+
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(b.kg) + " kg"]));
+
+      wrap.appendChild(card);
+
+    });
+
+    return wrap;
+
+  }
+
+
+
+  function wxBucketsForStatus(statusKey, wx) {
+
+    var fn = WX_BUCKET_STATUS[statusKey];
+
+    if (!fn || !wx) return [];
+
+    return (wx.days_buckets || []).filter(function (b) {
+
+      return (b.bags || 0) > 0 && fn(b.key);
+
+    });
+
+  }
+
+
+
+  var GROUP_TONE = {
+
+    factory: "blue",
+
+    in_transit: "amber",
+
+    coast: "teal",
+
+    closed: "slate",
+
+  };
+
+
 
   function renderGroup(group, ui, selectedStatus, onSelect) {
-    var block = ui.el("div", {});
-    block.appendChild(ui.el("h3", { class: "bm-subheading" }, [
-      group.label + " — " + group.bags + (group.bags === 1 ? " bag" : " bags"),
+
+    var tone = GROUP_TONE[group.key] || "indigo";
+
+    var block = ui.el("section", { class: "bs-dash-location bs-dash-location--" + tone });
+
+    block.appendChild(ui.el("div", { class: "bs-dash-location__head" }, [
+
+      ui.el("h3", {}, [group.label]),
+
+      ui.el("span", { class: "bs-dash-location__count" }, [
+
+        group.bags + (group.bags === 1 ? " bag" : " bags"),
+
+      ]),
+
     ]));
+
     if (group.note) {
-      block.appendChild(ui.el("p", { class: "muted bags-status-note" }, [group.note]));
+
+      block.appendChild(ui.el("p", { class: "bs-dash-location__note" }, [group.note]));
+
     }
-    var cards = ui.el("div", { class: "cards bm-status-cards" });
+
+    var cards = ui.el("div", { class: "bs-dash-status-grid" });
+
     group.statuses.forEach(function (st) {
-      var cls = "card bm-status-card";
-      if (st.key === selectedStatus) cls += " bm-status-card--active";
+
+      var cls = "bs-dash-status-card";
+
+      if (st.key === selectedStatus) cls += " bs-dash-status-card--active";
+
       var card = ui.el("button", { class: cls, type: "button", onclick: function () { onSelect(st); } });
-      card.appendChild(ui.el("span", { class: "label" }, [st.label]));
-      card.appendChild(ui.el("div", { class: "value" }, [String(st.bags)]));
-      card.appendChild(ui.el("span", { class: "muted" }, [fmtKg(st.kg) + " kg"]));
+
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [st.label]));
+
+      card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags)]));
+
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(st.kg) + " kg"]));
+
       var split = streamSplitText(st.streams);
-      if (split) card.appendChild(ui.el("div", { class: "muted" }, [split]));
+
+      if (split) card.appendChild(ui.el("span", { class: "bs-dash-status-card__streams" }, [split]));
+
       cards.appendChild(card);
+
     });
+
     block.appendChild(cards);
+
     return block;
+
   }
 
+
+
   function renderDrillTable(rows, ui) {
-    var table = ui.el("table", { class: "data" });
+
+    var wrap = ui.el("div", { class: "bs-dash-table-wrap" });
+
+    var table = ui.el("table", { class: "bs-dash-table" });
+
     var thead = ui.el("thead", {});
+
     var hr = ui.el("tr", {});
+
     ["#", "Bag", "Stream", "Producer", "kg", "Scanned", "Weathering", "Detail"].forEach(function (h) {
+
       hr.appendChild(ui.el("th", {}, [h]));
+
     });
+
     thead.appendChild(hr);
+
     table.appendChild(thead);
 
     var tbody = ui.el("tbody", {});
+
     rows.forEach(function (row, i) {
+
       var tr = ui.el("tr", {});
-      tr.appendChild(ui.el("td", { class: "muted" }, [String(i + 1)]));
+
+      tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [String(i + 1)]));
+
       tr.appendChild(ui.el("td", {}, [row.serial || "—"]));
-      tr.appendChild(ui.el("td", {}, [streamText(row)]));
+
+      var streamTd = ui.el("td", {});
+
+      var streamKey = row.product_stream;
+
+      if (streamKey && STREAM_COLORS[streamKey]) {
+
+        streamTd.appendChild(ui.el("span", {
+
+          class: "bs-dash-stream-pill",
+
+          style: { background: STREAM_COLORS[streamKey] + "22", color: STREAM_COLORS[streamKey] },
+
+        }, [streamText(row)]));
+
+      } else {
+
+        streamTd.appendChild(document.createTextNode(streamText(row)));
+
+      }
+
+      tr.appendChild(streamTd);
+
       tr.appendChild(ui.el("td", {}, [row.producer_name || "—"]));
+
       tr.appendChild(ui.el("td", {}, [fmtKg(row.net_weight_kg)]));
+
       tr.appendChild(ui.el("td", {}, [fmtDate(row.recorded_date || row.recorded_at)]));
+
       tr.appendChild(ui.el("td", {}, [weatherText(row)]));
-      tr.appendChild(ui.el("td", { class: "muted" }, [
+
+      tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [
+
         row.client_name || row.container_number || row.status_display || "—",
+
       ]));
+
       tbody.appendChild(tr);
+
     });
+
     table.appendChild(tbody);
-    return table;
+
+    wrap.appendChild(table);
+
+    return wrap;
+
   }
 
-  /** Date clusters only — bag detail waits for a second click. */
+
+
   function renderEventCards(sections, ui, onOpen) {
-    var wrap = ui.el("div", { class: "cards bm-status-cards" });
+
+    var wrap = ui.el("div", { class: "bs-dash-status-grid" });
+
     sections.forEach(function (section) {
+
       var card = ui.el("button", {
-        class: "card bm-status-card",
+
+        class: "bs-dash-status-card bs-dash-status-card--event",
+
         type: "button",
+
         onclick: function () { onOpen(section); },
+
       });
-      card.appendChild(ui.el("span", { class: "label" }, [fmtDayHeading(section.date)]));
-      card.appendChild(ui.el("div", { class: "value" }, [String(section.bags)]));
-      card.appendChild(ui.el("span", { class: "muted" }, [fmtKg(section.kg) + " kg"]));
+
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [fmtDayHeading(section.date)]));
+
+      card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(section.bags)]));
+
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(section.kg) + " kg"]));
+
       var dest = section.client_name || section.container_number;
-      if (dest) card.appendChild(ui.el("div", { class: "bags-status-event-dest" }, [dest]));
+
+      if (dest) card.appendChild(ui.el("span", { class: "bs-dash-status-card__dest" }, [dest]));
+
       var split = streamSplitText(section.streams);
-      if (split) card.appendChild(ui.el("div", { class: "muted" }, [split]));
+
+      if (split) card.appendChild(ui.el("span", { class: "bs-dash-status-card__streams" }, [split]));
+
       wrap.appendChild(card);
+
     });
+
     return wrap;
+
   }
+
+
 
   async function render(container, ctx) {
+
     var ui = CIS.ui;
+
+    container.className = "module-content bs-dashboard-host";
+
+
+
     var summary = null;
+
     var weathering = null;
+
     var selected = null;
+
     var selectedEvent = null;
+
     var wxDrill = null;
 
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Status"]));
-    container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Where bags are now, and how the 21-day weathering clock is running. Click a status for detail.",
+
+
+    var dash = ui.el("div", { class: "bs-dashboard" });
+
+    dash.appendChild(ui.el("header", { class: "bs-dash-header" }, [
+
+      ui.el("h2", { class: "bs-dash-title" }, ["Bags Status"]),
+
+      ui.el("p", { class: "bs-dash-lead" }, [
+
+        "Where bags are now, and how the 21-day weathering clock is running.",
+
+      ]),
+
+      renderStreamLegend(ui),
+
     ]));
 
-    var status = ui.el("p", { class: "muted" }, ["Loading…"]);
-    container.appendChild(status);
-    var body = ui.el("div", { class: "report-body" });
-    container.appendChild(body);
+    container.appendChild(dash);
+
+
+
+    var status = ui.el("p", { class: "bs-dash-loading" }, ["Loading…"]);
+
+    dash.appendChild(status);
+
+    var body = ui.el("div", { class: "bs-dash-body" });
+
+    dash.appendChild(body);
+
+
 
     function buildWxDrillQuery(sel) {
+
       var q = [];
+
       if (sel.bucket) q.push("bucket=" + encodeURIComponent(sel.bucket));
+
+      if (sel.week) q.push("week=" + encodeURIComponent(sel.week));
+
       return "/reports/bags-weathering?" + q.join("&");
+
     }
+
+
 
     async function openWxDrill(sel) {
+
       status.textContent = "Loading " + (sel.label || "bags") + "…";
+
       status.style.display = "";
+
       try {
+
         var data = await ctx.api.traceability(buildWxDrillQuery(sel));
+
         wxDrill = {
+
           label: sel.label,
+
           rows: (data.drill && data.drill.rows) || [],
+
         };
+
         selected = null;
+
         selectedEvent = null;
+
         status.style.display = "none";
+
         paint();
+
       } catch (e) {
+
         status.style.display = "none";
+
         body.innerHTML = "";
+
         body.appendChild(ui.error("Could not load bags: " + (e.message || e)));
+
       }
+
     }
+
+
+
+    function renderBack(label, onClick) {
+
+      return ui.el("button", {
+
+        class: "bs-dash-back",
+
+        type: "button",
+
+        onclick: onClick,
+
+      }, ["← " + label]);
+
+    }
+
+
 
     function paint() {
+
       body.innerHTML = "";
+
       if (!summary) return;
 
+
+
       if (wxDrill) {
-        body.appendChild(ui.el("button", {
-          class: "btn-ghost btn-sm",
-          type: "button",
-          onclick: function () { wxDrill = null; paint(); },
-        }, ["← Weathering"]));
-        body.appendChild(ui.el("h3", { class: "bm-subheading" }, [
+
+        body.appendChild(renderBack("Dashboard", function () { wxDrill = null; paint(); }));
+
+        body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
+
           wxDrill.label + " — " + (wxDrill.rows || []).length + " bags",
+
         ]));
+
         if (!(wxDrill.rows || []).length) {
-          body.appendChild(ui.el("p", { class: "muted" }, ["No bags in this bucket."]));
+
+          body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No bags in this bucket."]));
+
         } else {
+
           body.appendChild(renderDrillTable(wxDrill.rows, ui));
+
         }
+
         return;
+
       }
+
+
 
       if (selected) {
-        var backLabel = selectedEvent ? "← Buckets" : "← All statuses";
-        if (selected.mode !== "weathering_buckets") backLabel = selectedEvent ? "← Event dates" : "← All statuses";
-        var back = ui.el("button", { class: "btn-ghost btn-sm", type: "button", onclick: function () {
+
+        var backLabel = selectedEvent ? "Buckets" : "Dashboard";
+
+        if (selected.mode !== "weathering_buckets") backLabel = selectedEvent ? "Event dates" : "Dashboard";
+
+        body.appendChild(renderBack(backLabel, function () {
+
           if (selectedEvent) {
+
             selectedEvent = null;
+
           } else {
+
             selected = null;
+
           }
+
           paint();
-        } }, [backLabel]);
-        body.appendChild(back);
+
+        }));
+
+
 
         if (selected.mode === "weathering_buckets" && !selectedEvent) {
-          body.appendChild(ui.el("h3", { class: "bm-subheading" }, [
+
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
+
             selected.label + " — by days remaining",
+
           ]));
-          body.appendChild(ui.el("p", { class: "muted bags-status-note" }, [
+
+          body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+
             "Grouped by weathering clock, not scan date. Click a bucket for the bag list.",
+
           ]));
+
           if (!selected.buckets.length) {
-            body.appendChild(ui.el("p", { class: "muted" }, ["No bags in this status."]));
+
+            body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No bags in this status."]));
+
           } else {
-            body.appendChild(renderWxBucketCards(selected.buckets, ui, function (sel) {
-              openWxDrill(sel);
-            }));
+
+            body.appendChild(renderWxBucketCards(selected.buckets, ui, openWxDrill));
+
           }
+
           return;
+
         }
+
+
 
         if (selectedEvent) {
+
           var dest = selectedEvent.client_name || selectedEvent.container_number;
-          body.appendChild(ui.el("h3", { class: "bm-subheading" }, [
+
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
+
             selected.label + " — " + fmtDayHeading(selectedEvent.date)
+
               + (dest ? " — " + dest : "")
+
               + " — " + selectedEvent.bags + (selectedEvent.bags === 1 ? " bag" : " bags"),
+
           ]));
+
           if (!(selectedEvent.rows || []).length) {
-            body.appendChild(ui.el("p", { class: "muted" }, ["No bags in this event."]));
+
+            body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No bags in this event."]));
+
           } else {
+
             body.appendChild(renderDrillTable(selectedEvent.rows, ui));
+
           }
+
           return;
+
         }
 
-        body.appendChild(ui.el("h3", { class: "bm-subheading" }, [
+
+
+        body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
+
           selected.label + " — " + selected.count + (selected.count === 1 ? " bag" : " bags")
+
             + " across " + selected.sections.length
+
             + (selected.sections.length === 1 ? " date" : " dates"),
+
         ]));
+
         if (!selected.sections.length) {
-          body.appendChild(ui.el("p", { class: "muted" }, ["No bags are in this status."]));
+
+          body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No bags are in this status."]));
+
         } else {
-          body.appendChild(ui.el("p", { class: "muted bags-status-note" }, [
-            "Each date is one cluster — three loads to the same destination on the same day count as one event. Click a date for the bags.",
+
+          body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+
+            "Each date is one cluster — three loads to the same destination on the same day count as one event.",
+
           ]));
+
           body.appendChild(renderEventCards(selected.sections, ui, function (section) {
+
             selectedEvent = section;
+
             paint();
+
           }));
+
         }
+
         return;
+
       }
+
+
 
       body.appendChild(renderSummaryCards(summary, ui));
-      var wxPanel = renderWeatheringPanel(weathering, ui, openWxDrill);
-      if (wxPanel) body.appendChild(wxPanel);
+
+
+
+      if (weathering) {
+
+        var grid = ui.el("div", { class: "bs-dash-grid" });
+
+        grid.appendChild(renderWeatheringPanel(weathering, ui, openWxDrill));
+
+        grid.appendChild(renderWeekChart(weathering.end_weeks, ui, openWxDrill));
+
+        body.appendChild(grid);
+
+        body.appendChild(renderPipelineChart(weathering.pipeline, ui));
+
+      }
+
+
+
       summary.groups.forEach(function (group) {
+
         body.appendChild(renderGroup(group, ui, null, openStatus));
+
       });
+
     }
+
+
 
     async function openStatus(st) {
+
       if (WX_BUCKET_STATUS[st.key] && weathering) {
+
         selectedEvent = null;
+
         wxDrill = null;
+
         selected = {
+
           key: st.key,
+
           label: st.label,
+
           mode: "weathering_buckets",
+
           buckets: wxBucketsForStatus(st.key, weathering),
+
         };
+
         paint();
+
         return;
+
       }
+
       status.textContent = "Loading " + st.label + "…";
+
       status.style.display = "";
+
       try {
+
         var data = await ctx.api.traceability("/reports/bags-status?status=" + encodeURIComponent(st.key));
+
         selectedEvent = null;
+
         wxDrill = null;
+
         selected = {
+
           key: st.key,
+
           label: st.label,
+
           mode: "events",
+
           count: data.drill_bag_count || 0,
+
           sections: data.event_sections || [],
+
         };
+
         status.style.display = "none";
+
         paint();
+
       } catch (e) {
+
         status.style.display = "none";
+
         body.innerHTML = "";
+
         body.appendChild(ui.error("Could not load bags: " + (e.message || e)));
+
       }
+
     }
+
+
 
     if (!ctx.api.traceability) {
+
       status.style.display = "none";
+
       body.appendChild(ui.error("Traceability API is not configured in CIS."));
+
       return;
+
     }
+
+
 
     try {
+
       var results = await Promise.all([
+
         ctx.api.traceability("/reports/bags-status"),
+
         ctx.api.traceability("/reports/bags-weathering").catch(function () { return null; }),
+
       ]);
+
       summary = results[0];
+
       weathering = results[1];
+
       status.style.display = "none";
+
       paint();
+
     } catch (e) {
+
       status.textContent = "";
+
       body.appendChild(ui.error("Could not load report: " + (e.message || e)));
+
     }
+
   }
 
+
+
   CIS.modules.push({
+
     id: "bags_status_report",
+
     title: "Bags Status",
+
     section: "Production",
+
     kind: "lookup",
+
     order: 17,
+
     icon: "bags",
+
     description: "Where bags are — and weathering clock, release timing, pipeline",
+
     requires: "traceability.bags_status",
+
     render: render,
+
   });
+
 })();
+
