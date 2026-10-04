@@ -226,6 +226,23 @@
 
   }
 
+  function applyStyles(el, styles) {
+    if (!el || !styles) return el;
+    Object.keys(styles).forEach(function (prop) {
+      var val = styles[prop];
+      if (prop.indexOf("--") === 0) el.style.setProperty(prop, val);
+      else el.style[prop] = val;
+    });
+    return el;
+  }
+
+  function streamSwatch(key, className) {
+    var el = document.createElement("span");
+    el.className = className;
+    el.style.background = STREAM_COLORS[key];
+    return el;
+  }
+
 
 
   function renderStreamLegend(ui) {
@@ -236,13 +253,7 @@
 
       var item = ui.el("span", { class: "bs-dash-legend__item" });
 
-      item.appendChild(ui.el("i", {
-
-        class: "bs-dash-legend__swatch",
-
-        style: { background: STREAM_COLORS[key] },
-
-      }));
+      item.appendChild(streamSwatch(key, "bs-dash-legend__swatch"));
 
       item.appendChild(document.createTextNode(STREAM_LABELS[key]));
 
@@ -380,17 +391,11 @@
 
       if (!kg) return;
 
-      track.appendChild(ui.el("div", {
+      track.appendChild(applyStyles(ui.el("div", { class: "bs-dash-bar-seg" }), {
 
-        class: "bs-dash-bar-seg",
+        width: (kg / totalKg * 100) + "%",
 
-        style: {
-
-          width: (kg / totalKg * 100) + "%",
-
-          background: STREAM_COLORS[key],
-
-        },
+        background: STREAM_COLORS[key],
 
       }));
 
@@ -664,15 +669,13 @@
 
       var line = ui.el("div", { class: "bs-dash-mix-line" });
 
-      line.appendChild(ui.el("span", {
+      line.appendChild(streamSwatch(key, "bs-dash-mix-dot"));
 
-        class: "bs-dash-mix-dot",
-
-        style: { background: STREAM_COLORS[key] },
-
-      }));
-
-      line.appendChild(document.createTextNode(n + " " + STREAM_LABELS[key].toLowerCase()));
+      var count = ui.el("strong", { class: "bs-dash-mix-line__count" });
+      applyStyles(count, { color: STREAM_COLORS[key] });
+      count.appendChild(document.createTextNode(String(n)));
+      line.appendChild(count);
+      line.appendChild(document.createTextNode(" " + STREAM_LABELS[key].toLowerCase()));
 
       mixText.appendChild(line);
 
@@ -1011,13 +1014,16 @@
       if (!(c.bags || 0)) return;
       var card = ui.el("div", { class: "bs-dash-cat-card" });
       card.style.setProperty("--cat-color", STREAM_COLORS[key]);
-      card.appendChild(ui.el("span", { class: "bs-dash-cat-card__label" }, [STREAM_LABELS[key]]));
+      var labelRow = ui.el("div", { class: "bs-dash-cat-card__label-row" });
+      labelRow.appendChild(streamSwatch(key, "bs-dash-cat-card__swatch"));
+      labelRow.appendChild(ui.el("span", { class: "bs-dash-cat-card__label" }, [STREAM_LABELS[key]]));
+      card.appendChild(labelRow);
       card.appendChild(ui.el("div", { class: "bs-dash-cat-card__value" }, [String(c.bags)]));
       card.appendChild(ui.el("span", { class: "bs-dash-cat-card__sub" }, [fmtKg(c.kg) + " kg"]));
       var track = ui.el("div", { class: "bs-dash-cat-card__track" });
-      track.appendChild(ui.el("div", {
-        class: "bs-dash-cat-card__fill",
-        style: { width: Math.max((c.kg / scale) * 100, 4) + "%" },
+      track.appendChild(applyStyles(ui.el("div", { class: "bs-dash-cat-card__fill" }), {
+        width: Math.max((c.kg / scale) * 100, 4) + "%",
+        background: STREAM_COLORS[key],
       }));
       card.appendChild(track);
       grid.appendChild(card);

@@ -648,11 +648,23 @@ body {
   color: #334155;
   margin-bottom: 4px;
 }
-.bs-dash-mix-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.bs-dash-mix-dot,
+.bs-dash-cat-card__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
   flex-shrink: 0;
+  display: inline-block;
+}
+.bs-dash-mix-line__count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.bs-dash-cat-card__label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
 }
 .bs-dash-donut-wrap { flex-shrink: 0; }
 .bs-dash-donut { width: 88px; height: 88px; display: block; }
