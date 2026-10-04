@@ -944,6 +944,189 @@
 
 
 
+  var SUPPLIER_MODE_FSC = {
+    carbo_fsc: "FSC Carbo",
+    noncarbo_fsc: "FSC Other",
+    non_fsc: "Non-FSC",
+  };
+
+  var FSC_TONE = {
+    "FSC Carbo": "carbo",
+    "FSC Other": "other",
+    "Non-FSC": "non",
+    FSC: "fsc",
+  };
+
+  function normalizeFscLabel(raw) {
+    var text = String(raw || "").trim();
+    if (!text || text === "—") return "";
+    var key = text.toUpperCase().replace(/[\s-]+/g, "_");
+    if (key === "FSC_CARBO" || (key.indexOf("FSC") >= 0 && key.indexOf("CARBO") >= 0)) return "FSC Carbo";
+    if (key === "FSC_OTHER" || (key.indexOf("FSC") >= 0 && key.indexOf("OTHER") >= 0)) return "FSC Other";
+    if (key === "NON_FSC" || key === "NONFSC" || text.toLowerCase().replace(/-/g, " ") === "non fsc") {
+      return "Non-FSC";
+    }
+    return text;
+  }
+
+  function fscText(row) {
+    var label = normalizeFscLabel(row.fsc_status);
+    if (label) return label;
+    label = normalizeFscLabel(row.fsc_classification);
+    if (label) return label;
+    var mode = String(row.supplier_mode || "").toLowerCase();
+    if (SUPPLIER_MODE_FSC[mode]) return SUPPLIER_MODE_FSC[mode];
+    if (row.is_fsc === true) return "FSC";
+    if (row.is_fsc === false) return "Non-FSC";
+    return "Unknown";
+  }
+
+  function summarizeStreamCategories(rows) {
+    var out = {};
+    WX_STREAM_ORDER.forEach(function (key) {
+      out[key] = { bags: 0, kg: 0 };
+    });
+    (rows || []).forEach(function (row) {
+      var key = row.product_stream;
+      if (!out[key]) return;
+      out[key].bags += 1;
+      out[key].kg += Number(row.net_weight_kg || 0);
+    });
+    Object.keys(out).forEach(function (key) {
+      out[key].kg = Math.round(out[key].kg * 10) / 10;
+    });
+    return out;
+  }
+
+  function renderStreamCategorySummary(rows, ui) {
+    var cats = summarizeStreamCategories(rows);
+    var totalKg = 0;
+    WX_STREAM_ORDER.forEach(function (key) { totalKg += cats[key].kg || 0; });
+    var scale = totalKg || 1;
+    var panel = ui.el("section", { class: "bs-dash-cat-summary" });
+    panel.appendChild(ui.el("h4", { class: "bs-dash-cat-summary__title" }, ["Categories"]));
+    var grid = ui.el("div", { class: "bs-dash-cat-grid" });
+    WX_STREAM_ORDER.forEach(function (key) {
+      var c = cats[key];
+      if (!(c.bags || 0)) return;
+      var card = ui.el("div", { class: "bs-dash-cat-card" });
+      card.style.setProperty("--cat-color", STREAM_COLORS[key]);
+      card.appendChild(ui.el("span", { class: "bs-dash-cat-card__label" }, [STREAM_LABELS[key]]));
+      card.appendChild(ui.el("div", { class: "bs-dash-cat-card__value" }, [String(c.bags)]));
+      card.appendChild(ui.el("span", { class: "bs-dash-cat-card__sub" }, [fmtKg(c.kg) + " kg"]));
+      var track = ui.el("div", { class: "bs-dash-cat-card__track" });
+      track.appendChild(ui.el("div", {
+        class: "bs-dash-cat-card__fill",
+        style: { width: Math.max((c.kg / scale) * 100, 4) + "%" },
+      }));
+      card.appendChild(track);
+      grid.appendChild(card);
+    });
+    panel.appendChild(grid);
+    return panel;
+  }
+
+  function groupRowsByProducerFsc(rows) {
+    var map = {};
+    (rows || []).forEach(function (row) {
+      var producer = (row.producer_name || "Unknown producer").trim() || "Unknown producer";
+      var fsc = fscText(row);
+      var key = producer + "\0" + fsc;
+      if (!map[key]) {
+        map[key] = {
+          producer: producer,
+          fsc: fsc,
+          bags: 0,
+          kg: 0,
+          rows: [],
+        };
+      }
+      map[key].bags += 1;
+      map[key].kg += Number(row.net_weight_kg || 0);
+      map[key].rows.push(row);
+    });
+    var list = Object.keys(map).map(function (k) { return map[k]; });
+    list.sort(function (a, b) {
+      var pc = a.producer.localeCompare(b.producer);
+      if (pc !== 0) return pc;
+      return a.fsc.localeCompare(b.fsc);
+    });
+    list.forEach(function (g) {
+      g.kg = Math.round(g.kg * 10) / 10;
+      g.rows.sort(function (a, b) {
+        return String(a.serial || "").localeCompare(String(b.serial || ""));
+      });
+    });
+    return list;
+  }
+
+  function renderFscPill(label, ui) {
+    var tone = FSC_TONE[label] || "unknown";
+    return ui.el("span", { class: "bs-dash-fsc-pill bs-dash-fsc-pill--" + tone }, [label]);
+  }
+
+  function renderProducerBagTable(rows, ui) {
+    var wrap = ui.el("div", { class: "bs-dash-table-wrap" });
+    var table = ui.el("table", { class: "bs-dash-table bs-dash-table--compact" });
+    var thead = ui.el("thead", {});
+    var hr = ui.el("tr", {});
+    ["Bag", "Stream", "kg", "Scanned", "Weathering", "Detail"].forEach(function (h) {
+      hr.appendChild(ui.el("th", {}, [h]));
+    });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    var tbody = ui.el("tbody", {});
+    rows.forEach(function (row) {
+      var tr = ui.el("tr", {});
+      tr.appendChild(ui.el("td", {}, [row.serial || "—"]));
+      var streamTd = ui.el("td", {});
+      var streamKey = row.product_stream;
+      if (streamKey && STREAM_COLORS[streamKey]) {
+        streamTd.appendChild(ui.el("span", {
+          class: "bs-dash-stream-pill",
+          style: { background: STREAM_COLORS[streamKey] + "22", color: STREAM_COLORS[streamKey] },
+        }, [streamText(row)]));
+      } else {
+        streamTd.appendChild(document.createTextNode(streamText(row)));
+      }
+      tr.appendChild(streamTd);
+      tr.appendChild(ui.el("td", {}, [fmtKg(row.net_weight_kg)]));
+      tr.appendChild(ui.el("td", {}, [fmtDate(row.recorded_date || row.recorded_at)]));
+      tr.appendChild(ui.el("td", {}, [weatherText(row)]));
+      tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [
+        row.client_name || row.container_number || row.status_display || "—",
+      ]));
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  function renderWxDrillView(rows, ui) {
+    var wrap = ui.el("div", { class: "bs-dash-wx-drill" });
+    wrap.appendChild(renderStreamCategorySummary(rows, ui));
+    var groups = groupRowsByProducerFsc(rows);
+    var list = ui.el("div", { class: "bs-dash-producer-list" });
+    groups.forEach(function (group, idx) {
+      var details = ui.el("details", {
+        class: "bs-dash-producer-group",
+        open: idx === 0,
+      });
+      var summary = ui.el("summary", { class: "bs-dash-producer-summary" });
+      summary.appendChild(ui.el("span", { class: "bs-dash-producer-summary__name" }, [group.producer]));
+      summary.appendChild(renderFscPill(group.fsc, ui));
+      summary.appendChild(ui.el("span", { class: "bs-dash-producer-summary__meta" }, [
+        group.bags + (group.bags === 1 ? " bag" : " bags") + " · " + fmtKg(group.kg) + " kg",
+      ]));
+      details.appendChild(summary);
+      details.appendChild(renderProducerBagTable(group.rows, ui));
+      list.appendChild(details);
+    });
+    wrap.appendChild(list);
+    return wrap;
+  }
+
   function renderDrillTable(rows, ui) {
 
     var wrap = ui.el("div", { class: "bs-dash-table-wrap" });
@@ -1208,7 +1391,7 @@
 
         } else {
 
-          body.appendChild(renderDrillTable(wxDrill.rows, ui));
+          body.appendChild(renderWxDrillView(wxDrill.rows, ui));
 
         }
 
