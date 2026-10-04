@@ -296,8 +296,8 @@ body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .dashboard-row-reports {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  max-width: 1120px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 840px;
 }
 .report-chart-wrap {
   margin: 16px 0 24px;
@@ -414,6 +414,106 @@ body {
   margin: -2px 0 10px;
   font-size: 13px;
   line-height: 1.5;
+}
+
+/* Weathering panel — light inset inside Bags Status */
+.bs-wx-panel {
+  --wx-bg: #f4f5f8;
+  --wx-surface: #fff;
+  --wx-border: #d8dde6;
+  --wx-text: #1a1f2e;
+  --wx-muted: #5c6578;
+  --wx-gold: #9a7b1a;
+  --wx-ready: #2d8a5e;
+  --wx-ready-soft: #e6f4ed;
+  --wx-track: #e8ebf0;
+  background: var(--wx-bg);
+  border: 1px solid var(--wx-border);
+  border-radius: 10px;
+  padding: 14px 16px 16px;
+  margin: 16px 0 20px;
+  color: var(--wx-text);
+}
+.bs-wx-panel h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: var(--wx-text);
+}
+.bs-wx-panel .bs-wx-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--wx-muted);
+}
+.bs-wx-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.bs-wx-kpi {
+  background: var(--wx-surface);
+  border: 1px solid var(--wx-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.bs-wx-kpi--hi {
+  border-color: var(--wx-ready);
+  background: var(--wx-ready-soft);
+}
+.bs-wx-kpi__label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--wx-muted);
+}
+.bs-wx-kpi__value {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+.bs-wx-kpi__sub {
+  font-size: 11px;
+  color: var(--wx-muted);
+}
+.bs-wx-bar-row {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr 4rem;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 2px 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bs-wx-bar-row:hover .bs-wx-bar-track {
+  outline: 1px solid var(--wx-gold);
+}
+.bs-wx-bar-label { font-size: 12px; }
+.bs-wx-bar-track {
+  height: 18px;
+  background: var(--wx-track);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+}
+.bs-wx-bar-seg { height: 100%; min-width: 2px; }
+.bs-wx-bar-seg--restaurant { background: #c9a227; }
+.bs-wx-bar-seg--lumpwood { background: #8b6914; }
+.bs-wx-bar-seg--fines { background: #9aa3b2; }
+.bs-wx-bar-meta {
+  font-size: 11px;
+  color: var(--wx-muted);
+  text-align: right;
+}
+.bs-wx-empty {
+  font-size: 12px;
+  color: var(--wx-muted);
+  font-style: italic;
 }
 .bm-status-card--active {
   border-color: var(--accent, #7cb342);

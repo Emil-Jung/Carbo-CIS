@@ -111,6 +111,106 @@
     return parts.join(" · ");
   }
 
+  var WX_STREAM_ORDER = ["restaurant", "lumpwood", "fines"];
+
+  /** Status tiles that drill by weathering bucket, not scan date. */
+  var WX_BUCKET_STATUS = {
+    in_storage_weathering: function (key) { return key !== "ready"; },
+    in_storage: function (key) { return key === "ready"; },
+  };
+
+  function wxMaxKg(items) {
+    var m = 0;
+    (items || []).forEach(function (item) { m = Math.max(m, Number(item.kg || 0)); });
+    return m || 1;
+  }
+
+  function renderWxBarSegments(streamKg, totalKg, scaleMax, ui) {
+    var track = ui.el("div", { class: "bs-wx-bar-track" });
+    if (!totalKg) return track;
+    track.style.width = Math.max((totalKg / scaleMax) * 100, 1) + "%";
+    WX_STREAM_ORDER.forEach(function (key) {
+      var kg = (streamKg || {})[key] || 0;
+      if (!kg) return;
+      track.appendChild(ui.el("div", {
+        class: "bs-wx-bar-seg bs-wx-bar-seg--" + key,
+        style: { width: (kg / totalKg * 100) + "%" },
+      }));
+    });
+    return track;
+  }
+
+  function renderWxKpis(kpis, ui) {
+    var row = ui.el("div", { class: "bs-wx-kpi-row" });
+    [
+      { key: "ready_now", label: "Ready now", hi: true },
+      { key: "freeing_this_week", label: "Freeing this week" },
+      { key: "still_weathering", label: "Still weathering" },
+      { key: "at_packaging", label: "At packaging" },
+    ].forEach(function (item) {
+      var k = (kpis || {})[item.key] || {};
+      var card = ui.el("div", { class: "bs-wx-kpi" + (item.hi ? " bs-wx-kpi--hi" : "") });
+      card.appendChild(ui.el("span", { class: "bs-wx-kpi__label" }, [item.label]));
+      card.appendChild(ui.el("div", { class: "bs-wx-kpi__value" }, [String(k.bags || 0)]));
+      card.appendChild(ui.el("div", { class: "bs-wx-kpi__sub" }, [fmtKg(k.kg) + " kg"]));
+      row.appendChild(card);
+    });
+    return row;
+  }
+
+  function renderWeatheringPanel(wx, ui, onDrill) {
+    if (!wx) return null;
+    var panel = ui.el("section", { class: "bs-wx-panel" });
+    panel.appendChild(ui.el("h3", {}, ["Weathering — 21-day clock"]));
+    panel.appendChild(ui.el("p", { class: "bs-wx-note" }, [
+      "How factory stock is progressing on the clock. Click a row to list bags.",
+    ]));
+    panel.appendChild(renderWxKpis(wx.kpis, ui));
+    var scale = wxMaxKg(wx.days_buckets);
+    var any = false;
+    (wx.days_buckets || []).forEach(function (b) {
+      if (!(b.bags || 0)) return;
+      any = true;
+      var row = ui.el("button", {
+        class: "bs-wx-bar-row",
+        type: "button",
+        onclick: function () { onDrill({ bucket: b.key, label: b.label }); },
+      });
+      row.appendChild(ui.el("span", { class: "bs-wx-bar-label" }, [b.label]));
+      row.appendChild(renderWxBarSegments(b.stream_kg, b.kg, scale, ui));
+      row.appendChild(ui.el("span", { class: "bs-wx-bar-meta" }, [
+        b.bags + " · " + fmtKg(b.kg),
+      ]));
+      panel.appendChild(row);
+    });
+    if (!any) panel.appendChild(ui.el("p", { class: "bs-wx-empty" }, ["No bags on the clock."]));
+    return panel;
+  }
+
+  function renderWxBucketCards(buckets, ui, onOpen) {
+    var wrap = ui.el("div", { class: "cards bm-status-cards" });
+    buckets.forEach(function (b) {
+      var card = ui.el("button", {
+        class: "card bm-status-card",
+        type: "button",
+        onclick: function () { onOpen({ bucket: b.key, label: b.label }); },
+      });
+      card.appendChild(ui.el("span", { class: "label" }, [b.label]));
+      card.appendChild(ui.el("div", { class: "value" }, [String(b.bags)]));
+      card.appendChild(ui.el("span", { class: "muted" }, [fmtKg(b.kg) + " kg"]));
+      wrap.appendChild(card);
+    });
+    return wrap;
+  }
+
+  function wxBucketsForStatus(statusKey, wx) {
+    var fn = WX_BUCKET_STATUS[statusKey];
+    if (!fn || !wx) return [];
+    return (wx.days_buckets || []).filter(function (b) {
+      return (b.bags || 0) > 0 && fn(b.key);
+    });
+  }
+
   function renderSummaryCards(data, ui) {
     var row = ui.el("div", { class: "bs-summary-row" });
     var wrap = ui.el("div", { class: "cards" });
@@ -214,12 +314,14 @@
   async function render(container, ctx) {
     var ui = CIS.ui;
     var summary = null;
+    var weathering = null;
     var selected = null;
     var selectedEvent = null;
+    var wxDrill = null;
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Status"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Current position of every bag — in storage, in transit, at the coast, or closed. Click a status to list the bags.",
+      "Where bags are now, and how the 21-day weathering clock is running. Click a status for detail.",
     ]));
 
     var status = ui.el("p", { class: "muted" }, ["Loading…"]);
@@ -227,11 +329,56 @@
     var body = ui.el("div", { class: "report-body" });
     container.appendChild(body);
 
+    function buildWxDrillQuery(sel) {
+      var q = [];
+      if (sel.bucket) q.push("bucket=" + encodeURIComponent(sel.bucket));
+      return "/reports/bags-weathering?" + q.join("&");
+    }
+
+    async function openWxDrill(sel) {
+      status.textContent = "Loading " + (sel.label || "bags") + "…";
+      status.style.display = "";
+      try {
+        var data = await ctx.api.traceability(buildWxDrillQuery(sel));
+        wxDrill = {
+          label: sel.label,
+          rows: (data.drill && data.drill.rows) || [],
+        };
+        selected = null;
+        selectedEvent = null;
+        status.style.display = "none";
+        paint();
+      } catch (e) {
+        status.style.display = "none";
+        body.innerHTML = "";
+        body.appendChild(ui.error("Could not load bags: " + (e.message || e)));
+      }
+    }
+
     function paint() {
       body.innerHTML = "";
       if (!summary) return;
 
+      if (wxDrill) {
+        body.appendChild(ui.el("button", {
+          class: "btn-ghost btn-sm",
+          type: "button",
+          onclick: function () { wxDrill = null; paint(); },
+        }, ["← Weathering"]));
+        body.appendChild(ui.el("h3", { class: "bm-subheading" }, [
+          wxDrill.label + " — " + (wxDrill.rows || []).length + " bags",
+        ]));
+        if (!(wxDrill.rows || []).length) {
+          body.appendChild(ui.el("p", { class: "muted" }, ["No bags in this bucket."]));
+        } else {
+          body.appendChild(renderDrillTable(wxDrill.rows, ui));
+        }
+        return;
+      }
+
       if (selected) {
+        var backLabel = selectedEvent ? "← Buckets" : "← All statuses";
+        if (selected.mode !== "weathering_buckets") backLabel = selectedEvent ? "← Event dates" : "← All statuses";
         var back = ui.el("button", { class: "btn-ghost btn-sm", type: "button", onclick: function () {
           if (selectedEvent) {
             selectedEvent = null;
@@ -239,8 +386,25 @@
             selected = null;
           }
           paint();
-        } }, [selectedEvent ? "← Event dates" : "← All statuses"]);
+        } }, [backLabel]);
         body.appendChild(back);
+
+        if (selected.mode === "weathering_buckets" && !selectedEvent) {
+          body.appendChild(ui.el("h3", { class: "bm-subheading" }, [
+            selected.label + " — by days remaining",
+          ]));
+          body.appendChild(ui.el("p", { class: "muted bags-status-note" }, [
+            "Grouped by weathering clock, not scan date. Click a bucket for the bag list.",
+          ]));
+          if (!selected.buckets.length) {
+            body.appendChild(ui.el("p", { class: "muted" }, ["No bags in this status."]));
+          } else {
+            body.appendChild(renderWxBucketCards(selected.buckets, ui, function (sel) {
+              openWxDrill(sel);
+            }));
+          }
+          return;
+        }
 
         if (selectedEvent) {
           var dest = selectedEvent.client_name || selectedEvent.container_number;
@@ -277,20 +441,36 @@
       }
 
       body.appendChild(renderSummaryCards(summary, ui));
+      var wxPanel = renderWeatheringPanel(weathering, ui, openWxDrill);
+      if (wxPanel) body.appendChild(wxPanel);
       summary.groups.forEach(function (group) {
         body.appendChild(renderGroup(group, ui, null, openStatus));
       });
     }
 
     async function openStatus(st) {
+      if (WX_BUCKET_STATUS[st.key] && weathering) {
+        selectedEvent = null;
+        wxDrill = null;
+        selected = {
+          key: st.key,
+          label: st.label,
+          mode: "weathering_buckets",
+          buckets: wxBucketsForStatus(st.key, weathering),
+        };
+        paint();
+        return;
+      }
       status.textContent = "Loading " + st.label + "…";
       status.style.display = "";
       try {
         var data = await ctx.api.traceability("/reports/bags-status?status=" + encodeURIComponent(st.key));
         selectedEvent = null;
+        wxDrill = null;
         selected = {
           key: st.key,
           label: st.label,
+          mode: "events",
           count: data.drill_bag_count || 0,
           sections: data.event_sections || [],
         };
@@ -310,7 +490,12 @@
     }
 
     try {
-      summary = await ctx.api.traceability("/reports/bags-status");
+      var results = await Promise.all([
+        ctx.api.traceability("/reports/bags-status"),
+        ctx.api.traceability("/reports/bags-weathering").catch(function () { return null; }),
+      ]);
+      summary = results[0];
+      weathering = results[1];
       status.style.display = "none";
       paint();
     } catch (e) {
@@ -326,7 +511,7 @@
     kind: "lookup",
     order: 17,
     icon: "bags",
-    description: "Where every bag is now — storage, transit, coast, container",
+    description: "Where bags are — and weathering clock, release timing, pipeline",
     requires: "traceability.bags_status",
     render: render,
   });
