@@ -296,8 +296,8 @@ body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .dashboard-row-reports {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  max-width: 840px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-width: 1120px;
 }
 .report-chart-wrap {
   margin: 16px 0 24px;

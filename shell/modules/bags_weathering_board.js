@@ -330,7 +330,7 @@
     order: 18,
     icon: "bags",
     description: "21-day clock — ready counts, release weeks, factory pipeline",
-    requires: "traceability.bags_status",
+    requires: "traceability.bags_weathering",
     render: render,
   });
 })();
