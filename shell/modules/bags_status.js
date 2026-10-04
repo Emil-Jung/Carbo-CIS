@@ -221,6 +221,9 @@
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "Current position of every bag — in storage, in transit, at the coast, or closed. Click a status to list the bags.",
     ]));
+    container.appendChild(ui.el("p", { class: "muted bags-status-note" }, [
+      "For weathering charts (days remaining, release weeks, pipeline), use Weathering Board on the dashboard.",
+    ]));
 
     var status = ui.el("p", { class: "muted" }, ["Loading…"]);
     container.appendChild(status);

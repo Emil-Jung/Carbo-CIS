@@ -247,8 +247,34 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.9";
+  var BM_UI_VERSION = "1.6.10";
   var BM_API_SUFFIX = "&compact=1";
+  var BM_FETCH_TIMEOUT_MS = 90000;
+
+  function fetchWithTimeout(promise, ms, label) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function () {
+        if (done) return;
+        done = true;
+        reject(new Error((label || "Request") + " timed out after " + Math.round(ms / 1000) + "s"));
+      }, ms);
+      promise.then(
+        function (val) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve(val);
+        },
+        function (err) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          reject(err);
+        }
+      );
+    });
+  }
 
   function renderStreamSummaryTag(group, ui) {
     if (!group) return null;
@@ -867,21 +893,24 @@
         return;
       }
       try {
-        lastData = await ctx.api.traceability("/reports/bags-movement?scope=all" + BM_API_SUFFIX);
+        lastData = await fetchWithTimeout(
+          ctx.api.traceability("/reports/bags-movement?scope=all" + BM_API_SUFFIX),
+          BM_FETCH_TIMEOUT_MS,
+          "Bags Created"
+        );
         labelInventory = (lastData && lastData.label_inventory) || null;
         paintLabelTag(labelSlot, labelInventory, ui);
         status.textContent = "Rendering…";
         await new Promise(function (resolve) {
-          requestAnimationFrame(function () {
-            requestAnimationFrame(resolve);
-          });
+          setTimeout(resolve, 0);
         });
-        status.style.display = "none";
         repaint();
       } catch (e) {
         lastData = null;
-        status.textContent = "";
+        body.innerHTML = "";
         body.appendChild(ui.error("Could not load report: " + (e.message || e)));
+      } finally {
+        status.style.display = "none";
       }
     }
 
