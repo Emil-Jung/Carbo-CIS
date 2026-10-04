@@ -100,6 +100,14 @@
 
 
 
+  function bagsKgText(bags, kg) {
+
+    return String(bags || 0) + (bags === 1 ? " bag" : " bags") + " · " + fmtKg(kg) + " kg";
+
+  }
+
+
+
   function fmtDate(iso) {
 
     if (!iso) return "—";
@@ -462,6 +470,7 @@
       col.appendChild(bar);
 
       col.appendChild(ui.el("span", { class: "bs-dash-col__val" }, [String(w.bags)]));
+      col.appendChild(ui.el("span", { class: "bs-dash-col__kg" }, [fmtKg(w.kg) + " kg"]));
 
       col.appendChild(ui.el("span", { class: "bs-dash-col__lbl" }, [w.label]));
 
@@ -545,7 +554,7 @@
 
           style: { width: (still.kg / totalKg * 100) + "%" },
 
-          title: "Still weathering: " + still.bags + " bags",
+          title: "Still weathering: " + bagsKgText(still.bags, still.kg),
 
         }));
 
@@ -559,7 +568,7 @@
 
           style: { width: (ready.kg / totalKg * 100) + "%" },
 
-          title: "Ready: " + ready.bags + " bags",
+          title: "Ready: " + bagsKgText(ready.bags, ready.kg),
 
         }));
 
@@ -571,7 +580,7 @@
 
       row.appendChild(ui.el("span", { class: "bs-dash-pipeline-meta" }, [
 
-        (still.bags || 0) + " clock · " + (ready.bags || 0) + " ready",
+        bagsKgText(still.bags, still.kg) + " clock · " + bagsKgText(ready.bags, ready.kg) + " ready",
 
       ]));
 
@@ -665,6 +674,7 @@
     WX_STREAM_ORDER.forEach(function (key) {
       var n = (still.streams || {})[key] || 0;
       if (!n) return;
+      var kg = (still.stream_kg || {})[key] || 0;
       var line = ui.el("div", { class: "bs-dash-mix-line" });
       line.appendChild(streamSwatch(key, "bs-dash-mix-dot"));
       var count = ui.el("span", { class: "bs-dash-mix-line__count" });
@@ -674,6 +684,7 @@
       line.appendChild(ui.el("span", { class: "bs-dash-mix-line__label" }, [
         STREAM_LABELS[key].toLowerCase(),
       ]));
+      line.appendChild(ui.el("span", { class: "bs-dash-mix-line__kg" }, [fmtKg(kg) + " kg"]));
       mixText.appendChild(line);
     });
 
@@ -786,7 +797,16 @@
 
       { label: "End of life", value: data.closed, tone: "slate", sub: true },
 
-      { label: "All bags in system", value: { bags: data.bag_count }, tone: "indigo", sub: false },
+      {
+        label: "All bags in system",
+        value: {
+          bags: data.bag_count,
+          kg: (Number((data.in_system && data.in_system.kg) || 0)
+            + Number((data.closed && data.closed.kg) || 0)),
+        },
+        tone: "indigo",
+        sub: true,
+      },
 
     ].forEach(function (item) {
 
@@ -897,9 +917,7 @@
       ui.el("h3", {}, [group.label]),
 
       ui.el("span", { class: "bs-dash-location__count" }, [
-
-        group.bags + (group.bags === 1 ? " bag" : " bags"),
-
+        bagsKgText(group.bags, group.kg),
       ]),
 
     ]));
