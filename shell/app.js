@@ -214,6 +214,20 @@
 
     }
 
+    var shellRev = state.config && state.config.shellRev;
+    if (shellRev) {
+      var revKey = "cis_shell_rev";
+      var prevRev = localStorage.getItem(revKey);
+      if (prevRev && prevRev !== shellRev) {
+        localStorage.setItem(revKey, shellRev);
+        var u = new URL(window.location.href);
+        u.searchParams.set("shellRev", shellRev);
+        window.location.replace(u.toString());
+        return;
+      }
+      localStorage.setItem(revKey, shellRev);
+    }
+
     state.token = localStorage.getItem(TOKEN_KEY);
 
     if (CIS.authUi) CIS.authUi.wireAuthForms();
