@@ -1137,7 +1137,6 @@
     groups.forEach(function (group) {
       var details = ui.el("details", {
         class: "bs-dash-producer-group",
-        open: true,
       });
       var summary = ui.el("summary", { class: "bs-dash-producer-summary" });
       summary.appendChild(ui.el("span", { class: "bs-dash-producer-summary__name" }, [group.producer]));
