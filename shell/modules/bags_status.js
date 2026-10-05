@@ -10,6 +10,8 @@
 
   CIS.modules = CIS.modules || [];
 
+  var BS_AUTO_REFRESH_MS = 60000;
+
 
 
   var STREAM_LABELS = {
@@ -1764,6 +1766,10 @@
 
 
 
+    var refreshNote = ui.el("p", { class: "bm-refresh-note muted", hidden: true }, [""]);
+
+    dash.appendChild(refreshNote);
+
     var status = ui.el("p", { class: "bs-dash-loading" }, ["Loading…"]);
 
     dash.appendChild(status);
@@ -2491,43 +2497,197 @@
 
 
 
-    if (!ctx.api.traceability) {
+    var pollTimer = null;
 
-      status.style.display = "none";
+    var countdownTimer = null;
 
-      body.appendChild(ui.error("Traceability API is not configured in CIS."));
+    var countdownSec = Math.round(BS_AUTO_REFRESH_MS / 1000);
 
-      return;
+
+
+    function updateCountdownText() {
+
+      if (!refreshNote || !container.isConnected) return;
+
+      refreshNote.hidden = false;
+
+      refreshNote.textContent = "Next update in " + countdownSec + " seconds";
+
+    }
+
+
+
+    function resetCountdown() {
+
+      countdownSec = Math.round(BS_AUTO_REFRESH_MS / 1000);
+
+      updateCountdownText();
 
     }
 
 
 
-    try {
+    function stopTimers() {
 
-      var results = await Promise.all([
+      if (pollTimer) {
 
-        ctx.api.traceability("/reports/bags-status"),
+        clearInterval(pollTimer);
 
-        ctx.api.traceability("/reports/bags-weathering").catch(function () { return null; }),
+        pollTimer = null;
 
-      ]);
+      }
 
-      summary = results[0];
+      if (countdownTimer) {
 
-      weathering = results[1];
+        clearInterval(countdownTimer);
 
-      status.style.display = "none";
+        countdownTimer = null;
 
-      paint();
-
-    } catch (e) {
-
-      status.textContent = "";
-
-      body.appendChild(ui.error("Could not load report: " + (e.message || e)));
+      }
 
     }
+
+
+
+    function startCountdown() {
+
+      if (countdownTimer) return;
+
+      resetCountdown();
+
+      countdownTimer = setInterval(function () {
+
+        if (!container.isConnected) {
+
+          stopTimers();
+
+          return;
+
+        }
+
+        countdownSec -= 1;
+
+        if (countdownSec < 0) {
+
+          countdownSec = Math.round(BS_AUTO_REFRESH_MS / 1000);
+
+        }
+
+        updateCountdownText();
+
+      }, 1000);
+
+    }
+
+
+
+    async function refreshReport(opts) {
+
+      opts = opts || {};
+
+      if (!ctx.api.traceability) {
+
+        if (!opts.silent) {
+
+          status.style.display = "none";
+
+          body.appendChild(ui.error("Traceability API is not configured in CIS."));
+
+        }
+
+        return;
+
+      }
+
+      if (opts.silent && !summary) return;
+
+
+
+      if (!opts.silent) {
+
+        status.textContent = "Loading…";
+
+        status.style.display = "";
+
+        if (opts.reset) {
+
+          body.innerHTML = "";
+
+        }
+
+      }
+
+
+
+      try {
+
+        var results = await Promise.all([
+
+          ctx.api.traceability("/reports/bags-status"),
+
+          ctx.api.traceability("/reports/bags-weathering").catch(function () { return null; }),
+
+        ]);
+
+        if (!container.isConnected) return;
+
+        summary = results[0];
+
+        weathering = results[1];
+
+        if (!opts.silent) {
+
+          status.style.display = "none";
+
+        }
+
+        if (!opts.silent || (!selected && !selectedEvent && !wxDrill)) {
+
+          paint();
+
+        }
+
+        resetCountdown();
+
+        startCountdown();
+
+      } catch (e) {
+
+        if (opts.silent) return;
+
+        status.textContent = "";
+
+        refreshNote.hidden = true;
+
+        body.innerHTML = "";
+
+        body.appendChild(ui.error("Could not load report: " + (e.message || e)));
+
+      }
+
+    }
+
+
+
+    stopTimers();
+
+    pollTimer = setInterval(function () {
+
+      if (!container.isConnected) {
+
+        stopTimers();
+
+        return;
+
+      }
+
+      refreshReport({ silent: true });
+
+    }, BS_AUTO_REFRESH_MS);
+
+
+
+    await refreshReport({ reset: true });
 
   }
 
