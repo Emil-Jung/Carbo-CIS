@@ -874,21 +874,93 @@
 
 
 
-  function renderPalletPanel(palletSummary, ui, onOpenBucket) {
+  function renderPalletBasketPanel(palletBasket, ui) {
 
-    if (!palletSummary || !(palletSummary.buckets || []).length) return null;
+    var b = palletBasket || {};
 
-    var total = palletSummary.total || { bags: 0, kg: 0 };
+    var section = ui.el("section", { class: "bs-dash-location bs-dash-location--amber" });
+
+    section.appendChild(ui.el("div", { class: "bs-dash-location__head" }, [
+
+      ui.el("h3", {}, ["Pallet basket"]),
+
+      ui.el("span", { class: "bs-dash-location__count muted" }, [
+
+        "Material waiting to become physical pallets",
+
+      ]),
+
+    ]));
+
+    var dl = ui.el("dl", { class: "bs-dash-basket-dl" });
+
+    [
+
+      ["Available for palletisation", fmtKg(b.available_kg) + " kg"],
+
+      ["Pallet equivalent", b.pallet_equivalent != null ? Number(b.pallet_equivalent).toFixed(2) : "—"],
+
+      ["Source bags", String(b.source_bags != null ? b.source_bags : 0)],
+
+    ].forEach(function (pair) {
+
+      dl.appendChild(ui.el("dt", {}, [pair[0]]));
+
+      dl.appendChild(ui.el("dd", {}, [pair[1]]));
+
+    });
+
+    section.appendChild(dl);
+
+    if ((b.by_product || []).length > 1) {
+
+      var sub = ui.el("div", { class: "bs-dash-basket-products" });
+
+      b.by_product.forEach(function (row) {
+
+        sub.appendChild(ui.el("p", { class: "bs-dash-basket-product muted" }, [
+
+          row.product_code + ": " + fmtKg(row.available_kg) + " kg · "
+
+            + (row.pallet_equivalent != null ? Number(row.pallet_equivalent).toFixed(2) : "—")
+
+            + " pallet equiv · " + String(row.source_bag_count || 0) + " source bag(s)",
+
+        ]));
+
+      });
+
+      section.appendChild(sub);
+
+    }
+
+    return section;
+
+  }
+
+
+
+  function renderPalletPanel(palletSummary, palletBasket, ui, onOpenBucket) {
+
+    var total = (palletSummary && palletSummary.total) || { bags: 0, kg: 0 };
+
+    var physicalCount = palletBasket && palletBasket.physical_pallets != null
+
+      ? palletBasket.physical_pallets
+
+      : total.bags;
 
     var section = ui.el("section", { class: "bs-dash-location bs-dash-location--indigo" });
 
     section.appendChild(ui.el("div", { class: "bs-dash-location__head" }, [
 
-      ui.el("h3", {}, ["Finished pallets"]),
+      ui.el("h3", {}, ["Physical pallets"]),
 
       ui.el("span", { class: "bs-dash-location__count" }, [
 
-        bagsKgText(total.bags, total.kg),
+        String(physicalCount) + (physicalCount === 1 ? " pallet" : " pallets")
+
+          + " · " + bagsKgText(total.bags, total.kg),
 
       ]),
 
@@ -896,7 +968,7 @@
 
     var grid = ui.el("div", { class: "bs-dash-status-grid" });
 
-    palletSummary.buckets.forEach(function (bucket) {
+    ((palletSummary && palletSummary.buckets) || []).forEach(function (bucket) {
 
       if (!(bucket.bags || 0)) return;
 
@@ -932,7 +1004,7 @@
 
     if (!grid.childNodes.length) {
 
-      section.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, ["No finished pallets in the system yet."]));
+      section.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, ["No physical pallets created yet."]));
 
     } else {
 
@@ -1720,7 +1792,11 @@
 
       body.appendChild(renderSummaryCards(summary, ui));
 
-      var palletPanel = renderPalletPanel(summary.pallet_summary, ui, openPalletBucket);
+      var basketPanel = renderPalletBasketPanel(summary.pallet_basket, ui);
+
+      if (basketPanel) body.appendChild(basketPanel);
+
+      var palletPanel = renderPalletPanel(summary.pallet_summary, summary.pallet_basket, ui, openPalletBucket);
 
       if (palletPanel) body.appendChild(palletPanel);
 
