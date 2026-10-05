@@ -840,6 +840,112 @@
 
 
 
+  var PALLET_BUCKET_ACCENT = {
+
+    at_packaging: "#F59E0B",
+
+    in_storage: "#2563EB",
+
+    in_transit: "#7C3AED",
+
+    at_coast: "#0EA5E9",
+
+    in_container: "#059669",
+
+    dispatched: "#64748B",
+
+  };
+
+
+
+  var PALLET_DRILL_STATUS = {
+
+    at_packaging: "at_packaging_plant",
+
+    in_storage: "in_storage",
+
+    in_transit: "on_truck_walvisbay",
+
+    in_container: "in_container",
+
+    dispatched: "dispatched",
+
+  };
+
+
+
+  function renderPalletPanel(palletSummary, ui, onOpenBucket) {
+
+    if (!palletSummary || !(palletSummary.buckets || []).length) return null;
+
+    var total = palletSummary.total || { bags: 0, kg: 0 };
+
+    var section = ui.el("section", { class: "bs-dash-location bs-dash-location--indigo" });
+
+    section.appendChild(ui.el("div", { class: "bs-dash-location__head" }, [
+
+      ui.el("h3", {}, ["Finished pallets"]),
+
+      ui.el("span", { class: "bs-dash-location__count" }, [
+
+        bagsKgText(total.bags, total.kg),
+
+      ]),
+
+    ]));
+
+    var grid = ui.el("div", { class: "bs-dash-status-grid" });
+
+    palletSummary.buckets.forEach(function (bucket) {
+
+      if (!(bucket.bags || 0)) return;
+
+      var accent = PALLET_BUCKET_ACCENT[bucket.key] || "#64748B";
+
+      var drillStatus = PALLET_DRILL_STATUS[bucket.key];
+
+      var card = drillStatus
+
+        ? ui.el("button", {
+
+          class: "bs-dash-status-card",
+
+          type: "button",
+
+          style: { "--card-accent": accent },
+
+          onclick: function () { onOpenBucket(bucket, drillStatus); },
+
+        })
+
+        : ui.el("div", { class: "bs-dash-status-card bs-dash-status-card--static", style: { "--card-accent": accent } });
+
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [bucket.label]));
+
+      card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(bucket.bags)]));
+
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(bucket.kg) + " kg"]));
+
+      grid.appendChild(card);
+
+    });
+
+    if (!grid.childNodes.length) {
+
+      section.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, ["No finished pallets in the system yet."]));
+
+    } else {
+
+      section.appendChild(grid);
+
+    }
+
+    return section;
+
+  }
+
+
+
   function renderWxBucketCards(buckets, ui, onOpen) {
 
     var wrap = ui.el("div", { class: "bs-dash-status-grid" });
@@ -1614,6 +1720,10 @@
 
       body.appendChild(renderSummaryCards(summary, ui));
 
+      var palletPanel = renderPalletPanel(summary.pallet_summary, ui, openPalletBucket);
+
+      if (palletPanel) body.appendChild(palletPanel);
+
 
 
       if (weathering) {
@@ -1639,6 +1749,56 @@
       });
 
       syncFloatingNav();
+    }
+
+
+
+    async function openPalletBucket(bucket, statusKey) {
+
+      status.textContent = "Loading " + bucket.label + "…";
+
+      status.style.display = "";
+
+      try {
+
+        var data = await ctx.api.traceability(
+
+          "/reports/bags-status?status=" + encodeURIComponent(statusKey) + "&stream=pallet"
+
+        );
+
+        selectedEvent = null;
+
+        wxDrill = null;
+
+        selected = {
+
+          key: statusKey,
+
+          label: bucket.label,
+
+          mode: "events",
+
+          count: data.drill_bag_count || 0,
+
+          sections: data.event_sections || [],
+
+        };
+
+        status.style.display = "none";
+
+        paint();
+
+      } catch (e) {
+
+        status.style.display = "none";
+
+        body.innerHTML = "";
+
+        body.appendChild(ui.error("Could not load pallets: " + (e.message || e)));
+
+      }
+
     }
 
 
