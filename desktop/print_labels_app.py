@@ -22,6 +22,7 @@ import webview
 
 import config
 from version import CIS_VERSION
+import a4_print_host
 import printer_usb
 
 WINDOW_TITLE = f"Carbo Print Labels  —  v{CIS_VERSION}"
@@ -99,6 +100,9 @@ class PrintLabelsApi:
 
     def send_zpl_usb(self, printer_name, zpl=""):
         return printer_usb.send_zpl(printer_name, zpl)
+
+    def open_a4_print(self, html="", auto_print=True):
+        return a4_print_host.open_a4_print(html, auto_print=bool(auto_print))
 
     def send_zpl(self, host, port=9100, zpl=""):
         host = (host or "").strip()

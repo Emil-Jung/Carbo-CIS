@@ -9,7 +9,7 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.6.2";
+  var PL_UI_VERSION = "1.6.3";
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
 
@@ -142,32 +142,124 @@
     );
   }
 
-  function openA4PrintWindow(serials) {
-    var html = buildA4PrintDocument(serials);
-    var win = window.open("", "_blank");
-    if (!win) throw new Error("Pop-up blocked — allow pop-ups to print A4 pallet labels.");
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    win.focus();
+  function openA4PrintViaIframe(html, autoPrint) {
     return new Promise(function (resolve, reject) {
-      win.onload = function () {
+      var iframe = document.createElement("iframe");
+      iframe.setAttribute("title", "A4 pallet labels");
+      iframe.setAttribute("aria-hidden", autoPrint ? "true" : "false");
+      iframe.style.position = "fixed";
+      iframe.style.left = "-10000px";
+      iframe.style.top = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
+
+      var win;
+      try {
+        win = iframe.contentWindow;
+        var doc = win.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+      } catch (e) {
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        reject(e);
+        return;
+      }
+
+      function cleanup() {
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      }
+
+      function runPrint() {
         try {
+          win.focus();
           win.print();
+          if (autoPrint) setTimeout(cleanup, 120000);
           resolve();
         } catch (e) {
+          cleanup();
           reject(e);
         }
-      };
+      }
+
       setTimeout(function () {
-        try {
-          win.print();
-          resolve();
-        } catch (e) {
-          reject(e);
-        }
-      }, 400);
+        if (autoPrint) runPrint();
+        else resolve();
+      }, 350);
     });
+  }
+
+  function showA4PreviewOverlay(html) {
+    return new Promise(function (resolve) {
+      var overlay = document.createElement("div");
+      overlay.className = "a4-print-preview-overlay";
+      var bar = document.createElement("div");
+      bar.className = "a4-print-preview-overlay__bar";
+      var title = document.createElement("span");
+      title.className = "a4-print-preview-overlay__title";
+      title.textContent = "A4 pallet label preview";
+      var actions = document.createElement("div");
+      actions.className = "a4-print-preview-overlay__actions";
+      var printBtn = document.createElement("button");
+      printBtn.type = "button";
+      printBtn.className = "btn-primary btn-sm";
+      printBtn.textContent = "Print…";
+      var closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.className = "btn-ghost btn-sm";
+      closeBtn.textContent = "Close";
+      actions.appendChild(printBtn);
+      actions.appendChild(closeBtn);
+      bar.appendChild(title);
+      bar.appendChild(actions);
+      var frameWrap = document.createElement("div");
+      frameWrap.className = "a4-print-preview-overlay__frame";
+      var iframe = document.createElement("iframe");
+      iframe.setAttribute("title", "A4 pallet label preview");
+      frameWrap.appendChild(iframe);
+      overlay.appendChild(bar);
+      overlay.appendChild(frameWrap);
+      document.body.appendChild(overlay);
+
+      var win = iframe.contentWindow;
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+
+      function close() {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        resolve();
+      }
+      closeBtn.addEventListener("click", close);
+      printBtn.addEventListener("click", function () {
+        try {
+          win.focus();
+          win.print();
+        } catch (e) { /* ignore */ }
+      });
+    });
+  }
+
+  function openA4PrintWindow(serials, options) {
+    options = options || {};
+    var autoPrint = options.autoPrint !== false;
+    var html = buildA4PrintDocument(serials);
+    var bridge = desktopBridge();
+
+    if (bridge && bridge.open_a4_print) {
+      return bridge.open_a4_print(html, autoPrint).then(function (res) {
+        if (!res || !res.ok) {
+          throw new Error((res && res.error) || "Could not open A4 print view.");
+        }
+      });
+    }
+
+    if (autoPrint) {
+      return openA4PrintViaIframe(html, true);
+    }
+    return showA4PreviewOverlay(html);
   }
 
   function saveSettings(s) {
@@ -1049,7 +1141,7 @@
       if (!pendingLabels.length) return;
       var serials = pendingLabels.map(function (l) { return l.serial; });
       if (labelFormat === "a4_pallet") {
-        openA4PrintWindow(serials).then(function () {
+        openA4PrintWindow(serials, { autoPrint: false }).then(function () {
           setStatus("A4 print preview opened for " + serials.length + " sheet(s).");
         }).catch(function (e) {
           setStatus((e && e.message) || String(e), true);

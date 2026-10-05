@@ -25,6 +25,7 @@ a = Analysis(
     hiddenimports=[
         "cis_update",
         "maintenance_host",
+        "a4_print_host",
         "print_labels_host",
         "version",
         "config",

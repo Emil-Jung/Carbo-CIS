@@ -24,6 +24,7 @@ import config
 import cis_update
 from version import CIS_VERSION
 import maintenance_host
+import a4_print_host
 import print_labels_host
 import printer_usb
 
@@ -189,6 +190,9 @@ class Api:
     def list_printers(self):
         """Windows spooler names (USB / local). Desktop CIS only."""
         return printer_usb.list_printers()
+
+    def open_a4_print(self, html="", auto_print=True):
+        return a4_print_host.open_a4_print(html, auto_print=bool(auto_print))
 
     def send_zpl_usb(self, printer_name, zpl=""):
         """Send ZPL to a Windows printer by name (USB). Desktop CIS only."""

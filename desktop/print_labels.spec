@@ -18,6 +18,7 @@ a = Analysis(
     hiddenimports=[
         "version",
         "config",
+        "a4_print_host",
         "printer_usb",
         "win32print",
         "pywintypes",
