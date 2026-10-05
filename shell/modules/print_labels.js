@@ -9,7 +9,7 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.6.0";
+  var PL_UI_VERSION = "1.6.1";
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
 
@@ -283,31 +283,27 @@
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "Bag identity labels are printed from the Carbo Print Labels desktop utility on Windows.",
     ]));
-    [
-      "After install, open Carbo Print Labels from the Windows Start menu (or desktop shortcut) — that is the normal way to print.",
-      "Open Print Labels below tries to launch the app from the browser; Windows may ask you to confirm.",
-    ].forEach(function (note) {
-      container.appendChild(ui.el("p", { class: "muted launcher-note" }, [note]));
-    });
+    container.appendChild(ui.el("ol", { class: "print-labels-install-steps muted launcher-note" }, [
+      ui.el("li", {}, ["Click ", ui.el("strong", {}, ["Download installer"]), " below."]),
+      ui.el("li", {}, ["When the download finishes, open ", ui.el("strong", {}, ["CarboPrintLabels-Setup.exe"]), " from Downloads and click ", ui.el("strong", {}, ["Run"]), "."]),
+      ui.el("li", {}, ["Open ", ui.el("strong", {}, ["Carbo Print Labels"]), " from the Start menu, or click Open Print Labels below."]),
+    ]));
 
     var actions = ui.el("div", { class: "launcher-actions" });
     actions.appendChild(ui.el("a", {
       class: "btn-primary btn-launch",
-      href: "carbolabels://open",
-    }, ["Open Print Labels"]));
-    actions.appendChild(ui.el("p", { class: "muted launcher-note print-labels-start-menu-hint" }, [
-      "Start menu: type ",
-      ui.el("strong", {}, ["Carbo Print Labels"]),
-      " — installed to ",
-      ui.el("code", {}, ["%LOCALAPPDATA%\\Programs\\Carbo CIS\\Print Labels"]),
-    ]));
+      href: installerUrl,
+      download: "CarboPrintLabels-Setup.exe",
+    }, ["Download installer"]));
     actions.appendChild(ui.el("a", {
       class: "btn-ghost btn-launch-secondary",
-      href: installerUrl,
-      target: "_blank",
-      rel: "noopener noreferrer",
-    }, ["Install Print Labels"]));
+      href: "carbolabels://open",
+    }, ["Open Print Labels"]));
     container.appendChild(actions);
+    container.appendChild(ui.el("p", { class: "muted launcher-note print-labels-start-menu-hint" }, [
+      "Browsers cannot run the installer by themselves — you must open the downloaded .exe once. After that, Start menu is the easiest way to print.",
+    ]));
+    statusEl.textContent = "";
     container.appendChild(statusEl);
   }
 
@@ -378,13 +374,23 @@
 
     var workspace = ui.el("div", { class: "print-labels-workspace" });
     var panelsGrid = ui.el("div", { class: "print-labels-panels-grid" });
+    var panelsRowTop = ui.el("div", { class: "print-labels-panels-row" });
+    var panelsRowBottom = ui.el("div", { class: "print-labels-panels-row" });
+    panelsGrid.appendChild(panelsRowTop);
+    panelsGrid.appendChild(panelsRowBottom);
     container.appendChild(workspace);
 
     var printerPanel = panel(ui, "Printer");
-    panelsGrid.appendChild(printerPanel.root);
-    printerPanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
+    panelsRowTop.appendChild(printerPanel.root);
+    var a4PrinterHint = ui.el("p", { class: "print-labels-field-hint print-labels-a4-printer-hint" }, [
+      "A4 pallet sheets print through the Windows print dialog — you choose the office A4 printer when you confirm a run.",
+    ]);
+    var zebraPrinterFields = ui.el("div", { class: "print-labels-zebra-printer-fields" });
+    zebraPrinterFields.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
       "Network (IP) is the normal path. Use USB (Windows spooler) only if the printer is not reachable on the LAN.",
     ]));
+    printerPanel.body.appendChild(a4PrinterHint);
+    printerPanel.body.appendChild(zebraPrinterFields);
     var connEl = ui.el("select", {}, [
       ui.el("option", { value: "network", selected: saved.connection === "network" }, ["Network (IP)"]),
       ui.el("option", { value: "usb", selected: saved.connection !== "network" }, ["USB (Windows)"]),
@@ -408,14 +414,14 @@
       "Select your Zebra from the Windows printer list (USB mode only).");
     var manualField = field(ui, "Or type printer name", printerManualEl,
       "USB mode only — exact name from Windows Printers.");
-    printerPanel.body.appendChild(field(ui, "Connection", connEl));
-    printerPanel.body.appendChild(usbField);
-    printerPanel.body.appendChild(manualField);
-    printerPanel.body.appendChild(networkWrap);
+    zebraPrinterFields.appendChild(field(ui, "Connection", connEl));
+    zebraPrinterFields.appendChild(usbField);
+    zebraPrinterFields.appendChild(manualField);
+    zebraPrinterFields.appendChild(networkWrap);
 
     var labelsPanel = panel(ui, "Print labels");
     labelsPanel.root.classList.add("print-labels-panel--labels-preview");
-    panelsGrid.appendChild(labelsPanel.root);
+    panelsRowTop.appendChild(labelsPanel.root);
     var sequenceEl = ui.el("div", { class: "print-labels-sequence muted" }, ["Loading sequence…"]);
     labelsPanel.body.appendChild(sequenceEl);
     var previewBlock = ui.el("div", { class: "print-labels-preview-block" });
@@ -433,7 +439,7 @@
     labelsPanel.body.appendChild(previewBlock);
 
     var runPanel = panel(ui, "Print run");
-    panelsGrid.appendChild(runPanel.root);
+    panelsRowBottom.appendChild(runPanel.root);
     var formatEl = ui.el("select", {}, [
       ui.el("option", { value: "zebra", selected: labelFormat !== "a4_pallet" }, [
         "Zebra — 54 × 25 mm (production)",
@@ -461,7 +467,7 @@
     runPanel.body.appendChild(runStatus);
 
     var reprintPanel = panel(ui, "Reprint labels");
-    panelsGrid.appendChild(reprintPanel.root);
+    panelsRowBottom.appendChild(reprintPanel.root);
     workspace.appendChild(panelsGrid);
     var reprintRunEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["Loading print runs…"])]);
     var reprintManualEl = ui.el("input", {
@@ -563,7 +569,9 @@
 
     function syncLabelFormat() {
       labelFormat = readSaved().labelFormat;
-      printerPanel.root.style.display = labelFormat === "a4_pallet" ? "none" : "";
+      var isA4 = labelFormat === "a4_pallet";
+      a4PrinterHint.style.display = isA4 ? "" : "none";
+      zebraPrinterFields.style.display = isA4 ? "none" : "";
     }
 
     function resolvedPrinterName(s) {

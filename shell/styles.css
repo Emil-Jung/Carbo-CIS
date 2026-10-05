@@ -2139,15 +2139,26 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .print-labels-desktop-banner__link a { font-family: ui-monospace, monospace; font-size: 11px; }
 .print-labels-workspace { min-width: 0; }
 .print-labels-panels-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   margin-bottom: 14px;
 }
-.print-labels-panels-grid .print-labels-panel {
+.print-labels-panels-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.print-labels-panels-row .print-labels-panel {
   margin-bottom: 0;
   height: 100%;
 }
+.print-labels-install-steps {
+  margin: 12px 0 16px;
+  padding-left: 1.25rem;
+  line-height: 1.55;
+}
+.print-labels-install-steps li { margin-bottom: 6px; }
 .print-labels-panel--labels-preview .print-labels-preview-block {
   margin-top: 4px;
   padding-top: 12px;
@@ -2167,7 +2178,7 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   font-size: 12px;
 }
 @media (max-width: 900px) {
-  .print-labels-panels-grid { grid-template-columns: 1fr; }
+  .print-labels-panels-row { grid-template-columns: 1fr; }
 }
 .print-labels-panel {
   background: var(--panel);
