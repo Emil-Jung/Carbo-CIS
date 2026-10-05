@@ -119,7 +119,11 @@
     document.getElementById("current-user").textContent =
       (state.user.display_name || state.user.login_id);
     var verEl = document.getElementById("app-version");
-    if (verEl) verEl.textContent = state.config && state.config.cisVersion ? ("v" + state.config.cisVersion) : "";
+    if (verEl) {
+      var shell = (state.config && state.config.cisVersion) || "?";
+      var labels = CIS.printLabelsUiVersion || "?";
+      verEl.textContent = "v" + shell + " · labels " + labels;
+    }
     openPrintLabelsModule();
   }
   CIS._showApp = showApp;
@@ -129,6 +133,19 @@
       state.config = await (await fetch("config.json", { cache: "no-store" })).json();
     } catch (e) {
       state.config = { identityApiBase: "/identity/api", traceabilityApiBase: "/traceability/api/v1" };
+    }
+    var shellRev = state.config && state.config.shellRev;
+    if (shellRev) {
+      var revKey = "cis_print_labels_shell_rev";
+      var prevRev = localStorage.getItem(revKey);
+      if (prevRev && prevRev !== shellRev) {
+        localStorage.setItem(revKey, shellRev);
+        var u = new URL(window.location.href);
+        u.searchParams.set("shellRev", shellRev);
+        window.location.replace(u.toString());
+        return;
+      }
+      localStorage.setItem(revKey, shellRev);
     }
 
     state.token = localStorage.getItem(TOKEN_KEY);

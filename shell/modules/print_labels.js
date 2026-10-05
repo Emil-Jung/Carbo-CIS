@@ -3,6 +3,7 @@
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
+  CIS.printLabelsUiVersion = PL_UI_VERSION;
   var ZPL = window.CIS_LABEL_ZPL;
 
   var LS = "cis_print_labels_v4";
