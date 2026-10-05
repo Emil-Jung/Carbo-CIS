@@ -202,7 +202,36 @@
 
   // ---- Boot ------------------------------------------------------------
 
+  function stashStartupModule() {
+    var params = new URLSearchParams(window.location.search);
+    var mod = (params.get("module") || "").trim();
+    if (!mod) return;
+    sessionStorage.setItem("cis_startup_module", mod);
+    if (history.replaceState) {
+      var u = new URL(window.location.href);
+      u.searchParams.delete("module");
+      history.replaceState(null, "", u.toString());
+    }
+  }
+
+  function takeStartupModule() {
+    var mod = sessionStorage.getItem("cis_startup_module");
+    if (mod) sessionStorage.removeItem("cis_startup_module");
+    return mod;
+  }
+
+  function openStartupModuleIfAny() {
+    var mod = takeStartupModule();
+    if (!mod) return false;
+    var found = CIS.modules.find(function (m) { return m.id === mod; });
+    if (!found) return false;
+    openModule(mod);
+    return true;
+  }
+
   async function boot() {
+
+    stashStartupModule();
 
     try {
 
@@ -326,7 +355,7 @@
 
     setupUpdateButton();
 
-    showDashboard();
+    if (!openStartupModuleIfAny()) showDashboard();
 
   }
   CIS._showApp = showApp;

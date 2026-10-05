@@ -38,16 +38,28 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Files]
 ; The PyInstaller one-folder output.
 Source: "..\dist\Carbo Integrated System\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+; Standalone Print Labels utility (build with BUILD-PRINT-LABELS.cmd before installer).
+Source: "..\dist\Carbo Print Labels\*"; DestDir: "{app}\Print Labels"; Flags: recursesubdirs createallsubdirs ignoreversion skipifsourcedoesntexist
 ; Optional: drop the WebView2 evergreen bootstrapper here to auto-install if missing.
 Source: "redist\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: dontcopy skipifsourcedoesntexist
 
 [Icons]
 Name: "{userprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
+Name: "{userprograms}\Carbo Print Labels"; Filename: "{app}\Print Labels\Carbo Print Labels.exe"; Check: FileExists(ExpandConstant('{app}\Print Labels\Carbo Print Labels.exe'))
+Name: "{userdesktop}\Carbo Print Labels"; Filename: "{app}\Print Labels\Carbo Print Labels.exe"; Tasks: desktopicon; Check: FileExists(ExpandConstant('{app}\Print Labels\Carbo Print Labels.exe'))
+
+[Registry]
+; Per-user carbolabels:// handler — CIS PWA Print Labels tile launches the utility only.
+Root: HKCU; Subkey: "Software\Classes\carbolabels"; ValueType: string; ValueName: ""; ValueData: "URL:Carbo Print Labels"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\carbolabels"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\carbolabels\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\Print Labels\Carbo Print Labels.exe,0"
+Root: HKCU; Subkey: "Software\Classes\carbolabels\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Print Labels\Carbo Print Labels.exe"" ""%1"""
 
 [Dirs]
 ; Maintenance Manager .exe is copied here (UPDATE MANAGER FROM WEB.cmd or IT deploy).
 Name: "{app}\Maintenance Manager"
+Name: "{app}\Print Labels"
 
 [Run]
 ; Launch after an interactive install; skipped during silent auto-update (the

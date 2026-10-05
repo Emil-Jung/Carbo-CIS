@@ -17,7 +17,7 @@
     {
       id: "print_labels",
       title: "Print Labels",
-      description: "Allocate serials and print QR labels on the Zebra.",
+      description: "Open the Print Labels desktop utility (Zebra + A4 pallet sheets).",
       requires: "traceability.labels.print",
       icon: "labels",
     },

@@ -383,4 +383,54 @@
       },
     }, [opts.backLabel || "Back"]));
   };
+
+  /** pywebview bridge when running inside the installed desktop app. */
+  CIS.pywebviewApi = function () {
+    return window.pywebview && window.pywebview.api ? window.pywebview.api : null;
+  };
+
+  CIS.isDesktopApp = function () {
+    return !!CIS.pywebviewApi();
+  };
+
+  CIS.canPrintLabelsOnDesktop = function () {
+    var api = CIS.pywebviewApi();
+    return !!(api && (api.send_zpl || api.send_zpl_usb));
+  };
+
+  CIS.isPrintLabelsUtility = function () {
+    if (window.CIS_IS_PRINT_LABELS_APP) return true;
+    return /print_labels\.html/i.test(window.location.pathname || "");
+  };
+
+  CIS.printLabelsInstallerUrl = function (cfg) {
+    cfg = cfg || {};
+    return cfg.printLabelsInstallerUrl || cfg.desktopInstallerUrl || "/cis/app/CarboPrintLabels-Setup.exe";
+  };
+
+  /** Launch the standalone Carbo Print Labels Windows utility (carbolabels:// handler). */
+  CIS.openPrintLabelsApp = function (onStatus) {
+    var protocol = "carbolabels://open";
+    var launched = false;
+    function notify(msg, isError) {
+      if (typeof onStatus === "function") onStatus(msg, isError);
+    }
+    function onBlur() {
+      launched = true;
+      window.removeEventListener("blur", onBlur);
+    }
+    window.addEventListener("blur", onBlur);
+    window.location.href = protocol;
+    setTimeout(function () {
+      window.removeEventListener("blur", onBlur);
+      if (launched) {
+        notify("Opening Carbo Print Labels…");
+        return;
+      }
+      notify(
+        "If Print Labels did not open, install the desktop utility using the button below.",
+        true
+      );
+    }, 1500);
+  };
 })();

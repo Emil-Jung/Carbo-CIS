@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
-import sys
 import tempfile
 import threading
 from functools import partial
@@ -24,6 +24,7 @@ import config
 import cis_update
 from version import CIS_VERSION
 import maintenance_host
+import print_labels_host
 import printer_usb
 
 WINDOW_TITLE = f"Carbo Integrated System  —  v{CIS_VERSION}"
@@ -80,6 +81,7 @@ def _prepare_shell_dir() -> str:
         "supplierTrackingApiBase": "https://bkweb3.bigk.co.uk/supplier-tracking/api",
         "displayTimezone": "Africa/Windhoek",
         "cisVersion": CIS_VERSION,
+        "printLabelsInstallerUrl": f"{config.CIS_DOWNLOAD_BASE_URL.rstrip('/')}/CarboPrintLabels-Setup.exe",
     }
     with open(os.path.join(dest, "config.json"), "w", encoding="utf-8") as fh:
         json.dump(runtime_config, fh, indent=2)
@@ -172,6 +174,16 @@ class Api:
             "ok": True,
             "path": maintenance_host.manager_install_dir(config.DATA_DIR),
             "exe": maintenance_host.manager_exe_path(config.DATA_DIR),
+        }
+
+    def open_print_labels(self, bearer_token=None):
+        return print_labels_host.open_print_labels(config.DATA_DIR, bearer_token)
+
+    def print_labels_install_dir(self):
+        return {
+            "ok": True,
+            "path": print_labels_host.print_labels_install_dir(config.DATA_DIR),
+            "exe": print_labels_host.print_labels_exe_path(config.DATA_DIR),
         }
 
     def list_printers(self):

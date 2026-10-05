@@ -1,31 +1,21 @@
-# PyInstaller spec — Carbo Integrated System (one-FOLDER build).
-# Uses pywebview (WebView2), so no bundled Chromium. Build: BUILD-CIS.cmd
-#
-# Produces dist\Carbo Integrated System\  (exe + DLLs). Inno Setup then wraps that
-# folder into CarboCIS-Setup.exe (see installer\cis.iss / BUILD-INSTALLER.cmd).
+# PyInstaller spec — Carbo Print Labels (standalone utility, one-folder build).
 
 import os
 
 spec_dir = os.path.dirname(os.path.abspath(SPEC))
 repo_dir = os.path.dirname(spec_dir)
 shell_dir = os.path.join(repo_dir, "shell")
-updater_script = os.path.join(spec_dir, "scripts", "update_cis.ps1")
 
 datas = []
 if os.path.isdir(shell_dir):
-    datas.append((shell_dir, "shell"))          # -> _internal/shell
-if os.path.isfile(updater_script):
-    datas.append((updater_script, "updater"))    # -> _internal/updater
+    datas.append((shell_dir, "shell"))
 
 a = Analysis(
-    [os.path.join(spec_dir, "app.py")],
+    [os.path.join(spec_dir, "print_labels_app.py")],
     pathex=[spec_dir],
     binaries=[],
     datas=datas,
     hiddenimports=[
-        "cis_update",
-        "maintenance_host",
-        "print_labels_host",
         "version",
         "config",
         "printer_usb",
@@ -37,16 +27,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[
-        "tkinter",
-        "matplotlib",
-        "numpy",
-        "pandas",
-        "scipy",
-        "PySide6",
-        "PyQt5",
-        "PyQt6",
-    ],
+    excludes=["tkinter", "matplotlib", "numpy", "pandas", "scipy", "PySide6", "PyQt5", "PyQt6"],
     noarchive=False,
     optimize=0,
 )
@@ -57,7 +38,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="Carbo Integrated System",
+    name="Carbo Print Labels",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -77,5 +58,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name="Carbo Integrated System",
+    name="Carbo Print Labels",
 )
