@@ -247,8 +247,9 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.9";
+  var BM_UI_VERSION = "1.6.10";
   var BM_API_SUFFIX = "&compact=1";
+  var BM_AUTO_REFRESH_MS = 60000;
 
   function renderStreamSummaryTag(group, ui) {
     if (!group) return null;
@@ -852,40 +853,84 @@
       }
     }
 
-    async function loadReport() {
-      status.textContent = "Loading…";
-      status.style.display = "";
-      body.innerHTML = "";
-      labelInventory = null;
-      paintLabelTag(labelSlot, null, ui);
-      drillDown = null;
-      weekCache = {};
-      expandedWeeks = {};
+    function stopAutoRefresh() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    async function refreshCachedWeeks() {
+      var keys = Object.keys(weekCache);
+      await Promise.all(keys.map(function (weekStart) {
+        var cached = weekCache[weekStart];
+        if (!cached || cached.loading || cached.error) return Promise.resolve();
+        return ctx.api.traceability(
+          "/reports/bags-movement?scope=week&week_start=" +
+            encodeURIComponent(weekStart) + BM_API_SUFFIX
+        ).then(function (data) {
+          weekCache[weekStart] = { data: data };
+        }).catch(function () {});
+      }));
+    }
+
+    async function refreshReport(opts) {
+      opts = opts || {};
       if (!ctx.api.traceability) {
-        status.style.display = "none";
-        body.appendChild(ui.error("Traceability API is not configured in CIS."));
+        if (!opts.silent) {
+          status.style.display = "none";
+          body.appendChild(ui.error("Traceability API is not configured in CIS."));
+        }
         return;
       }
+      if (opts.silent && !lastData) return;
+
+      if (opts.reset) {
+        status.textContent = "Loading…";
+        status.style.display = "";
+        body.innerHTML = "";
+        labelInventory = null;
+        paintLabelTag(labelSlot, null, ui);
+        drillDown = null;
+        weekCache = {};
+        expandedWeeks = {};
+      }
+
       try {
         lastData = await ctx.api.traceability("/reports/bags-movement?scope=all" + BM_API_SUFFIX);
         labelInventory = (lastData && lastData.label_inventory) || null;
-        paintLabelTag(labelSlot, labelInventory, ui);
-        status.textContent = "Rendering…";
-        await new Promise(function (resolve) {
-          requestAnimationFrame(function () {
-            requestAnimationFrame(resolve);
+        await refreshCachedWeeks();
+        if (!container.isConnected) return;
+        if (!opts.silent) {
+          paintLabelTag(labelSlot, labelInventory, ui);
+          status.textContent = "Rendering…";
+          await new Promise(function (resolve) {
+            requestAnimationFrame(function () {
+              requestAnimationFrame(resolve);
+            });
           });
-        });
-        status.style.display = "none";
+          status.style.display = "none";
+        }
         repaint();
       } catch (e) {
+        if (opts.silent) return;
         lastData = null;
         status.textContent = "";
         body.appendChild(ui.error("Could not load report: " + (e.message || e)));
       }
     }
 
-    await loadReport();
+    var pollTimer = null;
+    stopAutoRefresh();
+    pollTimer = setInterval(function () {
+      if (!container.isConnected) {
+        stopAutoRefresh();
+        return;
+      }
+      refreshReport({ silent: true });
+    }, BM_AUTO_REFRESH_MS);
+
+    await refreshReport({ reset: true });
   }
 
   CIS.modules.push({
