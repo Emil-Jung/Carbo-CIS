@@ -938,6 +938,20 @@ body {
   font-size: 0.75rem;
 }
 
+.bs-dash-table-row--clickable {
+  cursor: pointer;
+}
+
+.bs-dash-table-row--clickable:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bs-dash-pallet-producers,
+.bs-dash-pallet-sources {
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.25rem;
+}
+
 .bs-dash-basket-product {
   margin: 0.25rem 0 0;
   font-size: 13px;

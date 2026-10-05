@@ -19,5 +19,5 @@
   "qualityReportsApiBase": "/quality/reports/api",
   "supplierTrackingApiBase": "/supplier-tracking/api",
   "cisVersion": "1.6.45",
-  "shellRev": "20261005-factory-tiles"
+  "shellRev": "20261005-packaging-section"
 }
