@@ -9,7 +9,7 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.5.22";
+  var PL_UI_VERSION = "1.5.21";
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
 
@@ -99,76 +99,13 @@
       printerNameManual: "",
       printerHost: "",
       printerPort: 9100,
-      labelFormat: "zebra",
     };
     try {
       var raw = localStorage.getItem(LS);
       if (raw) Object.assign(s, JSON.parse(raw));
     } catch (e) {}
     s.connection = s.connection === "network" ? "network" : "usb";
-    s.labelFormat = s.labelFormat === "a4_pallet" ? "a4_pallet" : "zebra";
     return s;
-  }
-
-  function qrSvgForSerial(serial) {
-    if (typeof qrcode !== "function" || !serial) return "";
-    var qr = qrcode(0, "M");
-    qr.addData(serial);
-    qr.make();
-    return qr.createSvgTag(4, 0);
-  }
-
-  function buildA4PrintDocument(serials) {
-    var pages = (serials || []).map(function (serial) {
-      var qr = qrSvgForSerial(serial);
-      return (
-        "<section class=\"a4-pallet-page\">" +
-        "<div class=\"a4-pallet-qr\">" + qr + "</div>" +
-        "<div class=\"a4-pallet-id\">" + serial + "</div>" +
-        "</section>"
-      );
-    }).join("");
-    return (
-      "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Pallet labels</title>" +
-      "<style>" +
-      "@page { size: A4 portrait; margin: 18mm; }" +
-      "html, body { margin: 0; padding: 0; }" +
-      "body { font-family: Arial, Helvetica, sans-serif; color: #111; }" +
-      ".a4-pallet-page { box-sizing: border-box; min-height: 257mm; page-break-after: always; " +
-      "display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16mm; }" +
-      ".a4-pallet-page:last-child { page-break-after: auto; }" +
-      ".a4-pallet-qr svg { width: 110mm; height: 110mm; display: block; }" +
-      ".a4-pallet-id { font-size: 28pt; font-weight: 700; letter-spacing: 0.04em; text-align: center; }" +
-      "</style></head><body>" + pages + "</body></html>"
-    );
-  }
-
-  function openA4PrintWindow(serials) {
-    var html = buildA4PrintDocument(serials);
-    var win = window.open("", "_blank");
-    if (!win) throw new Error("Pop-up blocked — allow pop-ups to print A4 pallet labels.");
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    return new Promise(function (resolve, reject) {
-      win.onload = function () {
-        try {
-          win.print();
-          resolve();
-        } catch (e) {
-          reject(e);
-        }
-      };
-      setTimeout(function () {
-        try {
-          win.print();
-          resolve();
-        } catch (e) {
-          reject(e);
-        }
-      }, 400);
-    });
   }
 
   function saveSettings(s) {
@@ -283,7 +220,6 @@
     var pendingLabels = [];
     var pendingMode = null;
     var pendingRecovery = false;
-    var labelFormat = saved.labelFormat || "zebra";
 
     container.innerHTML = "";
     container.className = "module-content print-labels-host";
@@ -358,14 +294,6 @@
 
     var runPanel = panel(ui, "Print run");
     panelsGrid.appendChild(runPanel.root);
-    var formatEl = ui.el("select", {}, [
-      ui.el("option", { value: "zebra", selected: labelFormat !== "a4_pallet" }, [
-        "Zebra — 54 × 25 mm (production)",
-      ]),
-      ui.el("option", { value: "a4_pallet", selected: labelFormat === "a4_pallet" }, [
-        "A4 — one pallet sheet per Bag ID",
-      ]),
-    ]);
     var qtyEl = ui.el("input", {
       type: "text",
       inputmode: "numeric",
@@ -374,8 +302,6 @@
       value: "",
     });
     var noteEl = ui.el("input", { type: "text", placeholder: "Optional note", value: "" });
-    runPanel.body.appendChild(field(ui, "Label format", formatEl,
-      "A4 uses the same Bag ID sequence as Zebra — one sheet per pallet, QR = Bag ID only."));
     runPanel.body.appendChild(field(ui, "Quantity", qtyEl,
       "Required — no default. Maximum " + MAX_QUANTITY + " labels per run."));
     runPanel.body.appendChild(field(ui, "Note", noteEl));
@@ -481,13 +407,7 @@
         printerNameManual: printerManualEl.value.trim(),
         printerHost: hostEl.value.trim(),
         printerPort: parseInt(portEl.value, 10) || 9100,
-        labelFormat: formatEl.value === "a4_pallet" ? "a4_pallet" : "zebra",
       };
-    }
-
-    function syncLabelFormat() {
-      labelFormat = readSaved().labelFormat;
-      printerPanel.root.style.display = labelFormat === "a4_pallet" ? "none" : "";
     }
 
     function resolvedPrinterName(s) {
@@ -547,41 +467,7 @@
       frame.style.height = Math.ceil(labelH * scale) + "px";
     }
 
-    function paintA4Preview(serial) {
-      preview.innerHTML = "";
-      summary.innerHTML = "";
-      if (!serial) {
-        preview.appendChild(ui.el("p", { class: "muted" }, ["Enter a quantity to preview the first A4 pallet sheet."]));
-        return;
-      }
-      var card = ui.el("div", { class: "card" });
-      card.appendChild(ui.el("div", { class: "label" }, ["A4 pallet label · Bag ID"]));
-      card.appendChild(ui.el("div", { class: "value" }, [serial]));
-      summary.appendChild(card);
-
-      var frame = ui.el("div", { class: "print-labels-preview-frame" });
-      frame.style.maxWidth = "420px";
-      var sheet = ui.el("div");
-      sheet.style.cssText =
-        "border:1px solid #cbd5e1;border-radius:8px;padding:24px 16px 20px;" +
-        "display:flex;flex-direction:column;align-items:center;gap:16px;background:#fff;";
-      var qrBox = ui.el("div");
-      qrBox.style.cssText = "width:180px;height:180px;display:flex;align-items:center;justify-content:center;";
-      var qrHtml = qrSvgForSerial(serial);
-      if (qrHtml) qrBox.appendChild(ui.el("div", { html: qrHtml }));
-      sheet.appendChild(qrBox);
-      var idEl = ui.el("div", {}, [serial]);
-      idEl.style.cssText = "font-size:18px;font-weight:700;letter-spacing:0.04em;text-align:center;";
-      sheet.appendChild(idEl);
-      frame.appendChild(sheet);
-      preview.appendChild(frame);
-    }
-
     function paintPreview(serial) {
-      if (labelFormat === "a4_pallet") {
-        paintA4Preview(serial);
-        return;
-      }
       preview.innerHTML = "";
       summary.innerHTML = "";
       if (!serial) {
@@ -675,7 +561,6 @@
     }
 
     function canPhysicalPrint() {
-      if (labelFormat === "a4_pallet") return true;
       var s = readSaved();
       if (s.connection === "network") {
         return !!(bridge && bridge.send_zpl && s.printerHost);
@@ -686,31 +571,15 @@
     function showModal(title, htmlBody, printLabel, showDownload) {
       modalTitle.textContent = title;
       modalBody.innerHTML = "";
-      var isA4 = labelFormat === "a4_pallet";
       var extra = canPhysicalPrint()
-        ? (isA4 ? "<p class=\"print-labels-field-hint\">A4 prints via your browser — one sheet per Bag ID. QR content is the Bag ID only.</p>" : "")
+        ? ""
         : "<p class=\"print-labels-field-hint\">Physical printing needs desktop CIS on Windows with a configured printer. You can download ZPL instead.</p>";
       modalBody.appendChild(ui.el("div", { html: htmlBody + extra }));
-      var modalPrintLabel = printLabel;
-      if (isA4) {
-        var qtyMatch = printLabel.match(/^Print\s+(\d+)\s+labels?/i);
-        if (qtyMatch) {
-          modalPrintLabel = "Print " + qtyMatch[1] + " A4 sheet" + (qtyMatch[1] === "1" ? "" : "s");
-        } else if (/^Reprint/i.test(printLabel)) {
-          modalPrintLabel = printLabel.replace(/^Reprint/i, "Reprint A4");
-        } else {
-          modalPrintLabel = "Print A4";
-        }
-      }
-      modalPrintBtn.textContent = modalPrintLabel;
-      modalPrintBtn.disabled = !canPhysicalPrint();
-      if (isA4) {
-        modalDownloadBtn.style.display = showDownload ? "" : "none";
-        modalDownloadBtn.textContent = "Open print preview";
-      } else {
-        modalDownloadBtn.textContent = "Download ZPL";
-        modalDownloadBtn.style.display = showDownload && !canPhysicalPrint() ? "" : "none";
-      }
+      modalPrintBtn.textContent = printLabel;
+      var canPrint = canPhysicalPrint();
+      modalPrintBtn.disabled = !canPrint;
+      // Download ZPL is for web CIS / troubleshooting — hide when desktop can print directly.
+      modalDownloadBtn.style.display = showDownload && !canPrint ? "" : "none";
       modalBackdrop.classList.remove("hidden");
     }
 
@@ -840,9 +709,7 @@
 
     function confirmHtml(run, mode) {
       var qty = run.quantity;
-      var printer = labelFormat === "a4_pallet"
-        ? "Browser A4 print"
-        : (run.printer_name || printerSummary());
+      var printer = run.printer_name || printerSummary();
       if (mode === "reprint") {
         var n = qty || 1;
         var title = pendingRecovery
@@ -896,49 +763,35 @@
       var serials = pendingLabels.map(function (l) { return l.serial; });
       var spec = labelSpec();
       var isReprint = pendingMode === "reprint";
-      var isA4 = labelFormat === "a4_pallet";
       try {
-        await ctx.api.traceability("/labels/print-runs/" + runId + "/start", { method: "POST" });
-        setStatus(isA4 ? "Opening A4 print…" : "Printing…");
-        var sent = 0;
-        if (isA4) {
-          await openA4PrintWindow(serials);
-          for (var j = 0; j < serials.length; j++) {
-            if (!isReprint) {
-              await ctx.api.traceability("/labels/print-runs/" + runId + "/label-printed", {
-                method: "POST",
-                body: { serial: serials[j] },
-              });
-            }
-            sent += 1;
-            progressBar.style.width = Math.round((sent / serials.length) * 100) + "%";
-          }
+        if (isReprint) {
+          await ctx.api.traceability("/labels/print-runs/" + runId + "/start", { method: "POST" });
         } else {
-          for (var i = 0; i < serials.length; i++) {
-            var one = serials[i];
-            var res = await sendZpl(ZPL.zplOneLabel(one, spec));
-            if (!res || !res.ok) {
-              throw new Error((res && res.error) || ("Printer error on " + one));
-            }
-            if (!isReprint) {
-              await ctx.api.traceability("/labels/print-runs/" + runId + "/label-printed", {
-                method: "POST",
-                body: { serial: one },
-              });
-            }
-            sent += 1;
-            progressBar.style.width = Math.round((sent / serials.length) * 100) + "%";
+          await ctx.api.traceability("/labels/print-runs/" + runId + "/start", { method: "POST" });
+        }
+        setStatus("Printing…");
+        var sent = 0;
+        for (var i = 0; i < serials.length; i++) {
+          var one = serials[i];
+          var res = await sendZpl(ZPL.zplOneLabel(one, spec));
+          if (!res || !res.ok) {
+            throw new Error((res && res.error) || ("Printer error on " + one));
           }
+          if (!isReprint) {
+            await ctx.api.traceability("/labels/print-runs/" + runId + "/label-printed", {
+              method: "POST",
+              body: { serial: one },
+            });
+          }
+          sent += 1;
+          progressBar.style.width = Math.round((sent / serials.length) * 100) + "%";
         }
         if (isReprint) {
           await ctx.api.traceability("/labels/print-runs/reprint/" + runId + "/complete", { method: "POST" });
         } else {
           await ctx.api.traceability("/labels/print-runs/" + runId + "/complete", { method: "POST" });
         }
-        setStatus(
-          "Print run #" + runId + " completed (" + sent + (isA4 ? " A4 sheet" : " label") +
-          (sent === 1 ? "" : "s") + ")."
-        );
+        setStatus("Print run #" + runId + " completed (" + sent + " label" + (sent === 1 ? "" : "s") + ").");
         qtyEl.value = "";
         noteEl.value = "";
         await loadHistory();
@@ -974,14 +827,6 @@
     function downloadPendingZpl() {
       if (!pendingLabels.length) return;
       var serials = pendingLabels.map(function (l) { return l.serial; });
-      if (labelFormat === "a4_pallet") {
-        openA4PrintWindow(serials).then(function () {
-          setStatus("A4 print preview opened for " + serials.length + " sheet(s).");
-        }).catch(function (e) {
-          setStatus((e && e.message) || String(e), true);
-        });
-        return;
-      }
       var name = serials.length === 1
         ? serials[0] + ".zpl"
         : serials[0] + "_" + serials[serials.length - 1] + ".zpl";
@@ -1270,11 +1115,6 @@
       if (ev.target === modalBackdrop) cancelPending();
     });
 
-    formatEl.addEventListener("change", function () {
-      syncLabelFormat();
-      persistForm();
-      paintPreview(null);
-    });
     connEl.addEventListener("change", function () { syncConnectionUi(); persistForm(); });
     refreshBtn.addEventListener("click", refreshPrinters);
     prepareBtn.addEventListener("click", prepareBatch);
@@ -1310,7 +1150,6 @@
     });
 
     syncConnectionUi();
-    syncLabelFormat();
     paintPreview(null);
     setStatus("Enter a quantity and click Continue. Bag IDs come from the server — nothing prints until you confirm.");
     loadInventory();
