@@ -284,25 +284,23 @@
       "Bag identity labels are printed from the Carbo Print Labels desktop utility on Windows.",
     ]));
     [
-      "Use Traceability in CIS for reports and bag status — label printing runs in a separate desktop app connected to the Zebra.",
-      "First time on this PC: click Install, run the setup once, then return here and click Open Print Labels.",
+      "After install, open Carbo Print Labels from the Windows Start menu (or desktop shortcut) — that is the normal way to print.",
+      "Open Print Labels below tries to launch the app from the browser; Windows may ask you to confirm.",
     ].forEach(function (note) {
       container.appendChild(ui.el("p", { class: "muted launcher-note" }, [note]));
     });
 
     var actions = ui.el("div", { class: "launcher-actions" });
-    var openBtn = ui.el("button", { class: "btn-primary btn-launch", type: "button" }, ["Open Print Labels"]);
-    openBtn.addEventListener("click", function () {
-      if (CIS.openPrintLabelsApp) {
-        CIS.openPrintLabelsApp(function (msg, isError) {
-          statusEl.textContent = msg || "";
-          statusEl.className = "print-labels-launcher-status " + (isError ? "error-box" : "muted");
-        });
-      } else {
-        window.location.href = "carbolabels://open";
-      }
-    });
-    actions.appendChild(openBtn);
+    actions.appendChild(ui.el("a", {
+      class: "btn-primary btn-launch",
+      href: "carbolabels://open",
+    }, ["Open Print Labels"]));
+    actions.appendChild(ui.el("p", { class: "muted launcher-note print-labels-start-menu-hint" }, [
+      "Start menu: type ",
+      ui.el("strong", {}, ["Carbo Print Labels"]),
+      " — installed to ",
+      ui.el("code", {}, ["%LOCALAPPDATA%\\Programs\\Carbo CIS\\Print Labels"]),
+    ]));
     actions.appendChild(ui.el("a", {
       class: "btn-ghost btn-launch-secondary",
       href: installerUrl,

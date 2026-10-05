@@ -410,27 +410,12 @@
 
   /** Launch the standalone Carbo Print Labels Windows utility (carbolabels:// handler). */
   CIS.openPrintLabelsApp = function (onStatus) {
-    var protocol = "carbolabels://open";
-    var launched = false;
     function notify(msg, isError) {
       if (typeof onStatus === "function") onStatus(msg, isError);
     }
-    function onBlur() {
-      launched = true;
-      window.removeEventListener("blur", onBlur);
-    }
-    window.addEventListener("blur", onBlur);
-    window.location.href = protocol;
-    setTimeout(function () {
-      window.removeEventListener("blur", onBlur);
-      if (launched) {
-        notify("Opening Carbo Print Labels…");
-        return;
-      }
-      notify(
-        "If Print Labels did not open, install the desktop utility using the button below.",
-        true
-      );
-    }, 1500);
+    notify(
+      "If Windows asks to open Carbo Print Labels, click Open or Allow. " +
+      "If nothing happens, start Carbo Print Labels from the Windows Start menu instead."
+    );
   };
 })();
