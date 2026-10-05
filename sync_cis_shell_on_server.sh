@@ -48,6 +48,13 @@ grep -q 'gold' "$DEST/styles.css" && echo "OK: black/gold styles.css" || echo "W
 VER=$(grep -o '"cisVersion"[[:space:]]*:[[:space:]]*"[^"]*"' "$DEST/config.json" 2>/dev/null | head -1 || true)
 echo "config.json $VER"
 
+PL_VER=$(grep -o 'PL_UI_VERSION = "[^"]*"' "$DEST/modules/print_labels.js" 2>/dev/null | head -1 || true)
+echo "print_labels.js $PL_VER"
+if grep -q 'sideCol' "$DEST/modules/print_labels.js" 2>/dev/null; then
+  echo "ERROR: print_labels.js still references sideCol — aborting (broken deploy)"
+  exit 1
+fi
+
 echo ""
 echo "Verify in browser (Ctrl+F5): https://bkweb3.bigk.co.uk/cis/"
 echo "View page source — should contain: dashboard.js, logo.png, topbar-context"
