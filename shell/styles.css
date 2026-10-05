@@ -1389,6 +1389,11 @@ body {
 .bm-label-slot {
   margin: 0 0 14px;
 }
+.bm-refresh-note {
+  margin: -6px 0 12px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
 .bm-label-tag {
   display: inline-flex;
   flex-wrap: wrap;
