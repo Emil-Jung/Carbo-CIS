@@ -3,14 +3,14 @@
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
-  CIS.printLabelsUiVersion = PL_UI_VERSION;
   var ZPL = window.CIS_LABEL_ZPL;
 
   var LS = "cis_print_labels_v4";
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.6.3";
+  var PL_UI_VERSION = "1.6.4";
+  CIS.printLabelsUiVersion = PL_UI_VERSION;
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
 
@@ -192,7 +192,7 @@
     });
   }
 
-  function showA4PreviewOverlay(html) {
+  function showA4PreviewOverlay(html, serials, printerName) {
     return new Promise(function (resolve) {
       var overlay = document.createElement("div");
       overlay.className = "a4-print-preview-overlay";
@@ -235,6 +235,17 @@
       }
       closeBtn.addEventListener("click", close);
       printBtn.addEventListener("click", function () {
+        var bridge = desktopBridge();
+        if (bridge && bridge.print_a4_labels && printerName && serials && serials.length) {
+          bridge.print_a4_labels(serials, printerName).then(function (res) {
+            if (!res || !res.ok) {
+              window.alert((res && res.error) || "A4 print failed.");
+            }
+          }).catch(function (e) {
+            window.alert((e && e.message) || String(e));
+          });
+          return;
+        }
         try {
           win.focus();
           win.print();
@@ -246,13 +257,25 @@
   function openA4PrintWindow(serials, options) {
     options = options || {};
     var autoPrint = options.autoPrint !== false;
-    var html = buildA4PrintDocument(serials);
+    var printerName = (options.printerName || "").trim();
     var bridge = desktopBridge();
 
-    if (bridge && bridge.open_a4_print) {
-      return bridge.open_a4_print(html, autoPrint).then(function (res) {
+    if (autoPrint && bridge && bridge.print_a4_labels) {
+      if (!printerName) {
+        return Promise.reject(new Error("Select the A4 printer in the Printer panel."));
+      }
+      return bridge.print_a4_labels(serials, printerName).then(function (res) {
         if (!res || !res.ok) {
-          throw new Error((res && res.error) || "Could not open A4 print view.");
+          throw new Error((res && res.error) || "A4 print failed.");
+        }
+      });
+    }
+
+    var html = buildA4PrintDocument(serials);
+    if (!autoPrint && bridge && bridge.open_a4_print) {
+      return bridge.open_a4_print(html, false).then(function (res) {
+        if (!res || !res.ok) {
+          throw new Error((res && res.error) || "Could not open A4 preview.");
         }
       });
     }
@@ -260,7 +283,7 @@
     if (autoPrint) {
       return openA4PrintViaIframe(html, true);
     }
-    return showA4PreviewOverlay(html);
+    return showA4PreviewOverlay(html, serials, printerName);
   }
 
   function saveSettings(s) {
@@ -497,7 +520,7 @@
     printerPanel.body.appendChild(field(ui, "Small labels (Zebra)", zebraRow,
       "54 × 25 mm bag ID labels on the Zebra."));
     printerPanel.body.appendChild(field(ui, "A4 pallet sheets", a4Row,
-      "Large QR pallet labels — also choose this printer in the Windows print dialog when you confirm."));
+      "Large QR pallet labels — prints single-sided to this printer (not the Windows default)."));
     printerPanel.body.appendChild(refreshRow);
 
     var labelsPanel = panel(ui, "Print labels");
@@ -832,7 +855,9 @@
 
     function canPhysicalPrint() {
       if (!bridge) return false;
-      if (labelFormat === "a4_pallet") return true;
+      if (labelFormat === "a4_pallet") {
+        return !!(bridge.print_a4_labels && resolvedA4Printer());
+      }
       return !!(bridge.send_zpl_usb && resolvedZebraPrinter());
     }
 
@@ -842,9 +867,9 @@
       var isA4 = labelFormat === "a4_pallet";
       var extra = canPhysicalPrint()
         ? (isA4
-          ? "<p class=\"print-labels-field-hint\">A4 prints via Windows — pick <strong>" +
+          ? "<p class=\"print-labels-field-hint\">Prints to <strong>" +
             (resolvedA4Printer() || "your A4 printer") +
-            "</strong> in the print dialog if prompted. One sheet per Bag ID.</p>"
+            "</strong>, one single-sided sheet per Bag ID.</p>"
           : "")
         : "<p class=\"print-labels-field-hint\">Physical printing needs desktop CIS on Windows with a configured printer. You can download ZPL instead.</p>";
       modalBody.appendChild(ui.el("div", { html: htmlBody + extra }));
@@ -1072,7 +1097,7 @@
         setStatus(isA4 ? "Opening A4 print…" : "Printing…");
         var sent = 0;
         if (isA4) {
-          await openA4PrintWindow(serials);
+          await openA4PrintWindow(serials, { printerName: resolvedA4Printer() });
           for (var j = 0; j < serials.length; j++) {
             if (!isReprint) {
               await ctx.api.traceability("/labels/print-runs/" + runId + "/label-printed", {
@@ -1142,7 +1167,10 @@
       if (!pendingLabels.length) return;
       var serials = pendingLabels.map(function (l) { return l.serial; });
       if (labelFormat === "a4_pallet") {
-        openA4PrintWindow(serials, { autoPrint: false }).then(function () {
+        openA4PrintWindow(serials, {
+          autoPrint: false,
+          printerName: resolvedA4Printer(),
+        }).then(function () {
           setStatus("A4 print preview opened for " + serials.length + " sheet(s).");
         }).catch(function (e) {
           setStatus((e && e.message) || String(e), true);

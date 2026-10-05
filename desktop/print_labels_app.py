@@ -22,6 +22,7 @@ import webview
 
 import config
 from version import CIS_VERSION
+import a4_label_pdf
 import a4_print_host
 import printer_usb
 
@@ -96,11 +97,7 @@ class PrintLabelsApi:
         return {"name": "Carbo Print Labels", "version": CIS_VERSION}
 
     def set_window_title(self, title=""):
-        title = (title or "").strip()
-        if not title:
-            return {"ok": False, "error": "Empty title."}
-        if len(title) > 200:
-            title = title[:200]
+        title = "Carbo Print Labels"
         try:
             if webview.windows:
                 webview.windows[0].title = title
@@ -108,14 +105,17 @@ class PrintLabelsApi:
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
+    def print_a4_labels(self, serials=None, printer_name=""):
+        return a4_label_pdf.print_serials_to_printer(serials or [], printer_name or "")
+
     def list_printers(self):
         return printer_usb.list_printers()
 
     def send_zpl_usb(self, printer_name, zpl=""):
         return printer_usb.send_zpl(printer_name, zpl)
 
-    def open_a4_print(self, html="", auto_print=True):
-        return a4_print_host.open_a4_print(html, auto_print=bool(auto_print))
+    def open_a4_print(self, html="", auto_print=False):
+        return a4_print_host.open_a4_preview(html)
 
     def send_zpl(self, host, port=9100, zpl=""):
         host = (host or "").strip()

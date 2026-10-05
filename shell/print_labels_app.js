@@ -131,13 +131,10 @@
   var CIS_VERSION_FALLBACK = "?";
 
   function syncWindowTitle() {
-    var shell = (state.config && state.config.cisVersion) || CIS_VERSION_FALLBACK;
-    var labels = CIS.printLabelsUiVersion || shell;
-    var title = "Carbo Print Labels  —  v" + shell + " · labels " + labels;
-    document.title = title;
+    document.title = "Carbo Print Labels";
     var api = window.pywebview && window.pywebview.api;
     if (api && api.set_window_title) {
-      Promise.resolve(api.set_window_title(title)).catch(function () {});
+      Promise.resolve(api.set_window_title("Carbo Print Labels")).catch(function () {});
     }
   }
 

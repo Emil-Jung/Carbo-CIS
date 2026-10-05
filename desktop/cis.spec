@@ -25,7 +25,11 @@ a = Analysis(
     hiddenimports=[
         "cis_update",
         "maintenance_host",
+        "a4_label_pdf",
         "a4_print_host",
+        "qrcode",
+        "PIL",
+        "PIL.ImageWin",
         "print_labels_host",
         "version",
         "config",

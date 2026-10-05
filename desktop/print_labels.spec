@@ -18,8 +18,12 @@ a = Analysis(
     hiddenimports=[
         "version",
         "config",
+        "a4_label_pdf",
         "a4_print_host",
         "printer_usb",
+        "qrcode",
+        "PIL",
+        "PIL.ImageWin",
         "win32print",
         "pywintypes",
         "webview",
