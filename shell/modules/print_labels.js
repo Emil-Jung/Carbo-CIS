@@ -9,7 +9,7 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.5.19";
+  var PL_UI_VERSION = "1.5.20";
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
 
