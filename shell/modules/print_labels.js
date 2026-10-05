@@ -9,7 +9,7 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.5.20";
+  var PL_UI_VERSION = "1.5.21";
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
 
@@ -374,11 +374,14 @@
     var oldModal = document.querySelector(".print-labels-modal-backdrop");
     if (oldModal) oldModal.remove();
 
-    container.appendChild(ui.el("button", {
-      class: "btn-ghost btn-sm hub-back",
-      type: "button",
-      onclick: function () { if (CIS.openModule) CIS.openModule("traceability"); },
-    }, ["Back to Traceability"]));
+    if (ctx.setFloatingBack) {
+      ctx.setFloatingBack({
+        label: "← Traceability",
+        onClick: function () {
+          if (CIS.openModule) CIS.openModule("traceability");
+        },
+      });
+    }
 
     var modalBackdrop = ui.el("div", { class: "print-labels-modal-backdrop hidden" });
     var modal = ui.el("div", { class: "print-labels-modal" });
