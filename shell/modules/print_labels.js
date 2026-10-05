@@ -285,7 +285,7 @@
     ]));
     [
       "Use Traceability in CIS for reports and bag status — label printing runs in a separate desktop app connected to the Zebra.",
-      "Install once on each label PC, then open Print Labels from this tile or the desktop shortcut.",
+      "First time on this PC: click Install, run the setup once, then return here and click Open Print Labels.",
     ].forEach(function (note) {
       container.appendChild(ui.el("p", { class: "muted launcher-note" }, [note]));
     });

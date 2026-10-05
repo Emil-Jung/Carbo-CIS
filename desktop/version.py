@@ -10,6 +10,6 @@ See VERSIONING.md for the rules and examples.
 
 CIS_MAJOR = 1      # X — CIS version
 CIS_MODULE = 6     # Y — Bags Movement report + remote shell sync
-CIS_INTERNAL = 0   # Z — permission fixes for web + desktop
+CIS_INTERNAL = 1   # Z — Print Labels utility bundled in installer
 
 CIS_VERSION = f"{CIS_MAJOR}.{CIS_MODULE}.{CIS_INTERNAL}"
