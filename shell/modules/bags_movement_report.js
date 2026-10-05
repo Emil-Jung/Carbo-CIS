@@ -247,7 +247,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.10";
+  var BM_UI_VERSION = "1.6.11";
   var BM_API_SUFFIX = "&compact=1";
   var BM_AUTO_REFRESH_MS = 60000;
 
@@ -760,6 +760,9 @@
     var labelSlot = ui.el("div", { class: "bm-label-slot" });
     container.appendChild(labelSlot);
 
+    var refreshNote = ui.el("p", { class: "bm-refresh-note muted", hidden: true }, [""]);
+    container.appendChild(refreshNote);
+
     var status = ui.el("p", { class: "muted" }, ["Loading…"]);
     container.appendChild(status);
     var body = ui.el("div", { class: "report-body bm-report-body" });
@@ -853,11 +856,46 @@
       }
     }
 
-    function stopAutoRefresh() {
+    var pollTimer = null;
+    var countdownTimer = null;
+    var countdownSec = Math.round(BM_AUTO_REFRESH_MS / 1000);
+
+    function updateCountdownText() {
+      if (!refreshNote || !container.isConnected) return;
+      refreshNote.hidden = false;
+      refreshNote.textContent = "Next update in " + countdownSec + " seconds";
+    }
+
+    function resetCountdown() {
+      countdownSec = Math.round(BM_AUTO_REFRESH_MS / 1000);
+      updateCountdownText();
+    }
+
+    function stopTimers() {
       if (pollTimer) {
         clearInterval(pollTimer);
         pollTimer = null;
       }
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+    }
+
+    function startCountdown() {
+      if (countdownTimer) return;
+      resetCountdown();
+      countdownTimer = setInterval(function () {
+        if (!container.isConnected) {
+          stopTimers();
+          return;
+        }
+        countdownSec -= 1;
+        if (countdownSec < 0) {
+          countdownSec = Math.round(BM_AUTO_REFRESH_MS / 1000);
+        }
+        updateCountdownText();
+      }, 1000);
     }
 
     async function refreshCachedWeeks() {
@@ -912,19 +950,21 @@
           status.style.display = "none";
         }
         repaint();
+        resetCountdown();
+        startCountdown();
       } catch (e) {
         if (opts.silent) return;
         lastData = null;
         status.textContent = "";
+        refreshNote.hidden = true;
         body.appendChild(ui.error("Could not load report: " + (e.message || e)));
       }
     }
 
-    var pollTimer = null;
-    stopAutoRefresh();
+    stopTimers();
     pollTimer = setInterval(function () {
       if (!container.isConnected) {
-        stopAutoRefresh();
+        stopTimers();
         return;
       }
       refreshReport({ silent: true });
