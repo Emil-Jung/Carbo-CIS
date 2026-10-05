@@ -915,6 +915,29 @@ body {
   border-top: 1px solid #E2E8F0;
 }
 
+.bs-dash-status-card--basket {
+  --card-accent: #F59E0B;
+}
+
+.bs-dash-status-card--pallet {
+  --card-accent: #6366F1;
+}
+
+.bs-dash-basket-product-block {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.bs-dash-basket-product-block h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.bs-dash-basket-dl--compact dt {
+  font-size: 0.75rem;
+}
+
 .bs-dash-basket-product {
   margin: 0.25rem 0 0;
   font-size: 13px;

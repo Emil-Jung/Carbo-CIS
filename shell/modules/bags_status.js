@@ -1114,17 +1114,56 @@
 
       if (st.key === selectedStatus) cls += " bs-dash-status-card--active";
 
+      if (st.kind === "pallet_basket") cls += " bs-dash-status-card--basket";
+
+      if (st.kind === "factory_pallets") cls += " bs-dash-status-card--pallet";
+
       var card = ui.el("button", { class: cls, type: "button", onclick: function () { onSelect(st); } });
 
       card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [st.label]));
 
-      card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags)]));
+      if (st.kind === "pallet_basket") {
 
-      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(st.kg) + " kg"]));
+        var equiv = st.pallet_equivalent != null ? Number(st.pallet_equivalent).toFixed(2) : "0.00";
 
-      var split = streamSplitText(st.streams);
+        card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [equiv]));
 
-      if (split) card.appendChild(ui.el("span", { class: "bs-dash-status-card__streams" }, [split]));
+        card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [
+          fmtKg(st.kg) + " kg · material for palletisation",
+        ]));
+
+        if ((st.by_product || []).length === 1) {
+
+          var only = st.by_product[0];
+
+          card.appendChild(ui.el("span", { class: "bs-dash-status-card__streams" }, [
+            only.product_code
+              + (only.production_target_kg != null
+                ? " · " + Number(only.production_target_kg).toFixed(0) + " kg/pallet"
+                : ""),
+          ]));
+
+        }
+
+      } else if (st.kind === "factory_pallets") {
+
+        card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags || 0)]));
+
+        card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [
+          fmtKg(st.kg) + " kg · physical pallets at packaging",
+        ]));
+
+      } else {
+
+        card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags)]));
+
+        card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(st.kg) + " kg"]));
+
+        var split = streamSplitText(st.streams);
+
+        if (split) card.appendChild(ui.el("span", { class: "bs-dash-status-card__streams" }, [split]));
+
+      }
 
       cards.appendChild(card);
 
@@ -1133,6 +1172,139 @@
     block.appendChild(cards);
 
     return block;
+
+  }
+
+
+
+  function renderPalletBasketDrill(basket, ui) {
+
+    var b = basket || {};
+
+    var wrap = ui.el("div", { class: "bs-dash-basket-drill" });
+
+    wrap.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+      "Material already converted at packaging — waiting for a pallet label scan at wrapping. "
+        + "Not physical pallets yet.",
+    ]));
+
+    var dl = ui.el("dl", { class: "bs-dash-basket-dl" });
+
+    [
+
+      ["Available for palletisation", fmtKg(b.available_kg) + " kg"],
+
+      ["Pallet equivalent", b.pallet_equivalent != null ? Number(b.pallet_equivalent).toFixed(2) : "—"],
+
+      ["Source bags consumed", String(b.source_bags != null ? b.source_bags : 0)],
+
+    ].forEach(function (pair) {
+
+      dl.appendChild(ui.el("dt", {}, [pair[0]]));
+
+      dl.appendChild(ui.el("dd", {}, [pair[1]]));
+
+    });
+
+    wrap.appendChild(dl);
+
+    (b.by_product || []).forEach(function (row) {
+
+      var block = ui.el("div", { class: "bs-dash-basket-product-block" });
+
+      block.appendChild(ui.el("h4", {}, [row.product_code + (row.name ? " — " + row.name : "")]));
+
+      var cfg = ui.el("dl", { class: "bs-dash-basket-dl bs-dash-basket-dl--compact" });
+
+      [
+
+        ["Available", fmtKg(row.available_kg) + " kg"],
+
+        ["Pallet equivalent", row.pallet_equivalent != null ? Number(row.pallet_equivalent).toFixed(2) : "—"],
+
+        ["Production target / pallet", row.production_target_kg != null ? fmtKg(row.production_target_kg) + " kg" : "—"],
+
+        ["Commercial pallet", row.commercial_pallet_weight_kg != null ? fmtKg(row.commercial_pallet_weight_kg) + " kg" : "—"],
+
+        ["Retail units / pallet", row.bags_per_pallet != null ? String(row.bags_per_pallet) : "—"],
+
+        ["Source bags", String(row.source_bag_count || 0)],
+
+      ].forEach(function (pair) {
+
+        cfg.appendChild(ui.el("dt", {}, [pair[0]]));
+
+        cfg.appendChild(ui.el("dd", {}, [pair[1]]));
+
+      });
+
+      block.appendChild(cfg);
+
+      wrap.appendChild(block);
+
+    });
+
+    if (!(b.by_product || []).length) {
+
+      wrap.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, ["No material in the pallet basket."]));
+
+    }
+
+    return wrap;
+
+  }
+
+
+
+  function renderFactoryPalletsDrill(detail, ui, onOpenProduct) {
+
+    var wrap = ui.el("div", { class: "bs-dash-basket-drill" });
+
+    wrap.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+      "Physical pallets created when an A4 pallet label was scanned at wrapping.",
+    ]));
+
+    var grid = ui.el("div", { class: "bs-dash-status-grid" });
+
+    (detail.by_product || []).forEach(function (bucket) {
+
+      if (!(bucket.bags || 0)) return;
+
+      var card = ui.el("button", {
+
+        class: "bs-dash-status-card bs-dash-status-card--pallet",
+
+        type: "button",
+
+        onclick: function () { onOpenProduct(bucket); },
+
+      });
+
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [
+        bucket.product_code + (bucket.name ? " — " + bucket.name : ""),
+      ]));
+
+      card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(bucket.bags)]));
+
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(bucket.kg) + " kg"]));
+
+      grid.appendChild(card);
+
+    });
+
+    if (!grid.childNodes.length) {
+
+      wrap.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, [
+        "No physical pallets at packaging yet — scan an A4 pallet label at wrapping to create one.",
+      ]));
+
+    } else {
+
+      wrap.appendChild(grid);
+
+    }
+
+    return wrap;
 
   }
 
@@ -1685,6 +1857,88 @@
 
         }));
 
+        if (selected.key === "packed_into_pallet") {
+
+          body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+            "These are source jumbos consumed at packaging — end of life. "
+              + "They are not physical pallets. See Pallet basket for material awaiting palletisation.",
+          ]));
+
+        }
+
+
+
+        if (selected.mode === "pallet_basket") {
+
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label]));
+
+          body.appendChild(renderPalletBasketDrill(selected.detail || summary.pallet_basket, ui));
+
+          syncFloatingNav();
+          return;
+
+        }
+
+
+
+        if (selected.mode === "factory_pallets" && !selectedEvent) {
+
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label]));
+
+          body.appendChild(renderFactoryPalletsDrill(selected.detail, ui, function (bucket) {
+
+            selectedEvent = {
+
+              key: bucket.product_code,
+
+              date: null,
+
+              client_name: bucket.client_name || bucket.product_code,
+
+              bags: bucket.bags,
+
+              kg: bucket.kg,
+
+              rows: bucket.rows || [],
+
+            };
+
+            paint();
+
+          }));
+
+          syncFloatingNav();
+          return;
+
+        }
+
+
+
+        if (selected.mode === "factory_pallets" && selectedEvent) {
+
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
+
+            selected.label + " — " + (selectedEvent.client_name || selectedEvent.key)
+
+              + " — " + selectedEvent.bags + (selectedEvent.bags === 1 ? " pallet" : " pallets"),
+
+          ]));
+
+          if (!(selectedEvent.rows || []).length) {
+
+            body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No pallets in this product group."]));
+
+          } else {
+
+            body.appendChild(renderDrillTable(selectedEvent.rows, ui));
+
+          }
+
+          syncFloatingNav();
+          return;
+
+        }
+
 
 
         if (selected.mode === "weathering_buckets" && !selectedEvent) {
@@ -1792,16 +2046,6 @@
 
       body.appendChild(renderSummaryCards(summary, ui));
 
-      var basketPanel = renderPalletBasketPanel(summary.pallet_basket, ui);
-
-      if (basketPanel) body.appendChild(basketPanel);
-
-      var palletPanel = renderPalletPanel(summary.pallet_summary, summary.pallet_basket, ui, openPalletBucket);
-
-      if (palletPanel) body.appendChild(palletPanel);
-
-
-
       if (weathering) {
 
         var grid = ui.el("div", { class: "bs-dash-grid" });
@@ -1880,6 +2124,54 @@
 
 
     async function openStatus(st) {
+
+      if (st.kind === "pallet_basket") {
+
+        selectedEvent = null;
+
+        wxDrill = null;
+
+        selected = {
+
+          key: st.key,
+
+          label: st.label,
+
+          mode: "pallet_basket",
+
+          detail: summary.pallet_basket || { by_product: st.by_product, available_kg: st.kg, pallet_equivalent: st.pallet_equivalent },
+
+        };
+
+        paint();
+
+        return;
+
+      }
+
+      if (st.kind === "factory_pallets") {
+
+        selectedEvent = null;
+
+        wxDrill = null;
+
+        selected = {
+
+          key: st.key,
+
+          label: st.label,
+
+          mode: "factory_pallets",
+
+          detail: summary.factory_pallets || { by_product: st.by_product, bags: st.bags, kg: st.kg },
+
+        };
+
+        paint();
+
+        return;
+
+      }
 
       if (WX_BUCKET_STATUS[st.key] && weathering) {
 
