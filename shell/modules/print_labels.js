@@ -274,9 +274,23 @@
     printerPanel.body.appendChild(networkWrap);
 
     var labelsPanel = panel(ui, "Print labels");
+    labelsPanel.root.classList.add("print-labels-panel--labels-preview");
     panelsGrid.appendChild(labelsPanel.root);
     var sequenceEl = ui.el("div", { class: "print-labels-sequence muted" }, ["Loading sequence…"]);
     labelsPanel.body.appendChild(sequenceEl);
+    var previewBlock = ui.el("div", { class: "print-labels-preview-block" });
+    var preview = ui.el("div", { class: "print-labels-preview-stock" });
+    previewBlock.appendChild(preview);
+    var summary = ui.el("div", { class: "cards print-labels-summary" });
+    previewBlock.appendChild(summary);
+    var progressWrap = ui.el("div", { class: "bag-labels-progress" });
+    progressWrap.appendChild(ui.el("div", { class: "bag-labels-progress-bar" }));
+    previewBlock.appendChild(progressWrap);
+    var progressBar = progressWrap.firstChild;
+    progressWrap.style.display = "none";
+    var status = ui.el("p", { class: "print-labels-status muted" }, [""]);
+    previewBlock.appendChild(status);
+    labelsPanel.body.appendChild(previewBlock);
 
     var runPanel = panel(ui, "Print run");
     panelsGrid.appendChild(runPanel.root);
@@ -356,21 +370,6 @@
     historyPanel.body.appendChild(historyList);
     var refreshHistoryBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh history"]);
     historyPanel.body.appendChild(refreshHistoryBtn);
-
-    var previewPanel = panel(ui, "Preview");
-    previewPanel.root.classList.add("print-labels-panel--preview");
-    sideCol.appendChild(previewPanel.root);
-    var preview = ui.el("div", { class: "print-labels-preview-stock" });
-    previewPanel.body.appendChild(preview);
-    var summary = ui.el("div", { class: "cards print-labels-summary" });
-    previewPanel.body.appendChild(summary);
-    var progressWrap = ui.el("div", { class: "bag-labels-progress" });
-    progressWrap.appendChild(ui.el("div", { class: "bag-labels-progress-bar" }));
-    previewPanel.body.appendChild(progressWrap);
-    var progressBar = progressWrap.firstChild;
-    progressWrap.style.display = "none";
-    var status = ui.el("p", { class: "print-labels-status muted" }, [""]);
-    previewPanel.body.appendChild(status);
 
     var oldModal = document.querySelector(".print-labels-modal-backdrop");
     if (oldModal) oldModal.remove();
