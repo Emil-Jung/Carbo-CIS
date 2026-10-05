@@ -2043,18 +2043,31 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .hub-back { margin-top: 8px; }
 
-.print-labels-host { max-width: 960px; }
+.print-labels-host { max-width: 1100px; }
 .print-labels-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 248px;
   gap: 16px;
   align-items: start;
 }
-.print-labels-main { min-width: 0; }
+.print-labels-workspace { min-width: 0; }
+.print-labels-panels-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.print-labels-panels-grid .print-labels-panel {
+  margin-bottom: 0;
+  height: 100%;
+}
 .print-labels-side {
   width: 248px;
   min-width: 248px;
   max-width: 248px;
+}
+@media (max-width: 900px) {
+  .print-labels-panels-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 820px) {
   .print-labels-layout { grid-template-columns: 1fr; }
@@ -2063,6 +2076,7 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
     min-width: 0;
     max-width: 100%;
   }
+  .print-labels-panel--preview { position: static; }
 }
 .print-labels-panel--preview {
   padding: 12px 14px;
@@ -2300,6 +2314,53 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+.print-labels-history-weeks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.print-labels-history-week {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+.print-labels-history-week__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.print-labels-history-week__summary::-webkit-details-marker { display: none; }
+.print-labels-history-week__summary::before {
+  content: "▸";
+  flex-shrink: 0;
+  width: 1em;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+.print-labels-history-week[open] .print-labels-history-week__summary::before {
+  transform: rotate(90deg);
+}
+.print-labels-history-week__label { min-width: 0; }
+.print-labels-history-week__meta {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.print-labels-history-week .print-labels-history-wrap {
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--border);
 }
 .print-labels-history-wrap {
   overflow-x: auto;

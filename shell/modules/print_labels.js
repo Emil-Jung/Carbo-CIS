@@ -9,6 +9,88 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
+  var PL_UI_VERSION = "1.5.17";
+  var DISPLAY_TZ = "Africa/Windhoek";
+  var HISTORY_LIMIT = 300;
+
+  var MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  function localDateParts(iso) {
+    if (!iso) return null;
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return null;
+      var parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: DISPLAY_TZ,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(d);
+      var y = "";
+      var m = "";
+      var day = "";
+      parts.forEach(function (p) {
+        if (p.type === "year") y = p.value;
+        if (p.type === "month") m = p.value;
+        if (p.type === "day") day = p.value;
+      });
+      return {
+        y: parseInt(y, 10),
+        m: parseInt(m, 10),
+        d: parseInt(day, 10),
+        iso: y + "-" + m + "-" + day,
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function mondayIso(y, m, d) {
+    var dt = new Date(Date.UTC(y, m - 1, d));
+    var dow = dt.getUTCDay();
+    var shift = dow === 0 ? -6 : 1 - dow;
+    dt.setUTCDate(dt.getUTCDate() + shift);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  function weekKeyFromRun(run) {
+    var parts = localDateParts(run.created_at);
+    if (!parts) return "unknown";
+    return mondayIso(parts.y, parts.m, parts.d);
+  }
+
+  function fmtWeekLabel(weekStartIso) {
+    if (!weekStartIso || weekStartIso === "unknown") return "Unknown week";
+    var p = weekStartIso.split("-");
+    if (p.length !== 3) return weekStartIso;
+    var y = parseInt(p[0], 10);
+    var m = parseInt(p[1], 10);
+    var d = parseInt(p[2], 10);
+    var end = new Date(Date.UTC(y, m - 1, d + 6));
+    return (
+      "Week " + d + " " + MONTH_SHORT[m - 1] + " – " +
+      end.getUTCDate() + " " + MONTH_SHORT[end.getUTCMonth()] + " " + end.getUTCFullYear()
+    );
+  }
+
+  function groupRunsByWeek(runs) {
+    var map = {};
+    (runs || []).forEach(function (run) {
+      var key = weekKeyFromRun(run);
+      if (!map[key]) map[key] = { weekStart: key, runs: [] };
+      map[key].runs.push(run);
+    });
+    return Object.keys(map).sort().reverse().map(function (key) {
+      var group = map[key];
+      var qty = group.runs.reduce(function (sum, run) {
+        return sum + (parseInt(run.quantity, 10) || 0);
+      }, 0);
+      group.count = group.runs.length;
+      group.quantity = qty;
+      group.label = fmtWeekLabel(group.weekStart);
+      return group;
+    });
+  }
 
   function loadSettings() {
     var s = {
@@ -144,18 +226,20 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Print Labels"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Production bag identity labels · ZT231 · 54 × 25 mm · 203 dpi · Bag IDs allocated by the server.",
+      "Production bag identity labels · ZT231 · 54 × 25 mm · 203 dpi · Bag IDs allocated by the server. UI " +
+        PL_UI_VERSION + ".",
     ]));
 
     var layout = ui.el("div", { class: "print-labels-layout" });
-    var mainCol = ui.el("div", { class: "print-labels-main" });
+    var workspace = ui.el("div", { class: "print-labels-workspace" });
+    var panelsGrid = ui.el("div", { class: "print-labels-panels-grid" });
     var sideCol = ui.el("div", { class: "print-labels-side" });
-    layout.appendChild(mainCol);
+    layout.appendChild(workspace);
     layout.appendChild(sideCol);
     container.appendChild(layout);
 
     var printerPanel = panel(ui, "Printer");
-    mainCol.appendChild(printerPanel.root);
+    panelsGrid.appendChild(printerPanel.root);
     if (!isDesktop) {
       printerPanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
         "Browser CIS — you can prepare a run and download ZPL. Physical printing requires desktop CIS on Windows.",
@@ -193,10 +277,13 @@
     printerPanel.body.appendChild(manualField);
     printerPanel.body.appendChild(networkWrap);
 
-    var runPanel = panel(ui, "Print run");
-    mainCol.appendChild(runPanel.root);
+    var labelsPanel = panel(ui, "Print labels");
+    panelsGrid.appendChild(labelsPanel.root);
     var sequenceEl = ui.el("div", { class: "print-labels-sequence muted" }, ["Loading sequence…"]);
-    runPanel.body.appendChild(sequenceEl);
+    labelsPanel.body.appendChild(sequenceEl);
+
+    var runPanel = panel(ui, "Print run");
+    panelsGrid.appendChild(runPanel.root);
     var qtyEl = ui.el("input", {
       type: "text",
       inputmode: "numeric",
@@ -214,7 +301,8 @@
     runPanel.body.appendChild(runStatus);
 
     var reprintPanel = panel(ui, "Reprint labels");
-    mainCol.appendChild(reprintPanel.root);
+    panelsGrid.appendChild(reprintPanel.root);
+    workspace.appendChild(panelsGrid);
     var reprintRunEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["Loading print runs…"])]);
     var reprintManualEl = ui.el("input", {
       type: "text",
@@ -262,16 +350,14 @@
     var reprintSelected = {};
 
     var inventoryPanel = panel(ui, "Label inventory (server)");
-    mainCol.appendChild(inventoryPanel.root);
+    workspace.appendChild(inventoryPanel.root);
     var inventoryEl = ui.el("div", { class: "print-labels-inventory muted" }, ["Loading…"]);
     inventoryPanel.body.appendChild(inventoryEl);
 
     var historyPanel = panel(ui, "Print run history");
-    mainCol.appendChild(historyPanel.root);
-    var historyWrap = ui.el("div", { class: "print-labels-history-wrap" });
-    var historyTable = ui.el("table", { class: "print-labels-history" });
-    historyWrap.appendChild(historyTable);
-    historyPanel.body.appendChild(historyWrap);
+    workspace.appendChild(historyPanel.root);
+    var historyList = ui.el("div", { class: "print-labels-history-weeks" });
+    historyPanel.body.appendChild(historyList);
     var refreshHistoryBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh history"]);
     historyPanel.body.appendChild(refreshHistoryBtn);
 
@@ -565,40 +651,60 @@
       }
     }
 
+    function renderHistoryTable(runs) {
+      var table = ui.el("table", { class: "print-labels-history" });
+      var thead = ui.el("thead");
+      var hr = ui.el("tr");
+      ["Run", "When", "User", "Qty", "First ID", "Last ID", "Printer", "Status"].forEach(function (h) {
+        hr.appendChild(ui.el("th", {}, [h]));
+      });
+      thead.appendChild(hr);
+      table.appendChild(thead);
+      var tbody = ui.el("tbody");
+      (runs || []).forEach(function (run) {
+        var tr = ui.el("tr");
+        tr.appendChild(ui.el("td", {}, ["#" + run.print_run_id + (run.run_type === "reprint" ? " R" : "")]));
+        tr.appendChild(ui.el("td", {}, [run.created_at ? run.created_at.replace("T", " ").replace("Z", "") : ""]));
+        tr.appendChild(ui.el("td", {}, [run.operator_login || ""]));
+        tr.appendChild(ui.el("td", {}, [String(run.quantity)]));
+        tr.appendChild(ui.el("td", {}, [run.first_serial || ""]));
+        tr.appendChild(ui.el("td", {}, [run.last_serial || ""]));
+        tr.appendChild(ui.el("td", {}, [run.printer_name || ""]));
+        tr.appendChild(ui.el("td", {}, [run.status || ""]));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      var wrap = ui.el("div", { class: "print-labels-history-wrap" });
+      wrap.appendChild(table);
+      return wrap;
+    }
+
     async function loadHistory() {
       if (!ctx.api.traceability) return;
       try {
-        var data = await ctx.api.traceability("/labels/print-runs?limit=50");
+        var data = await ctx.api.traceability("/labels/print-runs?limit=" + HISTORY_LIMIT);
         var runs = (data && data.print_runs) || [];
-        historyTable.innerHTML = "";
-        var thead = ui.el("thead");
-        var hr = ui.el("tr");
-        ["Run", "When", "User", "Qty", "First ID", "Last ID", "Printer", "Status"].forEach(function (h) {
-          hr.appendChild(ui.el("th", {}, [h]));
-        });
-        thead.appendChild(hr);
-        historyTable.appendChild(thead);
-        var tbody = ui.el("tbody");
+        historyList.innerHTML = "";
         if (!runs.length) {
-          var empty = ui.el("tr");
-          empty.appendChild(ui.el("td", { colspan: "8", class: "muted" }, ["No print runs yet."]));
-          tbody.appendChild(empty);
-        } else {
-          runs.forEach(function (run) {
-            var tr = ui.el("tr");
-            tr.appendChild(ui.el("td", {}, ["#" + run.print_run_id + (run.run_type === "reprint" ? " R" : "")]));
-            tr.appendChild(ui.el("td", {}, [run.created_at ? run.created_at.replace("T", " ").replace("Z", "") : ""]));
-            tr.appendChild(ui.el("td", {}, [run.operator_login || ""]));
-            tr.appendChild(ui.el("td", {}, [String(run.quantity)]));
-            tr.appendChild(ui.el("td", {}, [run.first_serial || ""]));
-            tr.appendChild(ui.el("td", {}, [run.last_serial || ""]));
-            tr.appendChild(ui.el("td", {}, [run.printer_name || ""]));
-            tr.appendChild(ui.el("td", {}, [run.status || ""]));
-            tbody.appendChild(tr);
-          });
+          historyList.appendChild(ui.el("p", { class: "muted" }, ["No print runs yet."]));
+          return;
         }
-        historyTable.appendChild(tbody);
+        groupRunsByWeek(runs).forEach(function (group) {
+          var details = ui.el("details", { class: "print-labels-history-week" });
+          var summary = ui.el("summary", { class: "print-labels-history-week__summary" });
+          summary.appendChild(ui.el("span", { class: "print-labels-history-week__label" }, [group.label]));
+          summary.appendChild(ui.el("span", { class: "print-labels-history-week__meta" }, [
+            group.count + (group.count === 1 ? " run" : " runs") + " · " + group.quantity + " labels",
+          ]));
+          details.appendChild(summary);
+          details.appendChild(renderHistoryTable(group.runs));
+          historyList.appendChild(details);
+        });
       } catch (e) {
+        historyList.innerHTML = "";
+        historyList.appendChild(ui.el("p", { class: "error-box" }, [
+          "Could not load history: " + (e.message || e),
+        ]));
         setStatus("Could not load history: " + (e.message || e), true);
       }
     }
