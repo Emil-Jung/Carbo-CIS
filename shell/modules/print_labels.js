@@ -9,7 +9,7 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.5.17";
+  var PL_UI_VERSION = "1.5.18";
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
 
@@ -230,13 +230,9 @@
         PL_UI_VERSION + ".",
     ]));
 
-    var layout = ui.el("div", { class: "print-labels-layout" });
     var workspace = ui.el("div", { class: "print-labels-workspace" });
     var panelsGrid = ui.el("div", { class: "print-labels-panels-grid" });
-    var sideCol = ui.el("div", { class: "print-labels-side" });
-    layout.appendChild(workspace);
-    layout.appendChild(sideCol);
-    container.appendChild(layout);
+    container.appendChild(workspace);
 
     var printerPanel = panel(ui, "Printer");
     panelsGrid.appendChild(printerPanel.root);
