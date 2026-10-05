@@ -25,7 +25,7 @@ from version import CIS_VERSION
 import a4_print_host
 import printer_usb
 
-WINDOW_TITLE = f"Carbo Print Labels  —  v{CIS_VERSION}"
+WINDOW_TITLE = "Carbo Print Labels"
 
 REMOTE_SHELL_URL = (
     os.environ.get("CIS_PRINT_LABELS_URL", "").strip()
@@ -94,6 +94,19 @@ class PrintLabelsApi:
 
     def app_info(self):
         return {"name": "Carbo Print Labels", "version": CIS_VERSION}
+
+    def set_window_title(self, title=""):
+        title = (title or "").strip()
+        if not title:
+            return {"ok": False, "error": "Empty title."}
+        if len(title) > 200:
+            title = title[:200]
+        try:
+            if webview.windows:
+                webview.windows[0].title = title
+            return {"ok": True}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
 
     def list_printers(self):
         return printer_usb.list_printers()

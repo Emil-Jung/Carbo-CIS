@@ -120,13 +120,26 @@
       (state.user.display_name || state.user.login_id);
     var verEl = document.getElementById("app-version");
     if (verEl) {
-      var shell = (state.config && state.config.cisVersion) || "?";
-      var labels = CIS.printLabelsUiVersion || "?";
+      var shell = (state.config && state.config.cisVersion) || CIS_VERSION_FALLBACK;
+      var labels = CIS.printLabelsUiVersion || shell;
       verEl.textContent = "v" + shell + " · labels " + labels;
     }
+    syncWindowTitle();
     openPrintLabelsModule();
   }
   CIS._showApp = showApp;
+  var CIS_VERSION_FALLBACK = "?";
+
+  function syncWindowTitle() {
+    var shell = (state.config && state.config.cisVersion) || CIS_VERSION_FALLBACK;
+    var labels = CIS.printLabelsUiVersion || shell;
+    var title = "Carbo Print Labels  —  v" + shell + " · labels " + labels;
+    document.title = title;
+    var api = window.pywebview && window.pywebview.api;
+    if (api && api.set_window_title) {
+      Promise.resolve(api.set_window_title(title)).catch(function () {});
+    }
+  }
 
   async function boot() {
     try {
@@ -147,6 +160,7 @@
       }
       localStorage.setItem(revKey, shellRev);
     }
+    syncWindowTitle();
 
     state.token = localStorage.getItem(TOKEN_KEY);
     if (CIS.authUi) CIS.authUi.wireAuthForms();
