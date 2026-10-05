@@ -862,9 +862,11 @@
 
     at_packaging: "at_packaging_plant",
 
-    in_storage: "in_storage",
+    in_storage: "in_storage,in_storage_weathering,in_storage_released_early",
 
     in_transit: "on_truck_walvisbay",
+
+    at_coast: "storage_walvisbay,storage_agl",
 
     in_container: "in_container",
 
@@ -1300,7 +1302,13 @@
 
       p.producers.forEach(function (pr) {
 
-        plist.appendChild(ui.el("li", {}, [pr.display || "—"]));
+        var line = pr.display || "—";
+
+        if (pr.kg != null) line += " · " + fmtKg(pr.kg) + " kg";
+
+        if (pr.pct != null) line += " (" + pr.pct + "%)";
+
+        plist.appendChild(ui.el("li", {}, [line]));
 
       });
 
@@ -1472,7 +1480,11 @@
   function groupRowsByProducerFsc(rows) {
     var map = {};
     (rows || []).forEach(function (row) {
-      var producer = (row.producer_name || "Unknown producer").trim() || "Unknown producer";
+      var producer = (row.producer_name || "").trim();
+      if (!producer && row.product_stream === "pallet") {
+        producer = "Pallet — tap bag for source producers";
+      }
+      if (!producer) producer = "Unknown producer";
       var fsc = fscText(row);
       var key = producer + "\0" + fsc;
       if (!map[key]) {
@@ -1508,7 +1520,7 @@
     return ui.el("span", { class: "bs-dash-fsc-pill bs-dash-fsc-pill--" + tone }, [label]);
   }
 
-  function renderProducerBagTable(rows, ui) {
+  function renderProducerBagTable(rows, ui, onRowClick) {
     var wrap = ui.el("div", { class: "bs-dash-table-wrap" });
     var table = ui.el("table", { class: "bs-dash-table bs-dash-table--compact" });
     var thead = ui.el("thead", {});
@@ -1521,6 +1533,11 @@
     var tbody = ui.el("tbody", {});
     rows.forEach(function (row) {
       var tr = ui.el("tr", {});
+      if (onRowClick && row.product_stream === "pallet") {
+        tr.className = "bs-dash-table-row--clickable";
+        tr.title = "View source jumbos and producers";
+        tr.addEventListener("click", function () { onRowClick(row); });
+      }
       tr.appendChild(ui.el("td", {}, [row.serial || "—"]));
       var streamTd = ui.el("td", {});
       var streamKey = row.product_stream;
@@ -1553,7 +1570,7 @@
     return panel;
   }
 
-  function renderWxDrillView(rows, ui) {
+  function renderWxDrillView(rows, ui, onRowClick) {
     var wrap = ui.el("div", { class: "bs-dash-wx-drill" });
     wrap.appendChild(renderStreamCategorySummary(rows, ui));
     var groups = groupRowsByProducerFsc(rows);
@@ -1569,7 +1586,7 @@
         group.bags + (group.bags === 1 ? " bag" : " bags") + " · " + fmtKg(group.kg) + " kg",
       ]));
       details.appendChild(summary);
-      details.appendChild(renderProducerBagTable(group.rows, ui));
+      details.appendChild(renderProducerBagTable(group.rows, ui, onRowClick));
       list.appendChild(details);
     });
     wrap.appendChild(list);
@@ -1890,6 +1907,33 @@
 
 
 
+      if (selected && selected.palletDetail) {
+
+        body.appendChild(renderBack(selected.label || "Pallet", function () {
+
+          selected.palletDetail = null;
+
+          selected.serial = null;
+
+          paint();
+
+        }));
+
+        body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
+
+          (selected.label || "Pallet") + " — " + selected.serial,
+
+        ]));
+
+        body.appendChild(renderPalletDetailDrill(selected.serial, selected.palletDetail, ui));
+
+        syncFloatingNav();
+        return;
+
+      }
+
+
+
       if (wxDrill) {
 
         body.appendChild(renderBack(wxDrillBackLabel(wxDrill.backTo), function () {
@@ -1908,7 +1952,7 @@
 
         } else {
 
-          body.appendChild(renderWxDrillView(wxDrill.rows, ui));
+          body.appendChild(renderWxDrillView(wxDrill.rows, ui, openPalletDetail));
 
         }
 
@@ -1967,19 +2011,6 @@
           body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label]));
 
           body.appendChild(renderPalletBasketDrill(selected.detail || summary.pallet_basket, ui));
-
-          syncFloatingNav();
-          return;
-
-        }
-
-
-
-        if (selected.mode === "pallet_detail") {
-
-          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label + " — " + selected.serial]));
-
-          body.appendChild(renderPalletDetailDrill(selected.serial, selected.palletDetail, ui));
 
           syncFloatingNav();
           return;
@@ -2125,9 +2156,7 @@
 
           } else {
 
-            var rowClick = selected.mode === "physical_pallets" ? openPalletDetail : null;
-
-            body.appendChild(renderDrillTable(selectedEvent.rows, ui, rowClick));
+            body.appendChild(renderDrillTable(selectedEvent.rows, ui, openPalletDetail));
 
           }
 
@@ -2201,6 +2230,22 @@
 
       });
 
+      if (summary.pallet_summary && (summary.pallet_summary.total || {}).bags) {
+
+        body.appendChild(renderPalletPanel(
+
+          summary.pallet_summary,
+
+          summary.pallet_basket,
+
+          ui,
+
+          openPalletBucket
+
+        ));
+
+      }
+
       syncFloatingNav();
     }
 
@@ -2222,9 +2267,17 @@
 
         );
 
+        if (!selected) {
+
+          selected = { label: "Pallet", mode: "pallet_detail", key: "pallet" };
+
+        }
+
         selected.palletDetail = data;
 
         selected.serial = row.serial;
+
+        if (!selected.label) selected.label = "Pallet";
 
         status.style.display = "none";
 
@@ -2348,7 +2401,7 @@
 
             sections: palletData.event_sections || [],
 
-            detail: summary.physical_pallets || { by_product: st.by_product, bags: st.bags, kg: st.kg },
+            detail: palletData.physical_pallets || summary.physical_pallets || { by_product: st.by_product, bags: st.bags, kg: st.kg },
 
           };
 

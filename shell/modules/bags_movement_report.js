@@ -1,4 +1,4 @@
-/* Bags Created — day/producer summary with drill-down to bag detail (CIS).
+/* Charcoal Intake — day/producer summary with drill-down to bag detail (CIS).
    Module id and permission keys stay bags_movement / stock.view so existing
    grants keep working; only the label changed. */
 (function () {
@@ -753,7 +753,7 @@
     var weekCache = {};
     var expandedWeeks = {};
 
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Bags Created"]));
+    container.appendChild(ui.el("h2", { class: "module-title" }, ["Charcoal Intake"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "All recorded bags — current week by day, earlier weeks collapsed. UI " + BM_UI_VERSION + ".",
     ]));
@@ -975,12 +975,12 @@
 
   CIS.modules.push({
     id: "bags_movement_report",
-    title: "Bags Created",
+    title: "Charcoal Intake",
     section: "Production",
     kind: "lookup",
     order: 16,
     icon: "bags",
-    description: "Bags created by day and producer — drill down to individual bags",
+    description: "Charcoal intake by day and producer — drill down to individual bags",
     requires: "traceability.bags_movement",
     requiresAny: ["traceability.bags_movement", "traceability.stock.view"],
     render: render,

@@ -191,8 +191,11 @@ class Api:
         """Windows spooler names (USB / local). Desktop CIS only."""
         return printer_usb.list_printers()
 
-    def open_a4_print(self, html="", auto_print=True):
-        return a4_print_host.open_a4_print(html, auto_print=bool(auto_print))
+    def print_a4_labels(self, serials=None, printer_name=""):
+        return a4_label_pdf.print_serials_to_printer(serials or [], printer_name or "")
+
+    def open_a4_print(self, html="", auto_print=False):
+        return a4_print_host.open_a4_preview(html)
 
     def send_zpl_usb(self, printer_name, zpl=""):
         """Send ZPL to a Windows printer by name (USB). Desktop CIS only."""
