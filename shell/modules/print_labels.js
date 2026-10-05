@@ -9,7 +9,7 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.6.1";
+  var PL_UI_VERSION = "1.6.2";
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
 
@@ -94,18 +94,16 @@
 
   function loadSettings() {
     var s = {
-      connection: "network",
-      printerName: "",
-      printerNameManual: "",
-      printerHost: "",
-      printerPort: 9100,
+      zebraPrinterName: "",
+      a4PrinterName: "",
       labelFormat: "zebra",
     };
     try {
       var raw = localStorage.getItem(LS);
       if (raw) Object.assign(s, JSON.parse(raw));
     } catch (e) {}
-    s.connection = s.connection === "network" ? "network" : "usb";
+    if (!s.zebraPrinterName && s.printerName) s.zebraPrinterName = s.printerName;
+    if (!s.zebraPrinterName && s.printerNameManual) s.zebraPrinterName = s.printerNameManual;
     s.labelFormat = s.labelFormat === "a4_pallet" ? "a4_pallet" : "zebra";
     return s;
   }
@@ -285,8 +283,17 @@
     ]));
     container.appendChild(ui.el("ol", { class: "print-labels-install-steps muted launcher-note" }, [
       ui.el("li", {}, ["Click ", ui.el("strong", {}, ["Download installer"]), " below."]),
-      ui.el("li", {}, ["When the download finishes, open ", ui.el("strong", {}, ["CarboPrintLabels-Setup.exe"]), " from Downloads and click ", ui.el("strong", {}, ["Run"]), "."]),
-      ui.el("li", {}, ["Open ", ui.el("strong", {}, ["Carbo Print Labels"]), " from the Start menu, or click Open Print Labels below."]),
+      ui.el("li", {}, ["Open ", ui.el("strong", {}, ["CarboPrintLabels-Setup.exe"]), " from Downloads."]),
+      ui.el("li", {}, [
+        "If ",
+        ui.el("strong", {}, ["Windows SmartScreen"]),
+        " appears: click ",
+        ui.el("strong", {}, ["More info"]),
+        ", then ",
+        ui.el("strong", {}, ["Run anyway"]),
+        " (Carbo app is not code-signed yet).",
+      ]),
+      ui.el("li", {}, ["Finish the setup wizard, then open ", ui.el("strong", {}, ["Carbo Print Labels"]), " from the Start menu."]),
     ]));
 
     var actions = ui.el("div", { class: "launcher-actions" });
@@ -382,42 +389,23 @@
 
     var printerPanel = panel(ui, "Printer");
     panelsRowTop.appendChild(printerPanel.root);
-    var a4PrinterHint = ui.el("p", { class: "print-labels-field-hint print-labels-a4-printer-hint" }, [
-      "A4 pallet sheets print through the Windows print dialog — you choose the office A4 printer when you confirm a run.",
-    ]);
-    var zebraPrinterFields = ui.el("div", { class: "print-labels-zebra-printer-fields" });
-    zebraPrinterFields.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
-      "Network (IP) is the normal path. Use USB (Windows spooler) only if the printer is not reachable on the LAN.",
+    printerPanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
+      "Printers installed in Windows — including network printers. At Carbo: pick the Zebra for small labels and your office A4 printer for pallet sheets.",
     ]));
-    printerPanel.body.appendChild(a4PrinterHint);
-    printerPanel.body.appendChild(zebraPrinterFields);
-    var connEl = ui.el("select", {}, [
-      ui.el("option", { value: "network", selected: saved.connection === "network" }, ["Network (IP)"]),
-      ui.el("option", { value: "usb", selected: saved.connection !== "network" }, ["USB (Windows)"]),
-    ]);
-    var printerEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["— Refresh list —"])]);
-    var refreshBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh list"]);
-    var usbRow = ui.el("div", { class: "print-labels-printer-row" });
-    usbRow.appendChild(printerEl);
-    usbRow.appendChild(refreshBtn);
-    var printerManualEl = ui.el("input", {
-      type: "text",
-      placeholder: "Exact Windows printer name",
-      value: saved.printerNameManual || saved.printerName || "",
-    });
-    var hostEl = ui.el("input", { type: "text", placeholder: "192.168.x.x", value: saved.printerHost || "" });
-    var portEl = ui.el("input", { type: "number", min: "1", max: "65535", value: String(saved.printerPort || 9100) });
-    var networkWrap = ui.el("div", { class: "print-labels-network-fields" });
-    networkWrap.appendChild(field(ui, "Printer IP", hostEl));
-    networkWrap.appendChild(field(ui, "Port", portEl));
-    var usbField = field(ui, "Windows printer (USB)", usbRow,
-      "Select your Zebra from the Windows printer list (USB mode only).");
-    var manualField = field(ui, "Or type printer name", printerManualEl,
-      "USB mode only — exact name from Windows Printers.");
-    zebraPrinterFields.appendChild(field(ui, "Connection", connEl));
-    zebraPrinterFields.appendChild(usbField);
-    zebraPrinterFields.appendChild(manualField);
-    zebraPrinterFields.appendChild(networkWrap);
+    var refreshBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh printer list"]);
+    var refreshRow = ui.el("div", { class: "print-labels-printer-row" });
+    refreshRow.appendChild(refreshBtn);
+    var zebraPrinterEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["Loading printers…"])]);
+    var a4PrinterEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["Loading printers…"])]);
+    var zebraRow = ui.el("div", { class: "print-labels-printer-row" });
+    zebraRow.appendChild(zebraPrinterEl);
+    var a4Row = ui.el("div", { class: "print-labels-printer-row" });
+    a4Row.appendChild(a4PrinterEl);
+    printerPanel.body.appendChild(field(ui, "Small labels (Zebra)", zebraRow,
+      "54 × 25 mm bag ID labels on the Zebra."));
+    printerPanel.body.appendChild(field(ui, "A4 pallet sheets", a4Row,
+      "Large QR pallet labels — also choose this printer in the Windows print dialog when you confirm."));
+    printerPanel.body.appendChild(refreshRow);
 
     var labelsPanel = panel(ui, "Print labels");
     labelsPanel.root.classList.add("print-labels-panel--labels-preview");
@@ -558,25 +546,29 @@
 
     function readSaved() {
       return {
-        connection: connEl.value === "network" ? "network" : "usb",
-        printerName: printerEl.value,
-        printerNameManual: printerManualEl.value.trim(),
-        printerHost: hostEl.value.trim(),
-        printerPort: parseInt(portEl.value, 10) || 9100,
+        zebraPrinterName: (zebraPrinterEl.value || "").trim(),
+        a4PrinterName: (a4PrinterEl.value || "").trim(),
         labelFormat: formatEl.value === "a4_pallet" ? "a4_pallet" : "zebra",
       };
     }
 
     function syncLabelFormat() {
       labelFormat = readSaved().labelFormat;
-      var isA4 = labelFormat === "a4_pallet";
-      a4PrinterHint.style.display = isA4 ? "" : "none";
-      zebraPrinterFields.style.display = isA4 ? "none" : "";
     }
 
-    function resolvedPrinterName(s) {
+    function resolvedZebraPrinter(s) {
       s = s || readSaved();
-      return (s.printerName || s.printerNameManual || "").trim();
+      return (s.zebraPrinterName || "").trim();
+    }
+
+    function resolvedA4Printer(s) {
+      s = s || readSaved();
+      return (s.a4PrinterName || "").trim();
+    }
+
+    function resolvedPrinterForFormat(s) {
+      s = s || readSaved();
+      return s.labelFormat === "a4_pallet" ? resolvedA4Printer(s) : resolvedZebraPrinter(s);
     }
 
     function persistForm() {
@@ -585,13 +577,6 @@
 
     function labelSpec() {
       return ZPL.productionSpec();
-    }
-
-    function syncConnectionUi() {
-      var net = connEl.value === "network";
-      usbField.style.display = net ? "none" : "";
-      manualField.style.display = net ? "none" : "";
-      networkWrap.style.display = net ? "" : "none";
     }
 
     function apiErrorMessage(err) {
@@ -753,12 +738,9 @@
     }
 
     function canPhysicalPrint() {
+      if (!bridge) return false;
       if (labelFormat === "a4_pallet") return true;
-      var s = readSaved();
-      if (s.connection === "network") {
-        return !!(bridge && bridge.send_zpl && s.printerHost);
-      }
-      return !!(bridge && bridge.send_zpl_usb && resolvedPrinterName(s));
+      return !!(bridge.send_zpl_usb && resolvedZebraPrinter());
     }
 
     function showModal(title, htmlBody, printLabel, showDownload) {
@@ -766,7 +748,11 @@
       modalBody.innerHTML = "";
       var isA4 = labelFormat === "a4_pallet";
       var extra = canPhysicalPrint()
-        ? (isA4 ? "<p class=\"print-labels-field-hint\">A4 prints via your browser — one sheet per Bag ID. QR content is the Bag ID only.</p>" : "")
+        ? (isA4
+          ? "<p class=\"print-labels-field-hint\">A4 prints via Windows — pick <strong>" +
+            (resolvedA4Printer() || "your A4 printer") +
+            "</strong> in the print dialog if prompted. One sheet per Bag ID.</p>"
+          : "")
         : "<p class=\"print-labels-field-hint\">Physical printing needs desktop CIS on Windows with a configured printer. You can download ZPL instead.</p>";
       modalBody.appendChild(ui.el("div", { html: htmlBody + extra }));
       var modalPrintLabel = printLabel;
@@ -793,11 +779,32 @@
     }
 
     function printerSummary() {
-      var s = readSaved();
-      if (s.connection === "network") {
-        return (s.printerHost || "Network printer") + (s.printerPort ? ":" + s.printerPort : "");
+      var name = resolvedPrinterForFormat();
+      if (name) return name;
+      return labelFormat === "a4_pallet" ? "A4 printer (Windows)" : "Zebra printer";
+    }
+
+    function fillPrinterSelect(selectEl, names, savedName, guessRe, avoidRe) {
+      selectEl.innerHTML = "";
+      if (!names.length) {
+        selectEl.appendChild(ui.el("option", { value: "" }, ["No printers in Windows — add printers in Settings"]));
+        return;
       }
-      return resolvedPrinterName(s) || "USB printer";
+      var pick = savedName || "";
+      if (!pick && guessRe) {
+        names.forEach(function (n) {
+          if (guessRe.test(n)) pick = n;
+        });
+      }
+      if (!pick && avoidRe) {
+        names.forEach(function (n) {
+          if (!avoidRe.test(n)) pick = n;
+        });
+      }
+      selectEl.appendChild(ui.el("option", { value: "" }, ["— Select printer —"]));
+      names.forEach(function (name) {
+        selectEl.appendChild(ui.el("option", { value: name, selected: name === pick }, [name]));
+      });
     }
 
     async function refreshPrinters() {
@@ -806,37 +813,29 @@
       try {
         var res = await bridge.list_printers();
         var names = (res && res.printers) || [];
-        var sel = resolvedPrinterName(saved);
-        printerEl.innerHTML = "";
-        if (!names.length) {
-          printerEl.appendChild(ui.el("option", { value: "" }, ["No printers in Windows"]));
-          return;
-        }
-        var pick = sel;
-        if (!pick) {
-          names.forEach(function (n) {
-            if (/zebra|zdesigner|zt231/i.test(n)) pick = n;
-          });
-        }
-        names.forEach(function (name) {
-          printerEl.appendChild(ui.el("option", { value: name, selected: name === pick }, [name]));
-        });
-        if (pick) printerManualEl.value = pick;
+        fillPrinterSelect(
+          zebraPrinterEl,
+          names,
+          saved.zebraPrinterName,
+          /zebra|zdesigner|zt231/i,
+          null
+        );
+        fillPrinterSelect(
+          a4PrinterEl,
+          names,
+          saved.a4PrinterName,
+          /a4|office|laser|hp |brother|canon|xerox|ricoh/i,
+          /zebra|zdesigner|zt231/i
+        );
       } finally {
         refreshBtn.disabled = false;
       }
     }
 
     async function sendZpl(zpl) {
-      var s = readSaved();
-      if (s.connection === "network") {
-        if (!bridge || !bridge.send_zpl) throw new Error("Network print needs desktop CIS.");
-        if (!s.printerHost) throw new Error("Enter printer IP.");
-        return bridge.send_zpl(s.printerHost, s.printerPort, zpl);
-      }
-      if (!bridge || !bridge.send_zpl_usb) throw new Error("USB print needs desktop CIS on Windows.");
-      var name = resolvedPrinterName(s);
-      if (!name) throw new Error("Select or enter the Windows printer name.");
+      if (!bridge || !bridge.send_zpl_usb) throw new Error("Printing needs Carbo Print Labels on Windows.");
+      var name = resolvedZebraPrinter();
+      if (!name) throw new Error("Select the Zebra printer in the Printer panel.");
       return bridge.send_zpl_usb(name, zpl);
     }
 
@@ -1079,8 +1078,8 @@
       try {
         var body = {
           quantity: parsed.value,
-          printer_name: resolvedPrinterName() || null,
-          printer_connection: readSaved().connection,
+          printer_name: resolvedPrinterForFormat() || null,
+          printer_connection: "windows",
         };
         var note = noteEl.value.trim();
         if (note) body.note = note;
@@ -1302,8 +1301,8 @@
       try {
         var body = {
           serials: serials,
-          printer_name: resolvedPrinterName() || null,
-          printer_connection: readSaved().connection,
+          printer_name: resolvedPrinterForFormat() || null,
+          printer_connection: "windows",
         };
         var reason = reprintReasonEl.value.trim();
         if (reason) body.reason = reason;
@@ -1350,7 +1349,6 @@
       persistForm();
       paintPreview(null);
     });
-    connEl.addEventListener("change", function () { syncConnectionUi(); persistForm(); });
     refreshBtn.addEventListener("click", refreshPrinters);
     prepareBtn.addEventListener("click", prepareBatch);
     reprintBtn.addEventListener("click", prepareReprint);
@@ -1379,12 +1377,10 @@
       loadHistory();
       loadReprintRuns();
     });
-    [printerEl, printerManualEl, hostEl, portEl].forEach(function (el) {
+    [zebraPrinterEl, a4PrinterEl].forEach(function (el) {
       el.addEventListener("change", persistForm);
-      el.addEventListener("input", persistForm);
     });
 
-    syncConnectionUi();
     syncLabelFormat();
     paintPreview(null);
     setStatus("Enter a quantity and click Continue. Bag IDs come from the server — nothing prints until you confirm.");
@@ -1392,7 +1388,7 @@
     loadHistory();
     loadSequence();
     loadReprintRuns();
-    if (bridge && bridge.list_printers && saved.connection !== "network") refreshPrinters();
+    if (bridge && bridge.list_printers) refreshPrinters();
   }
 
   CIS.modules.push({

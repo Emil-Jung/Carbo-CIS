@@ -20,5 +20,5 @@
   "supplierTrackingApiBase": "/supplier-tracking/api",
   "cisVersion": "1.6.1",
   "printLabelsInstallerUrl": "/cis/app/CarboPrintLabels-Setup.exe",
-  "shellRev": "20261006-print-labels-layout"
+  "shellRev": "20261006-windows-printers"
 }
