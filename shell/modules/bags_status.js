@@ -944,35 +944,13 @@
 
 
 
-  function renderPalletPanel(palletSummary, palletBasket, ui, onOpenBucket) {
+  function renderPalletLocationDrill(buckets, ui, onOpenBucket) {
 
-    var total = (palletSummary && palletSummary.total) || { bags: 0, kg: 0 };
-
-    var physicalCount = palletBasket && palletBasket.physical_pallets != null
-
-      ? palletBasket.physical_pallets
-
-      : total.bags;
-
-    var section = ui.el("section", { class: "bs-dash-location bs-dash-location--indigo" });
-
-    section.appendChild(ui.el("div", { class: "bs-dash-location__head" }, [
-
-      ui.el("h3", {}, ["Physical pallets"]),
-
-      ui.el("span", { class: "bs-dash-location__count" }, [
-
-        String(physicalCount) + (physicalCount === 1 ? " pallet" : " pallets")
-
-          + " · " + bagsKgText(total.bags, total.kg),
-
-      ]),
-
-    ]));
+    var wrap = ui.el("div", { class: "bs-dash-basket-drill" });
 
     var grid = ui.el("div", { class: "bs-dash-status-grid" });
 
-    ((palletSummary && palletSummary.buckets) || []).forEach(function (bucket) {
+    (buckets || []).forEach(function (bucket) {
 
       if (!(bucket.bags || 0)) return;
 
@@ -984,7 +962,7 @@
 
         ? ui.el("button", {
 
-          class: "bs-dash-status-card",
+          class: "bs-dash-status-card bs-dash-status-card--pallet",
 
           type: "button",
 
@@ -1008,15 +986,15 @@
 
     if (!grid.childNodes.length) {
 
-      section.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, ["No physical pallets created yet."]));
+      wrap.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, ["No physical pallets created yet."]));
 
     } else {
 
-      section.appendChild(grid);
+      wrap.appendChild(grid);
 
     }
 
-    return section;
+    return wrap;
 
   }
 
@@ -1818,9 +1796,21 @@
       } else if (selected) {
         if (selectedEvent) {
           ctx.setFloatingBack({
-            label: "← Return to event dates",
+            label: "← Return to " + (selected.label || "list"),
             onClick: function () {
               selectedEvent = null;
+              paint();
+            },
+          });
+        } else if (selected.view === "by_location") {
+          ctx.setFloatingBack({
+            label: "← Return to " + (selected.parentLabel || "Pallets"),
+            onClick: function () {
+              selected.view = "locations";
+              selected.label = selected.parentLabel || "Pallets";
+              selected.sections = null;
+              selected.detail = null;
+              selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
               paint();
             },
           });
@@ -1975,7 +1965,9 @@
 
         if (selected.palletDetail) backLabel = selected.label;
 
-        else if (selectedEvent) backLabel = selected.mode === "physical_pallets" ? selected.label : "Event dates";
+        else if (selectedEvent) backLabel = selected.label;
+
+        else if (selected.view === "by_location") backLabel = selected.parentLabel || "Pallets";
 
         else if (selected.mode === "weathering_buckets") backLabel = BACK_MAIN;
 
@@ -1990,6 +1982,18 @@
           } else if (selectedEvent) {
 
             selectedEvent = null;
+
+          } else if (selected.view === "by_location") {
+
+            selected.view = "locations";
+
+            selected.label = selected.parentLabel || "Pallets";
+
+            selected.sections = null;
+
+            selected.detail = null;
+
+            selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
 
           } else {
 
@@ -2026,6 +2030,25 @@
 
 
         if (selected.mode === "physical_pallets" && !selectedEvent && !selected.palletDetail) {
+
+          if (selected.view === "locations") {
+
+            body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
+
+              selected.label + " — " + selected.count + (selected.count === 1 ? " pallet" : " pallets"),
+
+            ]));
+
+            body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+              "Physical pallet BAG IDs by location — tap a tile, then a BAG ID for source jumbos and producers.",
+            ]));
+
+            body.appendChild(renderPalletLocationDrill(selected.locationBuckets, ui, openPalletBucket));
+
+            syncFloatingNav();
+            return;
+
+          }
 
           if (selected.sections && selected.sections.length) {
 
@@ -2236,22 +2259,6 @@
 
       });
 
-      if (summary.pallet_summary && (summary.pallet_summary.total || {}).bags) {
-
-        body.appendChild(renderPalletPanel(
-
-          summary.pallet_summary,
-
-          summary.pallet_basket,
-
-          ui,
-
-          openPalletBucket
-
-        ));
-
-      }
-
       syncFloatingNav();
     }
 
@@ -2321,17 +2328,29 @@
 
         wxDrill = null;
 
+        var parent = selected || {};
+
         selected = {
 
           key: statusKey,
 
           label: bucket.label,
 
-          mode: "events",
+          mode: "physical_pallets",
+
+          view: "by_location",
+
+          parentLabel: parent.parentLabel || parent.label || "Pallets",
+
+          parentCount: parent.parentCount != null ? parent.parentCount : parent.count,
+
+          locationBuckets: parent.locationBuckets || null,
 
           count: data.drill_bag_count || 0,
 
           sections: data.event_sections || [],
+
+          detail: data.physical_pallets || summary.physical_pallets || null,
 
         };
 
@@ -2387,43 +2406,33 @@
 
         wxDrill = null;
 
-        status.textContent = "Loading " + st.label + "…";
+        var ps = summary.pallet_summary || {};
 
-        status.style.display = "";
+        var total = ps.total || { bags: st.bags, kg: st.kg };
 
-        try {
+        var buckets = (ps.buckets || []).filter(function (b) { return (b.bags || 0) > 0; });
 
-          var palletData = await ctx.api.traceability("/reports/bags-status?stream=pallet");
+        selected = {
 
-          selected = {
+          key: st.key,
 
-            key: st.key,
+          label: st.label || "Pallets",
 
-            label: st.label,
+          mode: "physical_pallets",
 
-            mode: "physical_pallets",
+          view: "locations",
 
-            count: palletData.drill_bag_count || 0,
+          parentLabel: "Pallets",
 
-            sections: palletData.event_sections || [],
+          locationBuckets: buckets,
 
-            detail: palletData.physical_pallets || summary.physical_pallets || { by_product: st.by_product, bags: st.bags, kg: st.kg },
+          count: total.bags != null ? total.bags : (st.bags || 0),
 
-          };
+          kg: total.kg != null ? total.kg : (st.kg || 0),
 
-          status.style.display = "none";
+        };
 
-          paint();
-
-        } catch (e) {
-
-          status.style.display = "none";
-
-          body.innerHTML = "";
-
-          body.appendChild(ui.error("Could not load pallets: " + (e.message || e)));
-
-        }
+        paint();
 
         return;
 
