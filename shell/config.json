@@ -20,5 +20,5 @@
   "supplierTrackingApiBase": "/supplier-tracking/api",
   "cisVersion": "1.6.3",
   "printLabelsInstallerUrl": "/cis/app/CarboPrintLabels-Setup.exe",
-  "shellRev": "20261006-fsc-registry-fix"
+  "shellRev": "20261006-pallet-flat-drill"
 }
