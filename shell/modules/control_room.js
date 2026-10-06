@@ -10,7 +10,10 @@
     var cfg = (ctx && ctx.config) || {};
     var base = (cfg.controlRoomUrl || "/traceability/control-room/").trim();
     var join = base.indexOf("?") === -1 ? "?" : "&";
-    return base + join + "cis=1";
+    var rev = (cfg.controlRoomRev || cfg.shellRev || "").trim();
+    var url = base + join + "cis=1";
+    if (rev) url += "&rev=" + encodeURIComponent(rev);
+    return url;
   }
 
   function render(container, ctx) {
