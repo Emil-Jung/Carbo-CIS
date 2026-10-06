@@ -1408,6 +1408,24 @@
     return text;
   }
 
+  function buildProductBucketsFromRows(rows) {
+    var map = {};
+    (rows || []).forEach(function (row) {
+      var code = (row.product_code || "—").trim() || "—";
+      if (!map[code]) {
+        map[code] = { product_code: code, bags: 0, kg: 0, rows: [] };
+      }
+      map[code].bags += 1;
+      map[code].kg += Number(row.net_weight_kg || 0);
+      map[code].rows.push(row);
+    });
+    return Object.keys(map).sort().map(function (k) {
+      var b = map[k];
+      b.kg = Math.round(b.kg * 1000) / 1000;
+      return b;
+    });
+  }
+
   function flattenPalletSectionRows(sections) {
     var rows = [];
     (sections || []).forEach(function (section) {
@@ -2022,7 +2040,9 @@
 
         if (selected.palletDetail) backLabel = selected.label;
 
-        else if (selectedEvent) backLabel = selected.label;
+        else if (selectedEvent) {
+          backLabel = selectedEvent.client_name || selectedEvent.key || selected.label;
+        }
 
         else if (selected.view === "by_location" || selected.view === "by_product") {
           backLabel = selected.parentLabel || "Pallets";
@@ -2160,7 +2180,7 @@
 
                 date: null,
 
-                client_name: bucket.client_name || bucket.product_code,
+                client_name: bucket.product_code + (bucket.name ? " — " + bucket.name : ""),
 
                 bags: bucket.bags,
 
@@ -2211,7 +2231,7 @@
 
                 date: null,
 
-                client_name: bucket.client_name || bucket.product_code,
+                client_name: bucket.product_code + (bucket.name ? " — " + bucket.name : ""),
 
                 bags: bucket.bags,
 
@@ -2473,25 +2493,55 @@
 
         }
 
-        selected = {
+        var locBuckets = buildProductBucketsFromRows(locRows);
 
-          key: statusKey,
+        if (locBuckets.length > 1) {
 
-          label: bucket.label,
+          selected = {
 
-          mode: "physical_pallets",
+            key: statusKey,
 
-          view: "flat_list",
+            label: bucket.label,
 
-          parentLabel: parent.parentLabel || parent.label || "Pallets",
+            mode: "physical_pallets",
 
-          parentCount: parent.parentCount != null ? parent.parentCount : parent.count,
+            view: "by_product",
 
-          count: locRows.length || data.drill_bag_count || 0,
+            parentLabel: parent.parentLabel || parent.label || "Pallets",
 
-          rows: locRows,
+            parentCount: parent.parentCount != null ? parent.parentCount : parent.count,
 
-        };
+            count: locRows.length || data.drill_bag_count || 0,
+
+            detail: { by_product: locBuckets, bags: locRows.length, kg: 0 },
+
+          };
+
+          paint();
+
+          return;
+
+        }
+
+        var productLabel = locBuckets.length === 1
+
+          ? locBuckets[0].product_code
+
+          : bucket.label;
+
+        showPhysicalPalletFlatList(
+
+          { key: statusKey, label: bucket.label },
+
+          locRows,
+
+          locRows.length || data.drill_bag_count || 0,
+
+          productLabel
+
+        );
+
+        selected.parentLabel = parent.parentLabel || parent.label || "Pallets";
 
         paint();
 
@@ -2539,17 +2589,45 @@
 
 
 
-    function showPhysicalPalletFlatList(st, palletData, count) {
+    function showPhysicalPalletFlatList(st, rows, count, productLabel) {
 
-      var rows = flattenPalletSectionRows(palletData.event_sections || []);
+      selected = {
 
-      if (!rows.length && palletData.physical_pallets && palletData.physical_pallets.by_product) {
+        key: st.key,
 
-        (palletData.physical_pallets.by_product || []).forEach(function (bucket) {
+        label: productLabel || st.label || "Pallets",
 
-          (bucket.rows || []).forEach(function (row) { rows.push(row); });
+        mode: "physical_pallets",
 
-        });
+        view: "flat_list",
+
+        parentLabel: productLabel ? "Pallets" : "Bags Status",
+
+        count: (rows || []).length || count || 0,
+
+        rows: rows || [],
+
+      };
+
+      paint();
+
+    }
+
+
+
+    function showPhysicalPalletByProduct(st, palletData, count) {
+
+      var detail = palletData.physical_pallets || { by_product: [], bags: count, kg: 0 };
+
+      var buckets = (detail.by_product || []).filter(function (b) { return (b.bags || 0) > 0; });
+
+      if (!buckets.length) {
+
+        var rows = flattenPalletSectionRows(palletData.event_sections || []);
+
+        showPhysicalPalletFlatList(st, rows, count, null);
+
+        return;
 
       }
 
@@ -2561,15 +2639,17 @@
 
         mode: "physical_pallets",
 
-        view: "flat_list",
+        view: "by_product",
 
         parentLabel: "Pallets",
 
-        count: rows.length || count || 0,
+        count: detail.bags || count || 0,
 
-        rows: rows,
+        detail: detail,
 
       };
+
+      selectedEvent = null;
 
       paint();
 
@@ -2597,7 +2677,7 @@
 
         status.style.display = "none";
 
-        showPhysicalPalletFlatList(st, palletData, count);
+        showPhysicalPalletByProduct(st, palletData, count);
 
       } catch (e) {
 
