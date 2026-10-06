@@ -1397,16 +1397,40 @@
     return text;
   }
 
+  function producerSnapshotObj(row) {
+    var snap = row && row.producer_snapshot;
+    if (!snap) return null;
+    if (typeof snap === "object") return snap;
+    try {
+      return JSON.parse(snap);
+    } catch (e) {
+      return null;
+    }
+  }
+
   function fscText(row) {
     var label = normalizeFscLabel(row.fsc_status);
     if (label) return label;
     label = normalizeFscLabel(row.fsc_classification);
     if (label) return label;
+    var snap = producerSnapshotObj(row);
+    if (snap) {
+      label = normalizeFscLabel(snap.classification);
+      if (label) return label;
+    }
     var mode = String(row.supplier_mode || "").toLowerCase();
     if (SUPPLIER_MODE_FSC[mode]) return SUPPLIER_MODE_FSC[mode];
     if (row.is_fsc === true) return "FSC";
     if (row.is_fsc === false) return "Non-FSC";
     return "Unknown";
+  }
+
+  function isPalletBasketTile(st) {
+    return st && (st.kind === "pallet_basket" || st.key === "report:pallet_basket");
+  }
+
+  function isPhysicalPalletsTile(st) {
+    return st && (st.kind === "physical_pallets" || st.key === "report:physical_pallets");
   }
 
   function summarizeStreamCategories(rows) {
@@ -1967,7 +1991,9 @@
 
         else if (selectedEvent) backLabel = selected.label;
 
-        else if (selected.view === "by_location") backLabel = selected.parentLabel || "Pallets";
+        else if (selected.view === "by_location" || selected.view === "by_product") {
+          backLabel = selected.parentLabel || "Pallets";
+        }
 
         else if (selected.mode === "weathering_buckets") backLabel = BACK_MAIN;
 
@@ -1994,6 +2020,10 @@
             selected.detail = null;
 
             selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
+
+          } else if (selected.view === "by_product") {
+
+            selected = null;
 
           } else {
 
@@ -2044,6 +2074,45 @@
             ]));
 
             body.appendChild(renderPalletLocationDrill(selected.locationBuckets, ui, openPalletBucket));
+
+            syncFloatingNav();
+            return;
+
+          }
+
+          if (selected.view === "by_product") {
+
+            body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
+
+              selected.label + " — " + selected.count + (selected.count === 1 ? " pallet" : " pallets"),
+
+            ]));
+
+            body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+              "Tap a product, then a pallet BAG ID for source jumbos and producers.",
+            ]));
+
+            body.appendChild(renderFactoryPalletsDrill(selected.detail, ui, function (bucket) {
+
+              selectedEvent = {
+
+                key: bucket.product_code,
+
+                date: null,
+
+                client_name: bucket.client_name || bucket.product_code,
+
+                bags: bucket.bags,
+
+                kg: bucket.kg,
+
+                rows: bucket.rows || [],
+
+              };
+
+              paint();
+
+            }));
 
             syncFloatingNav();
             return;
@@ -2372,9 +2441,141 @@
 
 
 
+    function openPhysicalPalletsByProduct(st, detail, count) {
+
+      selectedEvent = null;
+
+      wxDrill = null;
+
+      selected = {
+
+        key: st.key,
+
+        label: st.label || "Pallets",
+
+        mode: "physical_pallets",
+
+        view: "by_product",
+
+        parentLabel: "Pallets",
+
+        count: count != null ? count : (st.bags || 0),
+
+        detail: detail || { by_product: st.by_product || [], bags: st.bags, kg: st.kg },
+
+      };
+
+      paint();
+
+    }
+
+
+
+    async function openPhysicalPalletsTile(st) {
+
+      selectedEvent = null;
+
+      wxDrill = null;
+
+      var ps = summary.pallet_summary || {};
+
+      var total = ps.total || { bags: st.bags, kg: st.kg };
+
+      var buckets = (ps.buckets || []).filter(function (b) { return (b.bags || 0) > 0; });
+
+      var count = total.bags != null ? total.bags : (st.bags || 0);
+
+      if (buckets.length) {
+
+        selected = {
+
+          key: st.key,
+
+          label: st.label || "Pallets",
+
+          mode: "physical_pallets",
+
+          view: "locations",
+
+          parentLabel: "Pallets",
+
+          locationBuckets: buckets,
+
+          count: count,
+
+          kg: total.kg != null ? total.kg : (st.kg || 0),
+
+        };
+
+        paint();
+
+        return;
+
+      }
+
+      var detail = summary.physical_pallets || { by_product: st.by_product || [], bags: st.bags, kg: st.kg };
+
+      if ((detail.by_product || []).length) {
+
+        openPhysicalPalletsByProduct(st, detail, count);
+
+        return;
+
+      }
+
+      status.textContent = "Loading " + (st.label || "Pallets") + "…";
+
+      status.style.display = "";
+
+      try {
+
+        var palletData = await ctx.api.traceability("/reports/bags-status?stream=pallet");
+
+        if (!container.isConnected) return;
+
+        detail = palletData.physical_pallets || detail;
+
+        selected = {
+
+          key: st.key,
+
+          label: st.label || "Pallets",
+
+          mode: "physical_pallets",
+
+          view: (detail.by_product || []).length ? "by_product" : "by_location",
+
+          parentLabel: "Pallets",
+
+          count: palletData.drill_bag_count || count,
+
+          sections: palletData.event_sections || [],
+
+          detail: detail,
+
+        };
+
+        status.style.display = "none";
+
+        paint();
+
+      } catch (e) {
+
+        status.style.display = "none";
+
+        body.innerHTML = "";
+
+        body.appendChild(ui.error("Could not load pallets: " + (e.message || e)));
+
+      }
+
+    }
+
+
+
     async function openStatus(st) {
 
-      if (st.kind === "pallet_basket") {
+      if (isPalletBasketTile(st)) {
 
         selectedEvent = null;
 
@@ -2398,41 +2599,9 @@
 
       }
 
-      if (st.kind === "physical_pallets") {
+      if (isPhysicalPalletsTile(st)) {
 
-        selectedEvent = null;
-
-        selected.palletDetail = null;
-
-        wxDrill = null;
-
-        var ps = summary.pallet_summary || {};
-
-        var total = ps.total || { bags: st.bags, kg: st.kg };
-
-        var buckets = (ps.buckets || []).filter(function (b) { return (b.bags || 0) > 0; });
-
-        selected = {
-
-          key: st.key,
-
-          label: st.label || "Pallets",
-
-          mode: "physical_pallets",
-
-          view: "locations",
-
-          parentLabel: "Pallets",
-
-          locationBuckets: buckets,
-
-          count: total.bags != null ? total.bags : (st.bags || 0),
-
-          kg: total.kg != null ? total.kg : (st.kg || 0),
-
-        };
-
-        paint();
+        await openPhysicalPalletsTile(st);
 
         return;
 
