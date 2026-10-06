@@ -1410,7 +1410,7 @@
 
   function fscText(row) {
     var label = normalizeFscLabel(row.fsc_status);
-    if (label) return label;
+    if (label && label !== "—") return label;
     label = normalizeFscLabel(row.fsc_classification);
     if (label) return label;
     var snap = producerSnapshotObj(row);
