@@ -20,6 +20,15 @@
     });
   }
 
+  function syncControlRoomVisibility(cfg) {
+    var mod = (CIS.modules || []).find(function (m) {
+      return m.id === "control_room";
+    });
+    if (mod) mod.inactive = !(cfg && cfg.controlRoomLive === true);
+  }
+
+  CIS.syncControlRoomVisibility = syncControlRoomVisibility;
+
   CIS.modules.push({
     id: "control_room",
     title: "Control Room",
@@ -27,8 +36,9 @@
     kind: "app",
     order: 4,
     icon: "control",
-    description: "Open trucks, factory scales, bag handoff",
+    description: "Open trucks, factory scales, bag handoff (pilot — truck open blocked until server go-live)",
     requires: "traceability.control_room",
+    inactive: true,
     render: render,
   });
 })();

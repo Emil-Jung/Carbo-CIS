@@ -243,6 +243,8 @@
 
     }
 
+    if (CIS.syncControlRoomVisibility) CIS.syncControlRoomVisibility(state.config);
+
     var shellRev = state.config && state.config.shellRev;
     if (shellRev) {
       var revKey = "cis_shell_rev";
