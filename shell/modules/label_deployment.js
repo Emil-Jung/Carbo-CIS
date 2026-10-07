@@ -5,7 +5,7 @@
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
-  var LD_UI_VERSION = "1.1.0";
+  var LD_UI_VERSION = "1.1.1";
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/i;
 
   var CATEGORIES = [
@@ -324,8 +324,7 @@
       try {
         await ctx.api.traceability("/labels/deployments/" + encodeURIComponent(id), {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quantity: quantity }),
+          body: { quantity: quantity },
         });
         await loadInventory();
         await loadDeployments();
@@ -350,14 +349,13 @@
       rangeSubmit.disabled = true;
       ctx.api.traceability("/labels/deployments", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           kind: "serial_range",
           first_serial: first,
           last_serial: last,
           category: rangeCategory.value,
           note: (rangeNote.value || "").trim() || null,
-        }),
+        },
       }).then(function () {
         firstInput.value = "";
         lastInput.value = "";
@@ -386,13 +384,12 @@
       parkSubmit.disabled = true;
       ctx.api.traceability("/labels/deployments", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           kind: "quantity_park",
           quantity: qty,
           category: parkCategory.value,
           note: (parkNote.value || "").trim() || null,
-        }),
+        },
       }).then(function () {
         parkQtyInput.value = "";
         parkNote.value = "";
