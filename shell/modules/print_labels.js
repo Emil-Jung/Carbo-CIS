@@ -636,9 +636,9 @@
 
     if (ctx.setFloatingBack && !(CIS.isPrintLabelsUtility && CIS.isPrintLabelsUtility())) {
       ctx.setFloatingBack({
-        label: "← Traceability",
+        label: "← Labels",
         onClick: function () {
-          if (CIS.openModule) CIS.openModule("traceability");
+          if (CIS.openModule) CIS.openModule("labels");
         },
       });
     }
@@ -966,7 +966,9 @@
         var inv = await ctx.api.traceability("/labels/inventory");
         var c = (inv && inv.counts) || {};
         inventoryEl.textContent =
-          "Available to use: " + (inv.available_to_use != null ? inv.available_to_use : c.available || 0) +
+          "Total produced: " + (inv.total || 0) +
+          " · Available: " + (inv.available_to_use != null ? inv.available_to_use : c.available || 0) +
+          " · Deployed: " + (inv.deployed || c.deployed || 0) +
           " · Allocated (pending print): " + (c.allocated || 0) +
           " · Used: " + (c.used || 0) +
           " · Void: " + (c.void || 0);

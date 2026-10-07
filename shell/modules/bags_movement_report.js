@@ -303,6 +303,10 @@
     }
 
     addItem(inv.available, "ready", "ready");
+    if ((inv.deployed || 0) > 0) {
+      addSep();
+      addItem(inv.deployed, "deployed", "deployed");
+    }
     addSep();
     addItem(inv.used, "on bags", "used");
     if ((inv.allocated || 0) > 0) {

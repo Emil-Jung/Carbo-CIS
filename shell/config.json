@@ -20,7 +20,7 @@
   "displayTimezone": "Africa/Windhoek",
   "qualityReportsApiBase": "/quality/reports/api",
   "supplierTrackingApiBase": "/supplier-tracking/api",
-  "cisVersion": "1.6.11",
+  "cisVersion": "1.6.12",
   "printLabelsInstallerUrl": "/cis/app/CarboPrintLabels-Setup.exe",
-  "shellRev": "20261007-intake-pace"
+  "shellRev": "20261007-label-deployment"
 }

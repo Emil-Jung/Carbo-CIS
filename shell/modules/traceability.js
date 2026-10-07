@@ -15,10 +15,10 @@
       icon: "control",
     },
     {
-      id: "print_labels",
-      title: "Print Labels",
-      description: "Open the Print Labels desktop utility (Zebra + A4 pallet sheets).",
-      requires: "traceability.labels.print",
+      id: "labels",
+      title: "Labels",
+      description: "Print bag labels and record deployments (testing abroad, pre-scanner stock, etc.).",
+      requiresAny: ["traceability.labels.print", "traceability.labels.deployment"],
       icon: "labels",
     },
     {
@@ -70,7 +70,11 @@
     var grid = ui.el("div", { class: "traceability-hub-grid" });
     var shown = 0;
     OPTIONS.forEach(function (opt) {
-      if (!CIS.hasPermission(opt.requires)) return;
+      if (opt.requiresAny && opt.requiresAny.length) {
+        if (!opt.requiresAny.some(function (p) { return CIS.hasPermission(p); })) return;
+      } else if (opt.requires && !CIS.hasPermission(opt.requires)) {
+        return;
+      }
       shown += 1;
       var mod = (CIS.modules || []).find(function (m) { return m.id === opt.id; });
       var inactive = !!(mod && mod.inactive);

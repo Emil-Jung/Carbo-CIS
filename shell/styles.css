@@ -535,6 +535,7 @@ body {
   font-weight: 700;
 }
 .bs-dash-label-chip__part--ready strong { color: #059669; }
+.bs-dash-label-chip__part--deployed strong { color: #7C3AED; }
 .bs-dash-label-chip__part--used strong { color: #0F172A; }
 .bs-dash-label-chip__part--void strong { color: #DC2626; }
 
@@ -1609,6 +1610,9 @@ body {
 }
 .bm-label-tag__item--void strong {
   color: #f87171;
+}
+.bm-label-tag__item--deployed strong {
+  color: #c4b5fd;
 }
 .bm-label-tag--pace {
   border-color: rgba(129, 199, 132, 0.45);
@@ -2750,3 +2754,63 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .manager-override-pin-hint { margin: 12px 0 0; font-size: 13px; }
 .manager-override-msg.is-error { color: #f87171; }
+
+/* Label Deployment */
+.label-deployment-host { max-width: 720px; }
+.label-deployment-panel {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border, #333);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.label-deployment-hint { margin: 0 0 12px; font-size: 13px; line-height: 1.45; }
+.label-deployment-inventory { font-size: 14px; line-height: 1.5; }
+.label-deployment-inventory .ld-stat-ready { color: #8fd99a; }
+.label-deployment-inventory .ld-stat-deployed { color: #c4b5fd; }
+.label-deployment-form {
+  display: grid;
+  gap: 12px;
+  max-width: 520px;
+}
+.label-deployment-field {
+  display: grid;
+  gap: 4px;
+}
+.label-deployment-field__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #aaa);
+}
+.label-deployment-note { min-height: 4rem; resize: vertical; }
+.label-deployment-msg.is-error { color: #f87171; }
+.label-deployment-msg.is-ok { color: #8fd99a; }
+.label-deployment-list { display: grid; gap: 10px; }
+.label-deployment-card {
+  padding: 12px 14px;
+  border: 1px solid var(--border, #333);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.15);
+}
+.label-deployment-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.label-deployment-card__range {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+}
+.label-deployment-card__qty {
+  font-size: 12px;
+  color: var(--muted, #aaa);
+}
+.label-deployment-card__meta {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted, #aaa);
+}

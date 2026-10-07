@@ -782,6 +782,8 @@
 
     addPart(inv.available, "ready", "ready");
 
+    if ((inv.deployed || 0) > 0) addPart(inv.deployed, "deployed", "deployed");
+
     addPart(inv.used, "on bags", "used");
 
     if ((inv.void || 0) > 0) addPart(inv.void, "void", "void");
