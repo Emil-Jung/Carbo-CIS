@@ -1171,9 +1171,9 @@
 
 
 
-  function appendStatusCards(parent, statuses, ui, selectedStatus, onSelect) {
+  function appendStatusCards(parent, statuses, ui, selectedStatus, onSelect, gridClass) {
 
-    var cards = ui.el("div", { class: "bs-dash-status-grid" });
+    var cards = ui.el("div", { class: "bs-dash-status-grid" + (gridClass ? " " + gridClass : "") });
 
     (statuses || []).forEach(function (st) {
 
@@ -1266,15 +1266,23 @@
 
     if (group.sections && group.sections.length) {
 
+      var row = ui.el("div", { class: "bs-dash-location__inline-row" });
+
       group.sections.forEach(function (section, idx) {
 
-        if (idx > 0) block.appendChild(ui.el("hr", { class: "bs-dash-location__divider" }));
+        if (idx > 0) row.appendChild(ui.el("div", { class: "bs-dash-location__vdivider", "aria-hidden": "true" }));
 
-        block.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, [section.label]));
+        var part = ui.el("div", { class: "bs-dash-location__inline-part" });
 
-        appendStatusCards(block, section.statuses, ui, selectedStatus, onSelect);
+        part.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, [section.label]));
+
+        appendStatusCards(part, section.statuses, ui, selectedStatus, onSelect, "bs-dash-status-grid--inline");
+
+        row.appendChild(part);
 
       });
+
+      block.appendChild(row);
 
     } else {
 
