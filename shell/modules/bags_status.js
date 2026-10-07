@@ -1065,6 +1065,8 @@
 
     coast: "teal",
 
+    transit_coast: "teal",
+
     closed: "slate",
 
     packaging_outputs: "amber",
@@ -1073,31 +1075,107 @@
 
 
 
-  function renderGroup(group, ui, selectedStatus, onSelect) {
+  function combineTransitCoastGroups(groups) {
 
-    var tone = GROUP_TONE[group.key] || "indigo";
+    groups = groups || [];
 
-    var block = ui.el("section", { class: "bs-dash-location bs-dash-location--" + tone });
+    var transit = null;
 
-    block.appendChild(ui.el("div", { class: "bs-dash-location__head" }, [
+    var coast = null;
 
-      ui.el("h3", {}, [group.label]),
+    var insertIdx = -1;
 
-      ui.el("span", { class: "bs-dash-location__count" }, [
-        bagsKgText(group.bags, group.kg),
-      ]),
+    groups.forEach(function (g, i) {
 
-    ]));
+      if (g.key === "in_transit") {
 
-    if (group.note) {
+        transit = g;
 
-      block.appendChild(ui.el("p", { class: "bs-dash-location__note" }, [group.note]));
+        if (insertIdx < 0) insertIdx = i;
+
+      }
+
+      if (g.key === "coast") {
+
+        coast = g;
+
+        if (insertIdx < 0) insertIdx = i;
+
+      }
+
+    });
+
+    if (!transit && !coast) return groups;
+
+    var sections = [];
+
+    if (transit) {
+
+      sections.push({
+
+        key: "in_transit",
+
+        label: transit.label || "In transit",
+
+        statuses: transit.statuses || [],
+
+      });
 
     }
 
+    if (coast) {
+
+      sections.push({
+
+        key: "coast",
+
+        label: coast.label || "At the coast",
+
+        statuses: coast.statuses || [],
+
+      });
+
+    }
+
+    var combined = {
+
+      key: "transit_coast",
+
+      label: "In transit & at the coast",
+
+      bags: (transit ? transit.bags : 0) + (coast ? coast.bags : 0),
+
+      kg: (transit ? transit.kg : 0) + (coast ? coast.kg : 0),
+
+      sections: sections,
+
+    };
+
+    var out = groups.filter(function (g) {
+
+      return g.key !== "in_transit" && g.key !== "coast";
+
+    });
+
+    var at = groups.slice(0, insertIdx).filter(function (g) {
+
+      return g.key !== "in_transit" && g.key !== "coast";
+
+    }).length;
+
+    out.splice(at, 0, combined);
+
+    return out;
+
+  }
+
+
+
+  function appendStatusCards(parent, statuses, ui, selectedStatus, onSelect) {
+
     var cards = ui.el("div", { class: "bs-dash-status-grid" });
 
-    group.statuses.forEach(function (st) {
+    (statuses || []).forEach(function (st) {
 
       var cls = "bs-dash-status-card";
 
@@ -1158,7 +1236,51 @@
 
     });
 
-    block.appendChild(cards);
+    parent.appendChild(cards);
+
+  }
+
+
+
+  function renderGroup(group, ui, selectedStatus, onSelect) {
+
+    var tone = GROUP_TONE[group.key] || "indigo";
+
+    var block = ui.el("section", { class: "bs-dash-location bs-dash-location--" + tone });
+
+    block.appendChild(ui.el("div", { class: "bs-dash-location__head" }, [
+
+      ui.el("h3", {}, [group.label]),
+
+      ui.el("span", { class: "bs-dash-location__count" }, [
+        bagsKgText(group.bags, group.kg),
+      ]),
+
+    ]));
+
+    if (group.note) {
+
+      block.appendChild(ui.el("p", { class: "bs-dash-location__note" }, [group.note]));
+
+    }
+
+    if (group.sections && group.sections.length) {
+
+      group.sections.forEach(function (section, idx) {
+
+        if (idx > 0) block.appendChild(ui.el("hr", { class: "bs-dash-location__divider" }));
+
+        block.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, [section.label]));
+
+        appendStatusCards(block, section.statuses, ui, selectedStatus, onSelect);
+
+      });
+
+    } else {
+
+      appendStatusCards(block, group.statuses || [], ui, selectedStatus, onSelect);
+
+    }
 
     return block;
 
@@ -2411,7 +2533,7 @@
 
 
 
-      summary.groups.forEach(function (group) {
+      combineTransitCoastGroups(summary.groups).forEach(function (group) {
 
         body.appendChild(renderGroup(group, ui, null, openStatus));
 

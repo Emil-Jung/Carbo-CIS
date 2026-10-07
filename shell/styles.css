@@ -1029,6 +1029,19 @@ body {
   padding: 4px 10px;
   border-radius: 999px;
 }
+.bs-dash-location__subhead {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748B;
+}
+.bs-dash-location__divider {
+  border: 0;
+  border-top: 1px solid #E2E8F0;
+  margin: 16px 0 14px;
+}
 .bs-dash-location__note {
   margin: 0 0 14px;
   font-size: 13px;
