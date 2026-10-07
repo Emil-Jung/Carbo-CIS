@@ -1171,6 +1171,39 @@
 
 
 
+  var DASHBOARD_GROUP_ORDER = [
+    "factory",
+    "packaging_outputs",
+    "transit_coast",
+    "closed",
+  ];
+
+
+
+  function orderDashboardGroups(groups) {
+
+    groups = (groups || []).slice();
+
+    groups.sort(function (a, b) {
+
+      var ai = DASHBOARD_GROUP_ORDER.indexOf(a.key);
+
+      var bi = DASHBOARD_GROUP_ORDER.indexOf(b.key);
+
+      if (ai < 0) ai = DASHBOARD_GROUP_ORDER.length;
+
+      if (bi < 0) bi = DASHBOARD_GROUP_ORDER.length;
+
+      return ai - bi;
+
+    });
+
+    return groups;
+
+  }
+
+
+
   function appendStatusCards(parent, statuses, ui, selectedStatus, onSelect, gridClass) {
 
     var cards = ui.el("div", { class: "bs-dash-status-grid" + (gridClass ? " " + gridClass : "") });
@@ -2541,7 +2574,7 @@
 
 
 
-      combineTransitCoastGroups(summary.groups).forEach(function (group) {
+      orderDashboardGroups(combineTransitCoastGroups(summary.groups)).forEach(function (group) {
 
         body.appendChild(renderGroup(group, ui, null, openStatus));
 
