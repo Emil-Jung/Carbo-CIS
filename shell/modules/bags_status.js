@@ -784,8 +784,8 @@
 
     if ((inv.parked || 0) > 0) addPart(inv.parked, "parked", "parked");
 
-    if ((inv.deployed || inv.deployed_serial || 0) > 0) {
-      addPart(inv.deployed_serial != null ? inv.deployed_serial : inv.deployed, "deployed", "deployed");
+    if ((inv.fenced || inv.fenced_serial || 0) > 0) {
+      addPart(inv.fenced_serial != null ? inv.fenced_serial : inv.fenced, "fenced", "fenced");
     }
 
     addPart(inv.used, "on bags", "used");

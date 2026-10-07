@@ -17,7 +17,7 @@
     {
       id: "labels",
       title: "Labels",
-      description: "Print bag labels and record deployments (testing abroad, pre-scanner stock, etc.).",
+      description: "Print bag labels and fence or park stock (testing abroad, pre-scanner, etc.).",
       requiresAny: ["traceability.labels.print", "traceability.labels.deployment"],
       icon: "labels",
     },

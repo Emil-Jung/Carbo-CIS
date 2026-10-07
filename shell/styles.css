@@ -535,7 +535,7 @@ body {
   font-weight: 700;
 }
 .bs-dash-label-chip__part--ready strong { color: #059669; }
-.bs-dash-label-chip__part--deployed strong { color: #7C3AED; }
+.bs-dash-label-chip__part--fenced strong { color: #7C3AED; }
 .bs-dash-label-chip__part--used strong { color: #0F172A; }
 .bs-dash-label-chip__part--void strong { color: #DC2626; }
 
@@ -1611,7 +1611,7 @@ body {
 .bm-label-tag__item--void strong {
   color: #f87171;
 }
-.bm-label-tag__item--deployed strong {
+.bm-label-tag__item--fenced strong {
   color: #c4b5fd;
 }
 .bm-label-tag--pace {
@@ -2767,7 +2767,7 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .label-deployment-hint { margin: 0 0 12px; font-size: 13px; line-height: 1.45; }
 .label-deployment-inventory { font-size: 14px; line-height: 1.5; }
 .label-deployment-inventory .ld-stat-ready { color: #8fd99a; }
-.label-deployment-inventory .ld-stat-deployed { color: #c4b5fd; }
+.label-deployment-inventory .ld-stat-fenced { color: #c4b5fd; }
 .label-deployment-inventory .ld-stat-parked { color: #fbbf24; }
 .label-deployment-panel--park {
   border-color: rgba(251, 191, 36, 0.35);

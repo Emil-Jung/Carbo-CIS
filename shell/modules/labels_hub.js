@@ -1,4 +1,4 @@
-/* Labels hub — Print Labels and Label Deployment under Traceability. */
+/* Labels hub — Print Labels and Label Fencing under Traceability. */
 
 (function () {
   "use strict";
@@ -15,8 +15,8 @@
     },
     {
       id: "label_deployment",
-      title: "Label Deployment",
-      description: "Serial ranges (known Bag IDs) or park a quantity when serials are unknown.",
+      title: "Label Fencing",
+      description: "Fence serial ranges (known Bag IDs) or park a quantity when serials are unknown.",
       requires: "traceability.labels.deployment",
       icon: "deploy",
     },
@@ -36,7 +36,7 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Labels"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Bag label printing and deployment tracking. Deployed labels stay in the total produced count but are excluded from available stock.",
+      "Bag label printing and fencing. Fenced or parked labels stay in the total produced count but are excluded from available stock.",
     ]));
 
     var grid = ui.el("div", { class: "traceability-hub-grid" });
@@ -59,7 +59,7 @@
 
     if (!shown) {
       container.appendChild(ui.el("p", { class: "muted" }, [
-        "No label options are assigned to your account. Ask an administrator for Print Labels or Label Deployment access.",
+        "No label options are assigned to your account. Ask an administrator for Print Labels or Label Fencing access.",
       ]));
     } else {
       container.appendChild(grid);
@@ -79,7 +79,7 @@
     title: "Labels",
     kind: "app",
     icon: "labels",
-    description: "Print labels and record deployments",
+    description: "Print labels and fence or park stock",
     requires: "traceability.access",
     requiresAny: [
       "traceability.labels.print",

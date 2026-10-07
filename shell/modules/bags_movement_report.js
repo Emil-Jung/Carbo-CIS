@@ -307,9 +307,9 @@
       addSep();
       addItem(inv.parked, "parked", "parked");
     }
-    if ((inv.deployed || inv.deployed_serial || 0) > 0) {
+    if ((inv.fenced || inv.fenced_serial || 0) > 0) {
       addSep();
-      addItem(inv.deployed_serial != null ? inv.deployed_serial : inv.deployed, "deployed", "deployed");
+      addItem(inv.fenced_serial != null ? inv.fenced_serial : inv.fenced, "fenced", "fenced");
     }
     addSep();
     addItem(inv.used, "on bags", "used");

@@ -1,11 +1,11 @@
-/* Label Deployment — serial ranges (known IDs) or quantity park (unknown serials). */
+/* Label Fencing — serial ranges (known IDs) or quantity park (unknown serials). */
 
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
-  var LD_UI_VERSION = "1.1.1";
+  var LD_UI_VERSION = "1.2.0";
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/i;
 
   var CATEGORIES = [
@@ -54,10 +54,10 @@
     container.innerHTML = "";
     container.className = "module-content label-deployment-host";
 
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Label Deployment"]));
+    container.appendChild(ui.el("h2", { class: "module-title" }, ["Label Fencing"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Exclude labels from the available count without losing them from total production. "
-        + "Use a serial range when you know the Bag IDs (e.g. testing abroad), or park a quantity when serials are unknown (pre-scanner stock). UI "
+      "Set labels aside from the available count — not permanent; they may return, be used, or be voided later. "
+        + "Fence a serial range when you know the Bag IDs (e.g. testing abroad), or park a quantity when serials are unknown. UI "
         + LD_UI_VERSION + ".",
     ]));
 
@@ -79,7 +79,7 @@
     var rangePanel = ui.el("section", { class: "label-deployment-panel" });
     rangePanel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["Serial range (known Bag IDs)"]));
     rangePanel.appendChild(ui.el("p", { class: "muted label-deployment-hint" }, [
-      "For a contiguous block you can identify — e.g. BAG-2026-003311 to BAG-2026-003511 sent to England. Each label is marked deployed and can be tracked or restored later.",
+      "For a contiguous block you can identify — e.g. BAG-2026-003311 to BAG-2026-003511 sent to England. Each label is fenced (set aside) until returned, used, or voided.",
     ]));
 
     var rangeForm = ui.el("form", { class: "label-deployment-form" });
@@ -96,7 +96,7 @@
       placeholder: "Note — e.g. plane to England for testing",
     });
     var rangeMsg = ui.el("p", { class: "label-deployment-msg muted" });
-    var rangeSubmit = ui.el("button", { class: "btn-sm", type: "submit" }, ["Record serial range"]);
+    var rangeSubmit = ui.el("button", { class: "btn-sm", type: "submit" }, ["Fence serial range"]);
 
     rangeForm.appendChild(ui.el("label", { class: "label-deployment-field" }, [
       ui.el("span", { class: "label-deployment-field__label" }, ["First serial"]),
@@ -166,7 +166,7 @@
     container.appendChild(parkPanel);
 
     var listPanel = ui.el("section", { class: "label-deployment-panel" });
-    listPanel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["Active deployments & parks"]));
+    listPanel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["Active fences & parks"]));
     var listEl = ui.el("div", { class: "label-deployment-list" });
     listPanel.appendChild(listEl);
     container.appendChild(listPanel);
@@ -192,12 +192,12 @@
       }
       var c = inv.counts || {};
       var parked = inv.parked != null ? inv.parked : 0;
-      var deployed = inv.deployed_serial != null ? inv.deployed_serial : (inv.deployed || c.deployed || 0);
+      var fenced = inv.fenced_serial != null ? inv.fenced_serial : (inv.fenced || c.fenced || 0);
       inventoryEl.innerHTML =
         "<strong>" + fmt(inv.total) + "</strong> produced · " +
         "<strong class=\"ld-stat-ready\">" + fmt(inv.available) + "</strong> available to use · " +
         (parked ? "<strong class=\"ld-stat-parked\">" + fmt(parked) + "</strong> parked · " : "") +
-        (deployed ? "<strong class=\"ld-stat-deployed\">" + fmt(deployed) + "</strong> deployed (serial) · " : "") +
+        (fenced ? "<strong class=\"ld-stat-fenced\">" + fmt(fenced) + "</strong> fenced (serial) · " : "") +
         fmt(c.used || inv.used || 0) + " on bags · " +
         fmt(c.allocated || inv.allocated || 0) + " pending print · " +
         fmt(c.void || inv.void || 0) + " void";
@@ -207,7 +207,7 @@
       listEl.innerHTML = "";
       var active = (rows || []).filter(function (d) { return d.active !== false && !d.revoked_at; });
       if (!active.length) {
-        listEl.appendChild(ui.el("p", { class: "muted" }, ["Nothing active — record a serial range or park a quantity above."]));
+        listEl.appendChild(ui.el("p", { class: "muted" }, ["Nothing active — fence a serial range or park a quantity above."]));
         return;
       }
       active.forEach(function (dep) {
@@ -267,11 +267,11 @@
         var revokeBtn = ui.el("button", {
           class: "btn-ghost btn-sm",
           type: "button",
-        }, [isPark ? "Clear park" : "Restore serial range"]);
+        }, [isPark ? "Clear park" : "Return range to available"]);
         revokeBtn.onclick = function () {
           var msg = isPark
             ? "Clear parked quantity of " + dep.quantity + "?"
-            : "Restore " + dep.quantity + " labels to available?\n\n" + dep.first_serial + " – " + dep.last_serial;
+            : "Return " + dep.quantity + " fenced labels to available?\n\n" + dep.first_serial + " – " + dep.last_serial;
           if (!window.confirm(msg)) return;
           revokeDeployment(dep.deployment_id);
         };
@@ -360,7 +360,7 @@
         firstInput.value = "";
         lastInput.value = "";
         rangeNote.value = "";
-        setMsg(rangeMsg, "Serial range recorded.", false);
+        setMsg(rangeMsg, "Serial range fenced.", false);
         return loadInventory().then(loadDeployments);
       }).catch(function (e) {
         setMsg(rangeMsg, String(e.message || e), true);
@@ -408,10 +408,10 @@
 
   CIS.modules.push({
     id: "label_deployment",
-    title: "Label Deployment",
+    title: "Label Fencing",
     kind: "app",
     icon: "labels",
-    description: "Serial ranges and quantity parks for label stock",
+    description: "Fence serial ranges or park quantities for label stock",
     requires: "traceability.labels.deployment",
     render: render,
   });
