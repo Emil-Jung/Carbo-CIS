@@ -247,7 +247,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.12";
+  var BM_UI_VERSION = "1.6.16";
   var BM_API_SUFFIX = "&compact=1";
   var BM_AUTO_REFRESH_MS = 60000;
 
@@ -343,14 +343,21 @@
     item.appendChild(document.createTextNode(" bags/day (" + lookback + " days)"));
     line.appendChild(item);
 
-    var ready = inv && inv.available != null ? Number(inv.available) : null;
-    if (ready != null && !isNaN(ready) && avg > 0) {
+    var available = inv && inv.available != null ? Number(inv.available) : null;
+    if (available != null && !isNaN(available)) {
+      line.appendChild(ui.el("span", { class: "bm-label-tag__sep" }, ["·"]));
+      var availItem = ui.el("span", { class: "bm-label-tag__item bm-label-tag__item--ready" });
+      availItem.appendChild(ui.el("strong", {}, [fmt(available)]));
+      availItem.appendChild(document.createTextNode(" available"));
+      line.appendChild(availItem);
+    }
+    if (available != null && !isNaN(available) && avg > 0) {
       line.appendChild(ui.el("span", { class: "bm-label-tag__sep" }, ["·"]));
       var cover = ui.el("span", { class: "bm-label-tag__item bm-label-tag__item--cover" });
-      var daysCover = Math.round(ready / avg);
+      var daysCover = Math.round(available / avg);
       cover.appendChild(document.createTextNode("~"));
       cover.appendChild(ui.el("strong", {}, [fmt(daysCover)]));
-      cover.appendChild(document.createTextNode(" days of ready labels"));
+      cover.appendChild(document.createTextNode(" days at this pace"));
       line.appendChild(cover);
     }
 
