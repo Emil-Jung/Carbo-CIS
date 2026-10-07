@@ -780,9 +780,13 @@
 
     }
 
-    addPart(inv.available, "ready", "ready");
+    addPart(inv.available != null ? inv.available : inv.available_to_use, "ready", "ready");
 
-    if ((inv.deployed || 0) > 0) addPart(inv.deployed, "deployed", "deployed");
+    if ((inv.parked || 0) > 0) addPart(inv.parked, "parked", "parked");
+
+    if ((inv.deployed || inv.deployed_serial || 0) > 0) {
+      addPart(inv.deployed_serial != null ? inv.deployed_serial : inv.deployed, "deployed", "deployed");
+    }
 
     addPart(inv.used, "on bags", "used");
 

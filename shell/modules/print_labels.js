@@ -965,10 +965,13 @@
       try {
         var inv = await ctx.api.traceability("/labels/inventory");
         var c = (inv && inv.counts) || {};
+        var parked = inv.parked || 0;
+        var deployed = inv.deployed_serial != null ? inv.deployed_serial : (inv.deployed || c.deployed || 0);
         inventoryEl.textContent =
           "Total produced: " + (inv.total || 0) +
-          " · Available: " + (inv.available_to_use != null ? inv.available_to_use : c.available || 0) +
-          " · Deployed: " + (inv.deployed || c.deployed || 0) +
+          " · Available: " + (inv.available_to_use != null ? inv.available_to_use : inv.available || c.available || 0) +
+          (parked ? " · Parked: " + parked : "") +
+          (deployed ? " · Deployed (serial): " + deployed : "") +
           " · Allocated (pending print): " + (c.allocated || 0) +
           " · Used: " + (c.used || 0) +
           " · Void: " + (c.void || 0);

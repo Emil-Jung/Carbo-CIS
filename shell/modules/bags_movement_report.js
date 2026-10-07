@@ -302,10 +302,14 @@
       line.appendChild(ui.el("span", { class: "bm-label-tag__sep" }, ["·"]));
     }
 
-    addItem(inv.available, "ready", "ready");
-    if ((inv.deployed || 0) > 0) {
+    addItem(inv.available != null ? inv.available : inv.available_to_use, "ready", "ready");
+    if ((inv.parked || 0) > 0) {
       addSep();
-      addItem(inv.deployed, "deployed", "deployed");
+      addItem(inv.parked, "parked", "parked");
+    }
+    if ((inv.deployed || inv.deployed_serial || 0) > 0) {
+      addSep();
+      addItem(inv.deployed_serial != null ? inv.deployed_serial : inv.deployed, "deployed", "deployed");
     }
     addSep();
     addItem(inv.used, "on bags", "used");

@@ -2768,6 +2768,38 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .label-deployment-inventory { font-size: 14px; line-height: 1.5; }
 .label-deployment-inventory .ld-stat-ready { color: #8fd99a; }
 .label-deployment-inventory .ld-stat-deployed { color: #c4b5fd; }
+.label-deployment-inventory .ld-stat-parked { color: #fbbf24; }
+.label-deployment-panel--park {
+  border-color: rgba(251, 191, 36, 0.35);
+}
+.label-deployment-card__kind {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #aaa);
+  margin-bottom: 4px;
+}
+.label-deployment-card--park {
+  border-color: rgba(251, 191, 36, 0.35);
+}
+.label-deployment-adjust {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.label-deployment-adjust__input {
+  width: 7rem;
+}
+.label-deployment-adjust-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+.bm-label-tag__item--parked strong { color: #fbbf24; }
+.bs-dash-label-chip__part--parked strong { color: #D97706; }
 .label-deployment-form {
   display: grid;
   gap: 12px;

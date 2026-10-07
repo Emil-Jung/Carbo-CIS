@@ -1,11 +1,11 @@
-/* Label Deployment — record serial ranges excised from available label stock. */
+/* Label Deployment — serial ranges (known IDs) or quantity park (unknown serials). */
 
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
-  var LD_UI_VERSION = "1.0.0";
+  var LD_UI_VERSION = "1.1.0";
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/i;
 
   var CATEGORIES = [
@@ -56,7 +56,9 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Label Deployment"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Record labels that are still part of total production but must not count as available — e.g. sent for testing, or already on bags before scanners were live. UI " + LD_UI_VERSION + ".",
+      "Exclude labels from the available count without losing them from total production. "
+        + "Use a serial range when you know the Bag IDs (e.g. testing abroad), or park a quantity when serials are unknown (pre-scanner stock). UI "
+        + LD_UI_VERSION + ".",
     ]));
 
     container.appendChild(ui.el("button", {
@@ -73,61 +75,98 @@
     inventoryPanel.appendChild(inventoryEl);
     container.appendChild(inventoryPanel);
 
-    var formPanel = ui.el("section", { class: "label-deployment-panel" });
-    formPanel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["New deployment"]));
-    formPanel.appendChild(ui.el("p", { class: "muted label-deployment-hint" }, [
-      "Enter the first and last Bag ID in the range (e.g. BAG-2026-003311 to BAG-2026-003511). All labels in the range must already exist and be available.",
+    /* --- Serial range form --- */
+    var rangePanel = ui.el("section", { class: "label-deployment-panel" });
+    rangePanel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["Serial range (known Bag IDs)"]));
+    rangePanel.appendChild(ui.el("p", { class: "muted label-deployment-hint" }, [
+      "For a contiguous block you can identify — e.g. BAG-2026-003311 to BAG-2026-003511 sent to England. Each label is marked deployed and can be tracked or restored later.",
     ]));
 
-    var form = ui.el("form", { class: "label-deployment-form" });
-    var firstInput = ui.el("input", {
-      class: "input",
-      type: "text",
-      placeholder: "First Bag ID",
-      autocomplete: "off",
-    });
-    var lastInput = ui.el("input", {
-      class: "input",
-      type: "text",
-      placeholder: "Last Bag ID",
-      autocomplete: "off",
-    });
-    var categorySelect = ui.el("select", { class: "input" });
+    var rangeForm = ui.el("form", { class: "label-deployment-form" });
+    var firstInput = ui.el("input", { class: "input", type: "text", placeholder: "First Bag ID", autocomplete: "off" });
+    var lastInput = ui.el("input", { class: "input", type: "text", placeholder: "Last Bag ID", autocomplete: "off" });
+    var rangeCategory = ui.el("select", { class: "input" });
     CATEGORIES.forEach(function (cat) {
-      categorySelect.appendChild(ui.el("option", { value: cat.key }, [cat.label]));
+      rangeCategory.appendChild(ui.el("option", { value: cat.key }, [cat.label]));
     });
-    var noteInput = ui.el("textarea", {
+    rangeCategory.value = "testing_abroad";
+    var rangeNote = ui.el("textarea", {
       class: "input label-deployment-note",
       rows: "2",
-      placeholder: "Note (optional) — e.g. plane to England for testing",
+      placeholder: "Note — e.g. plane to England for testing",
     });
+    var rangeMsg = ui.el("p", { class: "label-deployment-msg muted" });
+    var rangeSubmit = ui.el("button", { class: "btn-sm", type: "submit" }, ["Record serial range"]);
 
-    form.appendChild(ui.el("label", { class: "label-deployment-field" }, [
+    rangeForm.appendChild(ui.el("label", { class: "label-deployment-field" }, [
       ui.el("span", { class: "label-deployment-field__label" }, ["First serial"]),
       firstInput,
     ]));
-    form.appendChild(ui.el("label", { class: "label-deployment-field" }, [
+    rangeForm.appendChild(ui.el("label", { class: "label-deployment-field" }, [
       ui.el("span", { class: "label-deployment-field__label" }, ["Last serial"]),
       lastInput,
     ]));
-    form.appendChild(ui.el("label", { class: "label-deployment-field" }, [
+    rangeForm.appendChild(ui.el("label", { class: "label-deployment-field" }, [
       ui.el("span", { class: "label-deployment-field__label" }, ["Reason"]),
-      categorySelect,
+      rangeCategory,
     ]));
-    form.appendChild(ui.el("label", { class: "label-deployment-field" }, [
+    rangeForm.appendChild(ui.el("label", { class: "label-deployment-field" }, [
       ui.el("span", { class: "label-deployment-field__label" }, ["Note"]),
-      noteInput,
+      rangeNote,
+    ]));
+    rangeForm.appendChild(rangeMsg);
+    rangeForm.appendChild(rangeSubmit);
+    rangePanel.appendChild(rangeForm);
+    container.appendChild(rangePanel);
+
+    /* --- Quantity park form --- */
+    var parkPanel = ui.el("section", { class: "label-deployment-panel label-deployment-panel--park" });
+    parkPanel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["Park quantity (unknown serials)"]));
+    parkPanel.appendChild(ui.el("p", { class: "muted label-deployment-hint" }, [
+      "When labels were used from a box without recording which Bag IDs — park the estimated count (e.g. 280 on pre-scanner bags). "
+        + "Reduce the parked number as those bags are scanned in, or clear it when done.",
     ]));
 
-    var formMsg = ui.el("p", { class: "label-deployment-msg muted" });
-    var submitBtn = ui.el("button", { class: "btn-sm", type: "submit" }, ["Record deployment"]);
-    form.appendChild(formMsg);
-    form.appendChild(submitBtn);
-    formPanel.appendChild(form);
-    container.appendChild(formPanel);
+    var parkForm = ui.el("form", { class: "label-deployment-form" });
+    var parkQtyInput = ui.el("input", {
+      class: "input",
+      type: "number",
+      min: "1",
+      step: "1",
+      placeholder: "Quantity to park",
+    });
+    var parkCategory = ui.el("select", { class: "input" });
+    CATEGORIES.forEach(function (cat) {
+      parkCategory.appendChild(ui.el("option", { value: cat.key }, [cat.label]));
+    });
+    parkCategory.value = "pre_scanner";
+    var parkNote = ui.el("textarea", {
+      class: "input label-deployment-note",
+      rows: "2",
+      placeholder: "Note — e.g. on bags before scanners; scan in when moved",
+    });
+    var parkMsg = ui.el("p", { class: "label-deployment-msg muted" });
+    var parkSubmit = ui.el("button", { class: "btn-sm", type: "submit" }, ["Park quantity"]);
+
+    parkForm.appendChild(ui.el("label", { class: "label-deployment-field" }, [
+      ui.el("span", { class: "label-deployment-field__label" }, ["Quantity"]),
+      parkQtyInput,
+    ]));
+    parkForm.appendChild(ui.el("label", { class: "label-deployment-field" }, [
+      ui.el("span", { class: "label-deployment-field__label" }, ["Reason"]),
+      parkCategory,
+    ]));
+    parkForm.appendChild(ui.el("label", { class: "label-deployment-field" }, [
+      ui.el("span", { class: "label-deployment-field__label" }, ["Note"]),
+      parkNote,
+    ]));
+    parkForm.appendChild(parkMsg);
+    parkForm.appendChild(parkSubmit);
+    parkPanel.appendChild(parkForm);
+    container.appendChild(parkPanel);
 
     var listPanel = ui.el("section", { class: "label-deployment-panel" });
-    listPanel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["Active deployments"]));
+    listPanel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["Active deployments & parks"]));
     var listEl = ui.el("div", { class: "label-deployment-list" });
     listPanel.appendChild(listEl);
     container.appendChild(listPanel);
@@ -141,9 +180,9 @@
       });
     }
 
-    function setFormMsg(text, isError) {
-      formMsg.textContent = text || "";
-      formMsg.className = "label-deployment-msg" + (text ? (isError ? " is-error" : " is-ok") : " muted");
+    function setMsg(el, text, isError) {
+      el.textContent = text || "";
+      el.className = "label-deployment-msg" + (text ? (isError ? " is-error" : " is-ok") : " muted");
     }
 
     function renderInventory(inv) {
@@ -152,10 +191,13 @@
         return;
       }
       var c = inv.counts || {};
+      var parked = inv.parked != null ? inv.parked : 0;
+      var deployed = inv.deployed_serial != null ? inv.deployed_serial : (inv.deployed || c.deployed || 0);
       inventoryEl.innerHTML =
-        "<strong>" + fmt(inv.total) + "</strong> produced total · " +
-        "<strong class=\"ld-stat-ready\">" + fmt(inv.available) + "</strong> available · " +
-        "<strong class=\"ld-stat-deployed\">" + fmt(inv.deployed || c.deployed || 0) + "</strong> deployed · " +
+        "<strong>" + fmt(inv.total) + "</strong> produced · " +
+        "<strong class=\"ld-stat-ready\">" + fmt(inv.available) + "</strong> available to use · " +
+        (parked ? "<strong class=\"ld-stat-parked\">" + fmt(parked) + "</strong> parked · " : "") +
+        (deployed ? "<strong class=\"ld-stat-deployed\">" + fmt(deployed) + "</strong> deployed (serial) · " : "") +
         fmt(c.used || inv.used || 0) + " on bags · " +
         fmt(c.allocated || inv.allocated || 0) + " pending print · " +
         fmt(c.void || inv.void || 0) + " void";
@@ -165,18 +207,24 @@
       listEl.innerHTML = "";
       var active = (rows || []).filter(function (d) { return d.active !== false && !d.revoked_at; });
       if (!active.length) {
-        listEl.appendChild(ui.el("p", { class: "muted" }, ["No active deployments recorded."]));
+        listEl.appendChild(ui.el("p", { class: "muted" }, ["Nothing active — record a serial range or park a quantity above."]));
         return;
       }
       active.forEach(function (dep) {
-        var card = ui.el("article", { class: "label-deployment-card" });
+        var isPark = dep.kind === "quantity_park";
+        var card = ui.el("article", { class: "label-deployment-card" + (isPark ? " label-deployment-card--park" : "") });
         var head = ui.el("div", { class: "label-deployment-card__head" });
+        head.appendChild(ui.el("span", { class: "label-deployment-card__kind" }, [
+          isPark ? "Quantity park" : "Serial range",
+        ]));
         head.appendChild(ui.el("strong", { class: "label-deployment-card__range" }, [
-          dep.first_serial + " – " + dep.last_serial,
+          isPark ? fmt(dep.quantity) + " labels (serials unknown)" : dep.first_serial + " – " + dep.last_serial,
         ]));
-        head.appendChild(ui.el("span", { class: "label-deployment-card__qty" }, [
-          fmt(dep.quantity) + " labels",
-        ]));
+        if (!isPark) {
+          head.appendChild(ui.el("span", { class: "label-deployment-card__qty" }, [
+            fmt(dep.quantity) + " labels",
+          ]));
+        }
         card.appendChild(head);
         card.appendChild(ui.el("p", { class: "label-deployment-card__meta" }, [
           categoryLabel(dep.category) +
@@ -184,15 +232,47 @@
             " · " + formatWhen(dep.created_at) +
             (dep.created_by ? " · " + dep.created_by : ""),
         ]));
+
+        if (isPark) {
+          var adjustRow = ui.el("div", { class: "label-deployment-adjust" });
+          var adjustInput = ui.el("input", {
+            class: "input label-deployment-adjust__input",
+            type: "number",
+            min: "0",
+            step: "1",
+            value: String(dep.quantity),
+          });
+          var adjustBtn = ui.el("button", { class: "btn-sm", type: "button" }, ["Update count"]);
+          adjustBtn.onclick = function () {
+            var qty = parseInt(adjustInput.value, 10);
+            if (isNaN(qty) || qty < 0) {
+              window.alert("Enter a valid quantity (0 to clear the park).");
+              return;
+            }
+            var msg = qty === 0
+              ? "Clear this park entirely?"
+              : "Set parked quantity to " + qty + "?";
+            if (!window.confirm(msg)) return;
+            adjustPark(dep.deployment_id, qty);
+          };
+          adjustRow.appendChild(ui.el("span", { class: "label-deployment-adjust__label" }, ["Parked count:"]));
+          adjustRow.appendChild(adjustInput);
+          adjustRow.appendChild(adjustBtn);
+          card.appendChild(adjustRow);
+          card.appendChild(ui.el("p", { class: "muted label-deployment-adjust-hint" }, [
+            "Lower this as pre-scanner bags are scanned in. Set to 0 to clear.",
+          ]));
+        }
+
         var revokeBtn = ui.el("button", {
           class: "btn-ghost btn-sm",
           type: "button",
-        }, ["Restore to available"]);
+        }, [isPark ? "Clear park" : "Restore serial range"]);
         revokeBtn.onclick = function () {
-          if (!window.confirm(
-            "Restore " + dep.quantity + " labels back to available stock?\n\n" +
-              dep.first_serial + " – " + dep.last_serial
-          )) return;
+          var msg = isPark
+            ? "Clear parked quantity of " + dep.quantity + "?"
+            : "Restore " + dep.quantity + " labels to available?\n\n" + dep.first_serial + " – " + dep.last_serial;
+          if (!window.confirm(msg)) return;
           revokeDeployment(dep.deployment_id);
         };
         card.appendChild(revokeBtn);
@@ -240,39 +320,88 @@
       }
     }
 
-    form.addEventListener("submit", function (ev) {
+    async function adjustPark(id, quantity) {
+      try {
+        await ctx.api.traceability("/labels/deployments/" + encodeURIComponent(id), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quantity: quantity }),
+        });
+        await loadInventory();
+        await loadDeployments();
+      } catch (e) {
+        window.alert(String(e.message || e));
+      }
+    }
+
+    rangeForm.addEventListener("submit", function (ev) {
       ev.preventDefault();
       if (!ctx.api || !ctx.api.traceability) {
-        setFormMsg("Traceability API not configured.", true);
+        setMsg(rangeMsg, "Traceability API not configured.", true);
         return;
       }
       var first = normalizeSerial(firstInput.value);
       var last = normalizeSerial(lastInput.value);
       if (!SERIAL_RE.test(first) || !SERIAL_RE.test(last)) {
-        setFormMsg("Enter valid Bag IDs (BAG-YYYY-NNNNNN).", true);
+        setMsg(rangeMsg, "Enter valid Bag IDs (BAG-YYYY-NNNNNN).", true);
         return;
       }
-      setFormMsg("Saving…");
-      submitBtn.disabled = true;
+      setMsg(rangeMsg, "Saving…");
+      rangeSubmit.disabled = true;
       ctx.api.traceability("/labels/deployments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          kind: "serial_range",
           first_serial: first,
           last_serial: last,
-          category: categorySelect.value,
-          note: (noteInput.value || "").trim() || null,
+          category: rangeCategory.value,
+          note: (rangeNote.value || "").trim() || null,
         }),
       }).then(function () {
         firstInput.value = "";
         lastInput.value = "";
-        noteInput.value = "";
-        setFormMsg("Deployment recorded.", false);
+        rangeNote.value = "";
+        setMsg(rangeMsg, "Serial range recorded.", false);
         return loadInventory().then(loadDeployments);
       }).catch(function (e) {
-        setFormMsg(String(e.message || e), true);
+        setMsg(rangeMsg, String(e.message || e), true);
       }).finally(function () {
-        submitBtn.disabled = false;
+        rangeSubmit.disabled = false;
+      });
+    });
+
+    parkForm.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      if (!ctx.api || !ctx.api.traceability) {
+        setMsg(parkMsg, "Traceability API not configured.", true);
+        return;
+      }
+      var qty = parseInt(parkQtyInput.value, 10);
+      if (isNaN(qty) || qty < 1) {
+        setMsg(parkMsg, "Enter a quantity of at least 1.", true);
+        return;
+      }
+      setMsg(parkMsg, "Saving…");
+      parkSubmit.disabled = true;
+      ctx.api.traceability("/labels/deployments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "quantity_park",
+          quantity: qty,
+          category: parkCategory.value,
+          note: (parkNote.value || "").trim() || null,
+        }),
+      }).then(function () {
+        parkQtyInput.value = "";
+        parkNote.value = "";
+        setMsg(parkMsg, "Quantity parked.", false);
+        return loadInventory().then(loadDeployments);
+      }).catch(function (e) {
+        setMsg(parkMsg, String(e.message || e), true);
+      }).finally(function () {
+        parkSubmit.disabled = false;
       });
     });
 
@@ -285,7 +414,7 @@
     title: "Label Deployment",
     kind: "app",
     icon: "labels",
-    description: "Record labels excised from available stock",
+    description: "Serial ranges and quantity parks for label stock",
     requires: "traceability.labels.deployment",
     render: render,
   });

@@ -16,7 +16,7 @@
     {
       id: "label_deployment",
       title: "Label Deployment",
-      description: "Record labels sent abroad, on pre-scanner bags, or otherwise excised from available stock.",
+      description: "Serial ranges (known Bag IDs) or park a quantity when serials are unknown.",
       requires: "traceability.labels.deployment",
       icon: "deploy",
     },
