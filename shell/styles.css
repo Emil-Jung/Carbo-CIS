@@ -559,18 +559,42 @@ body {
   margin-bottom: 0;
 }
 .bs-dash-card--wide { margin-bottom: 16px; }
-.bs-dash-card--chart {
-  padding: 12px 14px 14px;
+.bs-dash-grid__side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   max-width: min(100%, 22rem);
   justify-self: end;
 }
 @media (max-width: 900px) {
-  .bs-dash-card--chart {
+  .bs-dash-grid__side {
     max-width: none;
     justify-self: stretch;
   }
 }
-.bs-dash-card--chart .bs-dash-card__head { margin-bottom: 8px; }
+.bs-dash-card--side {
+  padding: 12px 14px 14px;
+}
+.bs-dash-card--side .bs-dash-card__head { margin-bottom: 8px; }
+.bs-dash-card--side .bs-dash-pipeline { gap: 10px; }
+.bs-dash-card--side .bs-dash-pipeline-row {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+.bs-dash-card--side .bs-dash-pipeline-label { font-size: 12px; }
+.bs-dash-card--side .bs-dash-pipeline-track { height: 20px; }
+.bs-dash-card--side .bs-dash-pipeline-meta {
+  text-align: left;
+  max-width: none;
+  font-size: 9px;
+  white-space: normal;
+}
+.bs-dash-card--side .bs-dash-pipeline-legend {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+  font-size: 10px;
+}
 .bs-dash-card__head { margin-bottom: 14px; }
 .bs-dash-card__head h3 {
   margin: 0 0 4px;

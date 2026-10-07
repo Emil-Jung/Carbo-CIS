@@ -419,7 +419,7 @@
 
   function renderWeekChart(endWeeks, ui, onDrill) {
 
-    var card = ui.el("div", { class: "bs-dash-card bs-dash-card--chart" });
+    var card = ui.el("div", { class: "bs-dash-card bs-dash-card--side" });
 
     card.appendChild(ui.el("div", { class: "bs-dash-card__head" }, [
 
@@ -499,17 +499,13 @@
 
   function renderPipelineChart(pipeline, ui) {
 
-    var card = ui.el("div", { class: "bs-dash-card bs-dash-card--wide" });
+    var card = ui.el("div", { class: "bs-dash-card bs-dash-card--side" });
 
     card.appendChild(ui.el("div", { class: "bs-dash-card__head" }, [
 
       ui.el("h3", {}, ["Pipeline by location"]),
 
-      ui.el("p", { class: "bs-dash-card__sub" }, [
-
-        "Still on the clock vs ready to move — in storage, packaging, briquette plant",
-
-      ]),
+      ui.el("p", { class: "bs-dash-card__sub" }, ["On the clock vs ready — by area"]),
 
     ]));
 
@@ -2401,11 +2397,15 @@
 
         grid.appendChild(renderWeatheringPanel(weathering, ui, openWxDrill));
 
-        grid.appendChild(renderWeekChart(weathering.end_weeks, ui, openWxDrill));
+        var side = ui.el("div", { class: "bs-dash-grid__side" });
+
+        side.appendChild(renderWeekChart(weathering.end_weeks, ui, openWxDrill));
+
+        side.appendChild(renderPipelineChart(weathering.pipeline, ui));
+
+        grid.appendChild(side);
 
         body.appendChild(grid);
-
-        body.appendChild(renderPipelineChart(weathering.pipeline, ui));
 
       }
 
