@@ -425,11 +425,11 @@
 
       ui.el("h3", {}, ["Release calendar"]),
 
-      ui.el("p", { class: "bs-dash-card__sub" }, ["Bags finishing weathering by week — click a bar"]),
+      ui.el("p", { class: "bs-dash-card__sub" }, ["By week — tap a bar"]),
 
     ]));
 
-    var weeks = (endWeeks || []).filter(function (w) { return (w.bags || 0) > 0; });
+    var weeks = (endWeeks || []).filter(function (w) { return (w.bags || 0) > 0; }).slice(0, 6);
 
     if (!weeks.length) {
 
@@ -440,6 +440,7 @@
     }
 
     var maxBags = Math.max.apply(null, weeks.map(function (w) { return w.bags || 0; }));
+    var hiddenWeeks = (endWeeks || []).filter(function (w) { return (w.bags || 0) > 0; }).length - weeks.length;
 
     var chart = ui.el("div", { class: "bs-dash-col-chart" });
 
@@ -481,6 +482,14 @@
     });
 
     card.appendChild(chart);
+
+    if (hiddenWeeks > 0) {
+
+      card.appendChild(ui.el("p", { class: "bs-dash-chart-more muted" }, [
+        "+" + hiddenWeeks + " more week(s) — open weathering drill for full list",
+      ]));
+
+    }
 
     return card;
 

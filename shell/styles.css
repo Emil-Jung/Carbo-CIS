@@ -538,12 +538,13 @@ body {
 .bs-dash-label-chip__part--used strong { color: #0F172A; }
 .bs-dash-label-chip__part--void strong { color: #DC2626; }
 
-/* Two-column chart grid */
+/* Two-column chart grid — weathering panel grows; release calendar stays compact */
 .bs-dash-grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
   margin-bottom: 16px;
+  align-items: start;
 }
 @media (max-width: 900px) {
   .bs-dash-grid { grid-template-columns: 1fr; }
@@ -558,6 +559,18 @@ body {
   margin-bottom: 0;
 }
 .bs-dash-card--wide { margin-bottom: 16px; }
+.bs-dash-card--chart {
+  padding: 12px 14px 14px;
+  max-width: min(100%, 22rem);
+  justify-self: end;
+}
+@media (max-width: 900px) {
+  .bs-dash-card--chart {
+    max-width: none;
+    justify-self: stretch;
+  }
+}
+.bs-dash-card--chart .bs-dash-card__head { margin-bottom: 8px; }
 .bs-dash-card__head { margin-bottom: 14px; }
 .bs-dash-card__head h3 {
   margin: 0 0 4px;
@@ -752,25 +765,29 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Release calendar column chart */
+/* Release calendar column chart — compact bars, no tall empty canvas */
 .bs-dash-col-chart {
   display: flex;
   align-items: flex-end;
-  gap: 12px;
-  min-height: 280px;
-  padding: 12px 8px 0;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-height: 0;
+  max-height: 9rem;
+  padding: 4px 2px 0;
 }
 .bs-dash-col {
-  flex: 1;
+  flex: 0 0 3rem;
+  width: 3rem;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 3px;
   border: none;
   background: transparent;
-  padding: 4px 4px 6px;
+  padding: 2px 2px 4px;
   cursor: pointer;
   font: inherit;
   color: inherit;
@@ -781,9 +798,10 @@ body {
 .bs-dash-col:active { background: #E2E8F0; }
 .bs-dash-col__bar {
   width: 100%;
-  max-width: 72px;
-  min-height: 12px;
-  border-radius: 8px 8px 4px 4px;
+  max-width: 2.25rem;
+  min-height: 8px;
+  max-height: 4.5rem;
+  border-radius: 6px 6px 3px 3px;
   transition: opacity 0.15s, transform 0.1s;
   cursor: pointer;
 }
@@ -813,6 +831,12 @@ body {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.bs-dash-chart-more {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: center;
 }
 
 /* Pipeline */
