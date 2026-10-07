@@ -247,7 +247,7 @@
     return table;
   }
 
-  var BM_UI_VERSION = "1.6.11";
+  var BM_UI_VERSION = "1.6.12";
   var BM_API_SUFFIX = "&compact=1";
   var BM_AUTO_REFRESH_MS = 60000;
 
@@ -313,6 +313,39 @@
       addSep();
       addItem(inv.void, "void", "void");
     }
+    tag.appendChild(line);
+    return tag;
+  }
+
+  function renderIntakePacePanel(pace, inv, ui) {
+    if (!pace || pace.avg_bags_per_day == null) return null;
+    var avg = Number(pace.avg_bags_per_day);
+    if (isNaN(avg)) return null;
+
+    var lookback = pace.lookback_days || 14;
+    var tag = ui.el("aside", {
+      class: "bm-label-tag bm-label-tag--pace",
+      title: "Rolling average intake over the last " + lookback + " calendar days",
+    });
+    tag.appendChild(ui.el("span", { class: "bm-label-tag__badge" }, ["Intake pace"]));
+
+    var line = ui.el("span", { class: "bm-label-tag__line" });
+    var item = ui.el("span", { class: "bm-label-tag__item bm-label-tag__item--pace" });
+    item.appendChild(ui.el("strong", {}, [fmt(avg, avg % 1 ? 1 : 0)]));
+    item.appendChild(document.createTextNode(" bags/day (" + lookback + " days)"));
+    line.appendChild(item);
+
+    var ready = inv && inv.available != null ? Number(inv.available) : null;
+    if (ready != null && !isNaN(ready) && avg > 0) {
+      line.appendChild(ui.el("span", { class: "bm-label-tag__sep" }, ["·"]));
+      var cover = ui.el("span", { class: "bm-label-tag__item bm-label-tag__item--cover" });
+      var daysCover = Math.round(ready / avg);
+      cover.appendChild(document.createTextNode("~"));
+      cover.appendChild(ui.el("strong", {}, [fmt(daysCover)]));
+      cover.appendChild(document.createTextNode(" days of ready labels"));
+      line.appendChild(cover);
+    }
+
     tag.appendChild(line);
     return tag;
   }
@@ -739,16 +772,19 @@
     }
   }
 
-  function paintLabelTag(slot, inv, ui) {
+  function paintHeaderStats(slot, inv, pace, ui) {
     slot.innerHTML = "";
     var labelPanel = renderLabelInventoryPanel(inv, ui);
     if (labelPanel) slot.appendChild(labelPanel);
+    var pacePanel = renderIntakePacePanel(pace, inv, ui);
+    if (pacePanel) slot.appendChild(pacePanel);
   }
 
   async function render(container, ctx) {
     var ui = CIS.ui;
     var lastData = null;
     var labelInventory = null;
+    var intakePace = null;
     var drillDown = null;
     var weekCache = {};
     var expandedWeeks = {};
@@ -830,7 +866,7 @@
     function repaint() {
       if (!lastData) return;
       try {
-        paintLabelTag(labelSlot, labelInventory, ui);
+        paintHeaderStats(labelSlot, labelInventory, intakePace, ui);
         if (drillDown) {
           var refreshed = buildSummaryRows(allLoadedRows());
           var match = refreshed.find(function (g) { return g.key === drillDown.key; });
@@ -928,7 +964,8 @@
         status.style.display = "";
         body.innerHTML = "";
         labelInventory = null;
-        paintLabelTag(labelSlot, null, ui);
+        intakePace = null;
+        paintHeaderStats(labelSlot, null, null, ui);
         drillDown = null;
         weekCache = {};
         expandedWeeks = {};
@@ -937,10 +974,11 @@
       try {
         lastData = await ctx.api.traceability("/reports/bags-movement?scope=all" + BM_API_SUFFIX);
         labelInventory = (lastData && lastData.label_inventory) || null;
+        intakePace = (lastData && lastData.intake_pace) || null;
         await refreshCachedWeeks();
         if (!container.isConnected) return;
         if (!opts.silent) {
-          paintLabelTag(labelSlot, labelInventory, ui);
+          paintHeaderStats(labelSlot, labelInventory, intakePace, ui);
           status.textContent = "Rendering…";
           await new Promise(function (resolve) {
             requestAnimationFrame(function () {
