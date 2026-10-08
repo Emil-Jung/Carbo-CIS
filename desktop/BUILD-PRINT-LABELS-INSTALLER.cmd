@@ -23,8 +23,16 @@ if not exist "dist\Carbo Print Labels\Carbo Print Labels.exe" (
   exit /b 1
 )
 
+for /f "delims=" %%V in ('python -c "from version import CIS_VERSION; print(CIS_VERSION)"') do set "AppVer=%%V"
+if not defined AppVer (
+  echo Could not read version from version.py
+  pause
+  exit /b 1
+)
+
 echo Using ISCC: %ISCC%
-"%ISCC%" /DAppVer=1.6.4 installer\print_labels.iss
+echo Building installer v%AppVer% ...
+"%ISCC%" /DAppVer=%AppVer% installer\print_labels.iss
 if errorlevel 1 (
   echo BUILD FAILED.
   pause
@@ -32,5 +40,6 @@ if errorlevel 1 (
 )
 
 echo.
-echo Done: installer\Output\CarboPrintLabels-Setup.exe
+echo Done: installer\Output\CarboPrintLabels-Setup-%AppVer%.exe
+echo Upload to server as: /opt/carbo/cis/app/CarboPrintLabels-Setup.exe
 pause

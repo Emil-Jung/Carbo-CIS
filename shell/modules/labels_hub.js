@@ -9,7 +9,7 @@
     {
       id: "print_labels",
       title: "Print Labels",
-      description: "Allocate and print bag identity labels (Zebra + A4 pallet sheets).",
+      description: "Bag label printing — administrator setup required on each workstation.",
       requires: "traceability.labels.print",
       icon: "print",
     },

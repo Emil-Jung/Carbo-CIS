@@ -27,14 +27,19 @@ Or manually (adjust ISCC path):
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DAppVer=1.6.4 installer\print_labels.iss
 ```
 
-Output: `desktop\installer\Output\CarboPrintLabels-Setup.exe`
+Output: `desktop\installer\Output\CarboPrintLabels-Setup-<version>.exe`  
+(e.g. `CarboPrintLabels-Setup-1.6.4.exe` — wizard title shows **Carbo Print Labels v1.6.4**)
+
+Version is read from `version.py`; bump `CIS_INTERNAL` (or higher) before building.
 
 ## 3. Upload to server
 
 ```bash
-scp "desktop/installer/Output/CarboPrintLabels-Setup.exe" \
+scp "desktop/installer/Output/CarboPrintLabels-Setup-1.6.4.exe" \
   bkweb3dev@192.168.89.101:/opt/carbo/cis/app/CarboPrintLabels-Setup.exe
 ```
+
+(Rename on upload — CIS still serves the fixed filename `CarboPrintLabels-Setup.exe`.)
 
 Or copy via USB/RDP to `/opt/carbo/cis/app/`.
 

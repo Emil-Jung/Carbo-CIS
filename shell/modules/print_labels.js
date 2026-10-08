@@ -385,80 +385,32 @@
     return { value: n };
   }
 
-  function renderBrowserLauncher(container, ctx) {
+  function renderCisNotConfiguredMessage(container, ctx) {
     var ui = CIS.ui;
-    var cfg = (ctx && ctx.config) || {};
-    var installerUrl = CIS.printLabelsInstallerUrl ? CIS.printLabelsInstallerUrl(cfg) : "/cis/app/CarboPrintLabels-Setup.exe";
-    var statusEl = ui.el("p", { class: "print-labels-launcher-status muted" }, [""]);
-
     container.innerHTML = "";
     container.className = "module-content print-labels-launcher-host";
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Print Labels"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Bag identity labels are printed from the Carbo Print Labels desktop utility on Windows.",
+      "Bag identity labels are printed from a dedicated Windows utility with local printers.",
     ]));
-    container.appendChild(ui.el("ol", { class: "print-labels-install-steps muted launcher-note" }, [
-      ui.el("li", {}, ["Click ", ui.el("strong", {}, ["Download installer"]), " below."]),
-      ui.el("li", {}, ["Open ", ui.el("strong", {}, ["CarboPrintLabels-Setup.exe"]), " from Downloads."]),
-      ui.el("li", {}, [
-        "If ",
-        ui.el("strong", {}, ["Windows SmartScreen"]),
-        " appears: click ",
-        ui.el("strong", {}, ["More info"]),
-        ", then ",
-        ui.el("strong", {}, ["Run anyway"]),
-        " (Carbo app is not code-signed yet).",
+    container.appendChild(ui.el("div", { class: "print-labels-panel launcher-note" }, [
+      ui.el("p", {}, [
+        ui.el("strong", {}, ["Printing labels is not configured through CIS."]),
       ]),
-      ui.el("li", {}, ["Finish the setup wizard, then open ", ui.el("strong", {}, ["Carbo Print Labels"]), " from the Start menu."]),
+      ui.el("p", {}, [
+        "An administrator must set up label printing on this workstation (printers, the Carbo Print Labels app, and network access).",
+      ]),
+      ui.el("p", { class: "muted" }, [
+        "If you need to print labels, contact your site administrator.",
+      ]),
     ]));
-
-    var actions = ui.el("div", { class: "launcher-actions" });
-    actions.appendChild(ui.el("a", {
-      class: "btn-primary btn-launch",
-      href: installerUrl,
-      download: "CarboPrintLabels-Setup.exe",
-    }, ["Download installer"]));
-    actions.appendChild(ui.el("a", {
-      class: "btn-ghost btn-launch-secondary",
-      href: "carbolabels://open",
-    }, ["Open Print Labels"]));
-    container.appendChild(actions);
-    container.appendChild(ui.el("p", { class: "muted launcher-note print-labels-start-menu-hint" }, [
-      "Browsers cannot run the installer by themselves — you must open the downloaded .exe once. After that, Start menu is the easiest way to print.",
-    ]));
-    statusEl.textContent = "";
-    container.appendChild(statusEl);
-  }
-
-  function renderDesktopLauncher(container, ctx) {
-    var ui = CIS.ui;
-    container.innerHTML = "";
-    container.className = "module-content print-labels-launcher-host";
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Print Labels"]));
-    container.appendChild(ui.el("p", { class: "module-desc" }, ["Opening Carbo Print Labels…"]));
-    var status = ui.el("p", { class: "muted launcher-note", id: "pl-launch-status" }, [
-      "Starting the label printing utility in a separate window.",
-    ]);
-    container.appendChild(status);
-
-    var api = CIS.pywebviewApi();
-    if (!api || !api.open_print_labels) {
-      status.textContent = "Print Labels launcher is not available in this CIS build.";
-      status.classList.add("error-text");
-      return;
-    }
-    var token = CIS.getToken && CIS.getToken();
-    api.open_print_labels(token || null).then(function (res) {
-      if (!res || !res.ok) {
-        status.textContent = (res && res.error) || "Could not start Print Labels.";
-        status.classList.add("error-text");
-      } else {
-        status.textContent = "Print Labels is running. You can return to the CIS dashboard.";
-      }
-    }).catch(function (err) {
-      status.textContent = (err && err.message) || "Could not start Print Labels.";
-      status.classList.add("error-text");
-    });
+    container.appendChild(ui.el("button", {
+      class: "btn-ghost btn-sm hub-back",
+      type: "button",
+      onclick: function () {
+        if (CIS.openModule) CIS.openModule("labels");
+      },
+    }, ["Back to Labels"]));
   }
 
   function render(container, ctx) {
@@ -469,10 +421,7 @@
     if (CIS.isPrintLabelsUtility && CIS.isPrintLabelsUtility()) {
       return renderPrintLabelsApp(container, ctx);
     }
-    if (CIS.canPrintLabelsOnDesktop && CIS.canPrintLabelsOnDesktop()) {
-      return renderDesktopLauncher(container, ctx);
-    }
-    return renderBrowserLauncher(container, ctx);
+    return renderCisNotConfiguredMessage(container, ctx);
   }
 
   function renderPrintLabelsApp(container, ctx) {
@@ -1522,7 +1471,7 @@
     title: "Print Labels",
     kind: "app",
     icon: "labels",
-    description: "Allocate and print bag identity labels",
+    description: "Bag label printing — administrator setup required",
     requires: "traceability.labels.print",
     render: render,
   });

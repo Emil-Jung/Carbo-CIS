@@ -7,6 +7,7 @@
 #endif
 
 #define AppName "Carbo Print Labels"
+#define AppTitle AppName + " v" + AppVer
 #define AppExe "Carbo Print Labels.exe"
 #define AppPublisher "Carbo"
 
@@ -20,11 +21,14 @@ DisableProgramGroupPage=yes
 DisableDirPage=yes
 PrivilegesRequired=lowest
 OutputDir=Output
-OutputBaseFilename=CarboPrintLabels-Setup
+OutputBaseFilename=CarboPrintLabels-Setup-{#AppVer}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
+
+[Messages]
+SetupAppTitle={#AppTitle}
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"

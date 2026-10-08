@@ -22,5 +22,5 @@
   "supplierTrackingApiBase": "/supplier-tracking/api",
   "cisVersion": "1.6.15",
   "printLabelsInstallerUrl": "/cis/app/CarboPrintLabels-Setup.exe",
-  "shellRev": "20261008-pallet-config-permission-only"
+  "shellRev": "20261008-print-labels-admin-only"
 }
