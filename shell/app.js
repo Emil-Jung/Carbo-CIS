@@ -154,18 +154,27 @@
     const secondary = floatNavState.secondary;
     const inModuleDrill = secondary && typeof secondary.onClick === "function";
     const parentLabel = navigationBackLabel();
-    const showDashboard = navStack.length > 1 && navStack[0] === "dashboard";
+    const parentId = navigationParentId();
+    const fromDashboard = navStack[0] === "dashboard";
+    let buttonCount = 0;
 
     if (inModuleDrill) {
       addBtn(secondary.label || "← Back", secondary.onClick, "cis-float-back-btn--primary");
-      addBtn(parentLabel, goBack, "cis-float-back-btn--secondary");
-      if (showDashboard) {
+      buttonCount += 1;
+      if (parentId !== "dashboard") {
+        addBtn(parentLabel, goBack, "cis-float-back-btn--secondary");
+        buttonCount += 1;
+      }
+      if (fromDashboard && navStack.length >= 2) {
         addBtn("← Dashboard", goHome, "cis-float-back-btn--home");
+        buttonCount += 1;
       }
     } else {
       addBtn(parentLabel, goBack, "cis-float-back-btn--primary");
-      if (navStack.length > 2) {
+      buttonCount += 1;
+      if (fromDashboard && navStack.length > 2) {
         addBtn("← Dashboard", goHome, "cis-float-back-btn--home");
+        buttonCount += 1;
       }
     }
 
@@ -173,8 +182,8 @@
     nav.setAttribute("aria-hidden", "false");
     if (content) {
       content.classList.add("has-float-nav");
-      if (inModuleDrill || navStack.length > 2) content.classList.add("has-float-nav--stacked");
-      if (inModuleDrill && showDashboard) content.classList.add("has-float-nav--deep");
+      if (buttonCount > 1) content.classList.add("has-float-nav--stacked");
+      if (buttonCount > 2) content.classList.add("has-float-nav--deep");
     }
   }
 
