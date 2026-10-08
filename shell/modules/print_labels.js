@@ -122,8 +122,11 @@
     var qr = qrcode(0, "M");
     qr.addData(serial);
     qr.make();
-    return qr.createSvgTag(4, 0);
+    return qr.createSvgTag(6, 0);
   }
+
+  /** A4 pallet QR print size (mm) — keep in sync with desktop/a4_label_pdf.py */
+  var A4_QR_SIZE_MM = 120;
 
   function buildA4PrintDocument(serials) {
     var pages = (serials || []).map(function (serial) {
@@ -145,7 +148,7 @@
       "display: flex; flex-direction: column; align-items: center; justify-content: flex-start; " +
       "padding-top: 52mm; gap: 10mm; }" +
       ".a4-pallet-page:last-child { page-break-after: auto; }" +
-      ".a4-pallet-qr svg { width: 85mm; height: 85mm; display: block; }" +
+      ".a4-pallet-qr svg { width: " + A4_QR_SIZE_MM + "mm; height: " + A4_QR_SIZE_MM + "mm; display: block; }" +
       ".a4-pallet-id { font-size: 26pt; font-weight: 700; letter-spacing: 0.04em; text-align: center; }" +
       "</style></head><body>" + pages + "</body></html>"
     );

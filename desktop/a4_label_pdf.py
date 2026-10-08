@@ -7,6 +7,9 @@ import sys
 import qrcode
 from PIL import Image, ImageWin
 
+# Printed QR width (mm) — tuned for wrap-station scanning at arm's length.
+A4_QR_SIZE_MM = 120
+
 
 def _validate_serial(serial: str) -> str:
     serial = (serial or "").strip()
@@ -111,7 +114,7 @@ def print_serials_to_printer(serials, printer_name: str) -> dict:
         dpi_x = hdc.GetDeviceCaps(win32con.LOGPIXELSX)
         dpi_y = hdc.GetDeviceCaps(win32con.LOGPIXELSY)
 
-        qr_px = max(1, int(85 / 25.4 * dpi_x))
+        qr_px = max(1, int(A4_QR_SIZE_MM / 25.4 * dpi_x))
         top_pad_px = int(52 / 25.4 * dpi_y)
         gap_px = int(10 / 25.4 * dpi_y)
 
