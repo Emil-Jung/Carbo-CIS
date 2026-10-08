@@ -152,32 +152,29 @@
     }
 
     const secondary = floatNavState.secondary;
-    const showHome = navStack.length > 2;
-    const primaryLabel = navigationBackLabel();
+    const inModuleDrill = secondary && typeof secondary.onClick === "function";
+    const parentLabel = navigationBackLabel();
+    const showDashboard = navStack.length > 1 && navStack[0] === "dashboard";
 
-    addBtn(
-      primaryLabel,
-      function () {
-        if (secondary && typeof secondary.onClick === "function") goBackToParent();
-        else goBack();
-      },
-      "cis-float-back-btn--primary"
-    );
-
-    if (secondary && typeof secondary.onClick === "function") {
-      addBtn(secondary.label || "← Back", secondary.onClick, "cis-float-back-btn--secondary");
-    }
-
-    if (showHome) {
-      addBtn("← Dashboard", goHome, "cis-float-back-btn--home");
+    if (inModuleDrill) {
+      addBtn(secondary.label || "← Back", secondary.onClick, "cis-float-back-btn--primary");
+      addBtn(parentLabel, goBack, "cis-float-back-btn--secondary");
+      if (showDashboard) {
+        addBtn("← Dashboard", goHome, "cis-float-back-btn--home");
+      }
+    } else {
+      addBtn(parentLabel, goBack, "cis-float-back-btn--primary");
+      if (navStack.length > 2) {
+        addBtn("← Dashboard", goHome, "cis-float-back-btn--home");
+      }
     }
 
     nav.classList.remove("hidden");
     nav.setAttribute("aria-hidden", "false");
     if (content) {
       content.classList.add("has-float-nav");
-      if (secondary || showHome) content.classList.add("has-float-nav--stacked");
-      if (secondary && showHome) content.classList.add("has-float-nav--deep");
+      if (inModuleDrill || navStack.length > 2) content.classList.add("has-float-nav--stacked");
+      if (inModuleDrill && showDashboard) content.classList.add("has-float-nav--deep");
     }
   }
 

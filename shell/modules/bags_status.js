@@ -134,6 +134,50 @@
 
   }
 
+  function fmtDateTime(iso, timeHm) {
+
+    if (!iso) return "—";
+
+    var datePart = fmtDate(iso);
+
+    if (timeHm) return datePart + " · " + timeHm;
+
+    var d = new Date(iso);
+
+    if (isNaN(d.getTime())) return datePart;
+
+    return datePart + " · " + d.toLocaleTimeString("en-GB", {
+
+      hour: "2-digit",
+
+      minute: "2-digit",
+
+      hour12: false,
+
+    });
+
+  }
+
+  function scanTimestampCell(row) {
+
+    if (!row) return "—";
+
+    if (row.status_changed_at) {
+
+      return fmtDateTime(row.status_changed_at, row.status_changed_time);
+
+    }
+
+    if (row.recorded_at) {
+
+      return fmtDateTime(row.recorded_at, row.recorded_time);
+
+    }
+
+    return fmtDate(row.recorded_date);
+
+  }
+
 
 
   function fmtDayHeading(iso) {
@@ -1754,7 +1798,7 @@
     var table = ui.el("table", { class: "bs-dash-table bs-dash-table--compact" });
     var thead = ui.el("thead", {});
     var hr = ui.el("tr", {});
-    ["Bag", "Stream", "kg", "Scanned", "Weathering", "Detail"].forEach(function (h) {
+    ["Bag", "Stream", "kg", "When", "Weathering", "Detail"].forEach(function (h) {
       hr.appendChild(ui.el("th", {}, [h]));
     });
     thead.appendChild(hr);
@@ -1780,7 +1824,7 @@
       }
       tr.appendChild(streamTd);
       tr.appendChild(ui.el("td", {}, [fmtKg(row.net_weight_kg)]));
-      tr.appendChild(ui.el("td", {}, [fmtDate(row.recorded_date || row.recorded_at)]));
+      tr.appendChild(ui.el("td", {}, [scanTimestampCell(row)]));
       tr.appendChild(ui.el("td", {}, [weatherText(row)]));
       tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [
         row.client_name || row.container_number || row.status_display || "—",
@@ -1832,7 +1876,7 @@
 
     var hr = ui.el("tr", {});
 
-    ["#", "Bag", "Stream", "Producer", "kg", "Scanned", "Weathering", "Detail"].forEach(function (h) {
+    ["#", "Bag", "Stream", "Producer", "kg", "When", "Weathering", "Detail"].forEach(function (h) {
 
       hr.appendChild(ui.el("th", {}, [h]));
 
@@ -1888,7 +1932,7 @@
 
       tr.appendChild(ui.el("td", {}, [fmtKg(row.net_weight_kg)]));
 
-      tr.appendChild(ui.el("td", {}, [fmtDate(row.recorded_date || row.recorded_at)]));
+      tr.appendChild(ui.el("td", {}, [scanTimestampCell(row)]));
 
       tr.appendChild(ui.el("td", {}, [weatherText(row)]));
 
@@ -2043,7 +2087,16 @@
           onClick: goBackFromWxDrill,
         });
       } else if (selected) {
-        if (selectedEvent) {
+        if (selected.palletDetail) {
+          ctx.setFloatingBack({
+            label: "← Return to " + (selected.label || "Pallets"),
+            onClick: function () {
+              selected.palletDetail = null;
+              selected.serial = null;
+              paint();
+            },
+          });
+        } else if (selectedEvent) {
           ctx.setFloatingBack({
             label: "← Return to " + (selected.label || "list"),
             onClick: function () {
@@ -2060,6 +2113,14 @@
               selected.sections = null;
               selected.detail = null;
               selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
+              paint();
+            },
+          });
+        } else if (selected.view === "by_product") {
+          ctx.setFloatingBack({
+            label: "← Return to " + (selected.parentLabel || "Pallets"),
+            onClick: function () {
+              selected = null;
               paint();
             },
           });
