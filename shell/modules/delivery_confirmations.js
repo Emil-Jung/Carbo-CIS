@@ -14,6 +14,13 @@
     });
   }
 
+  function fmtMassKg(n) {
+    if (n == null || n === "" || isNaN(n)) return "—";
+    var v = Number(n);
+    if (v >= 1000) return fmtNum(v / 1000, 3) + " t";
+    return fmtNum(v, 1) + " kg";
+  }
+
   function fmtPct(n) {
     if (n == null || isNaN(n)) return "—";
     return fmtNum(n, 2) + "%";
@@ -114,9 +121,8 @@
         "Fines (t)",
         "Lump (t)",
         "Rest. (t)",
-        "SCR1 kg",
-        "SCR2 kg",
-        "Super fines kg",
+        "SCR1",
+        "SCR2",
         "Tot ex S&A (t)",
         "% Rest",
         "% Lump",
@@ -168,9 +174,8 @@
         tr.appendChild(ui.el("td", {}, [fmtNum(r.fines_ton, 3)]));
         tr.appendChild(ui.el("td", {}, [fmtNum(r.lumpwood_ton, 3)]));
         tr.appendChild(ui.el("td", {}, [fmtNum(r.restaurant_ton, 3)]));
-        tr.appendChild(ui.el("td", {}, [fmtNum(r.scr1_20_60_kg, 1)]));
-        tr.appendChild(ui.el("td", {}, [fmtNum(r.scr2_60_plus_kg, 1)]));
-        tr.appendChild(ui.el("td", {}, [fmtNum(r.super_fines_kg, 1)]));
+        tr.appendChild(ui.el("td", {}, [fmtMassKg(r.scr1_20_60_kg)]));
+        tr.appendChild(ui.el("td", {}, [fmtMassKg(r.scr2_60_plus_kg)]));
         tr.appendChild(ui.el("td", {}, [fmtNum(r.total_ex_sand_ash_ton, 3)]));
         tr.appendChild(ui.el("td", {}, [fmtPct(r.pct_restaurant)]));
         tr.appendChild(ui.el("td", {}, [fmtPct(r.pct_lumpwood)]));

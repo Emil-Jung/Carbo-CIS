@@ -13,7 +13,7 @@
   "traceabilitySupervisorUrl": "/traceability/supervisor/",
   "traceabilityKioskUrl": "/traceability/kiosk/",
   "controlRoomUrl": "/cis/control-room/",
-  "controlRoomLive": false,
+  "controlRoomLive": true,
   "controlRoomRev": "20261006-cr2",
   "bagStockUrl": "/traceability/supervisor/",
   "traceabilityApiBase": "/traceability/api/v1",
