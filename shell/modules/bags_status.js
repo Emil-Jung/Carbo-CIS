@@ -162,6 +162,11 @@
 
     if (!row) return "—";
 
+    /* Drill-down: original scan / weathering start — not manager early-release day. */
+    if (row.released_early && row.recorded_at) {
+      return fmtDateTime(row.recorded_at, row.recorded_time);
+    }
+
     if (row.status_changed_at) {
 
       return fmtDateTime(row.status_changed_at, row.status_changed_time);
@@ -1972,7 +1977,10 @@
 
       });
 
-      card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [fmtDayHeading(section.date)]));
+      var dayLabel = section.date_kind === "early_release"
+        ? "Early release · " + fmtDayHeading(section.date)
+        : fmtDayHeading(section.date);
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [dayLabel]));
 
       card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(section.bags)]));
 
