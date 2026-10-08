@@ -30,7 +30,7 @@ WINDOW_TITLE = "Carbo Print Labels"
 
 REMOTE_SHELL_URL = (
     os.environ.get("CIS_PRINT_LABELS_URL", "").strip()
-    or "https://bkweb3.bigk.co.uk/cis/print_labels.html?shellRev=20261008-a4-print-v164"
+    or "https://bkweb3.bigk.co.uk/cis/print_labels.html?shellRev=20261008-zebra-network-print"
 )
 
 _LOCAL = os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()
@@ -71,6 +71,8 @@ def _prepare_shell_dir() -> str:
         "displayTimezone": "Africa/Windhoek",
         "cisVersion": CIS_VERSION,
         "printLabelsInstallerUrl": f"{config.CIS_DOWNLOAD_BASE_URL.rstrip('/')}/CarboPrintLabels-Setup.exe",
+        "zebraPrinterHost": os.environ.get("CIS_ZEBRA_HOST", "192.168.8.73"),
+        "zebraPrinterPort": int(os.environ.get("CIS_ZEBRA_PORT", "9100") or "9100"),
     }
     with open(os.path.join(dest, "config.json"), "w", encoding="utf-8") as fh:
         json.dump(runtime_config, fh, indent=2)
