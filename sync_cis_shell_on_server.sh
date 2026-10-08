@@ -55,6 +55,17 @@ if grep -q 'sideCol' "$DEST/modules/print_labels.js" 2>/dev/null; then
   exit 1
 fi
 
+test -f "$DEST/modules/pallet_configuration.js" \
+  && echo "OK: pallet_configuration.js present" \
+  || echo "WARN: pallet_configuration.js missing — git pull Carbo-CIS then re-run this script"
+
+grep -q 'pallet_configuration.js' "$DEST/index.html" 2>/dev/null \
+  && echo "OK: index.html loads pallet_configuration.js" \
+  || echo "WARN: index.html missing pallet_configuration.js script tag"
+
+CR_LIVE=$(grep -o '"controlRoomLive"[[:space:]]*:[[:space:]]*[^,}]*' "$DEST/config.json" 2>/dev/null | head -1 || true)
+echo "config.json $CR_LIVE (false = Control Room stays Coming soon)"
+
 echo ""
 echo "Verify in browser (Ctrl+F5): https://bkweb3.bigk.co.uk/cis/"
 echo "View page source — should contain: dashboard.js, logo.png, topbar-context"
