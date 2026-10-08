@@ -1,9 +1,9 @@
 ; Inno Setup — Carbo Print Labels only (no full CIS shell).
-; Build: ISCC.exe /DAppVer=1.6.1 installer\print_labels.iss
+; Build: ISCC.exe /DAppVer=1.6.4 installer\print_labels.iss
 ; Requires: desktop\dist\Carbo Print Labels\ from BUILD-PRINT-LABELS.cmd
 
 #ifndef AppVer
-  #define AppVer "1.6.1"
+  #define AppVer "1.6.4"
 #endif
 
 #define AppName "Carbo Print Labels"
