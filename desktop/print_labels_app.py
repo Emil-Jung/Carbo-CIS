@@ -119,6 +119,32 @@ class PrintLabelsApi:
     def open_a4_print(self, html="", auto_print=False):
         return a4_print_host.open_a4_preview(html)
 
+    def test_printer_tcp(self, host, port=9100):
+        """Check LAN reachability — ping can succeed while raw print port is blocked."""
+        host = (host or "").strip()
+        if not host or len(host) > 253 or not re.match(r"^[A-Za-z0-9.:-]+$", host):
+            return {"ok": False, "error": "Invalid printer IP address."}
+        try:
+            port_n = int(port)
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "Invalid port number."}
+        if port_n < 1 or port_n > 65535:
+            return {"ok": False, "error": "Invalid port number."}
+        try:
+            with socket.create_connection((host, port_n), timeout=5):
+                pass
+        except OSError as exc:
+            return {
+                "ok": False,
+                "error": (
+                    f"Cannot connect to {host}:{port_n} — {exc}. "
+                    "The printer is on the network but raw printing (port 9100) is blocked or disabled. "
+                    "Ask IT to enable TCP port 9100 on the Zebra, or add the printer in Windows Settings "
+                    "and use Windows printer mode in this app."
+                ),
+            }
+        return {"ok": True, "host": host, "port": port_n}
+
     def send_zpl(self, host, port=9100, zpl=""):
         host = (host or "").strip()
         if not host or len(host) > 253 or not re.match(r"^[A-Za-z0-9.:-]+$", host):
@@ -133,6 +159,9 @@ class PrintLabelsApi:
             return {"ok": False, "error": "No ZPL to send."}
         if len(zpl) > 2_000_000:
             return {"ok": False, "error": "ZPL payload is too large."}
+        probe = self.test_printer_tcp(host, port_n)
+        if not probe.get("ok"):
+            return probe
         try:
             with socket.create_connection((host, port_n), timeout=20) as sock:
                 sock.settimeout(20)

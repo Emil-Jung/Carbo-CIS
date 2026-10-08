@@ -10,6 +10,6 @@ See VERSIONING.md for the rules and examples.
 
 CIS_MAJOR = 1      # X — CIS version
 CIS_MODULE = 6     # Y — Bags Movement report + remote shell sync
-CIS_INTERNAL = 7   # Z — Zebra LAN print UI (192.168.8.73:9100)
+CIS_INTERNAL = 8   # Z — test_printer_tcp; operator printer UX
 
 CIS_VERSION = f"{CIS_MAJOR}.{CIS_MODULE}.{CIS_INTERNAL}"

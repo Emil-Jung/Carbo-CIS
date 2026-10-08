@@ -9,7 +9,7 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.6.7";
+  var PL_UI_VERSION = "1.6.8";
   CIS.printLabelsUiVersion = PL_UI_VERSION;
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
@@ -99,7 +99,7 @@
       zebraPrinterName: "",
       a4PrinterName: "",
       labelFormat: "zebra",
-      zebraPrintMode: "network",
+      zebraPrintMode: "windows",
       zebraHost: cfg.zebraPrinterHost || "192.168.8.73",
       zebraPort: cfg.zebraPrinterPort != null ? cfg.zebraPrinterPort : 9100,
     };
@@ -448,8 +448,8 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Print Labels"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Production bag identity labels · Zebra 54 × 25 mm or A4 pallet sheet · Bag IDs allocated by the server. UI " +
-        PL_UI_VERSION + ".",
+      "Bag identity labels · Zebra 54 × 25 mm or A4 pallet sheet · Bag IDs from the server. " +
+        "Pick both printers once, then print — no USB. UI " + PL_UI_VERSION + ".",
     ]));
 
     var workspace = ui.el("div", { class: "print-labels-workspace" });
@@ -463,14 +463,17 @@
     var printerPanel = panel(ui, "Printer");
     panelsRowTop.appendChild(printerPanel.root);
     printerPanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
-      "Zebra bag labels: send ZPL over the network (port 9100) or pick a Windows-installed printer. A4 pallet sheets use a Windows printer.",
+      "Step 1 — pick the Zebra (small labels) and A4 printer (pallet sheets). " +
+        "Use Refresh if a printer was just added in Windows Settings. Network IP is only needed when IT enables port 9100 on the Zebra.",
     ]));
     var refreshBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh printer list"]);
+    var testZebraBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Test Zebra connection"]);
     var refreshRow = ui.el("div", { class: "print-labels-printer-row" });
     refreshRow.appendChild(refreshBtn);
+    refreshRow.appendChild(testZebraBtn);
     var zebraModeEl = ui.el("select", {}, [
-      ui.el("option", { value: "network", selected: saved.zebraPrintMode !== "windows" }, ["Network (TCP/IP port 9100)"]),
-      ui.el("option", { value: "windows", selected: saved.zebraPrintMode === "windows" }, ["Windows printer name"]),
+      ui.el("option", { value: "windows", selected: saved.zebraPrintMode !== "network" }, ["Windows printer (recommended)"]),
+      ui.el("option", { value: "network", selected: saved.zebraPrintMode === "network" }, ["Network IP (port 9100)"]),
     ]);
     var zebraHostEl = ui.el("input", {
       type: "text",
@@ -494,11 +497,11 @@
     zebraRow.appendChild(zebraPrinterEl);
     var a4Row = ui.el("div", { class: "print-labels-printer-row" });
     a4Row.appendChild(a4PrinterEl);
-    printerPanel.body.appendChild(field(ui, "Zebra connection", zebraModeEl,
-      "Network is recommended when the printer has a fixed LAN IP."));
-    printerPanel.body.appendChild(zebraNetworkRow);
     printerPanel.body.appendChild(field(ui, "Small labels (Zebra)", zebraRow,
-      "Only when using Windows printer mode — 54 × 25 mm bag ID labels."));
+      "54 × 25 mm bag labels — pick the Zebra from Windows (LAN, not USB)."));
+    printerPanel.body.appendChild(field(ui, "Zebra connection (advanced)", zebraModeEl,
+      "Leave on Windows unless IT asked you to use direct IP."));
+    printerPanel.body.appendChild(zebraNetworkRow);
     printerPanel.body.appendChild(field(ui, "A4 pallet sheets", a4Row,
       "Large QR pallet labels — prints single-sided to this printer (not the Windows default)."));
     printerPanel.body.appendChild(refreshRow);
@@ -1498,7 +1501,41 @@
       persistForm();
       paintPreview(null);
     });
+    async function testZebraConnection() {
+      persistForm();
+      if (!bridge) {
+        setStatus("Open Carbo Print Labels on Windows to test the printer.", true);
+        return;
+      }
+      if (zebraUsesNetwork()) {
+        if (!bridge.test_printer_tcp) {
+          setStatus("Update Carbo Print Labels to the latest version, then try again.", true);
+          return;
+        }
+        testZebraBtn.disabled = true;
+        try {
+          var s = readSaved();
+          var res = await bridge.test_printer_tcp(s.zebraHost, s.zebraPort || 9100);
+          if (res && res.ok) {
+            setStatus("Zebra OK at " + s.zebraHost + ":" + (s.zebraPort || 9100) + " — ready to print.");
+          } else {
+            setStatus((res && res.error) || "Zebra connection failed.", true);
+          }
+        } finally {
+          testZebraBtn.disabled = false;
+        }
+        return;
+      }
+      var name = resolvedZebraPrinter();
+      if (!name) {
+        setStatus("Select the Zebra printer first, or switch to Network IP mode.", true);
+        return;
+      }
+      setStatus("Windows printer selected: " + name + ". Print one test label to confirm.");
+    }
+
     refreshBtn.addEventListener("click", refreshPrinters);
+    testZebraBtn.addEventListener("click", testZebraConnection);
     prepareBtn.addEventListener("click", prepareBatch);
     reprintBtn.addEventListener("click", prepareReprint);
     reprintRunEl.addEventListener("change", function () {
