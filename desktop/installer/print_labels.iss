@@ -3,7 +3,7 @@
 ; Requires: desktop\dist\Carbo Print Labels\ from BUILD-PRINT-LABELS.cmd
 
 #ifndef AppVer
-  #define AppVer "1.6.4"
+  #define AppVer "1.6.5"
 #endif
 
 #define AppName "Carbo Print Labels"

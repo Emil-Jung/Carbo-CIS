@@ -3,6 +3,20 @@ REM Build the standalone Carbo Print Labels utility (PyInstaller one-folder).
 REM Run BEFORE BUILD-INSTALLER.cmd so cis.iss can bundle Print Labels into CarboCIS-Setup.exe.
 cd /d "%~dp0"
 
+echo Installing Print Labels build dependencies...
+python -m pip install -q -r requirements-print-labels.txt
+if errorlevel 1 (
+  echo pip install failed — check Python and network.
+  pause
+  exit /b 1
+)
+python -c "import qrcode; import PIL; import webview; import win32print" 2>nul
+if errorlevel 1 (
+  echo Missing Python packages after pip install.
+  pause
+  exit /b 1
+)
+
 echo Closing any running Print Labels instance...
 taskkill /F /IM "Carbo Print Labels.exe" >nul 2>&1
 timeout /t 1 /nobreak >nul

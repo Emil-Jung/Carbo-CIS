@@ -2,6 +2,8 @@
 
 import os
 
+from PyInstaller.utils.hooks import collect_submodules
+
 spec_dir = os.path.dirname(os.path.abspath(SPEC))
 repo_dir = os.path.dirname(spec_dir)
 shell_dir = os.path.join(repo_dir, "shell")
@@ -21,7 +23,6 @@ a = Analysis(
         "a4_label_pdf",
         "a4_print_host",
         "printer_usb",
-        "qrcode",
         "PIL",
         "PIL.ImageWin",
         "win32print",
@@ -30,7 +31,8 @@ a = Analysis(
         "pywintypes",
         "webview",
         "webview.platforms.edgechromium",
-    ],
+    ]
+    + collect_submodules("qrcode"),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
