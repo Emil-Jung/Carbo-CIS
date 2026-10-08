@@ -39,11 +39,7 @@
       id: "pallet_configuration",
       title: "Pallet Configuration",
       description: "Manage packaging products — CH05W, CH10, LF4, pallet weights and bag counts.",
-      requiresAny: [
-        "traceability.pallet_configuration",
-        "traceability.labels.print",
-        "traceability.control_room",
-      ],
+      requires: "traceability.pallet_configuration",
       icon: "config",
     },
     {
