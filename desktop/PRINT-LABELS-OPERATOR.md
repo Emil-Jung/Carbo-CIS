@@ -22,15 +22,34 @@ Do this **once per label PC** (Windows laptop at the plant).
 
 For the Zebra: choose **Generic / Text Only** or **ZDesigner** driver if offered — we send raw ZPL.
 
-### 3. If `Test-NetConnection 192.168.8.73 -Port 9100` fails
+### 3. Permanent LAN fix (run once at the plant)
 
-Ping can work while port 9100 is blocked. Fix on the **printer or firewall**, not in the app:
+**PowerShell as Administrator** in the `desktop` folder:
 
-1. Open the Zebra web page: `http://192.168.8.73` (from a PC on the same network).
-2. Enable **raw TCP printing on port 9100** (Link-OS: *Print → Print Language ZPL*, communications TCP active).
-3. Ask IT to allow **Wi‑Fi → printer** traffic on **TCP 9100** (plant firewall).
+```powershell
+cd "D:\My Coding Projects\Carbo-CIS\desktop"
+Set-ExecutionPolicy -Scope Process Bypass
+.\SETUP-ZEBRA-LAN.ps1
+```
 
-Until port 9100 works, use **Windows printer mode** in the app (pick the Zebra from the dropdown after adding it in Windows).
+This checks ping + port 9100, creates a **LAN** Windows printer (`Zebra ZT231 LAN`), and tells you if port 9100 is still closed.
+
+### 4. If port 9100 fails (ping OK, TCP fails)
+
+Fix **on the Zebra** — not on the laptop:
+
+| Method | What to do |
+|--------|------------|
+| **Network label** | Menu → **Print Network Configuration** — confirm IP is `192.168.8.73` |
+| **Web UI** | Browser `http://192.168.8.73` → **Print Server** → port **9100** enabled |
+| **Front panel** | Menu → **Network → Print Server** → **On** |
+| **USB bridge (2 min)** | USB + [Zebra Setup Utilities](https://www.zebra.com/us/en/support-downloads/printer-software/printer-setup-utilities.html) → enable **Raw TCP 9100** → unplug USB → run `SETUP-ZEBRA-LAN.ps1` again |
+
+**USB-installed printer shows Offline** when unplugged — that is normal. Do not use the USB queue for daily work; use **`Zebra ZT231 LAN`** after the script runs.
+
+### 5. Printing hundreds of labels
+
+In Carbo Print Labels: enter quantity (e.g. **100**), **Continue**, confirm once, **Print**. The app sends labels one-by-one to the printer — leave it running until complete.
 
 ---
 
