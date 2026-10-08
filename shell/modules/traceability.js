@@ -39,7 +39,11 @@
       id: "pallet_configuration",
       title: "Pallet Configuration",
       description: "Manage packaging products — CH05W, CH10, LF4, pallet weights and bag counts.",
-      requires: "traceability.pallet_configuration",
+      requiresAny: [
+        "traceability.pallet_configuration",
+        "traceability.labels.print",
+        "traceability.control_room",
+      ],
       icon: "config",
     },
     {
@@ -75,6 +79,10 @@
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "Charcoal bag traceability applications. You only see the options assigned to you.",
     ]));
+    var shellRev = (ctx && ctx.config && ctx.config.shellRev) || "";
+    if (shellRev) {
+      container.appendChild(ui.el("p", { class: "muted traceability-shell-rev" }, ["Shell " + shellRev]));
+    }
 
     var grid = ui.el("div", { class: "traceability-hub-grid" });
     var shown = 0;

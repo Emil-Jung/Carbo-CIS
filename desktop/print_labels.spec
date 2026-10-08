@@ -25,6 +25,8 @@ a = Analysis(
         "PIL",
         "PIL.ImageWin",
         "win32print",
+        "win32ui",
+        "win32con",
         "pywintypes",
         "webview",
         "webview.platforms.edgechromium",

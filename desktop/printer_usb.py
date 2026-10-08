@@ -16,9 +16,15 @@ def list_printers() -> dict:
             "printers": [],
             "error": "pywin32 is required for USB printing (pip install pywin32).",
         }
-    # Do not OR PRINTER_ENUM_NETWORK here — on many Windows builds that returns [].
     flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
-    names = sorted({row[2] for row in win32print.EnumPrinters(flags) if row[2]})
+    network = getattr(win32print, "PRINTER_ENUM_NETWORK", 0)
+    names: set[str] = set()
+    for flag_set in (flags, flags | network):
+        try:
+            names.update(row[2] for row in win32print.EnumPrinters(flag_set) if row[2])
+        except Exception:
+            pass
+    names = sorted(names)
     default = None
     try:
         default = win32print.GetDefaultPrinter()

@@ -19,7 +19,14 @@ def _printer_names() -> set[str]:
     import win32print
 
     flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
-    return {row[2] for row in win32print.EnumPrinters(flags) if row[2]}
+    network = getattr(win32print, "PRINTER_ENUM_NETWORK", 0)
+    names: set[str] = set()
+    for flag_set in (flags, flags | network):
+        try:
+            names.update(row[2] for row in win32print.EnumPrinters(flag_set) if row[2])
+        except Exception:
+            pass
+    return names
 
 
 def _qr_image(serial: str, size_px: int) -> Image.Image:
@@ -76,12 +83,10 @@ def print_serials_to_printer(serials, printer_name: str) -> dict:
     devmode = _devmode_simplex(printer_name)
     hdc = win32ui.CreateDC()
     try:
+        # pywin32 ≥ 306: CreateDC() returns PyCDC — use CreatePrinterDC, not CreateDC(...).
+        hdc.CreatePrinterDC(printer_name)
         if devmode:
-            hdc.CreateDC("WINSPOOL", printer_name, None, devmode)
-        else:
-            hdc.CreatePrinterDC(printer_name)
-            if devmode:
-                hdc.ResetDC(devmode)
+            hdc.ResetDC(devmode)
 
         page_w = hdc.GetDeviceCaps(win32con.HORZRES)
         page_h = hdc.GetDeviceCaps(win32con.VERTRES)

@@ -30,7 +30,7 @@ WINDOW_TITLE = "Carbo Print Labels"
 
 REMOTE_SHELL_URL = (
     os.environ.get("CIS_PRINT_LABELS_URL", "").strip()
-    or "https://bkweb3.bigk.co.uk/cis/print_labels.html?shellRev=20261006-a4-print-v163"
+    or "https://bkweb3.bigk.co.uk/cis/print_labels.html?shellRev=20261008-a4-print-v164"
 )
 
 _LOCAL = os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()
