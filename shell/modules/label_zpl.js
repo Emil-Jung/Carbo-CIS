@@ -20,6 +20,9 @@
   /** Nudge entire layout down on 28 mm face (QR + text together). ~1.5 mm @ 203 dpi. */
   var PRODUCTION_LAYOUT_Y_OFFSET_DOTS = 12;
 
+  /** Zebra ~SD darkness 00–30 (higher = darker). Tune with a test print; 22 is a solid default for ZT231. */
+  var PRODUCTION_DARKNESS = 22;
+
   function mmToDots(mm, dpi) {
     return Math.round((mm * dpi) / 25.4);
   }
@@ -136,11 +139,23 @@
     );
   }
 
+  function zplDarknessCommand(spec) {
+    if (!spec || spec.darkness === false || spec.darkness === null || spec.darkness === "") {
+      return "";
+    }
+    var sd = parseInt(spec.darkness, 10);
+    if (isNaN(sd)) return "";
+    sd = Math.max(0, Math.min(30, sd));
+    return "~SD" + (sd < 10 ? "0" + sd : String(sd)) + "\n";
+  }
+
   function zplOneLabel(serial, spec) {
     var layout = layoutLabel(serial, spec);
     var d = layout.dots;
     return (
-      "^XA\n^CI28\n^PW" + d.pw + "\n^LL" + d.ll + "\n^LH0,0\n" +
+      "^XA\n^CI28\n" +
+      zplDarknessCommand(spec) +
+      "^PW" + d.pw + "\n^LL" + d.ll + "\n^LH0,0\n" +
       zplSymbolField(layout) + "\n" +
       zplTextField(layout) +
       "^XZ\n"
@@ -163,6 +178,7 @@
         qrMag: 0,
         qrBoostMag: PRODUCTION_QR_BOOST_MAG,
         layoutYOffsetDots: PRODUCTION_LAYOUT_Y_OFFSET_DOTS,
+        darkness: PRODUCTION_DARKNESS,
         symbol: "qr",
       },
       overrides || {}
@@ -173,6 +189,7 @@
     DEFAULT_SPEC: DEFAULT_SPEC,
     PRODUCTION_QR_BOOST_MAG: PRODUCTION_QR_BOOST_MAG,
     PRODUCTION_LAYOUT_Y_OFFSET_DOTS: PRODUCTION_LAYOUT_Y_OFFSET_DOTS,
+    PRODUCTION_DARKNESS: PRODUCTION_DARKNESS,
     mmToDots: mmToDots,
     specToDots: specToDots,
     symbolPayload: symbolPayload,
