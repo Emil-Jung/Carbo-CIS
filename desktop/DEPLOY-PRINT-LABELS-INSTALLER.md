@@ -13,10 +13,18 @@ Requires: Python 3, `pip install pyinstaller pywin32 pywebview qrcode pillow`
 
 ## 2. Installer (Inno Setup)
 
+Install Inno Setup 6 if needed (`winget install JRSoftware.InnoSetup --source winget`).
+ISCC may live under `%LOCALAPPDATA%\Programs\Inno Setup 6\`, not Program Files.
+
 ```powershell
 cd "D:\My Coding Projects\Carbo-CIS\desktop"
-# ISCC from Inno Setup install, e.g.:
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVer=1.6.4 installer\print_labels.iss
+.\BUILD-PRINT-LABELS-INSTALLER.cmd
+```
+
+Or manually (adjust ISCC path):
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DAppVer=1.6.4 installer\print_labels.iss
 ```
 
 Output: `desktop\installer\Output\CarboPrintLabels-Setup.exe`
