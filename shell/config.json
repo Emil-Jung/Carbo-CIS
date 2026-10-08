@@ -14,7 +14,7 @@
   "traceabilityKioskUrl": "/traceability/kiosk/",
   "controlRoomUrl": "/cis/control-room/",
   "controlRoomLive": true,
-  "controlRoomRev": "20261006-cr2",
+  "controlRoomRev": "20261008-cr4",
   "bagStockUrl": "/traceability/supervisor/",
   "traceabilityApiBase": "/traceability/api/v1",
   "displayTimezone": "Africa/Windhoek",
