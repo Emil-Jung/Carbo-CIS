@@ -202,6 +202,9 @@ body {
 .module-content.has-float-nav.has-float-nav--stacked {
   padding-bottom: calc(24px + 5.75rem);
 }
+.module-content.has-float-nav.has-float-nav--deep {
+  padding-bottom: calc(24px + 8.25rem);
+}
 .cis-float-nav {
   position: fixed;
   left: 14px;
@@ -241,6 +244,11 @@ body {
 .cis-float-back-btn--secondary {
   background: linear-gradient(180deg, rgba(228, 192, 74, 0.95), rgba(201, 162, 39, 0.92));
   border-color: rgba(228, 192, 74, 0.85);
+}
+.cis-float-back-btn--home {
+  color: var(--gold-bright);
+  background: rgba(18, 14, 8, 0.92);
+  border-color: var(--gold-dim);
 }
 .module-content.module-quality-host,
 .module-content.module-iframe-host,

@@ -617,15 +617,6 @@
     var oldModal = document.querySelector(".print-labels-modal-backdrop");
     if (oldModal) oldModal.remove();
 
-    if (ctx.setFloatingBack && !(CIS.isPrintLabelsUtility && CIS.isPrintLabelsUtility())) {
-      ctx.setFloatingBack({
-        label: "← Labels",
-        onClick: function () {
-          if (CIS.openModule) CIS.openModule("labels");
-        },
-      });
-    }
-
     var modalBackdrop = ui.el("div", { class: "print-labels-modal-backdrop hidden" });
     var modal = ui.el("div", { class: "print-labels-modal" });
     var modalTitle = ui.el("h3", {}, ["Confirm print run"]);

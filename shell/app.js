@@ -22,6 +22,104 @@
   CIS._state = state;
 
   const floatNavState = { secondary: null };
+  const navStack = ["dashboard"];
+
+  /** Parent hub for hierarchical back (module.parentModule overrides). */
+  const MODULE_PARENTS = {
+    labels: "traceability",
+    print_labels: "labels",
+    label_deployment: "labels",
+    control_room: "traceability",
+    containers: "traceability",
+    movement_schedule: "traceability",
+    pallet_configuration: "traceability",
+    manager_override: "traceability",
+    bag_stock: "traceability",
+  };
+
+  function getModuleParent(moduleId) {
+    const mod = CIS.modules.find(function (m) { return m.id === moduleId; });
+    if (mod && mod.parentModule) return mod.parentModule;
+    return MODULE_PARENTS[moduleId] || null;
+  }
+
+  function moduleNavTitle(moduleId) {
+    if (moduleId === "dashboard") return "Dashboard";
+    const mod = CIS.modules.find(function (m) { return m.id === moduleId; });
+    return mod && mod.title ? mod.title : moduleId;
+  }
+
+  function ensureDashboardRoot() {
+    if (navStack.length === 0 || navStack[0] !== "dashboard") {
+      navStack.length = 0;
+      navStack.push("dashboard");
+    }
+  }
+
+  function pushNavigation(id) {
+    if (!id || id === "dashboard") return;
+    ensureDashboardRoot();
+    const top = navStack[navStack.length - 1];
+    if (top === id) return;
+
+    const idx = navStack.indexOf(id);
+    if (idx >= 0) {
+      navStack.length = idx + 1;
+      return;
+    }
+
+    const parent = getModuleParent(id);
+    if (top === "dashboard" || parent === top) {
+      navStack.push(id);
+      return;
+    }
+
+    navStack.length = 1;
+    navStack.push(id);
+  }
+
+  function navigationParentId() {
+    if (navStack.length > 1) return navStack[navStack.length - 2];
+    return "dashboard";
+  }
+
+  function navigationBackLabel() {
+    return "← " + moduleNavTitle(navigationParentId());
+  }
+
+  function popNavigation() {
+    ensureDashboardRoot();
+    if (navStack.length <= 1) {
+      showDashboard({ skipStackPush: true });
+      return;
+    }
+    navStack.pop();
+    const prevId = navStack[navStack.length - 1];
+    if (prevId === "dashboard") showDashboard({ skipStackPush: true });
+    else openModule(prevId, { skipStackPush: true });
+  }
+
+  function goBack() {
+    if (floatNavState.secondary && typeof floatNavState.secondary.onClick === "function") {
+      floatNavState.secondary.onClick();
+      return;
+    }
+    popNavigation();
+  }
+
+  function goBackToParent() {
+    popNavigation();
+  }
+
+  function goHome() {
+    navStack.length = 0;
+    navStack.push("dashboard");
+    showDashboard({ skipStackPush: true });
+  }
+
+  CIS.goBack = goBack;
+  CIS.goHome = goHome;
+  CIS.goBackToParent = goBackToParent;
 
   function floatNavEl() {
     return document.getElementById("cis-float-nav");
@@ -39,6 +137,7 @@
     if (content) {
       content.classList.remove("has-float-nav");
       content.classList.remove("has-float-nav--stacked");
+      content.classList.remove("has-float-nav--deep");
     }
 
     if (onDashboard) return;
@@ -53,17 +152,32 @@
     }
 
     const secondary = floatNavState.secondary;
+    const showHome = navStack.length > 2;
+    const primaryLabel = navigationBackLabel();
+
+    addBtn(
+      primaryLabel,
+      function () {
+        if (secondary && typeof secondary.onClick === "function") goBackToParent();
+        else goBack();
+      },
+      "cis-float-back-btn--primary"
+    );
+
     if (secondary && typeof secondary.onClick === "function") {
       addBtn(secondary.label || "← Back", secondary.onClick, "cis-float-back-btn--secondary");
     }
 
-    addBtn("← Back", () => showDashboard(), "cis-float-back-btn--primary");
+    if (showHome) {
+      addBtn("← Dashboard", goHome, "cis-float-back-btn--home");
+    }
 
     nav.classList.remove("hidden");
     nav.setAttribute("aria-hidden", "false");
     if (content) {
       content.classList.add("has-float-nav");
-      if (floatNavState.secondary) content.classList.add("has-float-nav--stacked");
+      if (secondary || showHome) content.classList.add("has-float-nav--stacked");
+      if (secondary && showHome) content.classList.add("has-float-nav--deep");
     }
   }
 
@@ -265,7 +379,7 @@
 
     document.getElementById("logout-btn").addEventListener("click", () => doLogout(false));
 
-    document.getElementById("back-btn").addEventListener("click", () => showDashboard());
+    document.getElementById("back-btn").addEventListener("click", () => goBack());
 
 
 
@@ -319,6 +433,8 @@
     localStorage.removeItem(TOKEN_KEY);
 
     state.token = null; state.user = null; state.permissions = []; state.activeModuleId = null;
+    navStack.length = 0;
+    navStack.push("dashboard");
 
     showLogin();
 
@@ -372,7 +488,15 @@
 
     const onDashboard = !state.activeModuleId || state.activeModuleId === "dashboard";
 
-    if (backBtn) backBtn.classList.toggle("hidden", onDashboard);
+    if (backBtn) {
+      backBtn.classList.toggle("hidden", onDashboard);
+      if (!onDashboard) {
+        const backLabel = navigationBackLabel();
+        backBtn.textContent = backLabel;
+        backBtn.title = "Back to " + moduleNavTitle(navigationParentId());
+        backBtn.setAttribute("aria-label", backLabel);
+      }
+    }
 
     if (!subEl) return;
 
@@ -392,7 +516,14 @@
 
 
 
-  function showDashboard() {
+  function showDashboard(opts) {
+
+    opts = opts || {};
+
+    if (!opts.skipStackPush) {
+      navStack.length = 0;
+      navStack.push("dashboard");
+    }
 
     if (window.pywebview && window.pywebview.api && window.pywebview.api.close_maintenance_manager) {
 
@@ -474,7 +605,7 @@
 
         type: "button",
 
-        onclick: () => showDashboard(),
+        onclick: () => goBack(),
 
       }, ["Back"]),
 
@@ -484,7 +615,9 @@
 
 
 
-  function openModule(id) {
+  function openModule(id, opts) {
+
+    opts = opts || {};
 
     const mod = CIS.modules.find((m) => m.id === id);
 
@@ -494,6 +627,8 @@
       showAccessDenied(mod);
       return;
     }
+
+    if (!opts.skipStackPush) pushNavigation(id);
 
     state.activeModuleId = id;
 

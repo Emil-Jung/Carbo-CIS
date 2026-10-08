@@ -171,15 +171,6 @@
     listPanel.appendChild(listEl);
     container.appendChild(listPanel);
 
-    if (ctx.setFloatingBack) {
-      ctx.setFloatingBack({
-        label: "← Labels",
-        onClick: function () {
-          if (CIS.openModule) CIS.openModule("labels");
-        },
-      });
-    }
-
     function setMsg(el, text, isError) {
       el.textContent = text || "";
       el.className = "label-deployment-msg" + (text ? (isError ? " is-error" : " is-ok") : " muted");
