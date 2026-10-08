@@ -10,9 +10,16 @@
     {
       id: "control_room",
       title: "Control Room",
-      description: "Open trucks, capture arrival details, enter factory scale weights.",
+      description: "Discharge hopper, capture sieve weights, POST to office.",
       requires: "traceability.control_room",
       icon: "control",
+    },
+    {
+      id: "delivery_confirmations",
+      title: "Delivery Confirmations",
+      description: "Charcoal tracker — complete PJ fields after factory POST.",
+      requires: "traceability.delivery_confirmations",
+      icon: "labels",
     },
     {
       id: "labels",

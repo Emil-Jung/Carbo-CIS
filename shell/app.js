@@ -30,6 +30,7 @@
     print_labels: "labels",
     label_deployment: "labels",
     control_room: "traceability",
+    delivery_confirmations: "traceability",
     containers: "traceability",
     movement_schedule: "traceability",
     pallet_configuration: "traceability",

@@ -39,7 +39,7 @@
     kind: "app",
     order: 4,
     icon: "control",
-    description: "Open trucks, factory scales, bag handoff (pilot — truck open blocked until server go-live)",
+    description: "Discharge, capture sheet, POST — factory PC (live when server flag enabled)",
     requires: "traceability.control_room",
     inactive: true,
     render: render,
