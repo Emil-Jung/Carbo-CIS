@@ -1,0 +1,31 @@
+---
+description: Commit and push to GitHub after every code change — do not leave work local-only
+alwaysApply: true
+---
+
+# Git — push when you work (mandatory)
+
+GitHub (`origin/master`) is the source of truth. bkweb3 pulls CIS shell from here.
+
+**Do not ask for permission** to commit and push after a code task — just do it.
+
+## After every task that changes code
+
+Before ending your turn:
+
+1. `git status` — confirm you are in `Carbo-CIS`, not the parent folder.
+2. Stage only intentional changes (explicit paths, not blind `git add .`).
+3. Never commit secrets or local-only build artifacts unless explicitly requested.
+4. One logical change per commit; concise message (why, not file list).
+5. `git commit` then `git push origin master`.
+6. Report commit hash in your summary.
+
+If the user asked only a question (no edits), skip.
+
+## Deploy path
+
+Server: `/opt/carbo/carbo-cis` — `git pull` then `bash deploy_on_server.sh` or `sync_cis_shell_on_server.sh`.
+
+## When push fails
+
+Report the error; do not leave the user thinking work is on GitHub when it is not.
