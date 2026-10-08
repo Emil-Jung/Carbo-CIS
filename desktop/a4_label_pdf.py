@@ -36,6 +36,25 @@ def _qr_image(serial: str, size_px: int) -> Image.Image:
     return qr.resize((size_px, size_px), Image.LANCZOS)
 
 
+def _apply_devmode(hdc, devmode) -> None:
+    """Apply DEVMODE (simplex/portrait). PyCDC.ResetDC was removed in pywin32 ≥ 306."""
+    if not devmode:
+        return
+    try:
+        reset = getattr(hdc, "ResetDC", None)
+        if callable(reset):
+            reset(devmode)
+            return
+    except Exception:
+        pass
+    try:
+        import win32gui
+
+        win32gui.ResetDC(hdc.GetHandleOutput(), devmode)
+    except Exception:
+        pass
+
+
 def _devmode_simplex(printer_name: str):
     import win32con
     import win32print
@@ -85,8 +104,7 @@ def print_serials_to_printer(serials, printer_name: str) -> dict:
     try:
         # pywin32 ≥ 306: CreateDC() returns PyCDC — use CreatePrinterDC, not CreateDC(...).
         hdc.CreatePrinterDC(printer_name)
-        if devmode:
-            hdc.ResetDC(devmode)
+        _apply_devmode(hdc, devmode)
 
         page_w = hdc.GetDeviceCaps(win32con.HORZRES)
         page_h = hdc.GetDeviceCaps(win32con.VERTRES)

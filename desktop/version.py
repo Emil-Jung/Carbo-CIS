@@ -10,6 +10,6 @@ See VERSIONING.md for the rules and examples.
 
 CIS_MAJOR = 1      # X — CIS version
 CIS_MODULE = 6     # Y — Bags Movement report + remote shell sync
-CIS_INTERNAL = 5   # Z — PyInstaller bundles qrcode; build installs deps
+CIS_INTERNAL = 6   # Z — A4 print: win32gui.ResetDC (PyCDC.ResetDC removed)
 
 CIS_VERSION = f"{CIS_MAJOR}.{CIS_MODULE}.{CIS_INTERNAL}"
