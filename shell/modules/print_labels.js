@@ -9,7 +9,7 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.6.8";
+  var PL_UI_VERSION = "1.6.9";
   CIS.printLabelsUiVersion = PL_UI_VERSION;
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
@@ -940,16 +940,27 @@
     }
 
     async function refreshPrinters() {
-      if (!bridge || !bridge.list_printers) return;
+      if (!bridge || !bridge.list_printers) {
+        setStatus(
+          "Printer list needs Carbo Print Labels on Windows (not a browser tab). Restart from the Start menu.",
+          true
+        );
+        fillPrinterSelect(zebraPrinterEl, [], "", null, null);
+        fillPrinterSelect(a4PrinterEl, [], "", null, null);
+        return;
+      }
       refreshBtn.disabled = true;
       try {
         var res = await bridge.list_printers();
+        if (res && res.error) {
+          setStatus("Could not read Windows printers: " + res.error, true);
+        }
         var names = (res && res.printers) || [];
         fillPrinterSelect(
           zebraPrinterEl,
           names,
           saved.zebraPrinterName,
-          /zebra|zdesigner|zt231/i,
+          /zebra|zdesigner|zt231|carbo/i,
           null
         );
         fillPrinterSelect(
@@ -959,6 +970,17 @@
           /a4|office|laser|hp |brother|canon|xerox|ricoh/i,
           /zebra|zdesigner|zt231/i
         );
+        if (!names.length) {
+          setStatus(
+            "No printers in Windows. For Zebra: switch to Network IP (192.168.8.73) below, " +
+            "or run SETUP-ZEBRA-LAN.ps1 as Administrator, then Refresh.",
+            true
+          );
+        } else {
+          setStatus("Found " + names.length + " printer(s) in Windows.");
+        }
+      } catch (e) {
+        setStatus("Refresh failed: " + ((e && e.message) || e), true);
       } finally {
         refreshBtn.disabled = false;
       }
