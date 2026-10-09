@@ -30,14 +30,6 @@
       "in progress keep the targets recorded when they were opened.",
     ]));
 
-    container.appendChild(ui.el("button", {
-      class: "btn-ghost btn-sm hub-back",
-      type: "button",
-      onclick: function () {
-        if (CIS.openModule) CIS.openModule("traceability");
-      },
-    }, ["Back to Traceability"]));
-
     var status = ui.el("p", { class: "muted" }, [""]);
     container.appendChild(status);
 

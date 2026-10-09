@@ -374,14 +374,6 @@
     (opts.notes || []).forEach(function (note) {
       container.appendChild(ui.el("p", { class: "muted launcher-note" }, [note]));
     });
-    container.appendChild(ui.el("button", {
-      class: "btn-ghost btn-sm",
-      type: "button",
-      onclick: function () {
-        if (opts.backModule && CIS.openModule) CIS.openModule(opts.backModule);
-        else if (CIS.showDashboard) CIS.showDashboard();
-      },
-    }, [opts.backLabel || "Back"]));
   };
 
   /** pywebview bridge when running inside the installed desktop app. */

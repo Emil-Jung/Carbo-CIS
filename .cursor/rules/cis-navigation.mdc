@@ -1,0 +1,11 @@
+---
+description: CIS shell — one floating back button; no in-page back links
+alwaysApply: true
+---
+
+# CIS navigation
+
+- **Back:** One fixed control — `#cis-float-nav` in `shell/app.js`. It goes back **one step** (in-module drill via `setFloatingBack`, else `navStack` pop).
+- **Do not** add `hub-back`, “Back to …”, or top-bar back buttons in modules.
+- **Drill-down** inside a module: call `ctx.setFloatingBack({ label: "← …", onClick })` when entering; `setFloatingBack(null)` when leaving.
+- **Hub hierarchy:** set `parentModule` on the module (or `MODULE_PARENTS` in `app.js`) so float back shows the correct parent title.

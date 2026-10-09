@@ -32,13 +32,6 @@
       "Generate a 4-digit PIN for today (Windhoek time). Give it to the operator on the yard scanner to authorise manager override when weathering is still running.",
     ]));
 
-    container.appendChild(ui.el("button", {
-      class: "btn-ghost btn-sm hub-back",
-      type: "button",
-      onclick: function () {
-        if (CIS.openModule) CIS.openModule("traceability");
-      },
-    }, ["Back to Traceability"]));
 
     var statusCard = ui.el("section", { class: "manager-override-panel" });
     var statusBody = ui.el("div", { class: "manager-override-panel-body" });

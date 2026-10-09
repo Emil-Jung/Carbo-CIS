@@ -24,9 +24,6 @@
 
       ],
 
-      backModule: "traceability",
-      backLabel: "Back to Traceability",
-
     });
 
   }
@@ -36,6 +33,7 @@
   CIS.modules.push({
 
     id: "bag_stock",
+    parentModule: "traceability",
 
     title: "Bag stock",
 

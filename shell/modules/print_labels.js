@@ -415,13 +415,6 @@
         "If you need to print labels, contact your site administrator.",
       ]),
     ]));
-    container.appendChild(ui.el("button", {
-      class: "btn-ghost btn-sm hub-back",
-      type: "button",
-      onclick: function () {
-        if (CIS.openModule) CIS.openModule("labels");
-      },
-    }, ["Back to Labels"]));
   }
 
   function render(container, ctx) {

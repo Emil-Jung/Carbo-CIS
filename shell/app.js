@@ -126,6 +126,15 @@
     return document.getElementById("cis-float-nav");
   }
 
+  /** One step back: in-module drill (setFloatingBack) first, else previous module on the stack. */
+  function floatBackStepLabel() {
+    const secondary = floatNavState.secondary;
+    if (secondary && typeof secondary.onClick === "function") {
+      return secondary.label || "← Back";
+    }
+    return navigationBackLabel();
+  }
+
   function renderFloatNav() {
     const nav = floatNavEl();
     const content = document.getElementById("module-content");
@@ -143,49 +152,18 @@
 
     if (onDashboard) return;
 
-    function addBtn(label, onClick, extraClass) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "cis-float-back-btn" + (extraClass ? " " + extraClass : "");
-      btn.textContent = label;
-      btn.addEventListener("click", onClick);
-      nav.appendChild(btn);
-    }
-
-    const secondary = floatNavState.secondary;
-    const inModuleDrill = secondary && typeof secondary.onClick === "function";
-    const parentLabel = navigationBackLabel();
-    const parentId = navigationParentId();
-    const fromDashboard = navStack[0] === "dashboard";
-    let buttonCount = 0;
-
-    if (inModuleDrill) {
-      addBtn(secondary.label || "← Back", secondary.onClick, "cis-float-back-btn--primary");
-      buttonCount += 1;
-      if (parentId !== "dashboard") {
-        addBtn(parentLabel, goBack, "cis-float-back-btn--secondary");
-        buttonCount += 1;
-      }
-      if (fromDashboard && navStack.length >= 2) {
-        addBtn("← Dashboard", goHome, "cis-float-back-btn--home");
-        buttonCount += 1;
-      }
-    } else {
-      addBtn(parentLabel, goBack, "cis-float-back-btn--primary");
-      buttonCount += 1;
-      if (fromDashboard && navStack.length > 2) {
-        addBtn("← Dashboard", goHome, "cis-float-back-btn--home");
-        buttonCount += 1;
-      }
-    }
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cis-float-back-btn";
+    btn.textContent = floatBackStepLabel();
+    btn.title = "Back one step";
+    btn.setAttribute("aria-label", floatBackStepLabel());
+    btn.addEventListener("click", goBack);
+    nav.appendChild(btn);
 
     nav.classList.remove("hidden");
     nav.setAttribute("aria-hidden", "false");
-    if (content) {
-      content.classList.add("has-float-nav");
-      if (buttonCount > 1) content.classList.add("has-float-nav--stacked");
-      if (buttonCount > 2) content.classList.add("has-float-nav--deep");
-    }
+    if (content) content.classList.add("has-float-nav");
   }
 
   function setFloatingBack(opts) {
@@ -386,10 +364,6 @@
 
     document.getElementById("logout-btn").addEventListener("click", () => doLogout(false));
 
-    document.getElementById("back-btn").addEventListener("click", () => goBack());
-
-
-
     if (state.token) {
 
       try {
@@ -489,21 +463,9 @@
 
   function updateTopbarContext() {
 
-    const backBtn = document.getElementById("back-btn");
-
     const subEl = document.getElementById("topbar-context");
 
     const onDashboard = !state.activeModuleId || state.activeModuleId === "dashboard";
-
-    if (backBtn) {
-      backBtn.classList.toggle("hidden", onDashboard);
-      if (!onDashboard) {
-        const backLabel = navigationBackLabel();
-        backBtn.textContent = backLabel;
-        backBtn.title = "Back to " + moduleNavTitle(navigationParentId());
-        backBtn.setAttribute("aria-label", backLabel);
-      }
-    }
 
     if (!subEl) return;
 
@@ -605,16 +567,6 @@
         "Ask an administrator to grant the required access for your role.",
 
       ]),
-
-      ui.el("button", {
-
-        class: "btn btn-sm",
-
-        type: "button",
-
-        onclick: () => goBack(),
-
-      }, ["Back"]),
 
     ]));
 

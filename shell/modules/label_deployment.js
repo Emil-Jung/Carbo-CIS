@@ -61,14 +61,6 @@
         + LD_UI_VERSION + ".",
     ]));
 
-    container.appendChild(ui.el("button", {
-      class: "btn-ghost btn-sm hub-back",
-      type: "button",
-      onclick: function () {
-        if (CIS.openModule) CIS.openModule("labels");
-      },
-    }, ["Back to Labels"]));
-
     var inventoryEl = ui.el("div", { class: "label-deployment-inventory muted" }, ["Loading inventory…"]);
     var inventoryPanel = ui.el("section", { class: "label-deployment-panel" });
     inventoryPanel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["Label stock summary"]));

@@ -118,14 +118,6 @@
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "Charcoal Tracker — Deliveries. All weights are tonnes (t), 3 decimals — same as the spreadsheet. Factory POST pre-fills; PJ fixes mistakes here (re-POST is not possible after the next truck). Export CSV when complete.",
     ]));
-    container.appendChild(ui.el("button", {
-      class: "btn-ghost btn-sm hub-back",
-      type: "button",
-      onclick: function () {
-        if (CIS.openModule) CIS.openModule("traceability");
-      },
-    }, ["Back to Traceability"]));
-
     var statusTabs = ui.el("div", { class: "delivery-conf-tabs" });
     var tabPending = ui.el("button", { type: "button", class: "delivery-conf-tab delivery-conf-tab--active" }, ["Pending"]);
     var tabComplete = ui.el("button", { type: "button", class: "delivery-conf-tab" }, ["Complete"]);
@@ -216,6 +208,7 @@
       setListMsg("Loading…");
       listWrap.hidden = false;
       detailHost.hidden = true;
+      if (ctx.setFloatingBack) ctx.setFloatingBack(null);
       try {
         var data = await ctx.api.traceability(
           "/delivery-confirmations?status=" + encodeURIComponent(filterStatus) + "&limit=200"
@@ -308,20 +301,23 @@
       return grid;
     }
 
+    function closeDetail() {
+      listWrap.hidden = false;
+      detailHost.hidden = true;
+      if (ctx.setFloatingBack) ctx.setFloatingBack(null);
+      void loadList();
+    }
+
     function showDetail(row) {
       listWrap.hidden = true;
       detailHost.hidden = false;
       detailHost.innerHTML = "";
-
-      detailHost.appendChild(ui.el("button", {
-        class: "btn-ghost btn-sm",
-        type: "button",
-        onclick: function () {
-          listWrap.hidden = false;
-          detailHost.hidden = true;
-          void loadList();
-        },
-      }, ["← Back to pending list"]));
+      if (ctx.setFloatingBack) {
+        ctx.setFloatingBack({
+          label: "← Pending list",
+          onClick: closeDetail,
+        });
+      }
 
       var meta = ui.el("p", { class: "muted" });
       meta.textContent =

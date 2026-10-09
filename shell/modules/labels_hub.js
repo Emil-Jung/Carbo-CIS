@@ -65,13 +65,6 @@
       container.appendChild(grid);
     }
 
-    container.appendChild(ui.el("button", {
-      class: "btn-ghost btn-sm hub-back",
-      type: "button",
-      onclick: function () {
-        if (CIS.openModule) CIS.openModule("traceability");
-      },
-    }, ["Back to Traceability"]));
   }
 
   CIS.modules.push({
