@@ -63,6 +63,21 @@ grep -q 'pallet_configuration.js' "$DEST/index.html" 2>/dev/null \
   && echo "OK: index.html loads pallet_configuration.js" \
   || echo "WARN: index.html missing pallet_configuration.js script tag"
 
+grep -q 'delivery_confirmations.js' "$DEST/index.html" 2>/dev/null \
+  && echo "OK: index.html loads delivery_confirmations.js" \
+  || echo "WARN: index.html missing delivery_confirmations.js script tag"
+
+if grep -q 'Charcoal Tracker xlsb' "$DEST/modules/delivery_confirmations.js" 2>/dev/null; then
+  echo "OK: delivery_confirmations.js is the Deliveries-sheet UI (form grids)"
+else
+  echo "ERROR: delivery_confirmations.js is OLD or missing — git pull Carbo-CIS then re-run this script"
+  exit 1
+fi
+
+grep -q 'delivery-conf-form-grid' "$DEST/styles.css" 2>/dev/null \
+  && echo "OK: styles.css includes delivery-conf-* rules" \
+  || echo "WARN: styles.css missing delivery-conf CSS — PJ tile will look broken"
+
 CR_LIVE=$(grep -o '"controlRoomLive"[[:space:]]*:[[:space:]]*[^,}]*' "$DEST/config.json" 2>/dev/null | head -1 || true)
 echo "config.json $CR_LIVE (false = Control Room stays Coming soon)"
 
