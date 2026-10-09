@@ -224,13 +224,6 @@
     }
 
     function openDetail(intakeId) {
-      var cached = rowsCache.find(function (r) {
-        return r.intake_id === intakeId;
-      });
-      if (cached) {
-        showDetail(cached);
-        return;
-      }
       void fetchDetail(intakeId);
     }
 
