@@ -313,10 +313,7 @@
       detailHost.hidden = false;
       detailHost.innerHTML = "";
       if (ctx.setFloatingBack) {
-        ctx.setFloatingBack({
-          label: "← Pending list",
-          onClick: closeDetail,
-        });
+        ctx.setFloatingBack({ onClick: closeDetail });
       }
 
       var meta = ui.el("p", { class: "muted" });

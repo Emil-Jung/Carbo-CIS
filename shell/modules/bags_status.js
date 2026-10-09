@@ -2073,31 +2073,19 @@
 
 
 
-    var BACK_MAIN = "Bags Status";
-
     function goBackFromWxDrill() {
       wxDrillToken += 1;
       wxDrill = null;
       paint();
     }
 
-    function wxDrillBackLabel(backTo) {
-      return backTo === "status_buckets" ? "Buckets" : BACK_MAIN;
-    }
-
     function syncFloatingNav() {
       if (!ctx.setFloatingBack) return;
       if (wxDrill) {
-        ctx.setFloatingBack({
-          label: wxDrill.backTo === "status_buckets"
-            ? "← Return to buckets"
-            : "← Return to Bags Status",
-          onClick: goBackFromWxDrill,
-        });
+        ctx.setFloatingBack({ onClick: goBackFromWxDrill });
       } else if (selected) {
         if (selected.palletDetail) {
           ctx.setFloatingBack({
-            label: "← Return to " + (selected.label || "Pallets"),
             onClick: function () {
               selected.palletDetail = null;
               selected.serial = null;
@@ -2106,7 +2094,6 @@
           });
         } else if (selectedEvent) {
           ctx.setFloatingBack({
-            label: "← Return to " + (selected.label || "list"),
             onClick: function () {
               selectedEvent = null;
               paint();
@@ -2114,7 +2101,6 @@
           });
         } else if (selected.view === "by_location") {
           ctx.setFloatingBack({
-            label: "← Return to " + (selected.parentLabel || "Pallets"),
             onClick: function () {
               selected.view = "locations";
               selected.label = selected.parentLabel || "Pallets";
@@ -2126,7 +2112,6 @@
           });
         } else if (selected.view === "by_product") {
           ctx.setFloatingBack({
-            label: "← Return to " + (selected.parentLabel || "Pallets"),
             onClick: function () {
               selected = null;
               paint();
@@ -2134,7 +2119,6 @@
           });
         } else {
           ctx.setFloatingBack({
-            label: "← Return to Bags Status",
             onClick: function () {
               selected = null;
               paint();
@@ -2149,11 +2133,6 @@
     function showWxDrillLoading(sel, opts) {
       opts = opts || {};
       body.innerHTML = "";
-      body.appendChild(renderBack(wxDrillBackLabel(opts.backTo), function () {
-        wxDrillToken += 1;
-        wxDrill = null;
-        paint();
-      }));
       body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [sel.label || "Bags"]));
       body.appendChild(renderDrillLoading(sel.label, ui));
       if (container && typeof container.scrollTop === "number") {
@@ -2186,29 +2165,9 @@
       } catch (e) {
         if (token !== wxDrillToken) return;
         body.innerHTML = "";
-        body.appendChild(renderBack(wxDrillBackLabel(opts.backTo), function () {
-          wxDrill = null;
-          paint();
-        }));
         body.appendChild(ui.error("Could not load bags: " + (e.message || e)));
         syncFloatingNav();
       }
-    }
-
-
-
-    function renderBack(label, onClick) {
-
-      return ui.el("button", {
-
-        class: "bs-dash-back",
-
-        type: "button",
-
-        onclick: onClick,
-
-      }, ["← " + label]);
-
     }
 
 
@@ -2222,16 +2181,6 @@
 
 
       if (selected && selected.palletDetail) {
-
-        body.appendChild(renderBack(selected.label || "Pallet", function () {
-
-          selected.palletDetail = null;
-
-          selected.serial = null;
-
-          paint();
-
-        }));
 
         body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
 
@@ -2249,10 +2198,6 @@
 
 
       if (wxDrill) {
-
-        body.appendChild(renderBack(wxDrillBackLabel(wxDrill.backTo), function () {
-          goBackFromWxDrill();
-        }));
 
         body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
 
@@ -2278,58 +2223,6 @@
 
 
       if (selected) {
-
-        var backLabel = BACK_MAIN;
-
-        if (selected.palletDetail) backLabel = selected.label;
-
-        else if (selectedEvent) {
-          backLabel = selectedEvent.client_name || selectedEvent.key || selected.label;
-        }
-
-        else if (selected.view === "by_location" || selected.view === "by_product") {
-          backLabel = selected.parentLabel || "Pallets";
-        }
-
-        else if (selected.mode === "weathering_buckets") backLabel = BACK_MAIN;
-
-        body.appendChild(renderBack(backLabel, function () {
-
-          if (selected.palletDetail) {
-
-            selected.palletDetail = null;
-
-            selected.serial = null;
-
-          } else if (selectedEvent) {
-
-            selectedEvent = null;
-
-          } else if (selected.view === "by_location") {
-
-            selected.view = "locations";
-
-            selected.label = selected.parentLabel || "Pallets";
-
-            selected.sections = null;
-
-            selected.detail = null;
-
-            selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
-
-          } else if (selected.view === "by_product") {
-
-            selected = null;
-
-          } else {
-
-            selected = null;
-
-          }
-
-          paint();
-
-        }));
 
         if (selected.key === "packed_into_pallet") {
 

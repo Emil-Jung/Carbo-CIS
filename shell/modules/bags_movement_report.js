@@ -833,10 +833,7 @@
     function syncFloatingNav() {
       if (!ctx.setFloatingBack) return;
       if (drillDown) {
-        ctx.setFloatingBack({
-          label: "← Return to producer summary",
-          onClick: onDrillBack,
-        });
+        ctx.setFloatingBack({ onClick: onDrillBack });
       } else {
         ctx.setFloatingBack(null);
       }

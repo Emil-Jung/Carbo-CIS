@@ -85,7 +85,7 @@
   }
 
   function navigationBackLabel() {
-    return "← " + moduleNavTitle(navigationParentId());
+    return "Back";
   }
 
   function popNavigation() {
@@ -128,11 +128,7 @@
 
   /** One step back: in-module drill (setFloatingBack) first, else previous module on the stack. */
   function floatBackStepLabel() {
-    const secondary = floatNavState.secondary;
-    if (secondary && typeof secondary.onClick === "function") {
-      return secondary.label || "← Back";
-    }
-    return navigationBackLabel();
+    return "Back";
   }
 
   function renderFloatNav() {
