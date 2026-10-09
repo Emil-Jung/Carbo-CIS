@@ -2894,3 +2894,169 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   line-height: 1.4;
   color: var(--muted, #aaa);
 }
+
+/* Delivery Confirmations (Charcoal Tracker office) */
+.delivery-confirmations-host { max-width: 100%; }
+.delivery-conf-tracker-scroll {
+  overflow-x: auto;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.delivery-conf-tracker-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.delivery-conf-tracker-table th {
+  background: #4a86c7;
+  color: #0a0a0a;
+  font-weight: 700;
+  font-style: italic;
+  padding: 10px 12px;
+  border: 1px solid #3a6fa8;
+  white-space: nowrap;
+  text-align: left;
+  vertical-align: bottom;
+}
+.delivery-conf-tracker-table td {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  vertical-align: middle;
+  min-width: 5.5rem;
+}
+.delivery-conf-tracker-table--list tbody tr.delivery-conf-row { cursor: pointer; }
+.delivery-conf-tracker-table--list tbody tr.delivery-conf-row:hover td {
+  background: rgba(74, 134, 199, 0.12);
+}
+.delivery-conf-cell-input {
+  width: 100%;
+  min-width: 4.5rem;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+}
+.delivery-conf-cell-text,
+.delivery-conf-cell-pct {
+  display: block;
+  padding: 6px 4px;
+  font-variant-numeric: tabular-nums;
+}
+.delivery-conf-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px 14px;
+  margin-bottom: 16px;
+}
+.delivery-conf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.delivery-conf-field-label {
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.25;
+}
+.delivery-conf-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  box-sizing: border-box;
+  font-variant-numeric: tabular-nums;
+}
+.delivery-conf-readonly {
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-height: 2.35rem;
+  box-sizing: border-box;
+}
+.delivery-conf-row-heading {
+  margin: 8px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.delivery-conf-pct-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 16px;
+}
+.delivery-conf-pct-box {
+  min-width: 7rem;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.delivery-conf-pct-value {
+  display: block;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.delivery-conf-remarks { width: 100%; max-width: 640px; font-family: inherit; }
+.delivery-conf-field--shortage { max-width: 200px; margin-bottom: 12px; }
+.delivery-conf-sheet-panel { margin: 12px 0 8px; }
+.delivery-conf-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 12px;
+}
+.delivery-conf-tab {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+}
+.delivery-conf-tab--active {
+  border-color: var(--gold);
+  background: rgba(201, 162, 39, 0.12);
+}
+.delivery-conf-history tbody tr.delivery-conf-row { cursor: pointer; }
+.delivery-conf-history tbody tr.delivery-conf-row:hover td { background: rgba(201, 162, 39, 0.06); }
+.delivery-conf-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 16px 0;
+}
+.delivery-conf-sheet-hint { margin: 0 0 12px; font-size: 13px; }
+.delivery-conf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+.delivery-conf-complete-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.delivery-conf-btn-primary {
+  background: var(--gold);
+  color: #1a1200;
+  border: none;
+}
+.delivery-conf-msg.is-error { color: #f87171; }

@@ -19,7 +19,7 @@
       title: "Delivery Confirmations",
       description: "Charcoal tracker — complete PJ fields after factory POST.",
       requires: "traceability.delivery_confirmations",
-      icon: "labels",
+      icon: "delivery",
     },
     {
       id: "labels",
@@ -63,6 +63,8 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5h8V3H3v2zm0 8h8v-2H3v2zm0 8h8v-2H3v2zm10-16v2h8V3h-8zm0 8h8v-2h-8v2zm0 8h8v-2h-8v2z"/></svg>',
     labels:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h10l6 6v10H4V4zm2 2v12h12V11h-5V6H6zm9 1.4V10h2.6L15 7.4zM7 13h6v2H7v-2zm0 4h10v2H7v-2z"/></svg>',
+    delivery:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18 18.5a1.5 1.5 0 0 1-1.5-1.5 1.5 1.5 0 0 1 1.5-1.5 1.5 1.5 0 0 1 1.5 1.5 1.5 1.5 0 0 1-1.5 1.5m1.5-9 1.96 2.5H17V9.5M6 18.5A1.5 1.5 0 0 1 4.5 17 1.5 1.5 0 0 1 6 15.5 1.5 1.5 0 0 1 7.5 17 1.5 1.5 0 0 1 6 18.5M20 8h-3V4H3c-1.11 0-2 .89-2 2v11h2a3 3 0 0 0 3 3 3 3 0 0 0 3-3h6a3 3 0 0 0 3 3 3 3 0 0 0 3-3h2v-5l-3-4Z"/></svg>',
     schedule:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zM5 9h14v10H5V9zm2 2v2h2v-2H7zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H7zm4 0v2h2v-2h-2z"/></svg>',
     container:

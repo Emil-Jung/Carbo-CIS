@@ -29,3 +29,6 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# Published from charcoal-traceability (scripts/publish_control_room_to_cis.sh) — not source of truth
+shell/control-room/

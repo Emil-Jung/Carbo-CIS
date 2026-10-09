@@ -1,4 +1,4 @@
-/* Delivery Confirmations — charcoal tracker rows after Control Room POST (PJ). */
+/* Delivery Confirmations — Charcoal Tracker xlsb "Deliveries" sheet (2026). */
 
 (function () {
   "use strict";
@@ -6,289 +6,472 @@
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
-  function fmtNum(n, digits) {
-    if (n == null || n === "" || isNaN(n)) return "—";
-    return Number(n).toLocaleString(undefined, {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
+  /** Matches 2026 Carbo Charcoal Tracker — Deliveries (cols A–U + Remarks). */
+  var ROW1 = [
+    { key: "booking_date", label: "Booking Date", readOnly: true },
+    { key: "supplier", label: "Supplier", readOnly: true },
+    { key: "contact_number", label: "Contact Number", patchKey: "contact_number" },
+    { key: "fsc_flag", label: "F", readOnly: true },
+    { key: "grn", label: "GRN", readOnly: true },
+    { key: "permit_no", label: "Permit No.", readOnly: true },
+    { key: "transporter", label: "Transporter", readOnly: true },
+    { key: "truck_reg", label: "Truck Reg. No.", readOnly: true },
+    { key: "distance_km", label: "Distance from Factory (Km)", patchKey: "distance_km", inputType: "number" },
+  ];
+
+  var ROW2 = [
+    { key: "weight_ton", label: "Weight (ton)", patchKey: "weight_ton", ton: true },
+    { key: "sand_ash_ton", label: "Sand & Ash", patchKey: "sand_ash_ton", ton: true },
+    { key: "unburned_wood_ton", label: "Unburned Wood", patchKey: "unburned_wood_ton", ton: true },
+    { key: "fines_ton", label: "Fines", patchKey: "fines_ton", ton: true },
+    { key: "lumpwood_ton", label: "Lumpwood", patchKey: "lumpwood_ton", ton: true },
+    { key: "restaurant_ton", label: "Restaurant", patchKey: "restaurant_ton", ton: true },
+    { key: "shortage_on_tonnage", label: "Shortage on Tonnage", readOnly: true, ton: true },
+  ];
+
+  var PCT_FIELDS = [
+    { key: "pct_restaurant", label: "% Restaurant" },
+    { key: "pct_lumpwood", label: "% Lumpwood" },
+    { key: "pct_fines", label: "% Fines" },
+    { key: "pct_sand_ash", label: "% Sand & Ash" },
+    { key: "pct_unburned_wood", label: "% Unburned Wood" },
+  ];
+
+  function num(v) {
+    var n = Number(v);
+    return isFinite(n) ? n : 0;
+  }
+
+  function fmtTon(v) {
+    if (v === null || v === undefined || v === "") return "";
+    return num(v).toFixed(3);
+  }
+
+  function fmtPct(v) {
+    if (v === null || v === undefined || v === "") return "—";
+    return num(v).toFixed(2) + "%";
+  }
+
+  /** Same as Excel Deliveries: each stream ÷ Weight (ton). */
+  function sheetRowFromInputs(tonInputs, baseRow) {
+    var row = {};
+    Object.keys(tonInputs).forEach(function (k) {
+      var raw = tonInputs[k].value.trim();
+      row[k] = raw === "" ? null : num(raw);
+    });
+    row.weight_ton = row.weight_ton != null ? row.weight_ton : num(baseRow.weight_ton);
+    row.sand_ash_ton = row.sand_ash_ton != null ? row.sand_ash_ton : num(baseRow.sand_ash_ton);
+    row.unburned_wood_ton = row.unburned_wood_ton != null ? row.unburned_wood_ton : num(baseRow.unburned_wood_ton);
+    row.fines_ton = row.fines_ton != null ? row.fines_ton : num(baseRow.fines_ton);
+    row.lumpwood_ton = row.lumpwood_ton != null ? row.lumpwood_ton : num(baseRow.lumpwood_ton);
+    row.restaurant_ton = row.restaurant_ton != null ? row.restaurant_ton : num(baseRow.restaurant_ton);
+    var sum =
+      num(row.restaurant_ton) +
+      num(row.lumpwood_ton) +
+      num(row.fines_ton) +
+      num(row.unburned_wood_ton) +
+      num(row.sand_ash_ton);
+    row.shortage_on_tonnage = num(row.weight_ton) - sum;
+    if (Math.abs(row.shortage_on_tonnage) < 0.0005) row.shortage_on_tonnage = 0;
+    var w = num(row.weight_ton);
+    if (w <= 0) {
+      return Object.assign({}, row, {
+        pct_restaurant: null,
+        pct_lumpwood: null,
+        pct_fines: null,
+        pct_sand_ash: null,
+        pct_unburned_wood: null,
+      });
+    }
+    return Object.assign({}, row, {
+      pct_restaurant: (num(row.restaurant_ton) / w) * 100,
+      pct_lumpwood: (num(row.lumpwood_ton) / w) * 100,
+      pct_fines: (num(row.fines_ton) / w) * 100,
+      pct_sand_ash: (num(row.sand_ash_ton) / w) * 100,
+      pct_unburned_wood: (num(row.unburned_wood_ton) / w) * 100,
     });
   }
 
-  function fmtMassKg(n) {
-    if (n == null || n === "" || isNaN(n)) return "—";
-    var v = Number(n);
-    if (v >= 1000) return fmtNum(v / 1000, 3) + " t";
-    return fmtNum(v, 1) + " kg";
-  }
-
-  function fmtPct(n) {
-    if (n == null || isNaN(n)) return "—";
-    return fmtNum(n, 2) + "%";
-  }
-
-  function fmtDate(iso) {
+  function formatPosted(iso) {
     if (!iso) return "—";
-    return String(iso).slice(0, 10);
+    try {
+      return new Date(iso).toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "Africa/Windhoek",
+      });
+    } catch (e) {
+      return iso;
+    }
   }
 
-  async function loadRows(ctx, status) {
-    var q = "/delivery-confirmations?status=" + encodeURIComponent(status) + "&limit=80";
-    return ctx.api.traceability(q);
-  }
-
-  function rowKey(r) {
-    return r.intake_id || "";
-  }
-
-  async function saveRow(ctx, intakeId, body) {
-    return ctx.api.traceability("/delivery-confirmations/" + encodeURIComponent(intakeId), {
-      method: "PATCH",
-      body: body,
-    });
-  }
-
-  async function render(container, ctx) {
+  function render(container, ctx) {
     var ui = CIS.ui;
     container.innerHTML = "";
-    container.className = "module-content delivery-confirm-host";
+    container.className = "module-content delivery-confirmations-host";
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Delivery Confirmations"]));
-    container.appendChild(
-      ui.el("p", { class: "module-desc" }, [
-        "Charcoal tracker deliveries — factory capture from Control Room is pre-filled. Complete contact, distance, stitching, loading, and remarks, then mark complete.",
-      ])
-    );
+    container.appendChild(ui.el("p", { class: "module-desc" }, [
+      "Charcoal Tracker — Deliveries. Factory weights come from Control Room POST (saved on the intake). Complete PJ fields and mark complete.",
+    ]));
+    container.appendChild(ui.el("button", {
+      class: "btn-ghost btn-sm hub-back",
+      type: "button",
+      onclick: function () {
+        if (CIS.openModule) CIS.openModule("traceability");
+      },
+    }, ["Back to Traceability"]));
 
-    var toolbar = ui.el("div", { class: "toolbar", style: "margin:0.75rem 0;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;" });
-    var statusSel = ui.el("select", { class: "toolbar select" });
-    ["pending", "complete", "all"].forEach(function (s) {
-      statusSel.appendChild(ui.el("option", { value: s }, [s === "pending" ? "Awaiting PJ" : s === "complete" ? "Complete" : "All"]));
-    });
-    var refreshBtn = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Refresh"]);
-    toolbar.appendChild(ui.el("label", { class: "muted" }, ["Show "]));
-    toolbar.appendChild(statusSel);
-    toolbar.appendChild(refreshBtn);
-    container.appendChild(toolbar);
+    var statusTabs = ui.el("div", { class: "delivery-conf-tabs" });
+    var tabPending = ui.el("button", { type: "button", class: "delivery-conf-tab delivery-conf-tab--active" }, ["Pending"]);
+    var tabComplete = ui.el("button", { type: "button", class: "delivery-conf-tab" }, ["Complete"]);
+    var tabAll = ui.el("button", { type: "button", class: "delivery-conf-tab" }, ["All"]);
+    statusTabs.appendChild(tabPending);
+    statusTabs.appendChild(tabComplete);
+    statusTabs.appendChild(tabAll);
+    container.appendChild(statusTabs);
 
-    var errEl = ui.el("p", { class: "error", style: "display:none" });
-    var okEl = ui.el("p", { class: "muted", style: "display:none;color:#6b9" });
-    container.appendChild(errEl);
-    container.appendChild(okEl);
+    var listWrap = ui.el("div", { class: "delivery-conf-list-wrap" });
+    var listMsg = ui.el("p", { class: "delivery-conf-msg muted" });
+    var listTableHost = ui.el("div", { class: "print-labels-history-wrap" });
+    listWrap.appendChild(listMsg);
+    listWrap.appendChild(listTableHost);
+    container.appendChild(listWrap);
 
-    var tableWrap = ui.el("div", {
-      class: "delivery-confirm-scroll",
-      style: "overflow:auto;max-width:100%;border:1px solid #3d3520;border-radius:6px;",
-    });
-    container.appendChild(tableWrap);
+    var detailHost = ui.el("div", { class: "delivery-conf-detail", hidden: true });
+    container.appendChild(detailHost);
 
-    var state = { rows: [], status: "pending" };
+    var filterStatus = "pending";
+    var rowsCache = [];
 
-    function showErr(msg) {
-      errEl.textContent = msg || "";
-      errEl.style.display = msg ? "block" : "none";
-      okEl.style.display = "none";
+    function setListMsg(text, isError) {
+      listMsg.textContent = text || "";
+      listMsg.className = "delivery-conf-msg" + (text ? (isError ? " is-error" : "") : " muted");
     }
 
-    function showOk(msg) {
-      okEl.textContent = msg || "";
-      okEl.style.display = msg ? "block" : "none";
-      errEl.style.display = "none";
+    function setActiveTab() {
+      [tabPending, tabComplete, tabAll].forEach(function (btn) {
+        btn.classList.remove("delivery-conf-tab--active");
+      });
+      if (filterStatus === "pending") tabPending.classList.add("delivery-conf-tab--active");
+      if (filterStatus === "complete") tabComplete.classList.add("delivery-conf-tab--active");
+      if (filterStatus === "all") tabAll.classList.add("delivery-conf-tab--active");
     }
 
-    function buildTable() {
-      tableWrap.innerHTML = "";
-      if (!state.rows.length) {
-        tableWrap.appendChild(ui.el("p", { class: "muted", style: "padding:1rem" }, ["No rows."]));
+    function renderListTable(rows) {
+      listTableHost.innerHTML = "";
+      if (!rows.length) {
+        listTableHost.appendChild(ui.el("p", { class: "muted" }, [
+          filterStatus === "pending" ? "No loads waiting for office confirmation." : "No rows to show.",
+        ]));
         return;
       }
-
-      var table = ui.el("table", { class: "data-table delivery-confirm-table", style: "font-size:0.78rem;min-width:1400px;" });
+      var table = ui.el("table", { class: "print-labels-history delivery-conf-history" });
       var thead = ui.el("thead");
-      var hdr = ui.el("tr");
-      [
-        "Booking",
-        "Supplier",
-        "Contact",
-        "F",
-        "GRN",
-        "Permit",
-        "Transporter",
-        "Truck",
-        "Km",
-        "Weight (t)",
-        "Sand&Ash (t)",
-        "Unburned (t)",
-        "Fines (t)",
-        "Lump (t)",
-        "Rest. (t)",
-        "SCR1",
-        "SCR2",
-        "Tot ex S&A (t)",
-        "% Rest",
-        "% Lump",
-        "% Fines",
-        "Stitching",
-        "Loading",
-        "Remarks",
-        "",
-      ].forEach(function (h) {
-        hdr.appendChild(ui.el("th", {}, [h]));
+      var hr = ui.el("tr");
+      ["Booking Date", "Supplier", "GRN", "Weight (t)", "Posted", "Status"].forEach(function (h) {
+        hr.appendChild(ui.el("th", {}, [h]));
       });
-      thead.appendChild(hdr);
+      thead.appendChild(hr);
       table.appendChild(thead);
-
       var tbody = ui.el("tbody");
-      state.rows.forEach(function (r) {
-        var tr = ui.el("tr");
-        var pending = r.office_status !== "complete";
-        tr.appendChild(ui.el("td", {}, [fmtDate(r.booking_date)]));
-        tr.appendChild(ui.el("td", {}, [r.supplier || "—"]));
-
-        var contact = ui.el("input", {
-          type: "text",
-          value: r.contact_number || "",
-          disabled: !pending,
-          style: "width:7rem;font-size:inherit;",
+      rows.forEach(function (row) {
+        var tr = ui.el("tr", {
+          class: "delivery-conf-row",
+          onclick: function () {
+            openDetail(row.intake_id);
+          },
         });
-        tr.appendChild(ui.el("td", {}, [contact]));
-
-        tr.appendChild(ui.el("td", {}, [r.fsc_flag || "—"]));
-        tr.appendChild(ui.el("td", {}, [r.grn || "—"]));
-        tr.appendChild(ui.el("td", {}, [r.permit_no || "—"]));
-        tr.appendChild(ui.el("td", {}, [r.transporter || "—"]));
-        tr.appendChild(ui.el("td", {}, [r.truck_reg || "—"]));
-
-        var km = ui.el("input", {
-          type: "number",
-          min: "0",
-          step: "0.1",
-          value: r.distance_km != null ? r.distance_km : "",
-          disabled: !pending,
-          style: "width:4rem;font-size:inherit;",
-        });
-        tr.appendChild(ui.el("td", {}, [km]));
-
-        tr.appendChild(ui.el("td", {}, [fmtNum(r.weight_ton, 3)]));
-        tr.appendChild(ui.el("td", {}, [fmtNum(r.sand_ash_ton, 3)]));
-        tr.appendChild(ui.el("td", {}, [fmtNum(r.unburned_wood_ton, 3)]));
-        tr.appendChild(ui.el("td", {}, [fmtNum(r.fines_ton, 3)]));
-        tr.appendChild(ui.el("td", {}, [fmtNum(r.lumpwood_ton, 3)]));
-        tr.appendChild(ui.el("td", {}, [fmtNum(r.restaurant_ton, 3)]));
-        tr.appendChild(ui.el("td", {}, [fmtMassKg(r.scr1_20_60_kg)]));
-        tr.appendChild(ui.el("td", {}, [fmtMassKg(r.scr2_60_plus_kg)]));
-        tr.appendChild(ui.el("td", {}, [fmtNum(r.total_ex_sand_ash_ton, 3)]));
-        tr.appendChild(ui.el("td", {}, [fmtPct(r.pct_restaurant)]));
-        tr.appendChild(ui.el("td", {}, [fmtPct(r.pct_lumpwood)]));
-        tr.appendChild(ui.el("td", {}, [fmtPct(r.pct_fines)]));
-
-        var stitch = ui.el("input", {
-          type: "text",
-          value: r.bag_stitching || "",
-          disabled: !pending,
-          style: "width:6rem;font-size:inherit;",
-        });
-        var load = ui.el("input", {
-          type: "text",
-          value: r.truck_loading || "",
-          disabled: !pending,
-          style: "width:6rem;font-size:inherit;",
-        });
-        var remarks = ui.el("input", {
-          type: "text",
-          value: r.remarks || "",
-          disabled: !pending,
-          style: "width:8rem;font-size:inherit;",
-        });
-        tr.appendChild(ui.el("td", {}, [stitch]));
-        tr.appendChild(ui.el("td", {}, [load]));
-        tr.appendChild(ui.el("td", {}, [remarks]));
-
-        var actions = ui.el("td", { style: "white-space:nowrap;" });
-        if (pending) {
-          var saveBtn = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Save"]);
-          var doneBtn = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Complete"]);
-          saveBtn.addEventListener("click", async function () {
-            showErr("");
-            try {
-              await saveRow(ctx, rowKey(r), {
-                contact_number: contact.value.trim(),
-                distance_km: km.value === "" ? null : Number(km.value),
-                bag_stitching: stitch.value.trim(),
-                truck_loading: load.value.trim(),
-                remarks: remarks.value.trim(),
-                mark_complete: false,
-              });
-              showOk("Saved " + (r.supplier || rowKey(r)));
-              await refresh();
-            } catch (e) {
-              showErr(String(e.message || e));
-            }
-          });
-          doneBtn.addEventListener("click", async function () {
-            showErr("");
-            try {
-              await saveRow(ctx, rowKey(r), {
-                contact_number: contact.value.trim(),
-                distance_km: km.value === "" ? null : Number(km.value),
-                bag_stitching: stitch.value.trim(),
-                truck_loading: load.value.trim(),
-                remarks: remarks.value.trim(),
-                mark_complete: true,
-              });
-              showOk("Marked complete — " + (r.supplier || rowKey(r)));
-              await refresh();
-            } catch (e) {
-              showErr(String(e.message || e));
-            }
-          });
-          actions.appendChild(saveBtn);
-          actions.appendChild(document.createTextNode(" "));
-          actions.appendChild(doneBtn);
-        } else {
-          actions.appendChild(ui.el("span", { class: "pill" }, ["Complete"]));
-        }
-        tr.appendChild(actions);
+        tr.appendChild(ui.el("td", {}, [row.booking_date || "—"]));
+        tr.appendChild(ui.el("td", {}, [row.supplier || "—"]));
+        tr.appendChild(ui.el("td", {}, [row.grn || "—"]));
+        tr.appendChild(ui.el("td", {}, [row.weight_ton != null ? fmtTon(row.weight_ton) : "—"]));
+        tr.appendChild(ui.el("td", {}, [formatPosted(row.factory_posted_at)]));
+        var statusTd = ui.el("td", {});
+        statusTd.appendChild(ui.el("span", {
+          class: "pill " + (row.office_status === "complete" ? "ok" : "warn"),
+        }, [row.office_status === "complete" ? "Complete" : "Pending"]));
+        tr.appendChild(statusTd);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      tableWrap.appendChild(table);
+      listTableHost.appendChild(table);
     }
 
-    async function refresh() {
-      showErr("");
-      if (!ctx.api.traceability) {
-        showErr("Traceability API not configured.");
+    async function loadList() {
+      if (!ctx.api || !ctx.api.traceability) {
+        setListMsg("Traceability API not configured.", true);
         return;
       }
+      setListMsg("Loading…");
+      listWrap.hidden = false;
+      detailHost.hidden = true;
       try {
-        var data = await loadRows(ctx, state.status);
-        state.rows = data.rows || [];
-        buildTable();
+        var data = await ctx.api.traceability(
+          "/delivery-confirmations?status=" + encodeURIComponent(filterStatus) + "&limit=200"
+        );
+        rowsCache = data.rows || [];
+        setListMsg("");
+        renderListTable(rowsCache);
       } catch (e) {
-        showErr(String(e.message || e));
-        tableWrap.innerHTML = "";
+        setListMsg(String(e.message || e), true);
+        listTableHost.innerHTML = "";
       }
     }
 
-    statusSel.value = state.status;
-    statusSel.addEventListener("change", function () {
-      state.status = statusSel.value;
-      refresh();
-    });
-    refreshBtn.addEventListener("click", refresh);
+    function openDetail(intakeId) {
+      var cached = rowsCache.find(function (r) {
+        return r.intake_id === intakeId;
+      });
+      if (cached) {
+        showDetail(cached);
+        return;
+      }
+      void fetchDetail(intakeId);
+    }
 
-    await refresh();
+    async function fetchDetail(intakeId) {
+      if (!ctx.api || !ctx.api.traceability) return;
+      setListMsg("Loading row…");
+      try {
+        var data = await ctx.api.traceability(
+          "/delivery-confirmations/" + encodeURIComponent(intakeId)
+        );
+        showDetail(data.row);
+        setListMsg("");
+      } catch (e) {
+        setListMsg(String(e.message || e), true);
+      }
+    }
+
+    function buildFieldGrid(ui, fields, row, inputs, locked) {
+      var grid = ui.el("div", { class: "delivery-conf-form-grid" });
+      fields.forEach(function (field) {
+        var wrap = ui.el("label", { class: "delivery-conf-field" });
+        wrap.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, [field.label]));
+        if (field.readOnly) {
+          var val = row[field.key];
+          if (field.ton) val = fmtTon(val) || "—";
+          wrap.appendChild(ui.el("div", { class: "delivery-conf-readonly" }, [val != null ? String(val) : "—"]));
+        } else if (field.ton) {
+          var inp = ui.el("input", { class: "delivery-conf-input", type: "number", step: "0.001", min: "0" });
+          inp.value = fmtTon(row[field.key]);
+          if (locked) inp.readOnly = true;
+          inputs[field.patchKey] = inp;
+          wrap.appendChild(inp);
+        } else {
+          var textInp = ui.el("input", {
+            class: "delivery-conf-input",
+            type: field.inputType || "text",
+          });
+          if (field.inputType === "number") textInp.step = "0.01";
+          textInp.value = row[field.key] != null ? String(row[field.key]) : "";
+          if (locked) textInp.readOnly = true;
+          inputs[field.patchKey] = textInp;
+          wrap.appendChild(textInp);
+        }
+        grid.appendChild(wrap);
+      });
+      return grid;
+    }
+
+    function showDetail(row) {
+      listWrap.hidden = true;
+      detailHost.hidden = false;
+      detailHost.innerHTML = "";
+
+      detailHost.appendChild(ui.el("button", {
+        class: "btn-ghost btn-sm",
+        type: "button",
+        onclick: function () {
+          listWrap.hidden = false;
+          detailHost.hidden = true;
+          void loadList();
+        },
+      }, ["← Back to pending list"]));
+
+      var meta = ui.el("p", { class: "muted" });
+      meta.textContent =
+        "Intake " + (row.intake_id || "—") + " · Posted " + formatPosted(row.factory_posted_at);
+      detailHost.appendChild(meta);
+
+      if (!row.factory_weights_saved) {
+        detailHost.appendChild(ui.el("p", { class: "delivery-conf-msg is-error" }, [
+          "Factory weights are missing — Control Room must POST the capture sheet before PJ can confirm this row.",
+        ]));
+      }
+
+      var panel = ui.el("section", { class: "delivery-conf-panel" });
+      panel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["Deliveries (Charcoal Tracker)"]));
+
+      var inputs = {};
+      var tonInputs = {};
+      var locked = row.office_status === "complete";
+
+      panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, ["Truck & supplier"]));
+      panel.appendChild(buildFieldGrid(ui, ROW1, row, inputs, locked));
+
+      panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, ["Weights (tonnes) — from factory POST; adjust if the sheet differs"]));
+      var row2Grid = buildFieldGrid(ui, ROW2.filter(function (f) {
+        return f.key !== "shortage_on_tonnage";
+      }), row, tonInputs, locked);
+      panel.appendChild(row2Grid);
+
+      var shortageEl = ui.el("div", { class: "delivery-conf-readonly delivery-conf-shortage" });
+      var pctWrap = ui.el("div", { class: "delivery-conf-pct-row" });
+      var pctEls = {};
+      PCT_FIELDS.forEach(function (f) {
+        var box = ui.el("div", { class: "delivery-conf-pct-box" });
+        box.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, [f.label]));
+        var span = ui.el("span", { class: "delivery-conf-pct-value" }, ["—"]);
+        pctEls[f.key] = span;
+        box.appendChild(span);
+        pctWrap.appendChild(box);
+      });
+
+      function refreshDerived() {
+        var calc = sheetRowFromInputs(tonInputs, row);
+        shortageEl.textContent = fmtTon(calc.shortage_on_tonnage);
+        PCT_FIELDS.forEach(function (f) {
+          pctEls[f.key].textContent = fmtPct(calc[f.key]);
+        });
+      }
+
+      var shortageField = ui.el("label", { class: "delivery-conf-field delivery-conf-field--shortage" });
+      shortageField.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, ["Shortage on Tonnage"]));
+      shortageField.appendChild(shortageEl);
+      panel.appendChild(shortageField);
+      panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, ["Percentages (calculated like Excel)"]));
+      panel.appendChild(pctWrap);
+
+      panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, ["Remarks"]));
+      var remarks = ui.el("textarea", { class: "delivery-conf-input delivery-conf-remarks", rows: "3" });
+      remarks.value = row.remarks || "";
+      if (locked) remarks.readOnly = true;
+      inputs.remarks = remarks;
+      panel.appendChild(remarks);
+
+      detailHost.appendChild(panel);
+
+      Object.keys(tonInputs).forEach(function (k) {
+        tonInputs[k].addEventListener("input", refreshDerived);
+      });
+      refreshDerived();
+
+      var actions = ui.el("div", { class: "delivery-conf-actions" });
+      var saveBtn = ui.el("button", { type: "button", class: "btn-sm" }, ["Save row"]);
+      var completeLabel = ui.el("label", { class: "delivery-conf-complete-label" });
+      var completeCheck = ui.el("input", { type: "checkbox" });
+      completeLabel.appendChild(completeCheck);
+      completeLabel.appendChild(document.createTextNode(" Mark complete"));
+      var completeBtn = ui.el("button", { type: "button", class: "btn-sm delivery-conf-btn-primary" }, [
+        "Save & mark complete",
+      ]);
+      var detailMsg = ui.el("p", { class: "delivery-conf-msg muted" });
+
+      if (locked) {
+        saveBtn.disabled = true;
+        completeBtn.disabled = true;
+        completeCheck.disabled = true;
+        completeCheck.checked = true;
+        detailMsg.textContent = "This row is already marked complete.";
+      }
+
+      actions.appendChild(saveBtn);
+      actions.appendChild(completeLabel);
+      actions.appendChild(completeBtn);
+      detailHost.appendChild(actions);
+      detailHost.appendChild(detailMsg);
+
+      function setDetailMsg(text, isError) {
+        detailMsg.textContent = text || "";
+        detailMsg.className = "delivery-conf-msg" + (text ? (isError ? " is-error" : "") : " muted");
+      }
+
+      function buildPatch(markComplete) {
+        var payload = {};
+        if (inputs.contact_number) {
+          payload.contact_number = inputs.contact_number.value.trim() || null;
+        }
+        if (inputs.distance_km) {
+          var d = inputs.distance_km.value.trim();
+          payload.distance_km = d === "" ? null : num(d);
+        }
+        Object.keys(tonInputs).forEach(function (key) {
+          var raw = tonInputs[key].value.trim();
+          payload[key] = raw === "" ? null : num(raw);
+        });
+        if (inputs.remarks) payload.remarks = inputs.remarks.value.trim() || null;
+        if (markComplete) payload.mark_complete = true;
+        return payload;
+      }
+
+      async function save(markComplete) {
+        if (!ctx.api || !ctx.api.traceability) return;
+        setDetailMsg("Saving…");
+        saveBtn.disabled = true;
+        completeBtn.disabled = true;
+        try {
+          var res = await ctx.api.traceability(
+            "/delivery-confirmations/" + encodeURIComponent(row.intake_id),
+            { method: "PATCH", body: JSON.stringify(buildPatch(markComplete)) }
+          );
+          if (res.row) showDetail(res.row);
+          setDetailMsg(markComplete ? "Saved and marked complete." : "Saved.", false);
+          void loadList();
+        } catch (e) {
+          setDetailMsg(String(e.message || e), true);
+        } finally {
+          if (!locked) {
+            saveBtn.disabled = false;
+            completeBtn.disabled = false;
+          }
+        }
+      }
+
+      saveBtn.addEventListener("click", function () {
+        void save(false);
+      });
+      completeBtn.addEventListener("click", function () {
+        if (!completeCheck.checked) {
+          setDetailMsg('Tick "Mark complete" to finalise this delivery.', true);
+          return;
+        }
+        if (!window.confirm("Mark this delivery complete in the Charcoal Tracker?")) return;
+        void save(true);
+      });
+    }
+
+    tabPending.addEventListener("click", function () {
+      filterStatus = "pending";
+      setActiveTab();
+      void loadList();
+    });
+    tabComplete.addEventListener("click", function () {
+      filterStatus = "complete";
+      setActiveTab();
+      void loadList();
+    });
+    tabAll.addEventListener("click", function () {
+      filterStatus = "all";
+      setActiveTab();
+      void loadList();
+    });
+
+    setActiveTab();
+    void loadList();
   }
 
   CIS.modules.push({
     id: "delivery_confirmations",
     title: "Delivery Confirmations",
-    section: "Production",
     kind: "app",
-    order: 5,
-    icon: "report",
-    parentModule: "traceability",
-    description: "Charcoal tracker deliveries — complete office fields after Control Room POST",
+    icon: "delivery",
+    description: "Charcoal Tracker Deliveries row after factory POST",
     requires: "traceability.delivery_confirmations",
     render: render,
   });
