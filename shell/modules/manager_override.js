@@ -29,7 +29,7 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Manager Override"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Generate a 4-digit PIN for today (Windhoek time). Give it to the operator on the yard scanner — it unlocks weathering early-release only, not Walvis Bay.",
+      "Generate a 4-digit PIN for today (Windhoek time). Give it to the operator on the yard scanner to authorise manager override when weathering is still running.",
     ]));
 
     container.appendChild(ui.el("button", {
