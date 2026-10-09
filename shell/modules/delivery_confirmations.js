@@ -459,12 +459,22 @@
         saveBtn.disabled = true;
         completeBtn.disabled = true;
         try {
+          var patch = buildPatch(markComplete);
           var res = await ctx.api.traceability(
             "/delivery-confirmations/" + encodeURIComponent(row.intake_id),
-            { method: "PATCH", body: JSON.stringify(buildPatch(markComplete)) }
+            { method: "PATCH", body: patch }
           );
-          if (res.row) showDetail(res.row);
-          setDetailMsg(markComplete ? "Saved and marked complete." : "Saved.", false);
+          if (res.row) {
+            showDetail(res.row);
+            var wt = res.row.weight_ton;
+            setDetailMsg(
+              (markComplete ? "Saved and marked complete." : "Saved.") +
+                (wt != null ? " Weight (t): " + fmtTon(wt) + "." : ""),
+              false
+            );
+          } else {
+            setDetailMsg(markComplete ? "Saved and marked complete." : "Saved.", false);
+          }
           void loadList();
         } catch (e) {
           setDetailMsg(String(e.message || e), true);
