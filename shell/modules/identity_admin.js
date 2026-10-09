@@ -328,18 +328,25 @@
       bySection[sec].push(p);
     });
     Object.keys(bySection).sort().forEach(function (sec) {
-      tileChecks.appendChild(ui.el("div", { class: "checks-section-title" }, [sec]));
+      var sectionWrap = ui.el("div", { class: "checks-section" });
+      sectionWrap.appendChild(ui.el("div", { class: "checks-section-title" }, [sec]));
+      var grid = ui.el("div", { class: "tile-perm-grid" });
       orderCatalogGroup(bySection[sec]).forEach(function (item) {
         var p = item.perm;
         var key = permKey(p);
         var cb = ui.el("input", { type: "checkbox", value: key });
         if (initial.indexOf(key) !== -1) cb.checked = true;
-        var lbl = ui.el("label", { class: "tile-perm-label" + (item.nested ? " tile-perm-nested" : "") }, []);
+        var lbl = ui.el("label", {
+          class: "tile-perm-label" + (item.nested ? " tile-perm-nested" : ""),
+          title: key,
+        }, []);
         lbl.appendChild(cb);
-        lbl.appendChild(document.createTextNode(p.label + " (" + key + ")"));
-        tileChecks.appendChild(lbl);
+        lbl.appendChild(ui.el("span", { class: "tile-perm-text" }, [p.label || key]));
+        grid.appendChild(lbl);
         tileInputs.push({ cb: cb, key: key });
       });
+      sectionWrap.appendChild(grid);
+      tileChecks.appendChild(sectionWrap);
     });
 
     var templateRow = ui.el("div", { class: "launcher-actions" });
