@@ -108,7 +108,9 @@
     var toolbar = ui.el("div", { class: "toolbar" });
     var refreshBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh"]);
     var genBtn = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Generate key…"]);
+    var editLabelBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Edit label…"]);
     toolbar.appendChild(genBtn);
+    toolbar.appendChild(editLabelBtn);
     toolbar.appendChild(refreshBtn);
     section.appendChild(toolbar);
 
@@ -124,8 +126,11 @@
     section.appendChild(statusBtns);
 
     var selectedId = null;
+    var selectedRow = null;
+    var currentRows = [];
 
     function renderTable(rows) {
+      currentRows = rows || [];
       tableWrap.innerHTML = "";
       var table = ui.el("table", { class: "data device-keys-table" });
       table.innerHTML =
@@ -136,9 +141,24 @@
         var radio = ui.el("input", { type: "radio", name: "dk-" + pool.id });
         radio.addEventListener("change", function () {
           selectedId = row.device_key_id;
+          selectedRow = row;
+        });
+        tr.addEventListener("click", function (ev) {
+          if (ev.target && ev.target.tagName === "INPUT") return;
+          radio.checked = true;
+          selectedId = row.device_key_id;
+          selectedRow = row;
         });
         tr.appendChild(ui.el("td", {}, [radio]));
-        tr.appendChild(ui.el("td", {}, [row.label || ""]));
+        var labelTd = ui.el("td", { class: "device-keys-label-cell", title: "Double-click to edit label" }, [row.label || ""]);
+        labelTd.addEventListener("dblclick", function (ev) {
+          ev.stopPropagation();
+          selectedId = row.device_key_id;
+          selectedRow = row;
+          radio.checked = true;
+          openEditLabelModal(ctx, pool, ui, row, refresh);
+        });
+        tr.appendChild(labelTd);
         tr.appendChild(ui.el("td", { class: "muted" }, [row.key_id || ""]));
         var st = row.status || "";
         tr.appendChild(ui.el("td", {}, [ui.el("span", { class: "pill " + (st === "active" ? "ok" : st === "disabled" ? "warn" : "danger") }, [st])]));
@@ -178,6 +198,19 @@
     genBtn.addEventListener("click", function () {
       openGenerateModal(ctx, pool, ui, refresh);
     });
+    editLabelBtn.addEventListener("click", function () {
+      var row = selectedRow;
+      if (!row && selectedId) {
+        currentRows.forEach(function (r) {
+          if (r.device_key_id === selectedId) row = r;
+        });
+      }
+      if (!row) {
+        window.alert("Select a key first.");
+        return;
+      }
+      openEditLabelModal(ctx, pool, ui, row, refresh);
+    });
     refreshBtn.addEventListener("click", refresh);
     disableBtn.addEventListener("click", function () { patchStatus("disabled"); });
     enableBtn.addEventListener("click", function () { patchStatus("active"); });
@@ -200,6 +233,66 @@
     container.appendChild(section);
     refresh();
     return section;
+  }
+
+  function openEditLabelModal(ctx, pool, ui, row, onDone) {
+    var backdrop = ui.el("div", { class: "modal-backdrop" });
+    var modal = ui.el("div", { class: "modal" });
+    backdrop.appendChild(modal);
+    modal.appendChild(ui.el("h3", {}, ["Edit label — " + pool.label]));
+    modal.appendChild(ui.el("p", { class: "muted" }, [
+      "Key ID ",
+      ui.el("code", {}, [row.key_id || "—"]),
+      " stays the same — only the description on this list changes. The device keeps its assigned key.",
+    ]));
+    var errEl = ui.el("div", { class: "error-box hidden" });
+    modal.appendChild(errEl);
+    modal.appendChild(ui.el("label", {}, ["Label (location / position / user)"]));
+    var labelInput = ui.el("input", {
+      type: "text",
+      value: row.label || "",
+      placeholder: pool.deviceNoun === "scanner"
+        ? "e.g. Fransina weighing — Zebra 2"
+        : pool.deviceNoun === "laptop"
+          ? "e.g. PJ office laptop"
+          : "e.g. Jessica Ulefone",
+    });
+    modal.appendChild(labelInput);
+    var actions = ui.el("div", { class: "modal-actions" });
+    var cancelBtn = ui.el("button", { class: "btn-ghost", type: "button" }, ["Cancel"]);
+    var saveBtn = ui.el("button", { class: "btn", type: "button" }, ["Save label"]);
+    actions.appendChild(cancelBtn);
+    actions.appendChild(saveBtn);
+    modal.appendChild(actions);
+
+    cancelBtn.addEventListener("click", function () { document.body.removeChild(backdrop); });
+    saveBtn.addEventListener("click", async function () {
+      errEl.classList.add("hidden");
+      var label = labelInput.value.trim();
+      if (!label) {
+        errEl.textContent = "Label is required";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      if (label === (row.label || "").trim()) {
+        document.body.removeChild(backdrop);
+        return;
+      }
+      saveBtn.disabled = true;
+      try {
+        await apiFor(ctx, pool)("/device-keys/" + row.device_key_id, { method: "PATCH", body: { label: label } });
+        document.body.removeChild(backdrop);
+        if (onDone) await onDone();
+      } catch (e) {
+        errEl.textContent = e.message || "Could not save label";
+        errEl.classList.remove("hidden");
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+    document.body.appendChild(backdrop);
+    labelInput.focus();
+    labelInput.select();
   }
 
   function openGenerateModal(ctx, pool, ui, onDone) {
@@ -313,7 +406,8 @@
     container.innerHTML = "";
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Device keys & API access"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Issue keys for phones, laptops, and devices. People log in to CIS with User ID; devices use these keys.",
+      "Issue keys for phones, laptops, and devices. People log in to CIS with User ID; devices use these keys. ",
+      "Rename a device with Edit label — the key on the scanner or phone does not change.",
     ]));
 
     var tabs = ui.el("div", { class: "device-keys-tabs" });
