@@ -116,7 +116,7 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Delivery Confirmations"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Charcoal Tracker — Deliveries (tonnes). Factory capture from Control Room POST is stored in SQL and shown here — no retyping into Excel. Complete office gaps (contact, distance, remarks), then export CSV or mark complete.",
+      "Charcoal Tracker — Deliveries. All weights are tonnes (t), 3 decimals — same as the spreadsheet. Factory POST pre-fills; PJ fixes mistakes here (re-POST is not possible after the next truck). Export CSV when complete.",
     ]));
     container.appendChild(ui.el("button", {
       class: "btn-ghost btn-sm hub-back",
@@ -277,12 +277,12 @@
       void downloadDeliveriesCsv();
     });
 
-    function buildFieldGrid(ui, fields, row, inputs, locked, factoryTonnesLocked) {
+    function buildFieldGrid(ui, fields, row, inputs, locked) {
       var grid = ui.el("div", { class: "delivery-conf-form-grid" });
       fields.forEach(function (field) {
         var wrap = ui.el("label", { class: "delivery-conf-field" });
         wrap.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, [field.label]));
-        if (field.readOnly || (field.ton && factoryTonnesLocked)) {
+        if (field.readOnly) {
           var val = row[field.key];
           if (field.ton) val = fmtTon(val) || "—";
           wrap.appendChild(ui.el("div", { class: "delivery-conf-readonly" }, [val != null ? String(val) : "—"]));
@@ -340,19 +340,16 @@
       var inputs = {};
       var tonInputs = {};
       var locked = row.office_status === "complete";
-      var factoryTonnesLocked = !!row.factory_weights_saved && !locked;
 
       panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, ["Truck & supplier (from Control Room discharge)"]));
-      panel.appendChild(buildFieldGrid(ui, ROW1, row, inputs, locked, false));
+      panel.appendChild(buildFieldGrid(ui, ROW1, row, inputs, locked));
 
       panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, [
-        factoryTonnesLocked
-          ? "Weights (tonnes) — from factory POST (read-only; same as CSV export)"
-          : "Weights (tonnes) — waiting for factory POST",
+        "Weights (t) — pre-filled from factory POST; edit here if the sheet differs (cannot re-POST after next Discharge)",
       ]));
       var row2Grid = buildFieldGrid(ui, ROW2.filter(function (f) {
         return f.key !== "shortage_on_tonnage";
-      }), row, tonInputs, locked, factoryTonnesLocked);
+      }), row, tonInputs, locked);
       panel.appendChild(row2Grid);
 
       if (row.scr1_20_60_ton != null || row.scr2_60_plus_ton != null) {
@@ -380,13 +377,6 @@
       });
 
       function refreshDerived() {
-        if (factoryTonnesLocked) {
-          shortageEl.textContent = fmtTon(row.shortage_on_tonnage);
-          PCT_FIELDS.forEach(function (f) {
-            pctEls[f.key].textContent = fmtPct(row[f.key]);
-          });
-          return;
-        }
         var calc = sheetRowFromInputs(tonInputs, row);
         shortageEl.textContent = fmtTon(calc.shortage_on_tonnage);
         PCT_FIELDS.forEach(function (f) {
@@ -410,11 +400,9 @@
 
       detailHost.appendChild(panel);
 
-      if (!factoryTonnesLocked) {
-        Object.keys(tonInputs).forEach(function (k) {
-          tonInputs[k].addEventListener("input", refreshDerived);
-        });
-      }
+      Object.keys(tonInputs).forEach(function (k) {
+        tonInputs[k].addEventListener("input", refreshDerived);
+      });
       refreshDerived();
 
       var actions = ui.el("div", { class: "delivery-conf-actions" });
@@ -456,12 +444,10 @@
           var d = inputs.distance_km.value.trim();
           payload.distance_km = d === "" ? null : num(d);
         }
-        if (!factoryTonnesLocked) {
-          Object.keys(tonInputs).forEach(function (key) {
-            var raw = tonInputs[key].value.trim();
-            payload[key] = raw === "" ? null : num(raw);
-          });
-        }
+        Object.keys(tonInputs).forEach(function (key) {
+          var raw = tonInputs[key].value.trim();
+          payload[key] = raw === "" ? null : num(raw);
+        });
         if (inputs.remarks) payload.remarks = inputs.remarks.value.trim() || null;
         if (markComplete) payload.mark_complete = true;
         return payload;
