@@ -116,7 +116,7 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Delivery Confirmations"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Charcoal Tracker — Deliveries. Factory weights come from Control Room POST (saved on the intake). Complete PJ fields and mark complete.",
+      "Charcoal Tracker — Deliveries (tonnes). Factory capture from Control Room POST is stored in SQL and shown here — no retyping into Excel. Complete office gaps (contact, distance, remarks), then export CSV or mark complete.",
     ]));
     container.appendChild(ui.el("button", {
       class: "btn-ghost btn-sm hub-back",
@@ -134,6 +134,12 @@
     statusTabs.appendChild(tabComplete);
     statusTabs.appendChild(tabAll);
     container.appendChild(statusTabs);
+
+    var exportBtn = ui.el("button", {
+      type: "button",
+      class: "btn-sm delivery-conf-export-btn",
+    }, ["Download Deliveries CSV"]);
+    container.appendChild(exportBtn);
 
     var listWrap = ui.el("div", { class: "delivery-conf-list-wrap" });
     var listMsg = ui.el("p", { class: "delivery-conf-msg muted" });
@@ -241,12 +247,42 @@
       }
     }
 
-    function buildFieldGrid(ui, fields, row, inputs, locked) {
+    async function downloadDeliveriesCsv() {
+      var base =
+        (ctx.config && ctx.config.traceabilityApiBase) || "/traceability/api/v1";
+      var url =
+        base +
+        "/delivery-confirmations/export.csv?status=" +
+        encodeURIComponent(filterStatus) +
+        "&limit=500";
+      setListMsg("Preparing CSV…");
+      try {
+        var res = await fetch(url, {
+          headers: { Authorization: "Bearer " + (CIS.getToken && CIS.getToken()) },
+        });
+        if (!res.ok) throw new Error("Export failed (" + res.status + ")");
+        var blob = await res.blob();
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "deliveries-" + filterStatus + ".csv";
+        a.click();
+        URL.revokeObjectURL(a.href);
+        setListMsg("");
+      } catch (e) {
+        setListMsg(String(e.message || e), true);
+      }
+    }
+
+    exportBtn.addEventListener("click", function () {
+      void downloadDeliveriesCsv();
+    });
+
+    function buildFieldGrid(ui, fields, row, inputs, locked, factoryTonnesLocked) {
       var grid = ui.el("div", { class: "delivery-conf-form-grid" });
       fields.forEach(function (field) {
         var wrap = ui.el("label", { class: "delivery-conf-field" });
         wrap.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, [field.label]));
-        if (field.readOnly) {
+        if (field.readOnly || (field.ton && factoryTonnesLocked)) {
           var val = row[field.key];
           if (field.ton) val = fmtTon(val) || "—";
           wrap.appendChild(ui.el("div", { class: "delivery-conf-readonly" }, [val != null ? String(val) : "—"]));
@@ -304,15 +340,32 @@
       var inputs = {};
       var tonInputs = {};
       var locked = row.office_status === "complete";
+      var factoryTonnesLocked = !!row.factory_weights_saved && !locked;
 
-      panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, ["Truck & supplier"]));
-      panel.appendChild(buildFieldGrid(ui, ROW1, row, inputs, locked));
+      panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, ["Truck & supplier (from Control Room discharge)"]));
+      panel.appendChild(buildFieldGrid(ui, ROW1, row, inputs, locked, false));
 
-      panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, ["Weights (tonnes) — from factory POST; adjust if the sheet differs"]));
+      panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, [
+        factoryTonnesLocked
+          ? "Weights (tonnes) — from factory POST (read-only; same as CSV export)"
+          : "Weights (tonnes) — waiting for factory POST",
+      ]));
       var row2Grid = buildFieldGrid(ui, ROW2.filter(function (f) {
         return f.key !== "shortage_on_tonnage";
-      }), row, tonInputs, locked);
+      }), row, tonInputs, locked, factoryTonnesLocked);
       panel.appendChild(row2Grid);
+
+      if (row.scr1_20_60_ton != null || row.scr2_60_plus_ton != null) {
+        panel.appendChild(ui.el("p", { class: "delivery-conf-sheet-hint muted" }, [
+          "SCR split (t): SCR.1 " +
+            fmtTon(row.scr1_20_60_ton) +
+            " + SCR.2 " +
+            fmtTon(row.scr2_60_plus_ton) +
+            " → Lumpwood " +
+            fmtTon(row.lumpwood_ton) +
+            " t",
+        ]));
+      }
 
       var shortageEl = ui.el("div", { class: "delivery-conf-readonly delivery-conf-shortage" });
       var pctWrap = ui.el("div", { class: "delivery-conf-pct-row" });
@@ -327,6 +380,13 @@
       });
 
       function refreshDerived() {
+        if (factoryTonnesLocked) {
+          shortageEl.textContent = fmtTon(row.shortage_on_tonnage);
+          PCT_FIELDS.forEach(function (f) {
+            pctEls[f.key].textContent = fmtPct(row[f.key]);
+          });
+          return;
+        }
         var calc = sheetRowFromInputs(tonInputs, row);
         shortageEl.textContent = fmtTon(calc.shortage_on_tonnage);
         PCT_FIELDS.forEach(function (f) {
@@ -350,9 +410,11 @@
 
       detailHost.appendChild(panel);
 
-      Object.keys(tonInputs).forEach(function (k) {
-        tonInputs[k].addEventListener("input", refreshDerived);
-      });
+      if (!factoryTonnesLocked) {
+        Object.keys(tonInputs).forEach(function (k) {
+          tonInputs[k].addEventListener("input", refreshDerived);
+        });
+      }
       refreshDerived();
 
       var actions = ui.el("div", { class: "delivery-conf-actions" });
@@ -394,10 +456,12 @@
           var d = inputs.distance_km.value.trim();
           payload.distance_km = d === "" ? null : num(d);
         }
-        Object.keys(tonInputs).forEach(function (key) {
-          var raw = tonInputs[key].value.trim();
-          payload[key] = raw === "" ? null : num(raw);
-        });
+        if (!factoryTonnesLocked) {
+          Object.keys(tonInputs).forEach(function (key) {
+            var raw = tonInputs[key].value.trim();
+            payload[key] = raw === "" ? null : num(raw);
+          });
+        }
         if (inputs.remarks) payload.remarks = inputs.remarks.value.trim() || null;
         if (markComplete) payload.mark_complete = true;
         return payload;
