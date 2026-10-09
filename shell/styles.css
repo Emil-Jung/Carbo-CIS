@@ -220,20 +220,26 @@ body {
   width: auto;
   max-width: 100%;
   margin: 0;
-  padding: 7px 12px;
-  font-size: 0.8rem;
+  padding: 8px 14px;
+  font-size: 0.85rem;
   font-weight: 700;
   line-height: 1.25;
+  letter-spacing: 0.02em;
   color: #1a1200;
   text-align: left;
   cursor: pointer;
-  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  border: 1px solid var(--gold-dim);
+  background: linear-gradient(180deg, #f0d878 0%, var(--gold-bright) 45%, var(--gold) 100%);
+  border: 2px solid #fff4c4;
+  outline: 1px solid rgba(0, 0, 0, 0.55);
   border-radius: 8px;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.32);
+  box-shadow:
+    0 0 0 1px var(--gold-dim),
+    0 4px 14px rgba(0, 0, 0, 0.45),
+    0 0 12px rgba(228, 192, 74, 0.35);
 }
 .cis-float-back-btn:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.08);
+  border-color: #fff8dc;
 }
 .cis-float-back-btn--secondary {
   background: linear-gradient(180deg, rgba(228, 192, 74, 0.95), rgba(201, 162, 39, 0.92));
