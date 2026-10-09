@@ -18,7 +18,7 @@
 
     reportsRow1: ["producers_view", "permit_status", "quality_view"],
 
-    reportsRow2: ["maintenance_ops", "consumption", "restaurant_report"],
+    reportsRow2: ["maintenance_ops", "consumption", "restaurant_report", "deliveries_register"],
 
     reportsRow3: ["bags_movement_report", "bags_status_report", "supplier_contacts"],
 

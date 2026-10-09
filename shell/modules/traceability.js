@@ -17,7 +17,7 @@
     {
       id: "delivery_confirmations",
       title: "Delivery Confirmations",
-      description: "Charcoal tracker — complete PJ fields after factory POST.",
+      description: "PJ only — edit and mark complete (management uses Charcoal deliveries tile).",
       requires: "traceability.delivery_confirmations",
       icon: "delivery",
     },
