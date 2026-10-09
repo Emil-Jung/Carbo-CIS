@@ -116,22 +116,31 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Delivery Confirmations"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Charcoal Tracker — Deliveries. All weights are tonnes (t), 3 decimals — same as the spreadsheet. Factory POST pre-fills; PJ fixes mistakes here (re-POST is not possible after the next truck). Export CSV when complete.",
+      "Charcoal Tracker — Deliveries. All weights are tonnes (t), 3 decimals — same as the spreadsheet. Factory POST pre-fills; PJ fixes mistakes here (re-POST is not possible after the next truck). Mark complete to feed the restaurant report (server DB). Export CSV or XLSX anytime.",
     ]));
     var statusTabs = ui.el("div", { class: "delivery-conf-tabs" });
     var tabPending = ui.el("button", { type: "button", class: "delivery-conf-tab delivery-conf-tab--active" }, ["Pending"]);
+    var tabYesterday = ui.el("button", { type: "button", class: "delivery-conf-tab" }, ["Yesterday"]);
     var tabComplete = ui.el("button", { type: "button", class: "delivery-conf-tab" }, ["Complete"]);
     var tabAll = ui.el("button", { type: "button", class: "delivery-conf-tab" }, ["All"]);
     statusTabs.appendChild(tabPending);
+    statusTabs.appendChild(tabYesterday);
     statusTabs.appendChild(tabComplete);
     statusTabs.appendChild(tabAll);
     container.appendChild(statusTabs);
 
-    var exportBtn = ui.el("button", {
+    var exportRow = ui.el("div", { class: "delivery-conf-export-row" });
+    var exportCsvBtn = ui.el("button", {
       type: "button",
       class: "btn-sm delivery-conf-export-btn",
-    }, ["Download Deliveries CSV"]);
-    container.appendChild(exportBtn);
+    }, ["Download CSV"]);
+    var exportXlsxBtn = ui.el("button", {
+      type: "button",
+      class: "btn-sm delivery-conf-export-btn",
+    }, ["Download XLSX"]);
+    exportRow.appendChild(exportCsvBtn);
+    exportRow.appendChild(exportXlsxBtn);
+    container.appendChild(exportRow);
 
     var listWrap = ui.el("div", { class: "delivery-conf-list-wrap" });
     var listMsg = ui.el("p", { class: "delivery-conf-msg muted" });
@@ -152,10 +161,11 @@
     }
 
     function setActiveTab() {
-      [tabPending, tabComplete, tabAll].forEach(function (btn) {
+      [tabPending, tabYesterday, tabComplete, tabAll].forEach(function (btn) {
         btn.classList.remove("delivery-conf-tab--active");
       });
       if (filterStatus === "pending") tabPending.classList.add("delivery-conf-tab--active");
+      if (filterStatus === "yesterday") tabYesterday.classList.add("delivery-conf-tab--active");
       if (filterStatus === "complete") tabComplete.classList.add("delivery-conf-tab--active");
       if (filterStatus === "all") tabAll.classList.add("delivery-conf-tab--active");
     }
@@ -240,15 +250,18 @@
       }
     }
 
-    async function downloadDeliveriesCsv() {
+    async function downloadDeliveriesExport(kind) {
       var base =
         (ctx.config && ctx.config.traceabilityApiBase) || "/traceability/api/v1";
+      var ext = kind === "xlsx" ? "xlsx" : "csv";
       var url =
         base +
-        "/delivery-confirmations/export.csv?status=" +
+        "/delivery-confirmations/export." +
+        ext +
+        "?status=" +
         encodeURIComponent(filterStatus) +
         "&limit=500";
-      setListMsg("Preparing CSV…");
+      setListMsg("Preparing " + ext.toUpperCase() + "…");
       try {
         var res = await fetch(url, {
           headers: { Authorization: "Bearer " + (CIS.getToken && CIS.getToken()) },
@@ -257,7 +270,7 @@
         var blob = await res.blob();
         var a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "deliveries-" + filterStatus + ".csv";
+        a.download = "deliveries-" + filterStatus + "." + ext;
         a.click();
         URL.revokeObjectURL(a.href);
         setListMsg("");
@@ -266,8 +279,11 @@
       }
     }
 
-    exportBtn.addEventListener("click", function () {
-      void downloadDeliveriesCsv();
+    exportCsvBtn.addEventListener("click", function () {
+      void downloadDeliveriesExport("csv");
+    });
+    exportXlsxBtn.addEventListener("click", function () {
+      void downloadDeliveriesExport("xlsx");
     });
 
     function buildFieldGrid(ui, fields, row, inputs, locked) {
@@ -494,6 +510,11 @@
 
     tabPending.addEventListener("click", function () {
       filterStatus = "pending";
+      setActiveTab();
+      void loadList();
+    });
+    tabYesterday.addEventListener("click", function () {
+      filterStatus = "yesterday";
       setActiveTab();
       void loadList();
     });
