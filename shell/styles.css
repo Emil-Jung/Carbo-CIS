@@ -3033,6 +3033,8 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .delivery-conf-history tbody tr.delivery-conf-row { cursor: pointer; }
 .delivery-conf-history tbody tr.delivery-conf-row:hover td { background: rgba(201, 162, 39, 0.06); }
+.deliveries-register-table { min-width: 2200px; }
+.deliveries-register-host .deliveries-register-table-wrap { margin-top: 8px; }
 .delivery-conf-panel {
   background: var(--panel);
   border: 1px solid var(--border);

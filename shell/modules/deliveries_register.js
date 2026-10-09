@@ -6,16 +6,30 @@
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
+  /** Same columns as 2026 xlsb sheet "Deliveries" row 1 (A–U + Remarks). */
   var COLS = [
     { key: "booking_date", label: "Booking Date" },
     { key: "supplier", label: "Supplier" },
+    { key: "contact_number", label: "Contact Number" },
+    { key: "fsc_flag", label: "F" },
     { key: "grn", label: "GRN" },
+    { key: "permit_no", label: "Permit No." },
     { key: "transporter", label: "Transporter" },
-    { key: "weight_ton", label: "Weight (t)", ton: true },
-    { key: "restaurant_ton", label: "Restaurant (t)", ton: true },
-    { key: "pct_restaurant", label: "% Rest.", pct: true },
-    { key: "pct_lumpwood", label: "% Lump", pct: true },
+    { key: "truck_reg", label: "Truck Reg. No." },
+    { key: "distance_km", label: "Distance from Factory (Km)" },
+    { key: "weight_ton", label: "Weight (ton)", ton: true },
+    { key: "sand_ash_ton", label: "Sand & Ash", ton: true },
+    { key: "unburned_wood_ton", label: "Unburned Wood", ton: true },
+    { key: "fines_ton", label: "Fines", ton: true },
+    { key: "lumpwood_ton", label: "Lumpwood", ton: true },
+    { key: "restaurant_ton", label: "Restaurant", ton: true },
+    { key: "shortage_on_tonnage", label: "Shortage on Tonnage", ton: true },
+    { key: "pct_restaurant", label: "% Restaurant", pct: true },
+    { key: "pct_lumpwood", label: "% Lumpwood", pct: true },
     { key: "pct_fines", label: "% Fines", pct: true },
+    { key: "pct_sand_ash", label: "% Sand & Ash", pct: true },
+    { key: "pct_unburned_wood", label: "% Unburned Wood", pct: true },
+    { key: "remarks", label: "Remarks" },
   ];
 
   var YEAR_OPTIONS = [
@@ -25,13 +39,21 @@
   ];
 
   function fmtTon(v) {
-    if (v == null || v === "") return "—";
+    if (v == null || v === "") return "";
     return Number(v).toFixed(3);
   }
 
   function fmtPct(v) {
-    if (v == null || v === "") return "—";
+    if (v == null || v === "") return "";
     return Number(v).toFixed(2);
+  }
+
+  function cellText(row, col) {
+    var val = row[col.key];
+    if (col.ton) return fmtTon(val);
+    if (col.pct) return fmtPct(val);
+    if (val == null || val === "") return "";
+    return String(val);
   }
 
   async function render(container, ctx) {
@@ -41,9 +63,8 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Charcoal deliveries (load sheet)"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Read-only view of the factory Deliveries tracker — same columns as the spreadsheet. ",
-      "PJ finalises rows in Traceability → Delivery Confirmations; this replaces WhatsApp screenshots. ",
-      "Download Excel for finance or management.",
+      "Deliveries sheet — same column headers as the Charcoal Tracker workbook. Scroll horizontally for all columns. ",
+      "PJ updates office fields in Traceability → Delivery Confirmations; download Excel for the full formatted sheet.",
     ]));
 
     var toolbar = ui.el("div", { class: "toolbar deliveries-register-toolbar" });
@@ -82,11 +103,7 @@
       rows.forEach(function (row) {
         var tr = ui.el("tr");
         COLS.forEach(function (c) {
-          var val = row[c.key];
-          if (c.ton) val = fmtTon(val);
-          else if (c.pct) val = fmtPct(val);
-          else if (val == null || val === "") val = "—";
-          tr.appendChild(ui.el("td", {}, [String(val)]));
+          tr.appendChild(ui.el("td", {}, [cellText(row, c)]));
         });
         tbody.appendChild(tr);
       });
