@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../styles.css?v=1.6.58" />
   <link rel="stylesheet" href="explorer-v2-themes.css?v=2" />
-  <link rel="stylesheet" href="explorer-v2.css?v=24" />
+  <link rel="stylesheet" href="explorer-v2.css?v=25" />
   <link rel="icon" type="image/png" href="assets/Carbo-Main-Logo.png" />
   <link
     rel="preload"
@@ -48,6 +48,8 @@
         </button>
         <div id="sidebar-nav-modules"></div>
       </nav>
+      <div class="sidebar-bottom-dock">
+      <div id="sidebar-nav-dock-admin" class="sidebar-dock-admin"></div>
       <div class="sidebar-footer">
         <button type="button" id="sidebar-settings-btn" class="sidebar-settings" aria-label="Settings">
           <span class="settings-dot" data-notify-dot aria-hidden="true"></span>
@@ -62,6 +64,7 @@
           <p class="sidebar-ask-sub">How can I help you with CIS?</p>
           <span class="sidebar-ask-badge">Coming soon</span>
         </div>
+      </div>
       </div>
       </div>
     </aside>
@@ -271,7 +274,7 @@
       </main>
       <div id="workspace-module" class="workspace-module" hidden>
         <nav id="cis-float-nav" class="cis-float-nav hidden" aria-label="Quick navigation"></nav>
-        <div id="cis-module-content" class="module-content"></div>
+        <div id="cis-module-viewport" class="module-viewport" aria-live="polite"></div>
       </div>
       </div>
     </div>
@@ -303,7 +306,7 @@
     </div>
   </aside>
 
-  <script src="explorer-v2-nav.js?v=2"></script>
+  <script src="explorer-v2-nav.js?v=3"></script>
   <script src="../modules/cis_helpers.js?v=1.4.3"></script>
   <script src="../modules/dashboard.js?v=1.6.9"></script>
   <script src="../modules/identity_admin.js?v=1.4.0"></script>
@@ -334,7 +337,7 @@
   <script src="../modules/movement_schedule.js?v=1.0.0"></script>
   <script src="../modules/walvis_dispatches.js?v=1.0.0"></script>
   <script src="../modules/supplier_contacts.js?v=1.0.0"></script>
-  <script src="explorer-v2-cis-bridge.js?v=2"></script>
-  <script src="explorer-v2.js?v=5"></script>
+  <script src="explorer-v2-cis-bridge.js?v=3"></script>
+  <script src="explorer-v2.js?v=6"></script>
 </body>
 </html>

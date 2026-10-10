@@ -2,11 +2,18 @@
 (function () {
   "use strict";
 
+  /** Module ids hidden from V2 nav only (scripts/APIs remain loaded). */
+  window.CIS_V2_NAV_HIDDEN = {
+    quality_capture: true,
+    permit_status: true,
+  };
+
   window.CIS_V2_NAV = {
     groups: [
       {
         id: "applications",
         title: "Applications",
+        tier: "applications",
         items: [
           { id: "producers_office" },
           { id: "traceability" },
@@ -21,7 +28,6 @@
           { id: "pallet_configuration", nestUnder: "traceability" },
           { id: "manager_override", nestUnder: "traceability" },
           { id: "bag_stock", nestUnder: "traceability" },
-          { id: "quality_capture" },
           { id: "maintenance_manager" },
           { id: "maintenance_certs" },
         ],
@@ -29,9 +35,9 @@
       {
         id: "reports",
         title: "Reports & lookups",
+        tier: "reports",
         items: [
           { id: "producers_view" },
-          { id: "permit_status" },
           { id: "quality_view" },
           { id: "maintenance_ops" },
           { id: "consumption" },
@@ -42,13 +48,14 @@
           { id: "supplier_contacts" },
         ],
       },
-      {
-        id: "administration",
-        title: "Administration",
-        icon: "group_administration",
-        items: [{ id: "identity_admin" }, { id: "device_keys" }],
-      },
     ],
+    dockAdministration: {
+      id: "administration",
+      title: "Administration",
+      tier: "administration",
+      icon: "group_administration",
+      items: [{ id: "identity_admin" }, { id: "device_keys" }],
+    },
   };
 
   window.CIS_V2_NAV_ICONS = {
@@ -80,7 +87,7 @@
     }
     if (moduleId.indexOf("quality") === 0 || moduleId === "restaurant_report") return icons.quality_capture;
     if (moduleId.indexOf("bags") === 0 || moduleId === "deliveries_register") return icons.traceability;
-    if (moduleId.indexOf("producer") === 0 || moduleId === "permit_status" || moduleId === "supplier_contacts") {
+    if (moduleId.indexOf("producer") === 0 || moduleId === "supplier_contacts") {
       return icons.producers_office;
     }
     if (

@@ -1,28 +1,28 @@
 # CIS Shell V2.0 — navigation destination map
 
-Mirrors production `dashboard.js` **LAYOUT** plus Traceability hub children (`traceability.js`, `labels_hub.js`) and other registered modules not on the dashboard tiles.
+Mirrors production modules with V2 grouping. Permissions: `CIS.canAccessModule` (unchanged).
 
-| Group | Module id | Production title | Notes |
-|-------|-----------|------------------|--------|
-| *(top)* | `dashboard` | Dashboard | V2 sample operational landing (prototype cards) |
+## Main scroll nav
+
+| Tier | Module id | Production title | Notes |
+|------|-----------|------------------|--------|
+| *(top)* | `dashboard` | Dashboard | V2 sample operational landing |
 | **Applications** | `producers_office` | Capture Producers | |
 | | `traceability` | Traceability | Hub |
-| | ↳ `control_room` | Control Room | Traceability child |
+| | ↳ `control_room` | Control Room | iframe PWA — cached host in V2 |
 | | ↳ `delivery_confirmations` | Delivery Confirmations | |
 | | ↳ `labels` | Labels | Hub |
-| | ↳ `print_labels` | Print Labels | Under Labels |
-| | ↳ `label_deployment` | Label Fencing | Under Labels |
+| | ↳ `print_labels` | Print Labels | |
+| | ↳ `label_deployment` | Label Fencing | |
 | | ↳ `movement_schedule` | Movement schedule | |
-| | ↳ `walvis_dispatches` | Walvis dispatches | Manifest vs received |
+| | ↳ `walvis_dispatches` | Walvis dispatches | |
 | | ↳ `containers` | Containers | |
 | | ↳ `pallet_configuration` | Pallet Configuration | |
 | | ↳ `manager_override` | Manager Override | |
-| | ↳ `bag_stock` | Bag stock | Inactive in production |
-| | `quality_capture` | Quality | |
+| | ↳ `bag_stock` | Bag stock | Inactive |
 | | `maintenance_manager` | Maintenance | |
 | | `maintenance_certs` | Certificates | Inactive |
 | **Reports & lookups** | `producers_view` | View Producers | |
-| | `permit_status` | Permit Status | |
 | | `quality_view` | Quality Analysis | |
 | | `maintenance_ops` | Fleet Status | |
 | | `consumption` | Consumption | |
@@ -31,9 +31,21 @@ Mirrors production `dashboard.js` **LAYOUT** plus Traceability hub children (`tr
 | | `bags_movement_report` | Charcoal Intake | |
 | | `bags_status_report` | Bags Status | |
 | | `supplier_contacts` | Supplier contacts | |
-| **Administration** *(bottom of module nav)* | `identity_admin` | Users & access | Group header: shield icon |
-| | `device_keys` | Device keys | |
-| *(footer)* | — | Settings | Gear icon + notification dot |
-| *(last)* | — | Ask Emil | Coming soon — below Settings |
 
-Permission gating uses `CIS.canAccessModule` from the live module registry (same as production). Inactive modules remain listed and open with production “Coming soon” behaviour where applicable.
+## Bottom dock (fixed order)
+
+1. **Administration** (shield) — `identity_admin`, `device_keys`
+2. **Settings** (gear + notification dot)
+3. **Ask Emil** (coming soon)
+
+## Hidden from V2 nav (scripts/APIs remain)
+
+| Module id | Reason |
+|-----------|--------|
+| `quality_capture` | Capture app excluded; reporting via `quality_view` |
+| `permit_status` | FSC — separate future scope |
+| *(none in CIS)* | FSC Audits, Carbo Live — not registered in shell |
+
+## State (V2 bridge)
+
+Module hosts are cached in `#cis-module-viewport`; switching nav hides/shows hosts instead of `innerHTML` clear. Back stack preserves app → report → app (e.g. Control Room ↔ Charcoal Intake).

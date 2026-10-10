@@ -183,11 +183,6 @@ a {
   overflow-y: auto;
 }
 
-.nav-group[data-nav-group="administration"] {
-  margin-top: auto;
-  padding-top: 8px;
-}
-
 .nav-group {
   margin-bottom: 6px;
 }
@@ -401,10 +396,41 @@ a {
   color: var(--sidebar-muted);
 }
 
-.sidebar-footer {
-  padding: 10px 12px 8px;
+.sidebar-bottom-dock {
+  flex-shrink: 0;
   margin-top: auto;
   border-top: 1px solid var(--sidebar-footer-border);
+  padding-top: 6px;
+}
+
+.sidebar-dock-admin {
+  padding: 0 10px 4px;
+}
+
+.sidebar-dock-admin .nav-group--dock {
+  margin-bottom: 4px;
+}
+
+.sidebar-dock-admin .nav-group-body {
+  max-height: min(40vh, 220px);
+  overflow-y: auto;
+}
+
+.nav-group[data-nav-tier="applications"] .nav-group-header {
+  border-left: 3px solid var(--gold);
+}
+
+.nav-group[data-nav-tier="reports"] .nav-group-header {
+  border-left: 3px solid rgba(255, 255, 255, 0.35);
+}
+
+.nav-group[data-nav-tier="administration"] .nav-group-header {
+  border-left: 3px solid var(--gold-on-dark);
+}
+
+.sidebar-footer {
+  padding: 6px 12px 8px;
+  border-top: none;
   flex-shrink: 0;
 }
 
@@ -635,13 +661,28 @@ a {
   scroll-padding-bottom: var(--cis-float-nav-clearance);
 }
 
-.workspace-module .module-content {
+.module-viewport {
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
+  overflow: hidden;
+  position: relative;
 }
 
-.workspace-module .module-content.has-float-nav {
+.module-viewport > .module-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.module-viewport > .module-host[hidden] {
+  display: none !important;
+}
+
+.module-viewport > .module-host.has-float-nav {
   padding-bottom: var(--cis-float-nav-clearance);
+  scroll-padding-bottom: var(--cis-float-nav-clearance);
 }
 
 /* Float Back sits in the module pane — production styles.css uses viewport left (under sidebar) */

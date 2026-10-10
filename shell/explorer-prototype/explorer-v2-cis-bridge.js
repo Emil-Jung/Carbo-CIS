@@ -31,8 +31,68 @@
     bag_stock: "traceability",
   };
 
+  var SIGNIN_HOST_ID = "__cis_v2_signin";
+
+  function moduleViewportEl() {
+    return document.getElementById("cis-module-viewport");
+  }
+
+  function activeModuleHost() {
+    var viewport = moduleViewportEl();
+    if (!viewport) return null;
+    return viewport.querySelector(".module-host:not([hidden])");
+  }
+
+  /** Active module pane, or the viewport when none selected. */
   function moduleContentEl() {
-    return document.getElementById("cis-module-content");
+    return activeModuleHost() || moduleViewportEl();
+  }
+
+  function getModuleHost(id) {
+    var viewport = moduleViewportEl();
+    if (!viewport) return null;
+    var host = viewport.querySelector('.module-host[data-module-id="' + id + '"]');
+    if (host) return host;
+    host = document.createElement("div");
+    host.className = "module-content module-host";
+    host.setAttribute("data-module-id", id);
+    host.hidden = true;
+    viewport.appendChild(host);
+    return host;
+  }
+
+  function showModuleHost(id) {
+    var viewport = moduleViewportEl();
+    if (!viewport) return;
+    viewport.querySelectorAll(".module-host").forEach(function (h) {
+      h.hidden = h.getAttribute("data-module-id") !== id;
+    });
+  }
+
+  function hideAllModuleHosts() {
+    var viewport = moduleViewportEl();
+    if (!viewport) return;
+    viewport.querySelectorAll(".module-host").forEach(function (h) {
+      h.hidden = true;
+    });
+  }
+
+  async function renderModuleOnce(host, mod) {
+    if (!host || host.getAttribute("data-rendered") === "1") return;
+    host.setAttribute("data-rendered", "1");
+    try {
+      var result = mod.render(host, {
+        api: CIS.api,
+        user: state.user,
+        permissions: state.permissions,
+        config: state.config,
+        setFloatingBack: setFloatingBack,
+      });
+      if (result && typeof result.then === "function") await result;
+    } catch (e) {
+      host.innerHTML =
+        '<div class="error-box">Module failed to load: ' + CIS.ui.escape(e.message || e) + "</div>";
+    }
   }
 
   function floatNavEl() {
@@ -57,6 +117,7 @@
       state.token = null;
       state.user = null;
       state.permissions = [];
+      hideAllModuleHosts();
     }
     var text = await res.text();
     var data = null;
@@ -174,11 +235,15 @@
       return;
     }
     var parent = MODULE_PARENTS[id];
-    if (top === "dashboard" || parent === top) {
+    if (top === "dashboard") {
       navStack.push(id);
       return;
     }
-    navStack.length = 1;
+    if (parent === top) {
+      navStack.push(id);
+      return;
+    }
+    /* App ↔ report (e.g. Control Room → Charcoal Intake): keep stack for Back + cached hosts */
     navStack.push(id);
   }
 
@@ -212,8 +277,10 @@
 
   function floatNavScrollTargets() {
     var targets = [];
-    var content = moduleContentEl();
-    if (content) targets.push(content);
+    var host = activeModuleHost();
+    if (host) targets.push(host);
+    var viewport = moduleViewportEl();
+    if (viewport) targets.push(viewport);
     var workspace = document.getElementById("workspace-module");
     if (workspace) targets.push(workspace);
     return targets;
@@ -265,9 +332,11 @@
   }
 
   function showSignInRequired() {
-    var host = moduleContentEl();
+    var host = getModuleHost(SIGNIN_HOST_ID);
     if (!host) return;
-    host.className = "module-content";
+    showModuleHost(SIGNIN_HOST_ID);
+    if (host.getAttribute("data-rendered") === "1") return;
+    host.setAttribute("data-rendered", "1");
     host.innerHTML = "";
     host.appendChild(
       CIS.ui.el("div", { class: "access-denied" }, [
@@ -287,10 +356,12 @@
     floatNavState.secondary = null;
     renderFloatNav();
     updateBreadcrumb(mod.title);
-    var content = moduleContentEl();
-    content.className = "module-content";
-    content.innerHTML = "";
-    content.appendChild(
+    var host = getModuleHost(mod.id);
+    showModuleHost(mod.id);
+    if (host.getAttribute("data-rendered") === "1") return;
+    host.setAttribute("data-rendered", "1");
+    host.innerHTML = "";
+    host.appendChild(
       CIS.ui.el("div", { class: "access-denied" }, [
         CIS.ui.el("h2", { class: "module-title" }, [mod.title]),
         CIS.ui.el("p", { class: "module-desc" }, [
@@ -326,27 +397,14 @@
     if (window.CIS_V2 && CIS_V2.showModuleWorkspace) CIS_V2.showModuleWorkspace();
     if (window.CIS_V2 && CIS_V2.setActiveNav) CIS_V2.setActiveNav(id);
 
-    var content = moduleContentEl();
-    content.className = "module-content";
-    content.innerHTML = "";
-    (async function () {
-      try {
-        var result = mod.render(content, {
-          api: CIS.api,
-          user: state.user,
-          permissions: state.permissions,
-          config: state.config,
-          setFloatingBack: setFloatingBack,
-        });
-        if (result && typeof result.then === "function") await result;
-      } catch (e) {
-        content.innerHTML =
-          '<div class="error-box">Module failed to load: ' + CIS.ui.escape(e.message || e) + "</div>";
-      }
-    })();
+    var host = getModuleHost(id);
+    if (!host) return;
+    showModuleHost(id);
+    renderModuleOnce(host, mod);
   }
 
   CIS.openModule = openModule;
+  CIS._v2HideModuleHosts = hideAllModuleHosts;
 
   async function loadSession() {
     var me = await CIS.api.identity("/auth/me");

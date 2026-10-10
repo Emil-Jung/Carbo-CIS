@@ -120,7 +120,8 @@
     return mod && mod.title ? mod.title : id;
   }
 
-  function navItemVisible() {
+  function navItemVisible(id) {
+    if (window.CIS_V2_NAV_HIDDEN && CIS_V2_NAV_HIDDEN[id]) return false;
     return true;
   }
 
@@ -159,6 +160,7 @@
       moduleView.classList.add("hidden");
     }
     if (window.CIS && CIS._state) CIS._state.activeModuleId = "dashboard";
+    if (window.CIS && CIS._v2HideModuleHosts) CIS._v2HideModuleHosts();
     setActiveNav("dashboard");
     var strong = document.querySelector(".breadcrumb strong");
     if (strong) strong.textContent = "Carbo Namibia";
@@ -211,60 +213,74 @@
     return btn;
   }
 
+  function renderNavGroup(group, host, openState, extraClass) {
+    if (!host || !group) return;
+    var wrap = document.createElement("div");
+    wrap.className = "nav-group" + (extraClass ? " " + extraClass : "");
+    wrap.setAttribute("data-nav-group", group.id);
+    if (group.tier) wrap.setAttribute("data-nav-tier", group.tier);
+
+    var isOpen = openState[group.id] !== false;
+    var header = document.createElement("button");
+    header.type = "button";
+    header.className = "nav-group-header";
+    header.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    var groupIcon =
+      group.icon && window.CIS_V2_NAV_ICONS && CIS_V2_NAV_ICONS[group.icon]
+        ? '<span class="nav-group-icon">' + CIS_V2_NAV_ICONS[group.icon] + "</span>"
+        : "";
+    header.innerHTML =
+      groupIcon +
+      '<span class="nav-group-title">' +
+      group.title +
+      '</span><svg class="nav-group-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5H7z"/></svg>';
+
+    var body = document.createElement("div");
+    body.className = "nav-group-body";
+    body.hidden = !isOpen;
+
+    group.items.forEach(function (item) {
+      if (item.nestUnder) return;
+      var node = createNavItem(item.id, 0);
+      if (node) body.appendChild(node);
+      group.items.forEach(function (child) {
+        if (child.nestUnder !== item.id) return;
+        var depth = child.nestDepth || 1;
+        var childNode = createNavItem(child.id, depth);
+        if (childNode) body.appendChild(childNode);
+      });
+    });
+
+    header.addEventListener("click", function () {
+      var next = body.hidden;
+      body.hidden = !next;
+      header.setAttribute("aria-expanded", next ? "true" : "false");
+      openState[group.id] = next;
+      writeNavOpenState(openState);
+    });
+
+    wrap.appendChild(header);
+    wrap.appendChild(body);
+    host.appendChild(wrap);
+  }
+
   function renderNavModules() {
     var host = document.getElementById("sidebar-nav-modules");
-    if (!host || !window.CIS_V2_NAV) return;
-    host.innerHTML = "";
+    var dockHost = document.getElementById("sidebar-nav-dock-admin");
+    if (!window.CIS_V2_NAV) return;
     var openState = readNavOpenState();
 
-    CIS_V2_NAV.groups.forEach(function (group) {
-      var wrap = document.createElement("div");
-      wrap.className = "nav-group";
-      wrap.setAttribute("data-nav-group", group.id);
-
-      var isOpen = openState[group.id] !== false;
-      var header = document.createElement("button");
-      header.type = "button";
-      header.className = "nav-group-header";
-      header.setAttribute("aria-expanded", isOpen ? "true" : "false");
-      var groupIcon =
-        group.icon && window.CIS_V2_NAV_ICONS && CIS_V2_NAV_ICONS[group.icon]
-          ? '<span class="nav-group-icon">' + CIS_V2_NAV_ICONS[group.icon] + "</span>"
-          : "";
-      header.innerHTML =
-        groupIcon +
-        '<span class="nav-group-title">' +
-        group.title +
-        '</span><svg class="nav-group-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5H7z"/></svg>';
-
-      var body = document.createElement("div");
-      body.className = "nav-group-body";
-      body.hidden = !isOpen;
-
-      group.items.forEach(function (item) {
-        if (item.nestUnder) return;
-        var node = createNavItem(item.id, 0);
-        if (node) body.appendChild(node);
-        group.items.forEach(function (child) {
-          if (child.nestUnder !== item.id) return;
-          var depth = child.nestDepth || 1;
-          var childNode = createNavItem(child.id, depth);
-          if (childNode) body.appendChild(childNode);
-        });
+    if (host) {
+      host.innerHTML = "";
+      CIS_V2_NAV.groups.forEach(function (group) {
+        renderNavGroup(group, host, openState, "nav-group--main");
       });
+    }
 
-      header.addEventListener("click", function () {
-        var next = body.hidden;
-        body.hidden = !next;
-        header.setAttribute("aria-expanded", next ? "true" : "false");
-        openState[group.id] = next;
-        writeNavOpenState(openState);
-      });
-
-      wrap.appendChild(header);
-      wrap.appendChild(body);
-      host.appendChild(wrap);
-    });
+    if (dockHost && CIS_V2_NAV.dockAdministration) {
+      dockHost.innerHTML = "";
+      renderNavGroup(CIS_V2_NAV.dockAdministration, dockHost, openState, "nav-group--dock");
+    }
   }
 
   function onBridgeReady() {
