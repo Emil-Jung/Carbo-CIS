@@ -340,12 +340,14 @@
         setSettingsOpen(true);
       });
     }
-    var signOutBtn = document.getElementById("settings-sign-out");
-    if (signOutBtn) {
-      signOutBtn.addEventListener("click", function () {
+    function wireSignOut(btn) {
+      if (!btn) return;
+      btn.addEventListener("click", function () {
         if (window.CIS && CIS.signOut) CIS.signOut();
       });
     }
+    wireSignOut(document.getElementById("settings-sign-out"));
+    wireSignOut(document.getElementById("header-sign-out-btn"));
   }
 
   function wireNav() {

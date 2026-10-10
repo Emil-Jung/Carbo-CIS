@@ -589,6 +589,32 @@ a {
   text-align: center;
 }
 
+.header-sign-out-btn {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  min-height: 40px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.header-sign-out-btn:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--tag-danger-bg);
+}
+
+.header-sign-out-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .user-chip {
   display: flex;
   align-items: center;
@@ -1510,6 +1536,11 @@ body.explorer-v2-shell .workspace-module > .cis-float-nav {
   .icon-btn {
     min-width: 44px;
     min-height: 44px;
+  }
+
+  .header-sign-out-btn {
+    min-height: 44px;
+    padding: 8px 12px;
   }
 }
 

@@ -451,12 +451,14 @@
     var avatarEl = document.querySelector(".user-avatar");
     var accountEl = document.getElementById("settings-account-user");
     var signOutBtn = document.getElementById("settings-sign-out");
+    var headerSignOutBtn = document.getElementById("header-sign-out-btn");
     if (!state.user) {
       if (nameEl) nameEl.textContent = "Guest";
       if (roleEl) roleEl.textContent = "Not signed in";
       if (avatarEl) avatarEl.textContent = "?";
       if (accountEl) accountEl.textContent = "Not signed in";
       if (signOutBtn) signOutBtn.disabled = true;
+      if (headerSignOutBtn) headerSignOutBtn.disabled = true;
       return;
     }
     var display = state.user.display_name || state.user.login_id || "User";
@@ -474,6 +476,7 @@
       accountEl.textContent = display + (state.user.login_id ? " (" + state.user.login_id + ")" : "");
     }
     if (signOutBtn) signOutBtn.disabled = false;
+    if (headerSignOutBtn) headerSignOutBtn.disabled = false;
   }
 
   async function initBridge() {
