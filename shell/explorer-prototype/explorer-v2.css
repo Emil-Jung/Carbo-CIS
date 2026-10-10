@@ -121,19 +121,17 @@ a {
 }
 
 .sidebar-brand {
-  padding: 18px 14px 16px;
-  border-bottom: 1px solid var(--sidebar-brand-border);
-  background: linear-gradient(
-    180deg,
-    var(--sidebar-brand-bg-start) 0%,
-    var(--sidebar-brand-bg-end) 100%
-  );
+  flex-shrink: 0;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--sidebar-brand-panel-border);
+  background: var(--sidebar-brand-panel-bg);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
 }
 
 .sidebar-brand img {
   width: auto;
-  height: 112px;
-  max-width: calc(100% - 8px);
+  height: 88px;
+  max-width: calc(100% - 4px);
   object-fit: contain;
   display: block;
   margin: 0 auto;

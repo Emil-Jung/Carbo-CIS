@@ -4,7 +4,7 @@ All files live in `shell/explorer-prototype/assets/`. **PNG masters** are binary
 
 | Filename in repo | Source (build PC) | Used in |
 |------------------|-------------------|---------|
-| `Carbo-Main-Logo.png` | `G:\My Coding Projects\FSC-Management-System\assets\Carbo Main Logo.png` | `index.html` — sidebar brand, favicon |
+| `Carbo-Main-Logo.png` | `G:\My Coding Projects\FSC-Management-System\assets\Carbo Main Logo.png` | Sidebar brand (white panel strip) + favicon |
 | `Golden-Acacia-Sunset-Plain.png` | `C:\Users\Administrator\Downloads\Golden Acacia Sunset Plain.png` | Hero `<picture>` PNG fallback |
 | `Golden-Acacia-Sunset-Plain.webp` | Derived (1920×640, ~86 quality) | Hero primary — same `object-fit: cover`, `object-position: 58% 64%` |
 | `Acacia-Silhouette-Over-Golden-Savanna.png` | `C:\Users\Administrator\Downloads\Acacia Silhouette Over Golden Savanna.png` | Sidebar `<picture>` + reports footer strip |
