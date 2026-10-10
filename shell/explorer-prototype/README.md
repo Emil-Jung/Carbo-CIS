@@ -37,4 +37,6 @@ Approved PNGs and usage: see [ASSETS.md](./ASSETS.md).
 | `index.html` | Layout and sample operational content |
 | `explorer-v2-themes.css` | Theme tokens (`data-cis-v2-theme`; default `golden-sunset`) |
 | `explorer-v2.css` | Layout and component styling (uses theme tokens) |
-| `explorer-v2.js` | Drawer, settings sheet, theme, notifications |
+| `explorer-v2.js` | Drawer, settings sheet, nav render, notifications |
+| `explorer-v2-cis-bridge.js` | Production modules, permissions, **cached module hosts** |
+| `explorer-v2-nav.js` | Applications / Reports / dock Administration map |
