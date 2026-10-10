@@ -150,8 +150,14 @@
 
   function showPrototypeDashboard(opts) {
     opts = opts || {};
-    if (dashboardView) dashboardView.hidden = false;
-    if (moduleView) moduleView.hidden = true;
+    if (dashboardView) {
+      dashboardView.hidden = false;
+      dashboardView.classList.remove("hidden");
+    }
+    if (moduleView) {
+      moduleView.hidden = true;
+      moduleView.classList.add("hidden");
+    }
     if (window.CIS && CIS._state) CIS._state.activeModuleId = "dashboard";
     setActiveNav("dashboard");
     var strong = document.querySelector(".breadcrumb strong");
@@ -162,8 +168,14 @@
   }
 
   function showModuleWorkspace() {
-    if (dashboardView) dashboardView.hidden = true;
-    if (moduleView) moduleView.hidden = false;
+    if (dashboardView) {
+      dashboardView.hidden = true;
+      dashboardView.classList.add("hidden");
+    }
+    if (moduleView) {
+      moduleView.hidden = false;
+      moduleView.classList.remove("hidden");
+    }
   }
 
   function openDestination(id) {

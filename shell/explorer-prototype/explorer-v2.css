@@ -52,7 +52,7 @@ html {
   overflow-x: hidden;
 }
 
-body {
+body.explorer-v2-shell {
   margin: 0;
   font-family: var(--font-sans);
   font-size: 14px;
@@ -61,6 +61,12 @@ body {
   background: var(--workspace-bg);
   overflow-x: hidden;
   max-width: 100vw;
+}
+
+/* Production styles.css targets body — keep V2 workspace palette on the shell page */
+body.explorer-v2-shell {
+  background: var(--workspace-bg);
+  color: var(--text);
 }
 
 body.nav-open {
@@ -558,6 +564,12 @@ a {
   flex: 1;
   overflow: auto;
   padding: 0 20px 28px;
+}
+
+/* [hidden] must win over display:flex — otherwise empty module pane covers the dashboard */
+#workspace-dashboard[hidden],
+#workspace-module[hidden] {
+  display: none !important;
 }
 
 .workspace-module {
