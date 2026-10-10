@@ -26,9 +26,7 @@ https://bkweb3.bigk.co.uk/cis/explorer-prototype/
 
 ## Design references
 
-Stored in `assets/design-reference-option-b.jpg` and `assets/design-reference-option-c.jpg`.
-
-Hero and strip imagery use `assets/hero-namibia.svg` and `assets/sidebar-landscape.svg` (vector placeholders until licensed photography is supplied).
+Approved PNGs and usage: see [ASSETS.md](./ASSETS.md).
 
 ## Files
 

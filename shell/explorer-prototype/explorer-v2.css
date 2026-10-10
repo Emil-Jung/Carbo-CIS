@@ -195,7 +195,7 @@ a {
   border-radius: 8px;
   overflow: hidden;
   height: 52px;
-  background: url("assets/sidebar-namibia.jpg") center 55% / cover no-repeat;
+  background: url("assets/Moody-Acacia-Sunset-Savanna.png") center 55% / cover no-repeat;
   opacity: 0.88;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -481,7 +481,7 @@ a {
 .hero-bg {
   position: absolute;
   inset: 0;
-  background: url("assets/banner-golden-sunset.jpg") center 42% / cover no-repeat;
+  background: url("assets/Golden-Acacia-Sunset-Plain.png") center 42% / cover no-repeat;
 }
 
 .hero-overlay {
@@ -875,7 +875,7 @@ a {
   right: 0;
   bottom: 0;
   height: 56px;
-  background: url("assets/sidebar-namibia.jpg") center 70% / cover no-repeat;
+  background: url("assets/Moody-Acacia-Sunset-Savanna.png") center 70% / cover no-repeat;
   opacity: 0.55;
   mask-image: linear-gradient(to top, black 30%, transparent);
   pointer-events: none;
