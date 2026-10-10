@@ -131,8 +131,8 @@ a {
 }
 
 .sidebar-brand img {
-  width: 96px;
-  height: 96px;
+  width: auto;
+  height: 112px;
   max-width: calc(100% - 8px);
   object-fit: contain;
   display: block;
