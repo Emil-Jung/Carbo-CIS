@@ -14,6 +14,12 @@
 
 
 
+  /** Scanner Create pallet button (bags-lookup). */
+  var PALLET_MAGENTA = "#c2185b";
+
+  /** Briquette bulk bags — charcoal accent (distinct from intake fines orange). */
+  var BRIQUETTE_CHARCOAL = "#3D3935";
+
   var STREAM_LABELS = {
 
     restaurant: "Restaurant",
@@ -22,9 +28,9 @@
 
     fines: "Fines",
 
-    briquettes: "Briquettes",
+    briquettes: "Briquette bulk bags",
 
-    pallet: "Pallet",
+    pallet: "Pallets",
 
   };
 
@@ -38,9 +44,9 @@
 
     fines: "#EA580C",
 
-    briquettes: "#7C3AED",
+    briquettes: BRIQUETTE_CHARCOAL,
 
-    pallet: "#64748B",
+    pallet: PALLET_MAGENTA,
 
   };
 
@@ -62,7 +68,10 @@
 
 
 
-  var WX_STREAM_ORDER = ["restaurant", "lumpwood", "fines"];
+  /** All product streams on Bags Status charts, legends, and category tiles. */
+  var DASHBOARD_STREAM_ORDER = ["restaurant", "lumpwood", "fines", "briquettes", "pallet"];
+
+  var WX_STREAM_ORDER = DASHBOARD_STREAM_ORDER;
 
 
 
@@ -241,7 +250,7 @@
 
     var parts = [];
 
-    Object.keys(STREAM_LABELS).forEach(function (key) {
+    DASHBOARD_STREAM_ORDER.forEach(function (key) {
 
       var n = (streams || {})[key] || 0;
 
@@ -250,6 +259,39 @@
     });
 
     return parts.join(" · ");
+
+  }
+
+  function appendStreamSplitFooter(card, streams, ui) {
+
+    var row = ui.el("span", { class: "bs-dash-status-card__streams bs-dash-status-card__streams--colored" });
+
+    var any = false;
+
+    DASHBOARD_STREAM_ORDER.forEach(function (key) {
+
+      var n = (streams || {})[key] || 0;
+
+      if (!n) return;
+
+      if (any) row.appendChild(document.createTextNode(" · "));
+
+      any = true;
+
+      var chip = ui.el("span", { class: "bs-dash-status-card__stream-chip" });
+
+      applyStyles(chip, {
+        color: STREAM_COLORS[key],
+        borderColor: STREAM_COLORS[key],
+      });
+
+      chip.appendChild(document.createTextNode(n + " " + STREAM_LABELS[key].toLowerCase()));
+
+      row.appendChild(chip);
+
+    });
+
+    if (any) card.appendChild(row);
 
   }
 
@@ -727,14 +769,15 @@
       "Stream mix (still weathering)",
     ]));
 
-    WX_STREAM_ORDER.forEach(function (key) {
+    DASHBOARD_STREAM_ORDER.forEach(function (key) {
       var n = (still.streams || {})[key] || 0;
-      if (!n) return;
       var kg = (still.stream_kg || {})[key] || 0;
-      var line = ui.el("div", { class: "bs-dash-mix-line" });
+      var line = ui.el("div", {
+        class: "bs-dash-mix-line" + (n ? "" : " bs-dash-mix-line--empty"),
+      });
       line.appendChild(streamSwatch(key, "bs-dash-mix-dot"));
       var count = ui.el("span", { class: "bs-dash-mix-line__count" });
-      applyStyles(count, { color: STREAM_COLORS[key] });
+      applyStyles(count, { color: n ? STREAM_COLORS[key] : "#94A3B8" });
       count.appendChild(document.createTextNode(String(n)));
       line.appendChild(count);
       line.appendChild(ui.el("span", { class: "bs-dash-mix-line__label" }, [
@@ -919,9 +962,6 @@
   };
 
 
-
-  /** Scanner Create pallet button (bags-lookup). */
-  var PALLET_MAGENTA = "#c2185b";
 
   var FACTORY_STORAGE_STATUS_KEYS = {
     in_storage_weathering: true,
@@ -1403,9 +1443,7 @@
 
         card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(st.kg) + " kg"]));
 
-        var split = streamSplitText(st.streams);
-
-        if (split) card.appendChild(ui.el("span", { class: "bs-dash-status-card__streams" }, [split]));
+        appendStreamSplitFooter(card, st.streams, ui);
 
       }
 
@@ -1648,14 +1686,14 @@
     if (p.mixed_producers) {
 
       wrap.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-        "This pallet draws from more than one producer — weights below are from source jumbo allocations at packaging.",
+        "This pallet draws from more than one producer — weights below are from source bulk bag allocations at packaging.",
       ]));
 
     }
 
     if ((p.producers || []).length) {
 
-      wrap.appendChild(ui.el("h4", {}, ["Producers (from source jumbos)"]));
+      wrap.appendChild(ui.el("h4", {}, ["Producers (from source bulk bags)"]));
 
       var plist = ui.el("ul", { class: "bs-dash-pallet-producers" });
 
@@ -1677,7 +1715,7 @@
 
     if ((p.input_bags || []).length) {
 
-      wrap.appendChild(ui.el("h4", {}, ["Source jumbo BAG IDs"]));
+      wrap.appendChild(ui.el("h4", {}, ["Source bulk bag BAG IDs"]));
 
       var blist = ui.el("ul", { class: "bs-dash-pallet-sources" });
 
@@ -1961,7 +1999,7 @@
       var tr = ui.el("tr", {});
       if (onRowClick && row.product_stream === "pallet") {
         tr.className = "bs-dash-table-row--clickable";
-        tr.title = "View source jumbos and producers";
+        tr.title = "View source bulk bags and producers";
         tr.addEventListener("click", function () { onRowClick(row); });
       }
       tr.appendChild(ui.el("td", {}, [row.serial || "—"]));
@@ -2049,7 +2087,7 @@
 
         tr.className = "bs-dash-table-row--clickable";
 
-        tr.title = "View source jumbos and producers";
+        tr.title = "View source bulk bags and producers";
 
         tr.addEventListener("click", function () { onRowClick(row); });
 
@@ -2138,9 +2176,7 @@
 
       if (dest) card.appendChild(ui.el("span", { class: "bs-dash-status-card__dest" }, [dest]));
 
-      var split = streamSplitText(section.streams);
-
-      if (split) card.appendChild(ui.el("span", { class: "bs-dash-status-card__streams" }, [split]));
+      appendStreamSplitFooter(card, section.streams, ui);
 
       wrap.appendChild(card);
 
@@ -2381,7 +2417,7 @@
         if (selected.key === "packed_into_pallet") {
 
           body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-            "These are source jumbos consumed at packaging — end of life. "
+            "These are source bulk bags consumed at packaging — end of life. "
               + "They are not physical pallets. See Packaging — pallet production below.",
           ]));
 
@@ -2413,7 +2449,7 @@
             ]));
 
             body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-              "All physical pallet BAG IDs — tap a row for source jumbos and producer mix (kg and %).",
+              "All physical pallet BAG IDs — tap a row for source bulk bags and producer mix (kg and %).",
             ]));
 
             if (!(selected.rows || []).length) {
@@ -2440,7 +2476,7 @@
             ]));
 
             body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-              "Physical pallet BAG IDs by location — tap a tile, then a BAG ID for source jumbos and producers.",
+              "Physical pallet BAG IDs by location — tap a tile, then a BAG ID for source bulk bags and producers.",
             ]));
 
             body.appendChild(renderPalletLocationDrill(selected.locationBuckets, ui, openPalletBucket));
@@ -2459,7 +2495,7 @@
             ]));
 
             body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-              "Tap a product, then a pallet BAG ID for source jumbos and producers.",
+              "Tap a product, then a pallet BAG ID for source bulk bags and producers.",
             ]));
 
             body.appendChild(renderFactoryPalletsDrill(selected.detail, ui, function (bucket) {
@@ -2498,7 +2534,7 @@
             ]));
 
             body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-              "Tap a pallet BAG ID for source jumbos and producers.",
+              "Tap a pallet BAG ID for source bulk bags and producers.",
             ]));
 
             body.appendChild(renderEventCards(selected.sections, ui, function (section) {

@@ -708,6 +708,9 @@ body {
   margin-bottom: 2px;
 }
 .bs-dash-mix-line:last-child { margin-bottom: 0; }
+.bs-dash-mix-line--empty {
+  opacity: 0.55;
+}
 .bs-dash-mix-dot,
 .bs-dash-cat-card__swatch {
   width: 10px;
@@ -1187,6 +1190,23 @@ body {
   font-size: 12px;
   color: #64748B;
 }
+.bs-dash-status-card__stream-chip {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 1px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #fff;
+}
+
+.bs-dash-status-card__streams--colored {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
 .bs-dash-status-card__streams,
 .bs-dash-status-card__dest {
   display: block;
@@ -1318,7 +1338,7 @@ body {
 }
 .bs-dash-cat-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
 }
 @media (max-width: 720px) {
