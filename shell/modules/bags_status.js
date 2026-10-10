@@ -264,7 +264,7 @@
 
   function appendStreamSplitFooter(card, streams, ui) {
 
-    var row = ui.el("span", { class: "bs-dash-status-card__streams bs-dash-status-card__streams--colored" });
+    var row = ui.el("span", { class: "bs-dash-status-card__streams" });
 
     var any = false;
 
@@ -278,12 +278,9 @@
 
       any = true;
 
-      var chip = ui.el("span", { class: "bs-dash-status-card__stream-chip" });
+      var chip = ui.el("span", { class: "bs-dash-status-card__stream-part" });
 
-      applyStyles(chip, {
-        color: STREAM_COLORS[key],
-        borderColor: STREAM_COLORS[key],
-      });
+      applyStyles(chip, { color: STREAM_COLORS[key] });
 
       chip.appendChild(document.createTextNode(n + " " + STREAM_LABELS[key].toLowerCase()));
 
