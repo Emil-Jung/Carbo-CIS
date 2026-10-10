@@ -1342,6 +1342,32 @@ body.explorer-v2-shell .workspace-module > .cis-float-nav {
   color: var(--text);
 }
 
+.settings-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.settings-sign-out-btn {
+  color: var(--danger);
+  border-color: rgba(197, 48, 48, 0.35);
+}
+
+.settings-sign-out-btn:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.settings-sign-out-hint,
+.settings-account-line {
+  font-size: 12px;
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+.settings-sign-out-hint a {
+  color: var(--gold-deep);
+}
+
 /* Mobile: full nav via drawer only (no permanent bottom bar) */
 .mobile-nav {
   display: none !important;

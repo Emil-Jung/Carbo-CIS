@@ -23,6 +23,8 @@
     showModuleWorkspace: showModuleWorkspace,
     setActiveNav: setActiveNav,
     onBridgeReady: onBridgeReady,
+    setSettingsOpen: setSettingsOpen,
+    syncSessionUi: syncHeaderFromSession,
   };
 
   function unreadCount() {
@@ -289,6 +291,10 @@
   }
 
   function syncHeaderFromSession() {
+    if (window.CIS && CIS._state && typeof CIS.syncHeaderUser === "function") {
+      CIS.syncHeaderUser();
+      return;
+    }
     if (!window.CIS || !CIS.currentUser) return;
     var user = CIS.currentUser();
     if (!user) return;
@@ -332,6 +338,12 @@
       sidebarSettings.addEventListener("click", function () {
         setSidebarOpen(false);
         setSettingsOpen(true);
+      });
+    }
+    var signOutBtn = document.getElementById("settings-sign-out");
+    if (signOutBtn) {
+      signOutBtn.addEventListener("click", function () {
+        if (window.CIS && CIS.signOut) CIS.signOut();
       });
     }
   }

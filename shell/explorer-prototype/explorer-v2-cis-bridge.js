@@ -77,6 +77,12 @@
     });
   }
 
+  function clearAllModuleHosts() {
+    var viewport = moduleViewportEl();
+    if (!viewport) return;
+    viewport.innerHTML = "";
+  }
+
   async function renderModuleOnce(host, mod) {
     if (!host || host.getAttribute("data-rendered") === "1") return;
     host.setAttribute("data-rendered", "1");
@@ -403,7 +409,31 @@
     renderModuleOnce(host, mod);
   }
 
+  async function signOut() {
+    try {
+      if (state.token) await CIS.api.identity("/auth/logout", { method: "POST" });
+    } catch (e) {}
+    localStorage.removeItem(TOKEN_KEY);
+    state.token = null;
+    state.user = null;
+    state.permissions = [];
+    state.activeModuleId = null;
+    navStack.length = 0;
+    navStack.push("dashboard");
+    floatNavState.secondary = null;
+    clearAllModuleHosts();
+    renderFloatNav();
+    if (window.CIS_V2 && CIS_V2.showPrototypeDashboard) {
+      CIS_V2.showPrototypeDashboard({ skipStackPush: true });
+    }
+    if (window.CIS_V2 && CIS_V2.syncSessionUi) CIS_V2.syncSessionUi();
+    if (window.CIS_V2 && CIS_V2.showModuleWorkspace) CIS_V2.showModuleWorkspace();
+    showSignInRequired();
+    if (window.CIS_V2 && CIS_V2.setSettingsOpen) CIS_V2.setSettingsOpen(false);
+  }
+
   CIS.openModule = openModule;
+  CIS.signOut = signOut;
   CIS._v2HideModuleHosts = hideAllModuleHosts;
 
   async function loadSession() {
@@ -413,15 +443,37 @@
   }
 
   CIS.refreshSession = loadSession;
+  CIS.syncHeaderUser = syncHeaderUser;
 
   function syncHeaderUser() {
     var nameEl = document.querySelector(".user-name");
     var roleEl = document.querySelector(".user-role");
-    if (!state.user) return;
-    if (nameEl) {
-      nameEl.textContent = state.user.display_name || state.user.login_id || "User";
+    var avatarEl = document.querySelector(".user-avatar");
+    var accountEl = document.getElementById("settings-account-user");
+    var signOutBtn = document.getElementById("settings-sign-out");
+    if (!state.user) {
+      if (nameEl) nameEl.textContent = "Guest";
+      if (roleEl) roleEl.textContent = "Not signed in";
+      if (avatarEl) avatarEl.textContent = "?";
+      if (accountEl) accountEl.textContent = "Not signed in";
+      if (signOutBtn) signOutBtn.disabled = true;
+      return;
     }
+    var display = state.user.display_name || state.user.login_id || "User";
+    if (nameEl) nameEl.textContent = display;
     if (roleEl) roleEl.textContent = state.user.login_id || "";
+    if (avatarEl) {
+      var parts = String(display).trim().split(/\s+/);
+      var initials =
+        parts.length >= 2
+          ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+          : String(display).slice(0, 2).toUpperCase();
+      avatarEl.textContent = initials;
+    }
+    if (accountEl) {
+      accountEl.textContent = display + (state.user.login_id ? " (" + state.user.login_id + ")" : "");
+    }
+    if (signOutBtn) signOutBtn.disabled = false;
   }
 
   async function initBridge() {
@@ -441,7 +493,10 @@
       } catch (err) {
         localStorage.removeItem(TOKEN_KEY);
         state.token = null;
+        syncHeaderUser();
       }
+    } else {
+      syncHeaderUser();
     }
 
     CIS._v2BridgeReady = true;

@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../styles.css?v=1.6.58" />
   <link rel="stylesheet" href="explorer-v2-themes.css?v=2" />
-  <link rel="stylesheet" href="explorer-v2.css?v=25" />
+  <link rel="stylesheet" href="explorer-v2.css?v=26" />
   <link rel="icon" type="image/png" href="assets/Carbo-Main-Logo.png" />
   <link
     rel="preload"
@@ -303,6 +303,12 @@
         </div>
         <button type="button" class="settings-action-btn" id="settings-mark-read">Mark all as read</button>
       </div>
+      <div class="settings-group">
+        <h3>Account</h3>
+        <p class="settings-account-line muted" id="settings-account-user">Not signed in</p>
+        <button type="button" class="settings-action-btn settings-sign-out-btn" id="settings-sign-out">Sign out</button>
+        <p class="settings-sign-out-hint muted">Ends your CIS session on this browser. Sign in again at <a href="../index.html">/cis/</a>.</p>
+      </div>
     </div>
   </aside>
 
@@ -337,7 +343,7 @@
   <script src="../modules/movement_schedule.js?v=1.0.0"></script>
   <script src="../modules/walvis_dispatches.js?v=1.0.0"></script>
   <script src="../modules/supplier_contacts.js?v=1.0.0"></script>
-  <script src="explorer-v2-cis-bridge.js?v=3"></script>
-  <script src="explorer-v2.js?v=6"></script>
+  <script src="explorer-v2-cis-bridge.js?v=4"></script>
+  <script src="explorer-v2.js?v=7"></script>
 </body>
 </html>
