@@ -7,7 +7,7 @@
 
   function fmtKg(n) {
     if (n == null || isNaN(n)) return "—";
-    return Number(n).toLocaleString(undefined, { maximumFractionDigits: 3 }) + " kg";
+    return CIS.formatMassFromKg(n, { forceKg: true });
   }
 
   function fmtNum(n) {

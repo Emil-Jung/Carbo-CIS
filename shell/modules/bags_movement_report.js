@@ -14,6 +14,10 @@
     });
   }
 
+  function fmtMass(kg, forceKg) {
+    return CIS.formatMassFromKg(kg, forceKg ? { forceKg: true } : {});
+  }
+
   var DISPLAY_TZ = "Africa/Windhoek";
 
   function fmtDate(iso) {
@@ -234,7 +238,7 @@
       tr.innerHTML =
         "<td class='bm-num'>" + ui.escape(String(i + 1)) + "</td>" +
         "<td>" + ui.escape(row.product_stream || "—") + "</td>" +
-        "<td class='bm-num'>" + fmt(row.net_weight_kg, 0) + "</td>" +
+        "<td class='bm-num'>" + ui.escape(fmtMass(row.net_weight_kg, true)) + "</td>" +
         "<td class='bm-num bm-time'>" + ui.escape(fmtTime(row.recorded_at)) + "</td>" +
         "<td>" + ui.escape(fmtDate(row.weathering_end_date)) + "</td>" +
         "<td>" + ui.escape(timerText(row)) + "</td>" +
@@ -275,8 +279,8 @@
       var item = ui.el("span", {
         class: "bm-stream-tag__item bm-stream-tag__item--" + part.meta.key,
       });
-      item.appendChild(ui.el("strong", {}, [fmt(part.kg, 0)]));
-      item.appendChild(document.createTextNode(" kg " + part.meta.label.toLowerCase()));
+      item.appendChild(ui.el("strong", {}, [fmtMass(part.kg)]));
+      item.appendChild(document.createTextNode(" " + part.meta.label.toLowerCase()));
       line.appendChild(item);
     });
     tag.appendChild(line);
@@ -509,7 +513,7 @@
       li.innerHTML =
         "<span class='bm-legend-swatch' style='background:" + meta.color + "'></span>" +
         "<span class='bm-legend-text'>" +
-        ui.escape(meta.label) + " · " + fmt(count) + " bag(s) · " + fmt(totals[kgKey], 0) + " kg" +
+        ui.escape(meta.label) + " · " + fmt(count) + " bag(s) · " + fmtMass(totals[kgKey]) +
         "</span>";
       legend.appendChild(li);
     });
@@ -532,7 +536,7 @@
       card.innerHTML =
         "<div class='bm-stream-card__label'>" + ui.escape(meta.label) + "</div>" +
         "<div class='bm-stream-card__value'>" + fmt(totals[meta.key]) + "</div>" +
-        "<div class='bm-stream-card__sub'>" + fmt(totals[kgKey], 0) + " kg</div>";
+        "<div class='bm-stream-card__sub'>" + ui.escape(fmtMass(totals[kgKey])) + "</div>";
       row.appendChild(card);
     });
     return row;
@@ -543,7 +547,7 @@
     panel.appendChild(ui.el("h3", { class: "bm-panel-title" }, ["Cumulative total (database)"]));
     panel.appendChild(
       ui.el("p", { class: "bm-panel-lead" }, [
-        fmt(data.bag_count) + " bags · " + fmt(data.total_kg, 0) + " kg in the system",
+        CIS.bagsAndMassText(data.bag_count, data.total_kg) + " in the system",
       ])
     );
     panel.appendChild(
@@ -565,7 +569,7 @@
     headline.appendChild(ui.el("span", { class: "bm-day-daily-label" }, ["Daily total"]));
     headline.appendChild(
       ui.el("span", { class: "bm-day-daily-value" }, [
-        fmt(section.bags) + " bags · " + fmt(section.kg, 0) + " kg · " +
+        CIS.bagsAndMassText(section.bags, section.kg) + " · " +
           fmt(section.producers.length) + " producer(s)",
       ])
     );
@@ -641,7 +645,7 @@
         "<td class='bm-num'>" + fmt(group.restaurant) + "</td>" +
         "<td class='bm-num'>" + fmt(group.lumpwood) + "</td>" +
         "<td class='bm-num'>" + fmt(group.fines) + "</td>" +
-        "<td class='bm-num'>" + fmt(group.kg, 0) + "</td>";
+        "<td class='bm-num'>" + ui.escape(fmtMass(group.kg)) + "</td>";
       Array.from(tr.children).forEach(function (td) {
         td.style.cursor = "pointer";
       });
@@ -701,7 +705,7 @@
         "<span class='bm-week-toggle-icon'>" + (expanded ? "▼" : "▶") + "</span>" +
         "<span class='bm-week-toggle-text'>" +
         ui.escape(fmtWeekRange(summary.week_start, summary.week_end)) +
-        " · " + fmt(summary.bags) + " bags · " + fmt(summary.kg, 0) + " kg · " +
+        " · " + CIS.bagsAndMassText(summary.bags, summary.kg) + " · " +
         fmt(summary.days_with_bags) + " day(s)" +
         "</span>";
       toggle.addEventListener("click", function () {
@@ -741,7 +745,7 @@
       var headline = ui.el("div", { class: "bm-drill-headline" });
       headline.appendChild(
         ui.el("h3", { class: "bm-drill-title" }, [
-          titleParts.join(" · ") + " — " + fmt(drillDown.bags) + " bag(s) · " + fmt(drillDown.kg, 0) + " kg",
+          titleParts.join(" · ") + " — " + CIS.bagsAndMassText(drillDown.bags, drillDown.kg),
         ])
       );
       var streamTag = renderStreamSummaryTag(drillDown, ui);

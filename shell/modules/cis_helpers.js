@@ -400,6 +400,35 @@
     return cfg.printLabelsInstallerUrl || cfg.desktopInstallerUrl || "/cis/app/CarboPrintLabels-Setup.exe";
   };
 
+  /** DB/API store kilograms. Summaries ≥1000 kg show as tonnes (3 dp). */
+  CIS.MASS_TONNE_THRESHOLD_KG = 1000;
+
+  CIS.formatMassFromKg = function (kg, options) {
+    options = options || {};
+    var v = Number(kg);
+    if (!isFinite(v)) return "—";
+    if (options.forceKg) {
+      return v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " kg";
+    }
+    if (Math.abs(v) >= CIS.MASS_TONNE_THRESHOLD_KG) {
+      return (
+        (v / 1000).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) +
+        " t"
+      );
+    }
+    return v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " kg";
+  };
+
+  CIS.bagsAndMassText = function (bags, kg, options) {
+    var n = Number(bags || 0);
+    return (
+      String(n) +
+      (n === 1 ? " bag" : " bags") +
+      " · " +
+      CIS.formatMassFromKg(kg, options)
+    );
+  };
+
   /** Launch the standalone Carbo Print Labels Windows utility (carbolabels:// handler). */
   CIS.openPrintLabelsApp = function (onStatus) {
     function notify(msg, isError) {

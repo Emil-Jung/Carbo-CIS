@@ -101,20 +101,17 @@
 
 
 
-  function fmtKg(n) {
-
-    var v = Number(n || 0);
-
-    return v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-
+  function fmtMass(kg, forceKg) {
+    return CIS.formatMassFromKg(kg, forceKg ? { forceKg: true } : {});
   }
 
-
+  function fmtKg(n) {
+    var v = Number(n || 0);
+    return v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
 
   function bagsKgText(bags, kg) {
-
-    return String(bags || 0) + (bags === 1 ? " bag" : " bags") + " · " + fmtKg(kg) + " kg";
-
+    return CIS.bagsAndMassText(bags, kg);
   }
 
 
@@ -591,7 +588,7 @@
       col.appendChild(bar);
 
       col.appendChild(ui.el("span", { class: "bs-dash-col__val" }, [String(w.bags)]));
-      col.appendChild(ui.el("span", { class: "bs-dash-col__kg" }, [fmtKg(w.kg) + " kg"]));
+      col.appendChild(ui.el("span", { class: "bs-dash-col__kg" }, [fmtMass(w.kg)]));
 
       col.appendChild(ui.el("span", { class: "bs-dash-col__lbl" }, [w.label]));
 
@@ -753,7 +750,7 @@
 
       card.appendChild(ui.el("div", { class: "bs-dash-wx-kpi__value" }, [String(k.bags || 0)]));
 
-      card.appendChild(ui.el("div", { class: "bs-dash-wx-kpi__sub" }, [fmtKg(k.kg) + " kg"]));
+      card.appendChild(ui.el("div", { class: "bs-dash-wx-kpi__sub" }, [fmtMass(k.kg)]));
 
       row.appendChild(card);
 
@@ -810,7 +807,7 @@
       line.appendChild(ui.el("span", { class: "bs-dash-mix-line__label" }, [
         STREAM_LABELS[key].toLowerCase(),
       ]));
-      line.appendChild(ui.el("span", { class: "bs-dash-mix-line__kg" }, [fmtKg(kg) + " kg"]));
+      line.appendChild(ui.el("span", { class: "bs-dash-mix-line__kg" }, [fmtMass(kg)]));
       mixText.appendChild(line);
     });
 
@@ -853,7 +850,7 @@
 
       row.appendChild(ui.el("span", { class: "bs-dash-bucket-meta" }, [
 
-        b.bags + " bags · " + fmtKg(b.kg) + " kg",
+        b.bags + " bags · " + fmtMass(b.kg),
 
       ]));
 
@@ -954,7 +951,7 @@
 
       if (item.sub && item.value && item.value.kg !== undefined) {
 
-        card.appendChild(ui.el("span", { class: "bs-dash-kpi__sub" }, [fmtKg(item.value.kg) + " kg"]));
+        card.appendChild(ui.el("span", { class: "bs-dash-kpi__sub" }, [fmtMass(item.value.kg)]));
 
       }
 
@@ -1106,7 +1103,7 @@
 
     [
 
-      ["Available for palletisation", fmtKg(b.available_kg) + " kg"],
+      ["Available for palletisation", fmtMass(b.available_kg)],
 
       ["Pallet equivalent", b.pallet_equivalent != null ? Number(b.pallet_equivalent).toFixed(2) : "—"],
 
@@ -1130,7 +1127,7 @@
 
         sub.appendChild(ui.el("p", { class: "bs-dash-basket-product muted" }, [
 
-          row.product_code + ": " + fmtKg(row.available_kg) + " kg · "
+          row.product_code + ": " + fmtMass(row.available_kg) + " · "
 
             + (row.pallet_equivalent != null ? Number(row.pallet_equivalent).toFixed(2) : "—")
 
@@ -1184,7 +1181,7 @@
 
       card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(bucket.bags)]));
 
-      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(bucket.kg) + " kg"]));
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtMass(bucket.kg)]));
 
       grid.appendChild(card);
 
@@ -1230,7 +1227,7 @@
 
       card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(b.bags)]));
 
-      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(b.kg) + " kg"]));
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtMass(b.kg)]));
 
       wrap.appendChild(card);
 
@@ -1432,7 +1429,7 @@
         card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [equiv]));
 
         card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [
-          fmtKg(st.kg) + " kg · material for palletisation",
+          fmtMass(st.kg) + " · material for palletisation",
         ]));
 
         if ((st.by_product || []).length === 1) {
@@ -1453,7 +1450,7 @@
         card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags || 0)]));
 
         card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [
-          fmtKg(st.kg) + " kg · physical pallet BAG IDs",
+          fmtMass(st.kg) + " · physical pallet BAG IDs",
         ]));
 
       } else if (st.kind === "factory_pallets_in_storage") {
@@ -1461,14 +1458,14 @@
         card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags || 0)]));
 
         card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [
-          fmtKg(st.kg) + " kg · drill down by location",
+          fmtMass(st.kg) + " · drill down by location",
         ]));
 
       } else {
 
         card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags)]));
 
-        card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(st.kg) + " kg"]));
+        card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtMass(st.kg)]));
 
         appendStreamSplitFooter(card, st.streams, ui);
 
@@ -1612,7 +1609,7 @@
 
     [
 
-      ["Available for palletisation", fmtKg(b.available_kg) + " kg"],
+      ["Available for palletisation", fmtMass(b.available_kg)],
 
       ["Pallet equivalent", b.pallet_equivalent != null ? Number(b.pallet_equivalent).toFixed(2) : "—"],
 
@@ -1638,13 +1635,13 @@
 
       [
 
-        ["Available", fmtKg(row.available_kg) + " kg"],
+        ["Available", fmtMass(row.available_kg)],
 
         ["Pallet equivalent", row.pallet_equivalent != null ? Number(row.pallet_equivalent).toFixed(2) : "—"],
 
-        ["Production target / pallet", row.production_target_kg != null ? fmtKg(row.production_target_kg) + " kg" : "—"],
+        ["Production target / pallet", row.production_target_kg != null ? fmtMass(row.production_target_kg, true) : "—"],
 
-        ["Commercial pallet", row.commercial_pallet_weight_kg != null ? fmtKg(row.commercial_pallet_weight_kg) + " kg" : "—"],
+        ["Commercial pallet", row.commercial_pallet_weight_kg != null ? fmtMass(row.commercial_pallet_weight_kg, true) : "—"],
 
         ["Retail units / pallet", row.bags_per_pallet != null ? String(row.bags_per_pallet) : "—"],
 
@@ -1694,7 +1691,7 @@
 
       ["Product", (p.product_code || "—") + (p.product_name ? " — " + p.product_name : "")],
 
-      ["Production weight", p.production_pallet_kg != null ? fmtKg(p.production_pallet_kg) + " kg" : "—"],
+      ["Production weight", p.production_pallet_kg != null ? fmtMass(p.production_pallet_kg, true) : "—"],
 
       ["Retail units", p.retail_unit_count != null ? String(p.retail_unit_count) : "—"],
 
@@ -1728,7 +1725,7 @@
 
         var line = pr.display || "—";
 
-        if (pr.kg != null) line += " · " + fmtKg(pr.kg) + " kg";
+        if (pr.kg != null) line += " · " + fmtMass(pr.kg);
 
         if (pr.pct != null) line += " (" + pr.pct + "%)";
 
@@ -1792,7 +1789,7 @@
 
       card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(bucket.bags)]));
 
-      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(bucket.kg) + " kg"]));
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtMass(bucket.kg)]));
 
       grid.appendChild(card);
 
@@ -1955,7 +1952,7 @@
       labelRow.appendChild(ui.el("span", { class: "bs-dash-cat-card__label" }, [STREAM_LABELS[key]]));
       card.appendChild(labelRow);
       card.appendChild(ui.el("div", { class: "bs-dash-cat-card__value" }, [String(c.bags)]));
-      card.appendChild(ui.el("span", { class: "bs-dash-cat-card__sub" }, [fmtKg(c.kg) + " kg"]));
+      card.appendChild(ui.el("span", { class: "bs-dash-cat-card__sub" }, [fmtMass(c.kg)]));
       var track = ui.el("div", { class: "bs-dash-cat-card__track" });
       track.appendChild(applyStyles(ui.el("div", { class: "bs-dash-cat-card__fill" }), {
         width: Math.max((c.kg / scale) * 100, 4) + "%",
@@ -2041,7 +2038,7 @@
         streamTd.appendChild(document.createTextNode(streamText(row)));
       }
       tr.appendChild(streamTd);
-      tr.appendChild(ui.el("td", {}, [fmtKg(row.net_weight_kg)]));
+      tr.appendChild(ui.el("td", {}, [fmtMass(row.net_weight_kg, true)]));
       tr.appendChild(ui.el("td", {}, [scanTimestampCell(row)]));
       tr.appendChild(ui.el("td", {}, [weatherText(row)]));
       tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [
@@ -2074,7 +2071,7 @@
       summary.appendChild(ui.el("span", { class: "bs-dash-producer-summary__name" }, [group.producer]));
       summary.appendChild(renderFscPill(group.fsc, ui));
       summary.appendChild(ui.el("span", { class: "bs-dash-producer-summary__meta" }, [
-        group.bags + (group.bags === 1 ? " bag" : " bags") + " · " + fmtKg(group.kg) + " kg",
+        bagsKgText(group.bags, group.kg),
       ]));
       details.appendChild(summary);
       details.appendChild(renderProducerBagTable(group.rows, ui, onRowClick));
@@ -2148,7 +2145,7 @@
 
       tr.appendChild(ui.el("td", {}, [palletProducerCell(row)]));
 
-      tr.appendChild(ui.el("td", {}, [fmtKg(row.net_weight_kg)]));
+      tr.appendChild(ui.el("td", {}, [fmtMass(row.net_weight_kg, true)]));
 
       tr.appendChild(ui.el("td", {}, [scanTimestampCell(row)]));
 
@@ -2197,7 +2194,7 @@
 
       card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(section.bags)]));
 
-      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtKg(section.kg) + " kg"]));
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtMass(section.kg)]));
 
       var dest = section.client_name || section.container_number;
 

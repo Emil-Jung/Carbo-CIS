@@ -49,14 +49,9 @@
     summary.appendChild(
       ui.el("p", {}, [
         ui.el("strong", {}, ["Loaded: "]),
-        String(detail.loaded_bags) +
-          " bags · " +
-          fmt(detail.kg_loaded) +
-          " kg · Received: " +
-          String(detail.received_bags) +
-          " bags · " +
-          fmt(detail.kg_received) +
-          " kg",
+        CIS.bagsAndMassText(detail.loaded_bags, detail.kg_loaded) +
+          " · Received: " +
+          CIS.bagsAndMassText(detail.received_bags, detail.kg_received),
       ])
     );
     if (detail.missing_count) {
@@ -100,7 +95,7 @@
         ui.el("tr", {}, [
           ui.el("td", {}, [b.bag_identifier]),
           ui.el("td", {}, [b.product_stream || "—"]),
-          ui.el("td", {}, [fmt(b.net_weight_kg)]),
+          ui.el("td", {}, [CIS.formatMassFromKg(b.net_weight_kg, { forceKg: true })]),
           ui.el("td", {}, [fmtDate(b.loaded_at)]),
           ui.el("td", {}, [b.received_at ? fmtDate(b.received_at) : "—"]),
           ui.el("td", {}, [b.storage_status || "—"]),
