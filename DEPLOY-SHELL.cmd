@@ -47,5 +47,9 @@ if errorlevel 1 (
 )
 
 echo.
+echo.
+echo Verify on server (optional):
+echo   ssh %CIS_SERVER_SSH% "git -C /opt/carbo/carbo-cis rev-parse --short HEAD; grep bags_status.js /opt/carbo/cis/shell/index.html"
+echo.
 echo Done. Open https://bkweb3.bigk.co.uk/cis/ and press Ctrl+F5
 pause

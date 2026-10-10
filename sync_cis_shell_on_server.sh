@@ -81,6 +81,17 @@ grep -q 'delivery-conf-form-grid' "$DEST/styles.css" 2>/dev/null \
 CR_LIVE=$(grep -o '"controlRoomLive"[[:space:]]*:[[:space:]]*[^,}]*' "$DEST/config.json" 2>/dev/null | head -1 || true)
 echo "config.json $CR_LIVE (false = Control Room stays Coming soon)"
 
+GIT_HEAD=$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo "?")
+echo ""
+echo "Git HEAD in repo: $GIT_HEAD"
+BS_VER=$(grep -o 'bags_status.js?v=[^"]*' "$DEST/index.html" 2>/dev/null | head -1 || true)
+echo "nginx shell index.html: ${BS_VER:-bags_status.js tag missing}"
+if ! diff -q "$REPO/shell/index.html" "$DEST/index.html" >/dev/null 2>&1; then
+  echo "ERROR: $DEST/index.html differs from repo — copy step failed?"
+  exit 1
+fi
+echo "OK: nginx shell index.html matches repo"
+
 echo ""
 echo "Verify in browser (Ctrl+F5): https://bkweb3.bigk.co.uk/cis/"
 echo "View page source — should contain: dashboard.js, logo.png, topbar-context"
