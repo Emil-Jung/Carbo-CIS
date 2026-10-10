@@ -143,11 +143,12 @@ a {
   position: absolute;
   inset: 0;
   z-index: 1;
+  /* Light scrim — landscape visible; nav stays on gold/cream text + shadow */
   background: linear-gradient(
     180deg,
-    rgba(12, 10, 8, 0.55) 0%,
-    rgba(18, 16, 14, 0.72) 42%,
-    rgba(10, 8, 6, 0.82) 100%
+    rgba(12, 10, 8, 0.22) 0%,
+    rgba(18, 16, 14, 0.38) 50%,
+    rgba(10, 8, 6, 0.52) 100%
   );
 }
 
@@ -178,6 +179,7 @@ a {
   font-size: 15px;
   letter-spacing: 0.14em;
   color: var(--gold-on-dark);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
 }
 
 .sidebar-nav {
@@ -250,6 +252,7 @@ a {
   flex: 1;
   min-width: 0;
   line-height: 1.25;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
 }
 
 .nav-item-soon {

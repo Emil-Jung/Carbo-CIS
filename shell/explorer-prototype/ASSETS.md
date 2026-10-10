@@ -13,3 +13,5 @@ All files live in `shell/explorer-prototype/assets/`. **PNG masters** are binary
 Reference copies (design history only, not used in CSS/HTML): `design-reference-option-b.jpg`, `design-reference-option-c.jpg`.
 
 To refresh assets after art updates, recopy from the same source paths and commit only under `shell/explorer-prototype/assets/`.
+
+**Replacing the sidebar photo:** drop in new art as `Moody-Acacia-Sunset-Savanna.png` (or add a new filename and update `index.html` `<picture>` + regenerate `.webp` with the same proportional resize script). Tune `object-position` in `explorer-v2.css` (`.sidebar-bg img`) if the focal point moves. Scrim strength is `.sidebar-bg::after` — lighten if the new art is already dark.
