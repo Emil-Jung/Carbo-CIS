@@ -117,6 +117,10 @@ a {
   position: absolute;
   inset: 0;
   background: url("assets/Moody-Acacia-Sunset-Savanna.png") center 55% / cover no-repeat;
+  background: image-set(
+    url("assets/Moody-Acacia-Sunset-Savanna.webp") type("image/webp"),
+    url("assets/Moody-Acacia-Sunset-Savanna.png") type("image/png")
+  ) center 55% / cover no-repeat;
   pointer-events: none;
 }
 
@@ -606,6 +610,12 @@ a {
   height: 168px;
 }
 
+.hero picture {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
 .hero-bg {
   position: absolute;
   inset: 0;
@@ -1073,6 +1083,10 @@ a {
   bottom: 0;
   height: 56px;
   background: url("assets/Moody-Acacia-Sunset-Savanna.png") center 70% / cover no-repeat;
+  background: image-set(
+    url("assets/Moody-Acacia-Sunset-Savanna.webp") type("image/webp"),
+    url("assets/Moody-Acacia-Sunset-Savanna.png") type("image/png")
+  ) center 70% / cover no-repeat;
   opacity: 0.55;
   mask-image: linear-gradient(to top, black 30%, transparent);
   pointer-events: none;
