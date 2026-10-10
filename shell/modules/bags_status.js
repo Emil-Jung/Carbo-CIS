@@ -224,23 +224,51 @@
 
 
 
+  function fmtWeatherEndDate(iso) {
+
+    if (!iso) return "";
+
+    return fmtDayHeading(String(iso).slice(0, 10));
+
+  }
+
+
+
   function weatherText(row) {
 
-    if (row.released_early) return "Released early";
+    var parts = [];
+
+    if (row.released_early) parts.push("Released early");
 
     var days = row.days_remaining;
 
-    if (days === null || days === undefined) return "—";
+    if (days === null || days === undefined) {
+
+      return parts.length ? parts.join(" · ") : "—";
+
+    }
 
     days = Number(days);
 
-    if (days > 0) return days + (days === 1 ? " day left" : " days left");
+    if (days > 0) {
 
-    var over = Math.abs(days);
+      parts.push(days + (days === 1 ? " day left" : " days left"));
 
-    if (over === 0) return "Ready today";
+    } else {
 
-    return "Ready " + over + (over === 1 ? " day" : " days") + " ago";
+      var over = Math.abs(days);
+
+      if (over === 0) parts.push("Ready today");
+
+      else parts.push("Ready " + over + (over === 1 ? " day" : " days") + " ago");
+
+    }
+
+    var endLabel = fmtWeatherEndDate(row.weathering_end_date);
+
+    if (endLabel) parts.push("ends " + endLabel);
+
+    return parts.join(" · ");
 
   }
 
