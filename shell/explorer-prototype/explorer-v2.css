@@ -14,8 +14,8 @@
   /* Bold Carbo — sidebar & identity */
   --sidebar-bg: #1c1a18;
   --sidebar-border: #3d3528;
-  --sidebar-text: #ece6dc;
-  --sidebar-muted: #a89f8f;
+  --sidebar-text: #f8f4ec;
+  --sidebar-muted: #ddd4c6;
 
   --gold: #c9a227;
   --gold-bright: #e4c04a;
@@ -162,24 +162,23 @@ a {
 }
 
 .sidebar-brand {
-  padding: 20px 18px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 18px 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(
+    180deg,
+    rgba(8, 6, 4, 0.62) 0%,
+    rgba(8, 6, 4, 0.28) 100%
+  );
 }
 
 .sidebar-brand img {
-  width: 52px;
-  height: 52px;
+  width: 96px;
+  height: 96px;
+  max-width: calc(100% - 8px);
   object-fit: contain;
   display: block;
-  margin-bottom: 6px;
-}
-
-.sidebar-brand-name {
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.14em;
-  color: var(--gold-on-dark);
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  margin: 0 auto;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.55));
 }
 
 .sidebar-nav {
@@ -203,8 +202,8 @@ a {
   margin: 4px 0 2px;
   border: none;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.22);
-  color: var(--sidebar-muted);
+  background: rgba(0, 0, 0, 0.32);
+  color: var(--sidebar-text);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -214,8 +213,8 @@ a {
 }
 
 .nav-group-header:hover {
-  background: rgba(0, 0, 0, 0.32);
-  color: var(--sidebar-text);
+  background: rgba(0, 0, 0, 0.42);
+  color: var(--gold-on-dark);
 }
 
 .nav-group-chevron {
@@ -252,7 +251,7 @@ a {
   flex: 1;
   min-width: 0;
   line-height: 1.25;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
 }
 
 .nav-item-soon {
@@ -303,12 +302,13 @@ a {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  opacity: 0.9;
+  opacity: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
 
 .nav-chevron {
   margin-left: auto;
-  opacity: 0.45;
+  opacity: 0.75;
   font-size: 11px;
 }
 
@@ -621,7 +621,7 @@ a {
 /* ---- Hero banner (CIS Shell V2.0 spec — typography/layout only) ---- */
 .hero {
   position: relative;
-  margin: 16px 0 20px;
+  margin: 12px 0 20px;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: var(--shadow-card);
@@ -1268,16 +1268,6 @@ html[data-theme="dark"] {
   --text-muted: #9a9288;
 }
 
-.prototype-banner {
-  margin: 0 0 12px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: rgba(201, 162, 39, 0.12);
-  border: 1px solid rgba(201, 162, 39, 0.35);
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
 /* Mobile: full nav via drawer only (no permanent bottom bar) */
 .mobile-nav {
   display: none !important;
@@ -1439,9 +1429,6 @@ html[data-theme="dark"] {
     font-weight: 600;
   }
 
-  .prototype-banner {
-    font-size: 11px;
-  }
 }
 
 @media (max-width: 320px) {
