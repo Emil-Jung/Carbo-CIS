@@ -475,15 +475,18 @@ a {
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow-card);
-  /* Banner PNG is 2171×724 (3:1) — scale to full width, no cover crop */
+  height: 168px;
+  /* 2171×724 panorama — fixed strip height; img fills with cover + focal point */
 }
 
 .hero-bg {
-  display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
-  height: auto;
-  vertical-align: top;
-  object-fit: contain;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: 50% 40%;
 }
 
 .hero-overlay {
@@ -1183,6 +1186,11 @@ html[data-theme="dark"] {
 
   .hero {
     margin-top: 12px;
+    height: 148px;
+  }
+
+  .hero-bg {
+    object-position: 52% 38%;
   }
 
   .hero-inner {
@@ -1228,6 +1236,13 @@ html[data-theme="dark"] {
     gap: 8px;
   }
 
+  .hero {
+    height: 132px;
+  }
+
+  .hero-bg {
+    object-position: 55% 36%;
+  }
 }
 
 @media (max-width: 375px) {
