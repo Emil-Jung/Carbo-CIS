@@ -1194,6 +1194,23 @@ body {
   font-weight: 600;
 }
 
+.bs-dash-status-card__streams--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.bs-dash-status-card__stream-row {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.bs-dash-status-grid .bs-dash-status-card {
+  align-self: stretch;
+}
+
 .bs-dash-status-card__streams,
 .bs-dash-status-card__dest {
   display: block;
