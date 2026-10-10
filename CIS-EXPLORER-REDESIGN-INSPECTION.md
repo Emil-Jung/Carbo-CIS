@@ -205,8 +205,14 @@ Scripts loaded in production are listed in `shell/index.html` (order matters: mo
 
 ---
 
+## Shell V2.0 visual prototype (in progress)
+
+**Path:** `shell/explorer-prototype/` — Modern Carbo × Bold Carbo mashup (static UI, no module wiring).
+
+See [shell/explorer-prototype/README.md](./shell/explorer-prototype/README.md).
+
 ## Next steps
 
-1. Add **Bold Carbo (Option C)** reference to the project or shared design link.
-2. Confirm prototype hosting: **local only**, **`/cis/explorer-prototype/`**, or both.
-3. After approval, implement prototype in `shell/explorer-prototype/` without switching live `index.html` until cutover is agreed.
+1. Review V2 prototype visuals; replace SVG landscape placeholders with approved photography when available.
+2. Wire navigation and modules after visual sign-off.
+3. Cut over production `index.html` only when explicitly agreed.
