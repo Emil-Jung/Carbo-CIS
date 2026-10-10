@@ -486,7 +486,8 @@ a {
   height: 100%;
   display: block;
   object-fit: cover;
-  object-position: 50% 40%;
+  /* Panorama: sky ~top 55%; horizon/trees ~55–70%; sun on right — avoid framing empty sky */
+  object-position: 58% 64%;
 }
 
 .hero-overlay {
@@ -1190,7 +1191,7 @@ html[data-theme="dark"] {
   }
 
   .hero-bg {
-    object-position: 52% 38%;
+    object-position: 65% 62%;
   }
 
   .hero-inner {
