@@ -38,10 +38,11 @@
   --sidebar-scrim-top: rgba(12, 10, 8, 0.22);
   --sidebar-scrim-mid: rgba(18, 16, 14, 0.38);
   --sidebar-scrim-bottom: rgba(10, 8, 6, 0.52);
-  /* Logo panel — solid light strip over sidebar art (Main Logo needs light ground) */
-  --sidebar-brand-panel-bg: var(--surface-raised);
-  --sidebar-brand-panel-border: var(--border-light);
-  --sidebar-logo-shadow: none;
+  /* Logo — warm half-strip: solid behind mark, fades into savanna art */
+  --sidebar-brand-fade-top: rgba(255, 251, 244, 0.96);
+  --sidebar-brand-fade-mid: rgba(248, 232, 205, 0.42);
+  --sidebar-brand-accent: rgba(201, 162, 39, 0.12);
+  --sidebar-logo-shadow: drop-shadow(0 2px 8px rgba(52, 38, 18, 0.18));
   --sidebar-footer-border: rgba(255, 255, 255, 0.06);
   --sidebar-close-bg: rgba(255, 255, 255, 0.08);
   --sidebar-settings-bg: rgba(255, 255, 255, 0.04);

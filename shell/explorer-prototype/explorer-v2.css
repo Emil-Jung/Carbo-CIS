@@ -122,16 +122,44 @@ a {
 
 .sidebar-brand {
   flex-shrink: 0;
-  padding: 14px 16px 12px;
-  border-bottom: 1px solid var(--sidebar-brand-panel-border);
-  background: var(--sidebar-brand-panel-bg);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+  position: relative;
+  padding: 10px 8px 22px;
+  margin-bottom: 2px;
+  border-bottom: none;
+  background: linear-gradient(
+    180deg,
+    var(--sidebar-brand-fade-top) 0%,
+    var(--sidebar-brand-fade-top) 42%,
+    var(--sidebar-brand-fade-mid) 68%,
+    transparent 100%
+  );
+}
+
+.sidebar-brand::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  transform: translateX(-50%);
+  width: min(92%, 11.5rem);
+  height: calc(100% - 14px);
+  max-height: 9.5rem;
+  border-radius: 10px;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    var(--sidebar-brand-accent) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
 }
 
 .sidebar-brand img {
+  position: relative;
+  z-index: 1;
   width: auto;
-  height: 88px;
-  max-width: calc(100% - 4px);
+  height: 124px;
+  max-width: calc(100% - 8px);
   object-fit: contain;
   display: block;
   margin: 0 auto;
