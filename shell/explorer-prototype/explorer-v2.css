@@ -135,7 +135,7 @@ a {
   height: 100%;
   display: block;
   object-fit: cover;
-  object-position: center 55%;
+  object-position: 42% 48%;
 }
 
 .sidebar-bg::after {
@@ -1100,11 +1100,11 @@ a {
   right: 0;
   bottom: 0;
   height: 56px;
-  background: url("assets/Moody-Acacia-Sunset-Savanna.png") center 70% / cover no-repeat;
+  background: url("assets/Acacia-Silhouette-Over-Golden-Savanna.png") 42% 70% / cover no-repeat;
   background: image-set(
-    url("assets/Moody-Acacia-Sunset-Savanna.webp") type("image/webp"),
-    url("assets/Moody-Acacia-Sunset-Savanna.png") type("image/png")
-  ) center 70% / cover no-repeat;
+    url("assets/Acacia-Silhouette-Over-Golden-Savanna.webp") type("image/webp"),
+    url("assets/Acacia-Silhouette-Over-Golden-Savanna.png") type("image/png")
+  ) 42% 70% / cover no-repeat;
   opacity: 0.55;
   mask-image: linear-gradient(to top, black 30%, transparent);
   pointer-events: none;

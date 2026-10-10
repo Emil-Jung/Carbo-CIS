@@ -7,8 +7,9 @@ All files live in `shell/explorer-prototype/assets/`. **PNG masters** are binary
 | `Carbo-Main-Logo.png` | `G:\My Coding Projects\FSC-Management-System\assets\Carbo Main Logo.png` | `index.html` — sidebar brand, favicon |
 | `Golden-Acacia-Sunset-Plain.png` | `C:\Users\Administrator\Downloads\Golden Acacia Sunset Plain.png` | Hero `<picture>` PNG fallback |
 | `Golden-Acacia-Sunset-Plain.webp` | Derived (1920×640, ~86 quality) | Hero primary — same `object-fit: cover`, `object-position: 58% 64%` |
-| `Moody-Acacia-Sunset-Savanna.png` | `C:\Users\Administrator\Downloads\Moody Acacia Sunset Savanna.png` | Sidebar / reports footer PNG fallback |
-| `Moody-Acacia-Sunset-Savanna.webp` | Derived (1024px wide, ~82 quality) | Sidebar `<picture>` (same `object-fit: cover`, `object-position: center 55%`) |
+| `Acacia-Silhouette-Over-Golden-Savanna.png` | `C:\Users\Administrator\Downloads\Acacia Silhouette Over Golden Savanna.png` | Sidebar `<picture>` + reports footer strip |
+| `Acacia-Silhouette-Over-Golden-Savanna.webp` | Derived (1024×1536, ~84 quality) | Sidebar primary — `object-position: 42% 48%` |
+| `Moody-Acacia-Sunset-Savanna.png` | *(legacy, unused)* | Kept in repo only if needed for reference |
 
 Reference copies (design history only, not used in CSS/HTML): `design-reference-option-b.jpg`, `design-reference-option-c.jpg`.
 
