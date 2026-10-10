@@ -618,6 +618,23 @@ a {
   padding-bottom: var(--cis-float-nav-clearance);
 }
 
+/* Float Back sits in the module pane — production styles.css uses viewport left (under sidebar) */
+body.explorer-v2-shell .workspace-module > .cis-float-nav {
+  position: fixed;
+  left: calc(var(--sidebar-width) + 14px);
+  right: auto;
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  z-index: 900;
+  max-width: min(calc(100vw - var(--sidebar-width) - 28px), 18rem);
+}
+
+@media (max-width: 768px) {
+  body.explorer-v2-shell .workspace-module > .cis-float-nav {
+    left: 14px;
+    max-width: min(92vw, 18rem);
+  }
+}
+
 /* ---- Hero banner (CIS Shell V2.0 spec — typography/layout only) ---- */
 .hero {
   position: relative;
