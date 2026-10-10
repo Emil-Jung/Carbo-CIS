@@ -15,6 +15,7 @@ Mirrors production `dashboard.js` **LAYOUT** plus Traceability hub children (`tr
 | | ↳ `print_labels` | Print Labels | Under Labels |
 | | ↳ `label_deployment` | Label Fencing | Under Labels |
 | | ↳ `movement_schedule` | Movement schedule | |
+| | ↳ `walvis_dispatches` | Walvis dispatches | Manifest vs received |
 | | ↳ `containers` | Containers | |
 | | ↳ `pallet_configuration` | Pallet Configuration | |
 | | ↳ `manager_override` | Manager Override | |

@@ -36,6 +36,17 @@
       icon: "schedule",
     },
     {
+      id: "walvis_dispatches",
+      title: "Walvis dispatches",
+      description: "Truck manifest at Grootfontein vs bags received at Walvis Bay.",
+      requiresAny: [
+        "traceability.bags_status",
+        "traceability.bags_movement",
+        "traceability.movement_jobs",
+      ],
+      icon: "schedule",
+    },
+    {
       id: "containers",
       title: "Containers",
       description: "Preload container numbers and bookings for Walvis Bay.",
