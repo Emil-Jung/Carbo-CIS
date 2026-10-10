@@ -135,9 +135,10 @@
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Walvis dispatches"]));
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
-        "Each dispatch is one truck run from Grootfontein to Walvis Bay. ",
-        "Shorty loads bags onto the truck (manifest); Wynand scans into Walvis storage (received). ",
-        "Compare counts and serials when a customer or Simon disputes weight or mix.",
+        "Open truck loads only — Shorty manifests at Grootfontein; Wynand scans into Walvis storage. ",
+        "When a run is complete, stock appears under ",
+        ui.el("strong", {}, ["Bags Status → In storage — Walvis Bay"]),
+        " (not here). Closed dispatches remain in the database for audit.",
       ])
     );
 
@@ -171,7 +172,12 @@
       var rows = data.dispatches || [];
       listHost.innerHTML = "";
       if (!rows.length) {
-        listHost.appendChild(ui.el("p", { class: "muted" }, ["No dispatches yet."]));
+        listHost.appendChild(
+          ui.el("p", { class: "muted" }, [
+            "No open truck dispatch. Use Bag Walk at Grootfontein to start loading, or fence retroactive storage from above. ",
+            "Completed loads: Bags Status → In transit & at the coast → In storage — Walvis Bay.",
+          ])
+        );
         return;
       }
       rows.forEach(function (d) {

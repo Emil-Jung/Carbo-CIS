@@ -1273,11 +1273,40 @@
 
 
 
+  var WALVIS_STORAGE_STATUS = "storage_walvisbay";
+
+  function isWalvisStorageStatus(key) {
+    return key === WALVIS_STORAGE_STATUS;
+  }
+
+  function palletWalvisStorageBucket(palletSummary) {
+    var buckets = (palletSummary && palletSummary.buckets) || [];
+    for (var i = 0; i < buckets.length; i++) {
+      if (buckets[i].key === WALVIS_STORAGE_STATUS) return buckets[i];
+    }
+    return {
+      key: WALVIS_STORAGE_STATUS,
+      label: "Pallets in storage — Walvis Bay",
+      bags: 0,
+      kg: 0,
+    };
+  }
+
+  function flattenEventRows(sections) {
+    var rows = [];
+    (sections || []).forEach(function (sec) {
+      rows = rows.concat(sec.rows || []);
+    });
+    return rows;
+  }
+
   function combineTransitCoastGroups(groups) {
 
     groups = groups || [];
 
     var transit = null;
+
+    var walvis = null;
 
     var coast = null;
 
@@ -1293,6 +1322,14 @@
 
       }
 
+      if (g.key === "walvis_storage") {
+
+        walvis = g;
+
+        if (insertIdx < 0) insertIdx = i;
+
+      }
+
       if (g.key === "coast") {
 
         coast = g;
@@ -1303,7 +1340,7 @@
 
     });
 
-    if (!transit && !coast) return groups;
+    if (!transit && !walvis && !coast) return groups;
 
     var sections = [];
 
@@ -1316,6 +1353,20 @@
         label: transit.label || "In transit",
 
         statuses: transit.statuses || [],
+
+      });
+
+    }
+
+    if (walvis) {
+
+      sections.push({
+
+        key: "walvis_storage",
+
+        label: walvis.label || "In storage — Walvis Bay",
+
+        statuses: walvis.statuses || [],
 
       });
 
@@ -1341,9 +1392,9 @@
 
       label: "In transit & at the coast",
 
-      bags: (transit ? transit.bags : 0) + (coast ? coast.bags : 0),
+      bags: (transit ? transit.bags : 0) + (walvis ? walvis.bags : 0) + (coast ? coast.bags : 0),
 
-      kg: (transit ? transit.kg : 0) + (coast ? coast.kg : 0),
+      kg: (transit ? transit.kg : 0) + (walvis ? walvis.kg : 0) + (coast ? coast.kg : 0),
 
       sections: sections,
 
@@ -1351,13 +1402,13 @@
 
     var out = groups.filter(function (g) {
 
-      return g.key !== "in_transit" && g.key !== "coast";
+      return g.key !== "in_transit" && g.key !== "coast" && g.key !== "walvis_storage";
 
     });
 
     var at = groups.slice(0, insertIdx).filter(function (g) {
 
-      return g.key !== "in_transit" && g.key !== "coast";
+      return g.key !== "in_transit" && g.key !== "coast" && g.key !== "walvis_storage";
 
     }).length;
 
@@ -1523,6 +1574,60 @@
     row.appendChild(bagsCol);
     row.appendChild(palCol);
     block.appendChild(row);
+  }
+
+  function renderWalvisStorageSplit(parent, bulkStatus, palletBucket, ui, onSelect) {
+    var row = ui.el("div", { class: "bs-dash-factory-storage-split" });
+    var bagsCol = ui.el("div", { class: "bs-dash-factory-storage-split__col" });
+    bagsCol.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Bulk bags in storage"]));
+    bagsCol.appendChild(
+      ui.el("p", { class: "bs-dash-location__note bs-dash-location__note--compact muted" }, [
+        "Intake jumbos at Walvis Bay — by category and producer, same as factory storage drill-down.",
+      ])
+    );
+    appendStatusCards(
+      bagsCol,
+      [
+        Object.assign({}, statusForBagsOnlyDisplay(bulkStatus), {
+          key: WALVIS_STORAGE_STATUS,
+          label: "Bulk bags",
+          kind: "walvis_bulk_bags",
+        }),
+      ],
+      ui,
+      null,
+      onSelect,
+      "bs-dash-status-grid--inline"
+    );
+
+    var palCol = ui.el("div", { class: "bs-dash-factory-storage-split__col" });
+    palCol.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Pallets in storage"]));
+    palCol.appendChild(
+      ui.el("p", { class: "bs-dash-location__note bs-dash-location__note--compact muted" }, [
+        "Physical pallet BAG IDs in Walvis storage — tap for product mix and source producers.",
+      ])
+    );
+    var pal = palletBucket || { bags: 0, kg: 0 };
+    appendStatusCards(
+      palCol,
+      [
+        {
+          key: "walvis:pallets",
+          label: "Pallets in storage",
+          kind: "walvis_pallets",
+          bags: pal.bags || 0,
+          kg: pal.kg || 0,
+          streams: {},
+        },
+      ],
+      ui,
+      null,
+      onSelect,
+      "bs-dash-status-grid--inline"
+    );
+    row.appendChild(bagsCol);
+    row.appendChild(palCol);
+    parent.appendChild(row);
   }
 
   function renderGroup(group, ui, selectedStatus, onSelect, dashboardSummary) {
@@ -2449,6 +2554,18 @@
 
 
 
+        if (selected.mode === "walvis_storage_hub") {
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label || "In storage — Walvis Bay"]));
+          body.appendChild(
+            ui.el("p", { class: "bs-dash-drill-note" }, [
+              "Completed truck dispatches stay in the database for audit; stock on the ground is shown here.",
+            ])
+          );
+          renderWalvisStorageSplit(body, selected.bulkStatus || {}, selected.palletBucket, ui, openStatus);
+          syncFloatingNav();
+          return;
+        }
+
         if (selected.mode === "pallet_basket") {
 
           body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label]));
@@ -3081,7 +3198,93 @@
 
 
 
+    function openWalvisStorageHub(st) {
+      selectedEvent = null;
+      wxDrill = null;
+      selected = {
+        key: WALVIS_STORAGE_STATUS,
+        label: st.label || "In storage — Walvis Bay",
+        mode: "walvis_storage_hub",
+        bulkStatus: st,
+        palletBucket: palletWalvisStorageBucket(summary.pallet_summary),
+      };
+      paint();
+    }
+
+    async function openWalvisBulkDrill() {
+      status.textContent = "Loading bulk bags…";
+      status.style.display = "";
+      try {
+        var data = await ctx.api.traceability(
+          "/reports/bags-status?status=" + encodeURIComponent(WALVIS_STORAGE_STATUS)
+        );
+        var rows = flattenEventRows(data.event_sections || []).filter(function (r) {
+          return (r.product_stream || "").toLowerCase() !== "pallet";
+        });
+        selectedEvent = null;
+        selected = null;
+        wxDrill = {
+          label: "Bulk bags — Walvis Bay",
+          rows: rows,
+          backTo: "main",
+        };
+        status.style.display = "none";
+        paint();
+      } catch (e) {
+        status.style.display = "none";
+        body.innerHTML = "";
+        body.appendChild(ui.error("Could not load Walvis bags: " + (e.message || e)));
+      }
+    }
+
+    async function openWalvisPalletsDrill(st) {
+      selectedEvent = null;
+      wxDrill = null;
+      var bucket = palletWalvisStorageBucket(summary.pallet_summary);
+      if (!(bucket.bags || 0)) {
+        status.textContent = "Loading pallets…";
+        status.style.display = "";
+        try {
+          await openPalletBucket(
+            { key: WALVIS_STORAGE_STATUS, label: bucket.label, bags: 0, kg: 0 },
+            WALVIS_STORAGE_STATUS
+          );
+          status.style.display = "none";
+        } catch (e) {
+          status.style.display = "none";
+          body.appendChild(ui.error("Could not load pallets: " + (e.message || e)));
+        }
+        return;
+      }
+      selected = {
+        key: st.key,
+        label: st.label || "Pallets — Walvis Bay",
+        mode: "physical_pallets",
+        view: "locations",
+        parentLabel: "In storage — Walvis Bay",
+        parentCount: bucket.bags || 0,
+        count: bucket.bags || 0,
+        locationBuckets: [bucket],
+      };
+      paint();
+    }
+
     async function openStatus(st) {
+
+      if (isWalvisStorageStatus(st.key)) {
+        openWalvisStorageHub(st);
+        return;
+      }
+
+      if (st.kind === "walvis_bulk_bags") {
+        await openWalvisBulkDrill();
+        return;
+      }
+
+      if (st.kind === "walvis_pallets") {
+        await openWalvisPalletsDrill(st);
+        return;
+      }
 
       if (st.kind === "factory_pallets_in_storage") {
 
