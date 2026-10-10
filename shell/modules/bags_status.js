@@ -1589,7 +1589,7 @@
       bagsCol,
       [
         Object.assign({}, statusForBagsOnlyDisplay(bulkStatus), {
-          key: WALVIS_STORAGE_STATUS,
+          key: "walvis:bulk_bags",
           label: "Bulk bags",
           kind: "walvis_bulk_bags",
         }),
@@ -3271,11 +3271,6 @@
 
     async function openStatus(st) {
 
-      if (isWalvisStorageStatus(st.key)) {
-        openWalvisStorageHub(st);
-        return;
-      }
-
       if (st.kind === "walvis_bulk_bags") {
         await openWalvisBulkDrill();
         return;
@@ -3283,6 +3278,23 @@
 
       if (st.kind === "walvis_pallets") {
         await openWalvisPalletsDrill(st);
+        return;
+      }
+
+      if (isWalvisStorageStatus(st.key)) {
+        var bulkOnly = statusForBagsOnlyDisplay(st);
+        var palAtWalvis = palletWalvisStorageBucket(summary.pallet_summary);
+        if ((bulkOnly.bags || 0) > 0 && !(palAtWalvis.bags || 0)) {
+          await openWalvisBulkDrill();
+        } else if (!(bulkOnly.bags || 0) && (palAtWalvis.bags || 0)) {
+          await openWalvisPalletsDrill({
+            key: "walvis:pallets",
+            label: "Pallets in storage",
+            kind: "walvis_pallets",
+          });
+        } else {
+          openWalvisStorageHub(st);
+        }
         return;
       }
 
