@@ -906,7 +906,7 @@
 
     at_packaging: "#F59E0B",
 
-    in_storage: "#2563EB",
+    in_storage: PALLET_MAGENTA,
 
     in_transit: "#7C3AED",
 
@@ -919,6 +919,85 @@
   };
 
 
+
+  /** Scanner Create pallet button (bags-lookup). */
+  var PALLET_MAGENTA = "#c2185b";
+
+  var FACTORY_STORAGE_STATUS_KEYS = {
+    in_storage_weathering: true,
+    in_storage_released_early: true,
+    in_storage: true,
+  };
+
+  function isFactoryStorageBagStatus(key) {
+    return !!FACTORY_STORAGE_STATUS_KEYS[key];
+  }
+
+  function bagsOnlyMetrics(st) {
+    var total = st.bags || 0;
+    var palletN = (st.streams && st.streams.pallet) || 0;
+    var bagN = Math.max(0, total - palletN);
+    var kg = st.kg || 0;
+    var bagKg = total > 0 ? (kg * bagN) / total : 0;
+    return { bags: bagN, kg: Math.round(bagKg * 1000) / 1000 };
+  }
+
+  function statusForBagsOnlyDisplay(st) {
+    var m = bagsOnlyMetrics(st);
+    var streams = {};
+    if (st.streams) {
+      Object.keys(st.streams).forEach(function (k) {
+        if (k !== "pallet") streams[k] = st.streams[k];
+      });
+    }
+    return {
+      key: st.key,
+      label: st.label,
+      bags: m.bags,
+      kg: m.kg,
+      streams: streams,
+      kind: st.kind || "factory_bag_status",
+    };
+  }
+
+  function partitionFactoryStatuses(statuses) {
+    var storage = [];
+    var other = [];
+    (statuses || []).forEach(function (st) {
+      if (FACTORY_STORAGE_STATUS_KEYS[st.key]) storage.push(st);
+      else other.push(st);
+    });
+    return { storage: storage, other: other };
+  }
+
+  function palletInStorageBucket(palletSummary) {
+    var buckets = (palletSummary && palletSummary.buckets) || [];
+    for (var i = 0; i < buckets.length; i++) {
+      if (buckets[i].key === "in_storage") return buckets[i];
+    }
+    return { key: "in_storage", label: "Pallets in storage", bags: 0, kg: 0 };
+  }
+
+  function filterEventSectionsToIntakeBags(sections) {
+    return (sections || [])
+      .map(function (sec) {
+        var rows = (sec.rows || []).filter(function (r) {
+          return (r.product_stream || "").toLowerCase() !== "pallet";
+        });
+        var kg = 0;
+        rows.forEach(function (r) {
+          kg += Number(r.net_weight_kg) || 0;
+        });
+        return Object.assign({}, sec, {
+          rows: rows,
+          bags: rows.length,
+          kg: Math.round(kg * 1000) / 1000,
+        });
+      })
+      .filter(function (sec) {
+        return sec.bags > 0;
+      });
+  }
 
   var PALLET_DRILL_STATUS = {
 
@@ -1022,7 +1101,7 @@
 
         ? ui.el("button", {
 
-          class: "bs-dash-status-card bs-dash-status-card--pallet",
+          class: "bs-dash-status-card bs-dash-status-card--pallet bs-dash-status-card--pallet-magenta",
 
           type: "button",
 
@@ -1271,7 +1350,9 @@
 
       if (st.kind === "pallet_basket") cls += " bs-dash-status-card--basket";
 
-      if (st.kind === "physical_pallets") cls += " bs-dash-status-card--pallet";
+      if (st.kind === "physical_pallets" || st.kind === "factory_pallets_in_storage") {
+        cls += " bs-dash-status-card--pallet bs-dash-status-card--pallet-magenta";
+      }
 
       var card = ui.el("button", { class: cls, type: "button", onclick: function () { onSelect(st); } });
 
@@ -1308,6 +1389,14 @@
           fmtKg(st.kg) + " kg · physical pallet BAG IDs",
         ]));
 
+      } else if (st.kind === "factory_pallets_in_storage") {
+
+        card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags || 0)]));
+
+        card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [
+          fmtKg(st.kg) + " kg · drill down by location",
+        ]));
+
       } else {
 
         card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags)]));
@@ -1330,7 +1419,51 @@
 
 
 
-  function renderGroup(group, ui, selectedStatus, onSelect) {
+  function renderFactoryStorageSplit(block, storageStatuses, palletSummary, ui, selectedStatus, onSelect) {
+    var row = ui.el("div", { class: "bs-dash-factory-storage-split" });
+
+    var bagsCol = ui.el("div", { class: "bs-dash-factory-storage-split__col" });
+    bagsCol.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Bags in storage"]));
+    bagsCol.appendChild(
+      ui.el("p", { class: "bs-dash-location__note bs-dash-location__note--compact muted" }, [
+        "Weathering, released early, and weathered — intake bags only (not pallets).",
+      ])
+    );
+    var bagCards = (storageStatuses || []).map(statusForBagsOnlyDisplay);
+    appendStatusCards(bagsCol, bagCards, ui, selectedStatus, onSelect, "bs-dash-status-grid--inline");
+
+    var palCol = ui.el("div", { class: "bs-dash-factory-storage-split__col" });
+    palCol.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Pallets in storage"]));
+    palCol.appendChild(
+      ui.el("p", { class: "bs-dash-location__note bs-dash-location__note--compact muted" }, [
+        "Physical pallet BAG IDs on the yard — same Create pallet flow as packaging.",
+      ])
+    );
+    var inStore = palletInStorageBucket(palletSummary);
+    appendStatusCards(
+      palCol,
+      [
+        {
+          key: "report:factory_pallets_in_storage",
+          label: "Pallets in storage",
+          kind: "factory_pallets_in_storage",
+          bags: inStore.bags || 0,
+          kg: inStore.kg || 0,
+          streams: {},
+        },
+      ],
+      ui,
+      selectedStatus,
+      onSelect,
+      "bs-dash-status-grid--inline"
+    );
+
+    row.appendChild(bagsCol);
+    row.appendChild(palCol);
+    block.appendChild(row);
+  }
+
+  function renderGroup(group, ui, selectedStatus, onSelect, dashboardSummary) {
 
     var tone = GROUP_TONE[group.key] || "indigo";
 
@@ -1371,6 +1504,21 @@
       });
 
       block.appendChild(row);
+
+    } else if (group.key === "factory") {
+
+      var parts = partitionFactoryStatuses(group.statuses || []);
+
+      renderFactoryStorageSplit(
+        block,
+        parts.storage,
+        dashboardSummary && dashboardSummary.pallet_summary,
+        ui,
+        selectedStatus,
+        onSelect
+      );
+
+      appendStatusCards(block, parts.other, ui, selectedStatus, onSelect);
 
     } else {
 
@@ -2156,9 +2304,15 @@
       try {
         var data = await ctx.api.traceability(buildWxDrillQuery(sel));
         if (token !== wxDrillToken) return;
+        var wxRows = (data.drill && data.drill.rows) || [];
+        if (selected && isFactoryStorageBagStatus(selected.key)) {
+          wxRows = wxRows.filter(function (r) {
+            return (r.product_stream || "").toLowerCase() !== "pallet";
+          });
+        }
         wxDrill = {
           label: sel.label,
-          rows: (data.drill && data.drill.rows) || [],
+          rows: wxRows,
           backTo: opts.backTo || "main",
         };
         paint();
@@ -2544,7 +2698,7 @@
 
       orderDashboardGroups(combineTransitCoastGroups(summary.groups)).forEach(function (group) {
 
-        body.appendChild(renderGroup(group, ui, null, openStatus));
+        body.appendChild(renderGroup(group, ui, null, openStatus, summary));
 
       });
 
@@ -2805,6 +2959,40 @@
 
       var count = st.bags || (summary.pallet_summary && summary.pallet_summary.total && summary.pallet_summary.total.bags) || 0;
 
+      var buckets = (summary.pallet_summary && summary.pallet_summary.buckets) || [];
+
+      var withStock = buckets.filter(function (b) {
+        return (b.bags || 0) > 0;
+      });
+
+      if (withStock.length) {
+
+        selected = {
+
+          key: st.key,
+
+          label: st.label || "Pallets",
+
+          mode: "physical_pallets",
+
+          view: "locations",
+
+          parentLabel: "Pallets",
+
+          parentCount: count,
+
+          count: count,
+
+          locationBuckets: withStock,
+
+        };
+
+        paint();
+
+        return;
+
+      }
+
       status.textContent = "Loading " + (st.label || "Pallets") + "…";
 
       status.style.display = "";
@@ -2834,6 +3022,40 @@
 
 
     async function openStatus(st) {
+
+      if (st.kind === "factory_pallets_in_storage") {
+
+        var inStoreBucket = palletInStorageBucket(summary.pallet_summary);
+
+        selectedEvent = null;
+
+        wxDrill = null;
+
+        selected = {
+
+          key: st.key,
+
+          label: st.label || "Pallets in storage",
+
+          mode: "physical_pallets",
+
+          view: "locations",
+
+          parentLabel: "Factory storage",
+
+          parentCount: inStoreBucket.bags || 0,
+
+          count: inStoreBucket.bags || 0,
+
+          locationBuckets: [inStoreBucket],
+
+        };
+
+        paint();
+
+        return;
+
+      }
 
       if (isPalletBasketTile(st)) {
 
@@ -2903,6 +3125,20 @@
 
         wxDrill = null;
 
+        var sections = data.event_sections || [];
+
+        if (isFactoryStorageBagStatus(st.key)) {
+
+          sections = filterEventSectionsToIntakeBags(sections);
+
+        }
+
+        var drillCount = 0;
+
+        sections.forEach(function (sec) {
+          drillCount += sec.bags || 0;
+        });
+
         selected = {
 
           key: st.key,
@@ -2911,9 +3147,9 @@
 
           mode: "events",
 
-          count: data.drill_bag_count || 0,
+          count: drillCount,
 
-          sections: data.event_sections || [],
+          sections: sections,
 
         };
 

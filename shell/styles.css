@@ -977,7 +977,55 @@ body {
 }
 
 .bs-dash-status-card--pallet {
-  --card-accent: #6366F1;
+  --card-accent: #c2185b;
+}
+
+.bs-dash-status-card--pallet-magenta {
+  --card-accent: #c2185b;
+  border-color: rgba(194, 24, 91, 0.4);
+}
+
+.bs-dash-status-card--pallet-magenta:hover {
+  border-color: #c2185b;
+}
+
+.bs-dash-factory-storage-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.bs-dash-factory-storage-split__col:first-child {
+  padding-right: 16px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.bs-dash-factory-storage-split__col:last-child {
+  padding-left: 16px;
+}
+
+.bs-dash-location__note--compact {
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .bs-dash-factory-storage-split {
+    grid-template-columns: 1fr;
+  }
+  .bs-dash-factory-storage-split__col:first-child {
+    padding-right: 0;
+    border-right: none;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .bs-dash-factory-storage-split__col:last-child {
+    padding-left: 0;
+    padding-top: 16px;
+  }
 }
 
 .bs-dash-basket-product-block {
