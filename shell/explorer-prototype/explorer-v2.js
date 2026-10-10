@@ -1,43 +1,10 @@
-/* CIS Shell V2.0 — responsive chrome, settings, theme (prototype). */
+/* CIS Shell V2.0 — sidebar, workspace views, settings (prototype). */
 (function () {
   "use strict";
 
   var THEME_KEY = "cis_v2_theme";
   var NOTIFY_KEY = "cis_v2_notify_read";
-
-  var NAV_SECTIONS = [
-    {
-      title: "Administration",
-      items: [
-        { id: "identity_admin", label: "Identity Admin" },
-        { id: "device_keys", label: "Device Keys" },
-      ],
-    },
-    {
-      title: "Applications",
-      items: [
-        { id: "producers_office", label: "Producers Office" },
-        { id: "traceability", label: "Traceability" },
-        { id: "quality_capture", label: "Quality Capture" },
-        { id: "maintenance_manager", label: "Maintenance Manager" },
-      ],
-    },
-    {
-      title: "Reports & lookups",
-      items: [
-        { id: "producers_view", label: "Producers View" },
-        { id: "permit_status", label: "Permit Status" },
-        { id: "quality_view", label: "Quality View" },
-        { id: "maintenance_ops", label: "Maintenance Ops" },
-        { id: "consumption", label: "Consumption" },
-        { id: "restaurant_report", label: "Restaurant Report" },
-        { id: "deliveries_register", label: "Deliveries Register" },
-        { id: "bags_movement_report", label: "Bags Movement" },
-        { id: "bags_status_report", label: "Bags Status" },
-        { id: "supplier_contacts", label: "Supplier Contacts" },
-      ],
-    },
-  ];
+  var NAV_OPEN_KEY = "cis_v2_nav_open";
 
   var sidebar = document.getElementById("sidebar");
   var backdrop = document.getElementById("sidebar-backdrop");
@@ -45,6 +12,18 @@
   var sidebarClose = document.getElementById("sidebar-close-btn");
   var settingsBackdrop = document.getElementById("settings-backdrop");
   var settingsSheet = document.getElementById("settings-sheet");
+  var dashboardView = document.getElementById("workspace-dashboard");
+  var moduleView = document.getElementById("workspace-module");
+  var navDashboardBtn = document.getElementById("nav-dashboard");
+
+  var activeNavId = "dashboard";
+
+  window.CIS_V2 = {
+    showPrototypeDashboard: showPrototypeDashboard,
+    showModuleWorkspace: showModuleWorkspace,
+    setActiveNav: setActiveNav,
+    onBridgeReady: onBridgeReady,
+  };
 
   function unreadCount() {
     if (localStorage.getItem(NOTIFY_KEY) === "1") return 0;
@@ -116,27 +95,174 @@
     });
   }
 
+  function readNavOpenState() {
+    try {
+      return JSON.parse(localStorage.getItem(NAV_OPEN_KEY) || "{}");
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function writeNavOpenState(state) {
+    localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(state));
+  }
+
+  function modById(id) {
+    var mods = window.CIS && CIS.modules ? CIS.modules : [];
+    for (var i = 0; i < mods.length; i++) {
+      if (mods[i].id === id) return mods[i];
+    }
+    return null;
+  }
+
+  function moduleLabel(id) {
+    var mod = modById(id);
+    return mod && mod.title ? mod.title : id;
+  }
+
+  function navItemVisible() {
+    return true;
+  }
+
+  function navItemLocked(id) {
+    var mod = modById(id);
+    if (!mod) return false;
+    if (mod.inactive) return true;
+    if (!window.CIS || !CIS._v2BridgeReady || !CIS.canAccessModule) return false;
+    return !CIS.canAccessModule(mod);
+  }
+
+  function setActiveNav(id) {
+    activeNavId = id;
+    document.querySelectorAll(".nav-item[data-module-id]").forEach(function (btn) {
+      var on = btn.getAttribute("data-module-id") === id;
+      btn.classList.toggle("is-active", on);
+      if (on) btn.setAttribute("aria-current", "page");
+      else btn.removeAttribute("aria-current");
+    });
+    if (navDashboardBtn) {
+      var dashOn = id === "dashboard";
+      navDashboardBtn.classList.toggle("is-active", dashOn);
+      if (dashOn) navDashboardBtn.setAttribute("aria-current", "page");
+      else navDashboardBtn.removeAttribute("aria-current");
+    }
+  }
+
+  function showPrototypeDashboard(opts) {
+    opts = opts || {};
+    if (dashboardView) dashboardView.hidden = false;
+    if (moduleView) moduleView.hidden = true;
+    if (window.CIS && CIS._state) CIS._state.activeModuleId = "dashboard";
+    setActiveNav("dashboard");
+    var strong = document.querySelector(".breadcrumb strong");
+    if (strong) strong.textContent = "Carbo Namibia";
+    if (!opts.skipStackPush && window.CIS && CIS.goHome) {
+      /* goHome resets stack; avoid loop when called from goHome */
+    }
+  }
+
+  function showModuleWorkspace() {
+    if (dashboardView) dashboardView.hidden = true;
+    if (moduleView) moduleView.hidden = false;
+  }
+
+  function openDestination(id) {
+    setSidebarOpen(false);
+    if (id === "dashboard") {
+      showPrototypeDashboard();
+      return;
+    }
+    if (window.CIS && CIS.openModule) CIS.openModule(id);
+  }
+
+  function createNavItem(id, nestDepth) {
+    nestDepth = nestDepth || 0;
+    if (!navItemVisible(id)) return null;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "nav-item nav-item--module";
+    btn.setAttribute("data-module-id", id);
+    if (nestDepth > 0) btn.classList.add("nav-item--nested");
+    if (nestDepth > 1) btn.classList.add("nav-item--nested-deep");
+    if (navItemLocked(id)) btn.classList.add("nav-item--locked");
+    btn.innerHTML =
+      (window.CIS_V2_NAV_ICON_FOR ? CIS_V2_NAV_ICON_FOR(id) : "") +
+      '<span class="nav-item-label">' +
+      moduleLabel(id) +
+      "</span>";
+    if (modById(id) && modById(id).inactive) {
+      btn.innerHTML += '<span class="nav-item-soon">Soon</span>';
+    }
+    btn.addEventListener("click", function () {
+      openDestination(id);
+    });
+    return btn;
+  }
+
   function renderNavModules() {
     var host = document.getElementById("sidebar-nav-modules");
-    if (!host) return;
+    if (!host || !window.CIS_V2_NAV) return;
     host.innerHTML = "";
-    NAV_SECTIONS.forEach(function (section) {
-      var title = document.createElement("p");
-      title.className = "sidebar-section-title";
-      title.textContent = section.title;
-      host.appendChild(title);
-      section.items.forEach(function (item) {
-        var btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "nav-item nav-item--module";
-        btn.textContent = item.label;
-        btn.title = "Prototype — module wiring in a later phase";
-        btn.addEventListener("click", function () {
-          setSidebarOpen(false);
+    var openState = readNavOpenState();
+
+    CIS_V2_NAV.groups.forEach(function (group) {
+      var wrap = document.createElement("div");
+      wrap.className = "nav-group";
+      wrap.setAttribute("data-nav-group", group.id);
+
+      var isOpen = openState[group.id] !== false;
+      var header = document.createElement("button");
+      header.type = "button";
+      header.className = "nav-group-header";
+      header.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      header.innerHTML =
+        '<span class="nav-group-title">' +
+        group.title +
+        '</span><svg class="nav-group-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5H7z"/></svg>';
+
+      var body = document.createElement("div");
+      body.className = "nav-group-body";
+      body.hidden = !isOpen;
+
+      group.items.forEach(function (item) {
+        if (item.nestUnder) return;
+        var node = createNavItem(item.id, 0);
+        if (node) body.appendChild(node);
+        group.items.forEach(function (child) {
+          if (child.nestUnder !== item.id) return;
+          var depth = child.nestDepth || 1;
+          var childNode = createNavItem(child.id, depth);
+          if (childNode) body.appendChild(childNode);
         });
-        host.appendChild(btn);
       });
+
+      header.addEventListener("click", function () {
+        var next = body.hidden;
+        body.hidden = !next;
+        header.setAttribute("aria-expanded", next ? "true" : "false");
+        openState[group.id] = next;
+        writeNavOpenState(openState);
+      });
+
+      wrap.appendChild(header);
+      wrap.appendChild(body);
+      host.appendChild(wrap);
     });
+  }
+
+  function onBridgeReady() {
+    renderNavModules();
+    syncHeaderFromSession();
+  }
+
+  function syncHeaderFromSession() {
+    if (!window.CIS || !CIS.currentUser) return;
+    var user = CIS.currentUser();
+    if (!user) return;
+    var nameEl = document.querySelector(".user-name");
+    var roleEl = document.querySelector(".user-role");
+    if (nameEl) nameEl.textContent = user.display_name || user.login_id || "User";
+    if (roleEl) roleEl.textContent = user.login_id || "";
   }
 
   function wireSettings() {
@@ -168,7 +294,6 @@
         setSettingsOpen(false);
       });
     }
-    document.getElementById("sidebar-settings-btn");
     var sidebarSettings = document.getElementById("sidebar-settings-btn");
     if (sidebarSettings) {
       sidebarSettings.addEventListener("click", function () {
@@ -179,6 +304,11 @@
   }
 
   function wireNav() {
+    if (navDashboardBtn) {
+      navDashboardBtn.addEventListener("click", function () {
+        openDestination("dashboard");
+      });
+    }
     if (menuBtn) {
       menuBtn.addEventListener("click", function () {
         setSidebarOpen(!sidebar.classList.contains("is-open"));
@@ -210,4 +340,6 @@
   updateNotifyDots();
   wireNav();
   wireSettings();
+  showPrototypeDashboard();
+  setActiveNav("dashboard");
 })();

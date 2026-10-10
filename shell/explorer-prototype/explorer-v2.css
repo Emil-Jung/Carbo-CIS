@@ -96,23 +96,48 @@ a {
   min-height: 100dvh;
 }
 
-/* ---- Sidebar (Bold character, Modern spacing) ---- */
+/* ---- Sidebar (landscape + collapsible groups) ---- */
 .sidebar {
-  background: var(--sidebar-bg);
-  color: var(--sidebar-text);
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--sidebar-border);
   position: sticky;
   top: 0;
   height: 100vh;
   height: 100dvh;
   z-index: 200;
+  border-right: 1px solid var(--sidebar-border);
+  color: var(--sidebar-text);
+}
+
+.sidebar-bg {
+  position: absolute;
+  inset: 0;
+  background: url("assets/Moody-Acacia-Sunset-Savanna.png") center 55% / cover no-repeat;
+  pointer-events: none;
+}
+
+.sidebar-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(12, 10, 8, 0.88) 0%,
+    rgba(18, 16, 14, 0.92) 45%,
+    rgba(10, 8, 6, 0.94) 100%
+  );
+}
+
+.sidebar-surface {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
 .sidebar-brand {
   padding: 20px 18px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-brand img {
@@ -133,22 +158,91 @@ a {
 .sidebar-nav {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 10px;
+  padding: 10px 10px 8px;
   -webkit-overflow-scrolling: touch;
 }
 
-.sidebar-section-title {
-  margin: 14px 8px 6px;
+.nav-group {
+  margin-bottom: 6px;
+}
+
+.nav-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  margin: 4px 0 2px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--sidebar-muted);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--sidebar-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-group-header:hover {
+  background: rgba(0, 0, 0, 0.32);
+  color: var(--sidebar-text);
+}
+
+.nav-group-chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.nav-group-header[aria-expanded="false"] .nav-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.nav-group-body {
+  padding: 2px 0 4px;
 }
 
 .nav-item--module {
   font-size: 13px;
-  padding-left: 14px;
+}
+
+.nav-item--nested {
+  padding-left: 28px;
+  font-size: 12px;
+  min-height: 40px;
+}
+
+.nav-item--nested-deep {
+  padding-left: 40px;
+  font-size: 12px;
+}
+
+.nav-item-label {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.nav-item-soon {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sidebar-muted);
+}
+
+.nav-item--locked {
+  opacity: 0.55;
+}
+
+.nav-item--dashboard {
+  margin-bottom: 8px;
+  font-weight: 600;
 }
 
 .nav-item {
@@ -190,16 +284,6 @@ a {
   font-size: 11px;
 }
 
-.sidebar-identity-strip {
-  margin: 8px 12px 0;
-  border-radius: 8px;
-  overflow: hidden;
-  height: 52px;
-  background: url("assets/Moody-Acacia-Sunset-Savanna.png") center 55% / cover no-repeat;
-  opacity: 0.88;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
 .sidebar-close {
   display: none;
   position: absolute;
@@ -217,7 +301,7 @@ a {
 }
 
 .sidebar-ask {
-  margin: 12px 12px 8px;
+  margin: auto 12px 8px;
   padding: 12px 14px;
   border-radius: var(--radius);
   border: 1px dashed rgba(228, 192, 74, 0.35);
@@ -462,10 +546,33 @@ a {
   color: var(--text-muted);
 }
 
+.workspace-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
 .workspace-scroll {
   flex: 1;
   overflow: auto;
   padding: 0 20px 28px;
+}
+
+.workspace-module {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 12px 20px;
+  background: var(--workspace-bg);
+}
+
+.workspace-module .module-content {
+  flex: 1;
+  min-height: 0;
 }
 
 /* ---- Hero banner (CIS Shell V2.0 spec — typography/layout only) ---- */

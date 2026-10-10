@@ -9,7 +9,9 @@ Static **visual mashup** of:
 - **Option B (Modern Carbo)** — warm ivory workspace, light cards, restrained status colours, comfortable typography and spacing.
 - **Option C (Bold Carbo)** — charcoal sidebar, Namibian landscape identity (hero + accents), energetic gold, Ask Emil, settings attention dot.
 
-**Not connected** to `app.js`, modules, auth, or APIs. Production entry remains [`/cis/`](../index.html).
+V2 chrome wraps the **production module scripts** in the right workspace (`explorer-v2-cis-bridge.js`) using your existing `/cis/` session token. The **sample dashboard** (banner + KPI cards) stays on Dashboard; other nav items open real CIS modules. Production entry remains [`/cis/`](../index.html).
+
+Navigation map: [NAV-MAP.md](./NAV-MAP.md).
 
 ## View locally
 

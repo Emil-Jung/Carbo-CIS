@@ -9,25 +9,27 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="explorer-v2.css?v=9" />
+  <link rel="stylesheet" href="explorer-v2.css?v=10" />
+  <link rel="stylesheet" href="../styles.css?v=1.6.57" />
   <link rel="icon" type="image/png" href="assets/Carbo-Main-Logo.png" />
 </head>
 <body>
   <div class="explorer-app">
     <aside id="sidebar" class="sidebar" aria-label="Main navigation">
+      <div class="sidebar-bg" role="presentation"></div>
+      <div class="sidebar-surface">
       <button type="button" id="sidebar-close-btn" class="sidebar-close" aria-label="Close menu">×</button>
       <div class="sidebar-brand">
         <img src="assets/Carbo-Main-Logo.png" width="52" height="52" alt="Carbo" />
         <div class="sidebar-brand-name">CARBO</div>
       </div>
       <nav class="sidebar-nav" aria-label="Modules">
-        <button type="button" class="nav-item is-active" aria-current="page">
+        <button type="button" id="nav-dashboard" class="nav-item nav-item--dashboard is-active" aria-current="page">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/></svg>
-          Dashboard
+          <span class="nav-item-label">Dashboard</span>
         </button>
         <div id="sidebar-nav-modules"></div>
       </nav>
-      <div class="sidebar-identity-strip" role="presentation"></div>
       <div class="sidebar-ask">
         <div class="sidebar-ask-icon" aria-hidden="true">?</div>
         <div>
@@ -42,6 +44,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96a7.035 7.035 0 0 0-1.63-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.488.488 0 0 0-.59.22L2.74 8.87a.489.489 0 0 0 .12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.489.489 0 0 0-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>
           Settings
         </button>
+      </div>
       </div>
     </aside>
 
@@ -73,7 +76,8 @@
         </div>
       </header>
 
-      <main class="workspace-scroll">
+      <div class="workspace-body">
+      <main id="workspace-dashboard" class="workspace-scroll">
         <p class="prototype-banner" role="status">
           CIS Shell V2.0 prototype — production entry remains <code>/cis/</code>.
         </p>
@@ -247,6 +251,11 @@
           </section>
         </div>
       </main>
+      <div id="workspace-module" class="workspace-module" hidden>
+        <nav id="cis-float-nav" class="cis-float-nav hidden" aria-label="Quick navigation"></nav>
+        <div id="cis-module-content" class="module-content"></div>
+      </div>
+      </div>
     </div>
   </div>
 
@@ -276,6 +285,37 @@
     </div>
   </aside>
 
-  <script src="explorer-v2.js?v=3"></script>
+  <script src="explorer-v2-nav.js?v=1"></script>
+  <script src="../modules/cis_helpers.js?v=1.4.3"></script>
+  <script src="../modules/dashboard.js?v=1.6.9"></script>
+  <script src="../modules/identity_admin.js?v=1.4.0"></script>
+  <script src="../modules/device_keys.js?v=1.1.0"></script>
+  <script src="../modules/quality_capture.js"></script>
+  <script src="../modules/quality_view.js"></script>
+  <script src="../modules/producers_office.js"></script>
+  <script src="../modules/producers_view.js"></script>
+  <script src="../modules/permit_status.js?v=1.3.39"></script>
+  <script src="../modules/traceability.js?v=1.6.8"></script>
+  <script src="../modules/pallet_configuration.js?v=1.0.0"></script>
+  <script src="../modules/labels_hub.js?v=1.0.0"></script>
+  <script src="../modules/control_room.js?v=1.0.2"></script>
+  <script src="../modules/delivery_confirmations.js?v=1.0.6"></script>
+  <script src="../modules/label_zpl.js?v=1.5.16"></script>
+  <script src="../modules/print_labels.js?v=1.6.9"></script>
+  <script src="../modules/label_deployment.js?v=1.2.0"></script>
+  <script src="../modules/manager_override.js?v=1.0.0"></script>
+  <script src="../modules/maintenance_manager.js"></script>
+  <script src="../modules/maintenance_certs.js"></script>
+  <script src="../modules/maintenance_ops.js?v=1.1.0"></script>
+  <script src="../modules/consumption.js?v=1.3.38"></script>
+  <script src="../modules/restaurant_report.js?v=1.0.0"></script>
+  <script src="../modules/deliveries_register.js?v=1.0.1"></script>
+  <script src="../modules/bags_movement_report.js?v=1.6.14"></script>
+  <script src="../modules/bags_status.js?v=1.6.23"></script>
+  <script src="../modules/containers.js?v=1.0.0"></script>
+  <script src="../modules/movement_schedule.js?v=1.0.0"></script>
+  <script src="../modules/supplier_contacts.js?v=1.0.0"></script>
+  <script src="explorer-v2-cis-bridge.js?v=1"></script>
+  <script src="explorer-v2.js?v=4"></script>
 </body>
 </html>
