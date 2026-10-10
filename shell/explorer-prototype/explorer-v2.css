@@ -474,19 +474,19 @@ a {
   margin: 16px 0 20px;
   border-radius: var(--radius);
   overflow: hidden;
-  min-height: 168px;
   box-shadow: var(--shadow-card);
+  /* Banner PNG is 2171×724 (3:1) — scale to full width, no cover crop */
 }
 
 .hero-bg {
-  position: absolute;
-  inset: 0;
-  background: url("assets/Golden-Acacia-Sunset-Plain.png") center 42% / cover no-repeat;
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+  object-fit: contain;
 }
 
 .hero-overlay {
-  position: absolute;
-  inset: 0;
   background: linear-gradient(
     105deg,
     rgba(26, 22, 18, 0.72) 0%,
@@ -496,15 +496,21 @@ a {
   );
 }
 
+.hero-overlay,
 .hero-inner {
-  position: relative;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hero-inner {
+  pointer-events: auto;
   padding: 28px 28px 24px;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  min-height: 168px;
 }
 
 .hero-greeting {
@@ -1176,17 +1182,11 @@ html[data-theme="dark"] {
   }
 
   .hero {
-    min-height: 140px;
     margin-top: 12px;
-  }
-
-  .hero-bg {
-    background-position: 72% 48%;
   }
 
   .hero-inner {
     padding: 18px 16px 16px;
-    min-height: 140px;
   }
 
   .hero-greeting {
@@ -1228,9 +1228,6 @@ html[data-theme="dark"] {
     gap: 8px;
   }
 
-  .hero-bg {
-    background-position: 80% 42%;
-  }
 }
 
 @media (max-width: 375px) {
