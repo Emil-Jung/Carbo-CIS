@@ -8,7 +8,7 @@ All files live in `shell/explorer-prototype/assets/`. **PNG masters** are binary
 | `Golden-Acacia-Sunset-Plain.png` | `C:\Users\Administrator\Downloads\Golden Acacia Sunset Plain.png` | Hero `<picture>` PNG fallback |
 | `Golden-Acacia-Sunset-Plain.webp` | Derived (1920×640, ~86 quality) | Hero primary — same `object-fit: cover`, `object-position: 58% 64%` |
 | `Moody-Acacia-Sunset-Savanna.png` | `C:\Users\Administrator\Downloads\Moody Acacia Sunset Savanna.png` | Sidebar / reports footer PNG fallback |
-| `Moody-Acacia-Sunset-Savanna.webp` | Derived (1024px wide, ~82 quality) | Sidebar primary — same `center 55%` / `70%` cover |
+| `Moody-Acacia-Sunset-Savanna.webp` | Derived (1024px wide, ~82 quality) | Sidebar `<picture>` (same `object-fit: cover`, `object-position: center 55%`) |
 
 Reference copies (design history only, not used in CSS/HTML): `design-reference-option-b.jpg`, `design-reference-option-c.jpg`.
 

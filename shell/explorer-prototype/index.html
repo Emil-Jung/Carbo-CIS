@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../styles.css?v=1.6.58" />
-  <link rel="stylesheet" href="explorer-v2.css?v=14" />
+  <link rel="stylesheet" href="explorer-v2.css?v=15" />
   <link rel="icon" type="image/png" href="assets/Carbo-Main-Logo.png" />
   <link
     rel="preload"
@@ -23,7 +23,18 @@
 <body class="explorer-v2-shell">
   <div class="explorer-app">
     <aside id="sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="sidebar-bg" role="presentation"></div>
+      <div class="sidebar-bg" role="presentation" aria-hidden="true">
+        <picture>
+          <source type="image/webp" srcset="assets/Moody-Acacia-Sunset-Savanna.webp" />
+          <img
+            src="assets/Moody-Acacia-Sunset-Savanna.png"
+            alt=""
+            width="1024"
+            height="1536"
+            decoding="async"
+          />
+        </picture>
+      </div>
       <div class="sidebar-surface">
       <button type="button" id="sidebar-close-btn" class="sidebar-close" aria-label="Close menu">×</button>
       <div class="sidebar-brand">
