@@ -15,16 +15,27 @@
   }
   CIS.inviteUrl = inviteUrl;
 
+  function hideAppShells() {
+    var app = document.getElementById("app-view");
+    if (app) app.classList.add("hidden");
+    var v2 = document.getElementById("explorer-app-view");
+    if (v2) {
+      v2.classList.add("hidden");
+      v2.hidden = true;
+      if ("inert" in v2) v2.inert = true;
+    }
+  }
+
   function showLoginView() {
     document.getElementById("setup-view").classList.add("hidden");
     document.getElementById("login-view").classList.remove("hidden");
-    document.getElementById("app-view").classList.add("hidden");
+    hideAppShells();
   }
 
   function showSetupView(loginId) {
     document.getElementById("login-view").classList.add("hidden");
     document.getElementById("setup-view").classList.remove("hidden");
-    document.getElementById("app-view").classList.add("hidden");
+    hideAppShells();
     var idEl = document.getElementById("setup-login-id");
     if (idEl) idEl.textContent = loginId;
     document.getElementById("setup-password").value = "";

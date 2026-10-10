@@ -34,18 +34,28 @@
     var appWrap = document.getElementById("explorer-app-view");
     var themeMeta = document.querySelector('meta[name="theme-color"]');
     if (show) {
-      if (loginView) loginView.classList.add("hidden");
-      if (setupView) setupView.classList.add("hidden");
+      if (loginView) {
+        loginView.classList.add("hidden");
+        if ("inert" in loginView) loginView.inert = true;
+      }
+      if (setupView) {
+        setupView.classList.add("hidden");
+        if ("inert" in setupView) setupView.inert = true;
+      }
       if (appWrap) {
         appWrap.classList.remove("hidden");
         appWrap.hidden = false;
+        if ("inert" in appWrap) appWrap.inert = false;
       }
       document.body.classList.remove("explorer-v2-login-only");
       if (themeMeta) themeMeta.setAttribute("content", "#1c1a18");
     } else {
+      if (loginView && "inert" in loginView) loginView.inert = false;
+      if (setupView && "inert" in setupView) setupView.inert = false;
       if (appWrap) {
         appWrap.classList.add("hidden");
         appWrap.hidden = true;
+        if ("inert" in appWrap) appWrap.inert = true;
       }
       document.body.classList.add("explorer-v2-login-only");
       if (themeMeta) themeMeta.setAttribute("content", "#0c0c0c");
