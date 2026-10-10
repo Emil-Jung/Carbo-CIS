@@ -9,8 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="explorer-v2.css?v=2" />
-  <link rel="stylesheet" href="carbo-live-v2.css?v=1" />
+  <link rel="stylesheet" href="explorer-v2.css?v=3" />
   <link rel="icon" type="image/png" href="assets/logo.png" />
 </head>
 <body>
@@ -76,25 +75,8 @@
 
       <main class="workspace-scroll">
         <p class="prototype-banner" role="status">
-          CIS Shell V2.0 prototype — production entry remains <code>/cis/</code>. Carbo Live uses the same APIs when you are signed in to CIS.
+          CIS Shell V2.0 prototype — production entry remains <code>/cis/</code>.
         </p>
-
-        <section class="carbo-live-v2" aria-label="Carbo Live">
-          <div class="carbo-live-v2__head">
-            <div class="carbo-live-v2__brand">
-              <span class="clv2-live-dot" id="clv2LiveDot" title="Live status"></span>
-              <h2 class="carbo-live-v2__title">Carbo Live</h2>
-              <span class="carbo-live-v2__badge">Production ticker</span>
-            </div>
-            <div class="carbo-live-v2__meta">
-              <span id="clv2RefreshNote">Loading…</span>
-              <button type="button" class="clv2-refresh-btn" id="clv2RefreshBtn">Refresh</button>
-            </div>
-          </div>
-          <div class="clv2-live-viewport" id="clv2LiveViewport">
-            <div class="clv2-live-track" id="clv2LiveTicker"></div>
-          </div>
-        </section>
 
         <section class="hero" aria-labelledby="hero-greeting">
           <div class="hero-bg" role="presentation"></div>
@@ -281,12 +263,11 @@
           <strong>Weathering alerts</strong>
           Bags at Walvis Bay approaching release date — review Bags Status.
         </div>
-        <button type="button" class="clv2-refresh-btn" id="settings-mark-read">Mark all as read</button>
+        <button type="button" class="settings-action-btn" id="settings-mark-read">Mark all as read</button>
       </div>
     </div>
   </aside>
 
-  <script src="carbo-live-v2.js?v=1"></script>
-  <script src="explorer-v2.js?v=2"></script>
+  <script src="explorer-v2.js?v=3"></script>
 </body>
 </html>

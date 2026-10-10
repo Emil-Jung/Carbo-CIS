@@ -1011,6 +1011,24 @@ a {
   margin-bottom: 4px;
 }
 
+.settings-action-btn {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+
+.settings-action-btn:hover {
+  border-color: var(--gold);
+  color: var(--text);
+}
+
 html[data-theme="dark"] {
   --workspace-bg: #1a1816;
   --surface: #222018;
