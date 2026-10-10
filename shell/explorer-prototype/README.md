@@ -1,5 +1,9 @@
 # CIS Shell V2.0 — visual prototype
 
+Responsive **desktop + smartphone** shell (320px–desktop). Mobile navigation uses the **menu button** and slide-in drawer (Ask Emil, Settings, and all module labels).
+
+Includes **Carbo Live** ticker embed — see [CARBO-LIVE-V2-NOTES.md](./CARBO-LIVE-V2-NOTES.md). Production PWA unchanged.
+
 Static **visual mashup** of:
 
 - **Option B (Modern Carbo)** — warm ivory workspace, light cards, restrained status colours, comfortable typography and spacing.
@@ -32,4 +36,5 @@ Hero and strip imagery use `assets/hero-namibia.svg` and `assets/sidebar-landsca
 |------|------|
 | `index.html` | Layout and sample operational content |
 | `explorer-v2.css` | V2 tokens and mashup styling |
-| `explorer-v2.js` | Mobile sidebar drawer only |
+| `explorer-v2.js` | Drawer, settings sheet, theme, notifications |
+| `carbo-live-v2.js` / `.css` | Carbo Live ticker (same APIs as production viewer) |

@@ -1,0 +1,282 @@
+/* Carbo Live — V2 workspace styling (embed in CIS Explorer prototype) */
+
+.carbo-live-v2 {
+  margin: 0 0 18px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.carbo-live-v2__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--border-light);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--workspace-bg) 100%);
+}
+
+.carbo-live-v2__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.carbo-live-v2__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.carbo-live-v2__badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  background: rgba(201, 162, 39, 0.14);
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.clv2-live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.clv2-live-dot--ok {
+  background: var(--status-green);
+  box-shadow: 0 0 0 2px rgba(45, 138, 84, 0.25);
+}
+
+.clv2-live-dot--busy {
+  background: var(--gold);
+  animation: clv2-pulse 1s infinite;
+}
+
+.clv2-live-dot--err {
+  background: var(--danger);
+}
+
+@keyframes clv2-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.carbo-live-v2__meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+#clv2RefreshNote.is-error {
+  color: var(--danger);
+}
+
+.clv2-refresh-btn {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clv2-refresh-btn:hover {
+  border-color: var(--gold);
+  color: var(--text);
+}
+
+.clv2-live-viewport {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  padding: 10px 0 12px;
+}
+
+.clv2-live-track {
+  display: flex;
+  gap: 12px;
+  width: max-content;
+  padding: 0 12px;
+  animation: clv2-scroll 28s linear infinite;
+}
+
+.clv2-live-track.is-paused {
+  animation-play-state: paused;
+}
+
+@keyframes clv2-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.clv2-tile {
+  flex: 0 0 auto;
+  width: min(280px, calc(100vw - 48px));
+  max-width: 300px;
+  min-height: 5.25rem;
+  padding: 12px 14px;
+  background: var(--workspace-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  box-shadow: var(--shadow-soft);
+}
+
+.clv2-tile--scan {
+  border-left: 3px solid var(--gold);
+}
+
+.clv2-tile--pace {
+  border-left: 3px solid var(--status-green);
+}
+
+.clv2-tile--weathering {
+  border-left: 3px solid var(--status-blue);
+}
+
+.clv2-tile-label {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.clv2-tile-producer {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.clv2-tile-kg {
+  margin: 4px 0 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.clv2-tile-kg span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.clv2-tile-pace {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--status-green);
+}
+
+.clv2-tile-meta {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.clv2-tile-streams {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.clv2-tile-streams li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.clv2-stream-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.clv2-stream {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+
+.clv2-stream--restaurant {
+  background: rgba(199, 90, 90, 0.15);
+  color: #a94442;
+}
+
+.clv2-stream--lumpwood {
+  background: var(--status-green-bg);
+  color: var(--status-green);
+}
+
+.clv2-stream--fines {
+  background: var(--status-amber-bg);
+  color: var(--status-amber);
+}
+
+.clv2-wx-row {
+  margin: 0 0 4px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.clv2-wx-row strong {
+  color: var(--text);
+}
+
+@media (max-width: 430px) {
+  .clv2-tile {
+    width: min(260px, calc(100vw - 40px));
+  }
+  .carbo-live-v2__head {
+    padding: 10px 12px 8px;
+  }
+  .carbo-live-v2__meta {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clv2-live-track {
+    animation: none;
+    flex-wrap: wrap;
+    width: auto;
+    max-width: 100%;
+    justify-content: center;
+  }
+}
