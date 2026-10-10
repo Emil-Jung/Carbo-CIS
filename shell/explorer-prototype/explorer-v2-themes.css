@@ -1,0 +1,115 @@
+/* CIS Shell V2.0 — theme tokens (prototype only)
+   Switch palette: set data-cis-v2-theme on <html> (additional themes not wired in UI yet). */
+
+:root,
+[data-cis-v2-theme="golden-sunset"] {
+  /* Workspace & surfaces */
+  --workspace-bg: #f3efe6;
+  --surface: #fffcf7;
+  --surface-raised: #ffffff;
+  --border-light: #e4ddd0;
+  --panel-row-border: #f0ebe3;
+
+  /* Typography */
+  --text: #2a2622;
+  --text-secondary: #5c564e;
+  --text-muted: #8a8378;
+  --text-on-accent: #1a1200;
+
+  /* Accent & navigation */
+  --gold: #c9a227;
+  --gold-bright: #e4c04a;
+  --gold-deep: #9a7b18;
+  --gold-on-dark: #f5d76e;
+  --focus-ring: rgba(201, 162, 39, 0.35);
+  --nav-item-hover-bg: rgba(255, 255, 255, 0.06);
+  --nav-active-bg-start: rgba(201, 162, 39, 0.28);
+  --nav-active-bg-end: rgba(201, 162, 39, 0.08);
+  --nav-label-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  --nav-icon-filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  --nav-group-header-bg: rgba(0, 0, 0, 0.32);
+  --nav-group-header-bg-hover: rgba(0, 0, 0, 0.42);
+
+  /* Sidebar shell (fallback when image fails) */
+  --sidebar-bg: #1c1a18;
+  --sidebar-border: #3d3528;
+  --sidebar-text: #f8f4ec;
+  --sidebar-muted: #ddd4c6;
+  --sidebar-scrim-top: rgba(12, 10, 8, 0.22);
+  --sidebar-scrim-mid: rgba(18, 16, 14, 0.38);
+  --sidebar-scrim-bottom: rgba(10, 8, 6, 0.52);
+  --sidebar-brand-border: rgba(255, 255, 255, 0.12);
+  --sidebar-brand-bg-start: rgba(8, 6, 4, 0.62);
+  --sidebar-brand-bg-end: rgba(8, 6, 4, 0.28);
+  --sidebar-logo-shadow: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.55));
+  --sidebar-footer-border: rgba(255, 255, 255, 0.06);
+  --sidebar-close-bg: rgba(255, 255, 255, 0.08);
+  --sidebar-settings-bg: rgba(255, 255, 255, 0.04);
+  --sidebar-settings-bg-hover: rgba(255, 255, 255, 0.08);
+  --sidebar-ask-border: rgba(228, 192, 74, 0.35);
+  --sidebar-ask-bg: rgba(0, 0, 0, 0.25);
+  --sidebar-ask-icon-fg: #1a1200;
+  --sidebar-backdrop: rgba(0, 0, 0, 0.45);
+  --sidebar-drawer-shadow: 8px 0 32px rgba(0, 0, 0, 0.35);
+
+  /* Hero / banner */
+  --hero-overlay-top: rgba(0, 0, 0, 0.55);
+  --hero-overlay-mid: rgba(0, 0, 0, 0.28);
+  --hero-greeting: #fff4e2;
+  --hero-body: #f4e7d4;
+  --hero-meta: #f8ebd8;
+  --hero-text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+
+  /* Status & feedback */
+  --status-green: #2d8a54;
+  --status-green-bg: #e8f5ee;
+  --status-amber: #c9920a;
+  --status-amber-bg: #faf3e0;
+  --status-orange: #c76b2a;
+  --status-orange-bg: #faefe6;
+  --status-blue: #2f6fad;
+  --status-blue-bg: #e8f1fa;
+  --danger: #c53030;
+  --danger-ring: 0 0 0 1px rgba(197, 48, 48, 0.4);
+  --tag-danger-bg: #fce8e8;
+  --tag-danger-fg: #b83232;
+  --notify-badge-fg: #ffffff;
+
+  /* Layout & chrome */
+  --sidebar-width: 248px;
+  --header-height: 56px;
+  --radius: 12px;
+  --shadow-soft: 0 2px 12px rgba(42, 38, 34, 0.06);
+  --shadow-card: 0 4px 20px rgba(42, 38, 34, 0.08);
+  --settings-backdrop: rgba(26, 22, 18, 0.45);
+  --settings-sheet-shadow: -8px 0 32px rgba(42, 38, 34, 0.15);
+  --theme-option-selected-ring: 0 0 0 1px rgba(201, 162, 39, 0.25);
+
+  --font-sans: "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+}
+
+/* Existing settings sheet: light / dark / auto workspace (not a full V2 palette yet) */
+html[data-theme="dark"] {
+  --workspace-bg: #1a1816;
+  --surface: #222018;
+  --surface-raised: #2a2620;
+  --border-light: #3d3528;
+  --panel-row-border: #3d3528;
+  --text: #f5f0e6;
+  --text-secondary: #c4bcb0;
+  --text-muted: #9a9288;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] {
+    --workspace-bg: #1a1816;
+    --surface: #222018;
+    --surface-raised: #2a2620;
+    --border-light: #3d3528;
+    --panel-row-border: #3d3528;
+    --text: #f5f0e6;
+    --text-secondary: #c4bcb0;
+    --text-muted: #9a9288;
+  }
+}

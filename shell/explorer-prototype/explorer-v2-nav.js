@@ -5,11 +5,6 @@
   window.CIS_V2_NAV = {
     groups: [
       {
-        id: "administration",
-        title: "Administration",
-        items: [{ id: "identity_admin" }, { id: "device_keys" }],
-      },
-      {
         id: "applications",
         title: "Applications",
         items: [
@@ -47,10 +42,18 @@
           { id: "supplier_contacts" },
         ],
       },
+      {
+        id: "administration",
+        title: "Administration",
+        icon: "group_administration",
+        items: [{ id: "identity_admin" }, { id: "device_keys" }],
+      },
     ],
   };
 
   window.CIS_V2_NAV_ICONS = {
+    group_administration:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18 7 3.11v4.71c0 4.16-2.84 8.02-7 9.28-4.16-1.26-7-5.12-7-9.28V6.29l7-3.11z"/></svg>',
     dashboard:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/></svg>',
     identity_admin:

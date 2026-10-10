@@ -35,5 +35,6 @@ Approved PNGs and usage: see [ASSETS.md](./ASSETS.md).
 | File | Role |
 |------|------|
 | `index.html` | Layout and sample operational content |
-| `explorer-v2.css` | V2 tokens and mashup styling |
+| `explorer-v2-themes.css` | Theme tokens (`data-cis-v2-theme`; default `golden-sunset`) |
+| `explorer-v2.css` | Layout and component styling (uses theme tokens) |
 | `explorer-v2.js` | Drawer, settings sheet, theme, notifications |

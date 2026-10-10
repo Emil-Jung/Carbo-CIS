@@ -227,7 +227,12 @@
       header.type = "button";
       header.className = "nav-group-header";
       header.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      var groupIcon =
+        group.icon && window.CIS_V2_NAV_ICONS && CIS_V2_NAV_ICONS[group.icon]
+          ? '<span class="nav-group-icon">' + CIS_V2_NAV_ICONS[group.icon] + "</span>"
+          : "";
       header.innerHTML =
+        groupIcon +
         '<span class="nav-group-title">' +
         group.title +
         '</span><svg class="nav-group-chevron" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5H7z"/></svg>';
