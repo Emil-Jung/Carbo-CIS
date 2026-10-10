@@ -606,13 +606,14 @@
 
     floatNavState.secondary = null;
     updateTopbarContext();
-    renderFloatNav();
 
     const content = document.getElementById("module-content");
 
     content.className = "module-content";
 
     content.innerHTML = "";
+
+    renderFloatNav();
 
     (async function () {
 
@@ -639,6 +640,8 @@
         content.innerHTML = '<div class="error-box">Module failed to load: ' + (e.message || e) + "</div>";
 
       }
+
+      renderFloatNav();
 
     })();
 

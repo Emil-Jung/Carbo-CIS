@@ -203,6 +203,12 @@ body {
   padding-bottom: var(--cis-float-nav-clearance);
   scroll-padding-bottom: var(--cis-float-nav-clearance);
 }
+
+/* Production /cis/ shell: modules set container.className and wipe has-float-nav */
+.app-view:has(#cis-float-nav:not(.hidden)) #module-content {
+  padding-bottom: var(--cis-float-nav-clearance);
+  scroll-padding-bottom: var(--cis-float-nav-clearance);
+}
 .cis-float-nav {
   position: fixed;
   left: 14px;
@@ -2130,7 +2136,8 @@ a.btn-launch-secondary {
 @media (max-width: 640px) {
   .module-content { padding: 16px; }
   .module-content.has-float-nav,
-  .workspace-module.has-float-nav {
+  .workspace-module.has-float-nav,
+  .app-view:has(#cis-float-nav:not(.hidden)) #module-content {
     padding-bottom: var(--cis-float-nav-clearance);
   }
   .topbar-brand { font-size: 14px; max-width: 42vw; overflow: hidden; text-overflow: ellipsis; }
