@@ -11,6 +11,23 @@ html {
   overflow-x: hidden;
 }
 
+body.explorer-v2-login-only {
+  background: #0c0c0c;
+  color: #f5f0e6;
+}
+
+body.explorer-v2-login-only .login-view {
+  display: flex;
+}
+
+body.explorer-v2-login-only #explorer-app-view {
+  display: none !important;
+}
+
+#explorer-app-view[hidden] {
+  display: none !important;
+}
+
 body.explorer-v2-shell {
   margin: 0;
   font-family: var(--font-sans);

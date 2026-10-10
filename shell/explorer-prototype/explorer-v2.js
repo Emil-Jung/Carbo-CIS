@@ -25,7 +25,32 @@
     onBridgeReady: onBridgeReady,
     setSettingsOpen: setSettingsOpen,
     syncSessionUi: syncHeaderFromSession,
+    showV2Shell: showV2Shell,
   };
+
+  function showV2Shell(show) {
+    var loginView = document.getElementById("login-view");
+    var setupView = document.getElementById("setup-view");
+    var appWrap = document.getElementById("explorer-app-view");
+    var themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (show) {
+      if (loginView) loginView.classList.add("hidden");
+      if (setupView) setupView.classList.add("hidden");
+      if (appWrap) {
+        appWrap.classList.remove("hidden");
+        appWrap.hidden = false;
+      }
+      document.body.classList.remove("explorer-v2-login-only");
+      if (themeMeta) themeMeta.setAttribute("content", "#1c1a18");
+    } else {
+      if (appWrap) {
+        appWrap.classList.add("hidden");
+        appWrap.hidden = true;
+      }
+      document.body.classList.add("explorer-v2-login-only");
+      if (themeMeta) themeMeta.setAttribute("content", "#0c0c0c");
+    }
+  }
 
   function unreadCount() {
     if (localStorage.getItem(NOTIFY_KEY) === "1") return 0;
@@ -38,6 +63,8 @@
       el.hidden = n === 0;
     });
   }
+
+  window.CIS_V2.setSidebarOpen = setSidebarOpen;
 
   function setSidebarOpen(open) {
     if (!sidebar || !backdrop) return;

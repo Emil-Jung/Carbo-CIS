@@ -123,7 +123,9 @@
       state.token = null;
       state.user = null;
       state.permissions = [];
-      hideAllModuleHosts();
+      clearAllModuleHosts();
+      sessionStorage.removeItem("cis_v2_guest_shell");
+      if (CIS.authUi && CIS.authUi.showLoginView) CIS.authUi.showLoginView();
     }
     var text = await res.text();
     var data = null;
@@ -381,6 +383,8 @@
   function openModule(id, opts) {
     opts = opts || {};
     if (!state.token) {
+      sessionStorage.setItem("cis_v2_guest_shell", "1");
+      if (window.CIS_V2 && CIS_V2.showV2Shell) CIS_V2.showV2Shell(true);
       if (window.CIS_V2 && CIS_V2.showModuleWorkspace) CIS_V2.showModuleWorkspace();
       showSignInRequired();
       return;
@@ -414,6 +418,7 @@
       if (state.token) await CIS.api.identity("/auth/logout", { method: "POST" });
     } catch (e) {}
     localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem("cis_v2_guest_shell");
     state.token = null;
     state.user = null;
     state.permissions = [];
@@ -423,13 +428,15 @@
     floatNavState.secondary = null;
     clearAllModuleHosts();
     renderFloatNav();
-    if (window.CIS_V2 && CIS_V2.showPrototypeDashboard) {
-      CIS_V2.showPrototypeDashboard({ skipStackPush: true });
-    }
-    if (window.CIS_V2 && CIS_V2.syncSessionUi) CIS_V2.syncSessionUi();
-    if (window.CIS_V2 && CIS_V2.showModuleWorkspace) CIS_V2.showModuleWorkspace();
-    showSignInRequired();
     if (window.CIS_V2 && CIS_V2.setSettingsOpen) CIS_V2.setSettingsOpen(false);
+    if (window.CIS_V2 && CIS_V2.setSidebarOpen) CIS_V2.setSidebarOpen(false);
+    syncHeaderUser();
+    var pw = document.getElementById("login-password");
+    if (pw) pw.value = "";
+    var loginId = document.getElementById("login-id");
+    if (loginId) loginId.value = "";
+    if (CIS.authUi && CIS.authUi.showLoginView) CIS.authUi.showLoginView();
+    else if (window.CIS_V2 && CIS_V2.showV2Shell) CIS_V2.showV2Shell(false);
   }
 
   CIS.openModule = openModule;
@@ -479,6 +486,46 @@
     if (headerSignOutBtn) headerSignOutBtn.disabled = false;
   }
 
+  function patchAuthUiForV2() {
+    if (!CIS.authUi) return;
+    var origSetup = CIS.authUi.showSetupView;
+    CIS.authUi.showLoginView = function () {
+      document.getElementById("setup-view").classList.add("hidden");
+      document.getElementById("login-view").classList.remove("hidden");
+      if (window.CIS_V2 && CIS_V2.showV2Shell) CIS_V2.showV2Shell(false);
+      var idEl = document.getElementById("login-id");
+      if (idEl) idEl.focus();
+    };
+    CIS.authUi.showSetupView = function (loginId) {
+      if (typeof origSetup === "function") {
+        document.getElementById("login-view").classList.add("hidden");
+        document.getElementById("setup-view").classList.remove("hidden");
+        if (window.CIS_V2 && CIS_V2.showV2Shell) CIS_V2.showV2Shell(false);
+        var idEl = document.getElementById("setup-login-id");
+        if (idEl) idEl.textContent = loginId;
+        document.getElementById("setup-password").value = "";
+        document.getElementById("setup-password2").value = "";
+        document.getElementById("setup-error").classList.add("hidden");
+        document.getElementById("setup-password").focus();
+        CIS._setupLoginId = loginId;
+      }
+    };
+  }
+
+  function enterV2SignedInApp() {
+    if (window.CIS_V2 && CIS_V2.showV2Shell) CIS_V2.showV2Shell(true);
+    sessionStorage.removeItem("cis_v2_guest_shell");
+    if (window.CIS_V2 && CIS_V2.showPrototypeDashboard) {
+      CIS_V2.showPrototypeDashboard({ skipStackPush: true });
+    }
+    if (window.CIS_V2 && CIS_V2.onBridgeReady) CIS_V2.onBridgeReady();
+  }
+
+  CIS._showApp = function () {
+    syncHeaderUser();
+    enterV2SignedInApp();
+  };
+
   async function initBridge() {
     try {
       state.config = await (await fetch("../config.json", { cache: "no-store" })).json();
@@ -486,24 +533,37 @@
       state.config = { identityApiBase: "/identity/api", maintenanceApiBase: "/maintenance/api" };
     }
     bindApi();
+    patchAuthUiForV2();
+    if (CIS.authUi && CIS.authUi.wireAuthForms) CIS.authUi.wireAuthForms();
     if (CIS.syncControlRoomVisibility) CIS.syncControlRoomVisibility(state.config);
 
     state.token = localStorage.getItem(TOKEN_KEY);
+    var sessionOk = false;
     if (state.token) {
       try {
         await loadSession();
-        syncHeaderUser();
+        sessionOk = true;
       } catch (err) {
         localStorage.removeItem(TOKEN_KEY);
         state.token = null;
-        syncHeaderUser();
+        state.user = null;
+        state.permissions = [];
       }
-    } else {
-      syncHeaderUser();
     }
-
+    syncHeaderUser();
     CIS._v2BridgeReady = true;
-    if (window.CIS_V2 && CIS_V2.onBridgeReady) CIS_V2.onBridgeReady();
+
+    if (sessionOk && state.user) {
+      enterV2SignedInApp();
+    } else if (sessionStorage.getItem("cis_v2_guest_shell") === "1") {
+      if (window.CIS_V2 && CIS_V2.showV2Shell) CIS_V2.showV2Shell(true);
+      if (window.CIS_V2 && CIS_V2.showPrototypeDashboard) CIS_V2.showPrototypeDashboard({ skipStackPush: true });
+      if (window.CIS_V2 && CIS_V2.onBridgeReady) CIS_V2.onBridgeReady();
+    } else if (CIS.authUi && CIS.authUi.checkInviteAndShowLogin) {
+      await CIS.authUi.checkInviteAndShowLogin();
+    } else if (CIS.authUi && CIS.authUi.showLoginView) {
+      CIS.authUi.showLoginView();
+    }
   }
 
   document.addEventListener("DOMContentLoaded", initBridge);
