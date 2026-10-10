@@ -132,20 +132,34 @@
     return "Back";
   }
 
+  function floatNavScrollTargets() {
+    const targets = [];
+    const content = document.getElementById("module-content");
+    if (content) targets.push(content);
+    const workspace = document.getElementById("workspace-module");
+    if (workspace) targets.push(workspace);
+    const v2Content = document.getElementById("cis-module-content");
+    if (v2Content && targets.indexOf(v2Content) === -1) targets.push(v2Content);
+    return targets;
+  }
+
+  function clearFloatNavScrollRoom() {
+    floatNavScrollTargets().forEach(function (el) {
+      el.classList.remove("has-float-nav");
+      el.classList.remove("has-float-nav--stacked");
+      el.classList.remove("has-float-nav--deep");
+    });
+  }
+
   function renderFloatNav() {
     const nav = floatNavEl();
-    const content = document.getElementById("module-content");
     if (!nav) return;
 
     const onDashboard = !state.activeModuleId || state.activeModuleId === "dashboard";
     nav.innerHTML = "";
     nav.classList.add("hidden");
     nav.setAttribute("aria-hidden", "true");
-    if (content) {
-      content.classList.remove("has-float-nav");
-      content.classList.remove("has-float-nav--stacked");
-      content.classList.remove("has-float-nav--deep");
-    }
+    clearFloatNavScrollRoom();
 
     if (onDashboard) return;
 
@@ -160,7 +174,9 @@
 
     nav.classList.remove("hidden");
     nav.setAttribute("aria-hidden", "false");
-    if (content) content.classList.add("has-float-nav");
+    floatNavScrollTargets().forEach(function (el) {
+      el.classList.add("has-float-nav");
+    });
   }
 
   function setFloatingBack(opts) {

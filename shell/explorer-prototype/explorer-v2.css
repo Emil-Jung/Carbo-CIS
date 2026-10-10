@@ -582,9 +582,18 @@ a {
   background: var(--workspace-bg);
 }
 
+.workspace-module.has-float-nav {
+  padding-bottom: var(--cis-float-nav-clearance);
+  scroll-padding-bottom: var(--cis-float-nav-clearance);
+}
+
 .workspace-module .module-content {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+}
+
+.workspace-module .module-content.has-float-nav {
+  padding-bottom: var(--cis-float-nav-clearance);
 }
 
 /* ---- Hero banner (CIS Shell V2.0 spec — typography/layout only) ---- */

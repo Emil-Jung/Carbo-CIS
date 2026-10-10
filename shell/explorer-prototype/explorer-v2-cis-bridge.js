@@ -210,18 +210,30 @@
     if (window.CIS_V2 && CIS_V2.showPrototypeDashboard) CIS_V2.showPrototypeDashboard({ skipStackPush: true });
   };
 
+  function floatNavScrollTargets() {
+    var targets = [];
+    var content = moduleContentEl();
+    if (content) targets.push(content);
+    var workspace = document.getElementById("workspace-module");
+    if (workspace) targets.push(workspace);
+    return targets;
+  }
+
+  function clearFloatNavScrollRoom() {
+    floatNavScrollTargets().forEach(function (el) {
+      el.classList.remove("has-float-nav");
+      el.classList.remove("has-float-nav--stacked");
+      el.classList.remove("has-float-nav--deep");
+    });
+  }
+
   function renderFloatNav() {
     var nav = floatNavEl();
-    var content = moduleContentEl();
     if (!nav) return;
     nav.innerHTML = "";
     nav.classList.add("hidden");
     nav.setAttribute("aria-hidden", "true");
-    if (content) {
-      content.classList.remove("has-float-nav");
-      content.classList.remove("has-float-nav--stacked");
-      content.classList.remove("has-float-nav--deep");
-    }
+    clearFloatNavScrollRoom();
     if (!state.activeModuleId || state.activeModuleId === "dashboard") return;
     var btn = document.createElement("button");
     btn.type = "button";
@@ -231,7 +243,9 @@
     nav.appendChild(btn);
     nav.classList.remove("hidden");
     nav.setAttribute("aria-hidden", "false");
-    if (content) content.classList.add("has-float-nav");
+    floatNavScrollTargets().forEach(function (el) {
+      el.classList.add("has-float-nav");
+    });
   }
 
   function setFloatingBack(opts) {
