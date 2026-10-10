@@ -12,6 +12,16 @@ html {
 }
 
 body.explorer-v2-login-only {
+  /* Production login palette — do not inherit V2 workspace --text (dark on dark inputs) */
+  --text: #f5f0e6;
+  --muted: #a89f8a;
+  --panel: #1a1a1a;
+  --panel-2: #242424;
+  --border: #3d3520;
+  --gold: #c9a227;
+  --gold-bright: #e4c04a;
+  --gold-dim: #8a7420;
+  --bg: #0c0c0c;
   background: var(--bg);
   color: var(--text);
 }
