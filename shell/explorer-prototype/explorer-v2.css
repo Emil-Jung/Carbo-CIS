@@ -326,8 +326,9 @@ a {
 }
 
 .sidebar-ask {
-  margin: auto 12px 8px;
+  margin: 0 12px 16px;
   padding: 12px 14px;
+  flex-shrink: 0;
   border-radius: var(--radius);
   border: 1px dashed var(--sidebar-ask-border);
   background: var(--sidebar-ask-bg);
@@ -375,8 +376,10 @@ a {
 }
 
 .sidebar-footer {
-  padding: 10px 12px 16px;
+  padding: 10px 12px 8px;
+  margin-top: auto;
   border-top: 1px solid var(--sidebar-footer-border);
+  flex-shrink: 0;
 }
 
 .sidebar-settings {

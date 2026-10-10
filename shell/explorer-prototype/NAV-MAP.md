@@ -31,8 +31,9 @@ Mirrors production `dashboard.js` **LAYOUT** plus Traceability hub children (`tr
 | | `bags_movement_report` | Charcoal Intake | |
 | | `bags_status_report` | Bags Status | |
 | | `supplier_contacts` | Supplier contacts | |
-| **Administration** *(above Ask Emil)* | `identity_admin` | Users & access | Group header: shield icon |
+| **Administration** *(bottom of module nav)* | `identity_admin` | Users & access | Group header: shield icon |
 | | `device_keys` | Device keys | |
 | *(footer)* | — | Settings | Gear icon + notification dot |
+| *(last)* | — | Ask Emil | Coming soon — below Settings |
 
 Permission gating uses `CIS.canAccessModule` from the live module registry (same as production). Inactive modules remain listed and open with production “Coming soon” behaviour where applicable.

@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../styles.css?v=1.6.58" />
   <link rel="stylesheet" href="explorer-v2-themes.css?v=1" />
-  <link rel="stylesheet" href="explorer-v2.css?v=19" />
+  <link rel="stylesheet" href="explorer-v2.css?v=20" />
   <link rel="icon" type="image/png" href="assets/Carbo-Main-Logo.png" />
   <link
     rel="preload"
@@ -48,6 +48,13 @@
         </button>
         <div id="sidebar-nav-modules"></div>
       </nav>
+      <div class="sidebar-footer">
+        <button type="button" id="sidebar-settings-btn" class="sidebar-settings" aria-label="Settings">
+          <span class="settings-dot" data-notify-dot aria-hidden="true"></span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96a7.035 7.035 0 0 0-1.63-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.488.488 0 0 0-.59.22L2.74 8.87a.489.489 0 0 0 .12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.489.489 0 0 0-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>
+          Settings
+        </button>
+      </div>
       <div class="sidebar-ask">
         <div class="sidebar-ask-icon" aria-hidden="true">?</div>
         <div>
@@ -55,13 +62,6 @@
           <p class="sidebar-ask-sub">How can I help you with CIS?</p>
           <span class="sidebar-ask-badge">Coming soon</span>
         </div>
-      </div>
-      <div class="sidebar-footer">
-        <button type="button" id="sidebar-settings-btn" class="sidebar-settings" aria-label="Settings">
-          <span class="settings-dot" data-notify-dot aria-hidden="true"></span>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96a7.035 7.035 0 0 0-1.63-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.488.488 0 0 0-.59.22L2.74 8.87a.489.489 0 0 0 .12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.489.489 0 0 0-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>
-          Settings
-        </button>
       </div>
       </div>
     </aside>
