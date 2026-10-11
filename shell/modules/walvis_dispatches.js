@@ -4,7 +4,7 @@
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
-  var RESET_CONFIRM = "RESET_WALVIS_DISPATCHES";
+  var RESET_CONFIRM = "WALVIS_RESET";
 
   function fmt(n) {
     if (n == null || isNaN(n)) return "—";
