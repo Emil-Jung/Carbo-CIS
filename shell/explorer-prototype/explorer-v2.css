@@ -1671,6 +1671,17 @@ body.explorer-v2-shell .workspace-module > .cis-float-nav {
   margin-top: 8px;
 }
 
+.v2-dashboard-host .v2-storage-snapshot {
+  margin-bottom: 16px;
+}
+
+.v2-dashboard-host .v2-location-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
 .v2-dashboard-host .v2-intake-grid {
   margin-bottom: 16px;
 }
