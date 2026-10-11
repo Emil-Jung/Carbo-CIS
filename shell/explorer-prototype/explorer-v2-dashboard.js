@@ -96,36 +96,33 @@
     if (window.CIS && CIS.openModule) CIS.openModule(id);
   }
 
-  function tileButton(moduleId) {
+  function reportRowButton(moduleId) {
     var mod = modById(moduleId);
     if (!mod || !moduleAccessible(moduleId)) return null;
-    var btn = el("button", { type: "button", className: "v2-dash-tile" });
-    var icon = window.CIS_V2_NAV_ICON_FOR ? CIS_V2_NAV_ICON_FOR(moduleId) : "";
-    btn.innerHTML =
-      (icon ? '<span class="v2-dash-tile__icon">' + icon + "</span>" : "") +
-      '<span class="v2-dash-tile__title">' +
-      (mod.title || moduleId) +
-      "</span>" +
-      (mod.description
-        ? '<span class="v2-dash-tile__desc">' + mod.description + "</span>"
-        : "");
+    var btn = el("button", { type: "button", className: "v2-report-row" });
+    btn.appendChild(el("span", { className: "v2-report-row__title" }, [mod.title || moduleId]));
+    if (mod.description) {
+      btn.appendChild(el("span", { className: "v2-report-row__desc muted" }, [mod.description]));
+    }
     btn.addEventListener("click", function () {
       openModule(moduleId);
     });
     return btn;
   }
 
-  function tileGrid(moduleIds) {
-    var grid = el("div", { className: "v2-dash-tile-grid" });
+  function reportRowList(moduleIds) {
+    var list = el("ul", { className: "v2-report-rows" });
     var any = false;
     moduleIds.forEach(function (id) {
-      var t = tileButton(id);
-      if (t) {
-        grid.appendChild(t);
+      var row = reportRowButton(id);
+      if (row) {
+        var li = el("li");
+        li.appendChild(row);
+        list.appendChild(li);
         any = true;
       }
     });
-    return any ? grid : el("p", { className: "muted" }, ["Nothing assigned to you in this area."]);
+    return any ? list : el("p", { className: "muted" }, ["Nothing assigned to you in this area."]);
   }
 
   function statusBucket(group, key) {
@@ -157,38 +154,35 @@
   }
 
   function renderIntakeHero(host, movement, statusData) {
-    var section = el("section", { className: "v2-dash-panel v2-dash-panel--hero" });
-    section.appendChild(
-      el("h2", { className: "v2-dash-panel__title" }, ["Charcoal intake & factory storage"])
+    var grid = el("div", { className: "content-grid v2-intake-grid" });
+
+    var cum = el("section", { className: "panel" });
+    cum.appendChild(
+      el("h2", { className: "panel-title" }, ["Charcoal intake & factory storage"])
     );
-
-    var grid = el("div", { className: "v2-dash-intake-grid" });
-
-    var cum = el("article", { className: "v2-dash-intake-card" });
-    cum.appendChild(el("h3", { className: "v2-dash-intake-card__title" }, ["Cumulative intake (database)"]));
     if (movement) {
+      cum.appendChild(el("p", { className: "v2-stat-primary" }, [fmt(movement.bag_count) + " bags"]));
       cum.appendChild(
-        el("p", { className: "v2-dash-intake-card__lead" }, [
-          bagsMass(movement.bag_count, movement.total_kg),
+        el("p", { className: "v2-stat-secondary" }, [
+          fmtMass(movement.total_kg) + " cumulative in database",
         ])
       );
       var streams = movement.streams || {};
-      var streamLine = el("ul", { className: "v2-dash-stream-list" });
+      var streamLine = el("ul", { className: "legend v2-stream-legend" });
       [
-        { key: "restaurant", label: "Restaurant", color: "#e57373" },
-        { key: "lumpwood", label: "Lumpwood", color: "#81c784" },
-        { key: "fines", label: "Fines", color: "#ffb74d" },
+        { key: "restaurant", label: "Restaurant", color: "var(--status-orange)" },
+        { key: "lumpwood", label: "Lumpwood", color: "var(--status-green)" },
+        { key: "fines", label: "Fines", color: "var(--status-amber)" },
       ].forEach(function (s) {
         var li = el("li");
-        li.innerHTML =
-          '<span class="v2-dash-stream-dot" style="background:' +
-          s.color +
-          '"></span>' +
-          s.label +
-          ": " +
-          fmt(streams[s.key]) +
-          " · " +
-          fmtMass(streams[s.key + "_kg"]);
+        var sw = el("span", { className: "legend-swatch" });
+        sw.style.background = s.color;
+        li.appendChild(sw);
+        li.appendChild(
+          document.createTextNode(
+            s.label + ": " + fmt(streams[s.key]) + " · " + fmtMass(streams[s.key + "_kg"])
+          )
+        );
         streamLine.appendChild(li);
       });
       cum.appendChild(streamLine);
@@ -203,70 +197,75 @@
       var wx = statusBucket(factory, "in_storage_weathering");
       var early = statusBucket(factory, "in_storage_released_early");
       var weathered = statusBucket(factory, "in_storage");
-      cum.appendChild(el("hr", { className: "v2-dash-divider" }));
-      cum.appendChild(el("h4", { className: "v2-dash-subhead" }, ["Factory storage — weathering (Bags Status)"]));
-      var wxList = el("ul", { className: "v2-dash-wx-list" });
-      wxList.appendChild(
-        el("li", {}, ["Still weathering: " + bagsMass(wx.bags, wx.kg)])
-      );
-      wxList.appendChild(
-        el("li", {}, ["Released early: " + bagsMass(early.bags, early.kg)])
-      );
-      wxList.appendChild(
-        el("li", {}, ["Weathered (ready): " + bagsMass(weathered.bags, weathered.kg)])
-      );
+      cum.appendChild(el("h3", { className: "v2-subpanel-title" }, ["Factory weathering (Bags Status)"]));
+      var wxList = el("ul", { className: "legend v2-wx-legend" });
+      [
+        { label: "Still weathering", bags: wx.bags, kg: wx.kg, color: "var(--status-amber)" },
+        { label: "Released early", bags: early.bags, kg: early.kg, color: "var(--status-orange)" },
+        { label: "Weathered (ready)", bags: weathered.bags, kg: weathered.kg, color: "var(--status-green)" },
+      ].forEach(function (s) {
+        var li = el("li");
+        var sw = el("span", { className: "legend-swatch" });
+        sw.style.background = s.color;
+        li.appendChild(sw);
+        li.appendChild(document.createTextNode(s.label + ": " + bagsMass(s.bags, s.kg)));
+        wxList.appendChild(li);
+      });
       cum.appendChild(wxList);
       if (statusData.in_system) {
         cum.appendChild(
-          el("p", { className: "muted v2-dash-footnote" }, [
+          el("p", { className: "muted v2-footnote" }, [
             "In system now: " + bagsMass(statusData.in_system.bags, statusData.in_system.kg),
           ])
         );
       }
     }
 
-    var actions = el("div", { className: "v2-dash-intake-actions" });
+    var actions = el("div", { className: "v2-panel-actions" });
     if (moduleAccessible("bags_movement_report")) {
-      var b1 = el("button", { type: "button", className: "v2-btn v2-btn--primary" }, ["Open Charcoal Intake"]);
+      var b1 = el("button", { type: "button", className: "v2-action-btn v2-action-btn--primary" }, [
+        "Charcoal Intake",
+      ]);
       b1.addEventListener("click", function () {
         openModule("bags_movement_report");
       });
       actions.appendChild(b1);
     }
     if (moduleAccessible("bags_status_report")) {
-      var b2 = el("button", { type: "button", className: "v2-btn v2-btn--secondary" }, ["Open Bags Status"]);
+      var b2 = el("button", { type: "button", className: "v2-action-btn" }, ["Bags Status"]);
       b2.addEventListener("click", function () {
         openModule("bags_status_report");
       });
       actions.appendChild(b2);
     }
-    cum.appendChild(actions);
+    if (actions.childNodes.length) cum.appendChild(actions);
     grid.appendChild(cum);
 
-    var daily = el("article", { className: "v2-dash-intake-card" });
-    daily.appendChild(el("h3", { className: "v2-dash-intake-card__title" }, ["Daily intake — current week"]));
+    var daily = el("section", { className: "panel" });
+    daily.appendChild(el("h2", { className: "panel-title" }, ["Daily intake — current week"]));
     if (movement && movement.rows && movement.rows.length) {
       var days = buildDailySections(movement.rows);
       if (movement.current_week_start) {
         daily.appendChild(
-          el("p", { className: "muted" }, [
-            "Week from " + fmtDayHeading(movement.current_week_start),
-          ])
+          el("p", { className: "muted" }, ["Week from " + fmtDayHeading(movement.current_week_start)])
         );
       }
-      var table = el("table", { className: "v2-dash-day-table" });
-      table.innerHTML = "<thead><tr><th>Day</th><th>Bags</th><th>kg</th></tr></thead>";
-      var tbody = el("tbody");
-      days.slice(0, 7).forEach(function (d) {
-        var tr = el("tr");
-        tr.appendChild(el("td", {}, [fmtDayHeading(d.date)]));
-        tr.appendChild(el("td", {}, [fmt(d.bags)]));
-        tr.appendChild(el("td", {}, [fmtMass(d.kg)]));
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-      daily.appendChild(table);
-      if (!days.length) {
+      if (days.length) {
+        var scroll = el("div", { className: "table-scroll" });
+        var table = el("table", { className: "data-table" });
+        table.innerHTML = "<thead><tr><th>Day</th><th>Bags</th><th>kg</th></tr></thead>";
+        var tbody = el("tbody");
+        days.slice(0, 7).forEach(function (d) {
+          var tr = el("tr");
+          tr.appendChild(el("td", {}, [fmtDayHeading(d.date)]));
+          tr.appendChild(el("td", {}, [fmt(d.bags)]));
+          tr.appendChild(el("td", {}, [fmtMass(d.kg)]));
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        scroll.appendChild(table);
+        daily.appendChild(scroll);
+      } else {
         daily.appendChild(el("p", { className: "muted" }, ["No bags recorded this week yet."]));
       }
     } else if (movement) {
@@ -276,16 +275,15 @@
     }
     grid.appendChild(daily);
 
-    section.appendChild(grid);
-    host.appendChild(section);
+    host.appendChild(grid);
   }
 
   function renderReportsGrid(host) {
-    var section = el("section", { className: "v2-dash-panel" });
-    section.appendChild(el("h2", { className: "v2-dash-panel__title" }, ["Reports & lookups"]));
+    var section = el("section", { className: "panel" });
+    section.appendChild(el("h2", { className: "panel-title" }, ["Reports & lookups"]));
     section.appendChild(
-      el("p", { className: "muted v2-dash-panel__lead" }, [
-        "Everything you can open read-only or for analysis. Apps and departments live in the left menu.",
+      el("p", { className: "muted v2-panel-lead" }, [
+        "Read-only reports and lookups. Departments and apps are in the left menu.",
       ])
     );
     var ids = window.CIS_V2_REPORT_MODULE_IDS || [];
@@ -303,7 +301,7 @@
         ordered.push(m.id);
       }
     });
-    section.appendChild(tileGrid(ordered));
+    section.appendChild(reportRowList(ordered));
     host.appendChild(section);
   }
 
@@ -379,6 +377,6 @@
     if (group.blurb) head.appendChild(el("p", { className: "v2-dash-tagline" }, [group.blurb]));
     host.appendChild(head);
     var ids = window.CIS_V2_departmentModuleIds ? CIS_V2_departmentModuleIds(deptId) : [];
-    host.appendChild(tileGrid(ids));
+    host.appendChild(reportRowList(ids));
   };
 })();

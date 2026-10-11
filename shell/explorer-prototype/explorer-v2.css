@@ -1600,202 +1600,150 @@ body.explorer-v2-shell .workspace-module > .cis-float-nav {
 
 }
 
-/* —— V2 live dashboards (home + departments) —— */
+/* —— V2 live dashboards (home + departments) ——
+   Use workspace tokens only — production styles.css defines dark --panel-2 on :root. */
 .v2-dashboard-host {
-  padding: 1rem 1.25rem 2rem;
-  max-width: 1200px;
+  padding: 4px 24px 28px;
+  max-width: 1100px;
+}
+
+.v2-dashboard-host .muted {
+  color: var(--text-muted);
 }
 
 .v2-dash-head {
-  margin-bottom: 1.25rem;
+  margin-bottom: 18px;
 }
 
 .v2-dash-greeting {
-  font-family: "Cormorant Garamond", Georgia, serif;
-  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 4vw, 2.1rem);
   font-weight: 600;
-  margin: 0 0 0.35rem;
-  color: var(--text, #1c1a18);
+  margin: 0 0 6px;
+  color: var(--text);
 }
 
 .v2-dash-tagline {
   margin: 0;
-  color: var(--muted, #5c5348);
-  font-size: 0.95rem;
+  color: var(--text-muted);
+  font-size: 14px;
   line-height: 1.45;
-  max-width: 42rem;
+  max-width: 40rem;
 }
 
-.v2-dash-panel {
-  background: var(--card, #fff);
-  border: 1px solid var(--border, #e8e0d4);
-  border-radius: 12px;
-  padding: 1.1rem 1.25rem;
-  margin-bottom: 1.25rem;
-  box-shadow: 0 1px 3px rgba(28, 26, 24, 0.06);
+.v2-dashboard-host .v2-intake-grid {
+  margin-bottom: 16px;
 }
 
-.v2-dash-panel__title {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
-  font-weight: 600;
+.v2-dashboard-host .v2-stat-primary {
+  margin: 2px 0 4px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text);
 }
 
-.v2-dash-panel__lead {
-  margin: 0 0 1rem;
+.v2-dashboard-host .v2-stat-secondary {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
-.v2-dash-intake-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+.v2-dashboard-host .v2-subpanel-title {
+  margin: 16px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
 }
 
-@media (max-width: 768px) {
-  .v2-dash-intake-grid {
-    grid-template-columns: 1fr;
-  }
+.v2-dashboard-host .v2-stream-legend,
+.v2-dashboard-host .v2-wx-legend {
+  margin-top: 4px;
 }
 
-.v2-dash-intake-card {
-  background: var(--panel-2, #faf8f5);
-  border-radius: 10px;
-  padding: 1rem;
-  border: 1px solid var(--border, #e8e0d4);
+.v2-dashboard-host .v2-footnote {
+  margin: 12px 0 0;
+  font-size: 13px;
 }
 
-.v2-dash-intake-card__title {
-  margin: 0 0 0.5rem;
-  font-size: 1rem;
+.v2-dashboard-host .v2-panel-lead {
+  margin: -6px 0 12px;
+  font-size: 13px;
 }
 
-.v2-dash-intake-card__lead {
-  margin: 0 0 0.75rem;
-  font-weight: 600;
-  font-size: 1.05rem;
-}
-
-.v2-dash-stream-list,
-.v2-dash-wx-list {
-  margin: 0;
-  padding-left: 0;
-  list-style: none;
-  font-size: 0.9rem;
-}
-
-.v2-dash-stream-list li,
-.v2-dash-wx-list li {
-  margin: 0.35rem 0;
-}
-
-.v2-dash-stream-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: middle;
-}
-
-.v2-dash-divider {
-  border: none;
-  border-top: 1px solid var(--border, #e8e0d4);
-  margin: 1rem 0;
-}
-
-.v2-dash-subhead {
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.v2-dash-footnote {
-  margin: 0.75rem 0 0;
-  font-size: 0.85rem;
-}
-
-.v2-dash-intake-actions {
+.v2-dashboard-host .v2-panel-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--panel-row-border);
 }
 
-.v2-btn {
+.v2-dashboard-host .v2-action-btn {
   font: inherit;
   cursor: pointer;
   border-radius: 8px;
-  padding: 0.45rem 0.85rem;
-  border: 1px solid var(--border, #ccc);
-  background: var(--card, #fff);
-}
-
-.v2-btn--primary {
-  background: var(--gold, #c9a227);
-  border-color: var(--gold-dim, #8a7420);
-  color: #1c1a18;
+  padding: 8px 14px;
+  font-size: 13px;
   font-weight: 600;
-}
-
-.v2-btn--secondary {
-  background: transparent;
-}
-
-.v2-dash-day-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.v2-dash-day-table th,
-.v2-dash-day-table td {
-  text-align: left;
-  padding: 0.35rem 0.5rem;
-  border-bottom: 1px solid var(--border, #e8e0d4);
-}
-
-.v2-dash-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
-  gap: 0.75rem;
-}
-
-.v2-dash-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 0.35rem;
-  padding: 0.85rem 1rem;
-  border-radius: 10px;
-  border: 1px solid var(--border, #e8e0d4);
-  background: var(--panel-2, #faf8f5);
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
+  border: 1px solid var(--border-light);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.v2-dash-tile:hover {
-  border-color: var(--gold, #c9a227);
-  box-shadow: 0 2px 8px rgba(28, 26, 24, 0.08);
+.v2-dashboard-host .v2-action-btn:hover {
+  border-color: var(--gold);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
 }
 
-.v2-dash-tile__icon svg {
-  width: 22px;
-  height: 22px;
-  opacity: 0.85;
+.v2-dashboard-host .v2-action-btn--primary {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  border-color: var(--gold-deep);
+  color: var(--text-on-accent);
 }
 
-.v2-dash-tile__title {
+.v2-dashboard-host .v2-report-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.v2-dashboard-host .v2-report-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 0;
+  border: none;
+  border-bottom: 1px solid var(--panel-row-border);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text);
+  transition: color 0.12s;
+}
+
+.v2-dashboard-host .v2-report-rows li:last-child .v2-report-row {
+  border-bottom: none;
+}
+
+.v2-dashboard-host .v2-report-row:hover {
+  color: var(--gold-deep);
+}
+
+.v2-dashboard-host .v2-report-row__title {
+  font-size: 14px;
   font-weight: 600;
-  font-size: 0.95rem;
 }
 
-.v2-dash-tile__desc {
-  font-size: 0.8rem;
-  color: var(--muted, #5c5348);
-  line-height: 1.35;
+.v2-dashboard-host .v2-report-row__desc {
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .nav-item--dept {
