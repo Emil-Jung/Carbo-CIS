@@ -164,12 +164,17 @@
 
   }
 
+  function bagAtFactoryInStorage(row) {
+    var storage = ((row && row.storage_status) || "in_storage").trim();
+    return storage === "in_storage";
+  }
+
   function scanTimestampCell(row) {
 
     if (!row) return "—";
 
-    /* Drill-down: original scan / weathering start — not manager early-release day. */
-    if (row.released_early && row.recorded_at) {
+    /* Factory in-storage only: weathering clock start (intake scan), not Walvis/transit moves. */
+    if (row.released_early && row.recorded_at && bagAtFactoryInStorage(row)) {
       return fmtDateTime(row.recorded_at, row.recorded_time);
     }
 
@@ -196,7 +201,7 @@
     if (status === "in_storage_released_early" && row.released_early_at) {
       return String(row.released_early_at);
     }
-    if (row.released_early && row.recorded_at) {
+    if (row.released_early && row.recorded_at && bagAtFactoryInStorage(row)) {
       return String(row.recorded_at);
     }
     return String(row.status_changed_at || row.recorded_at || "");
@@ -254,7 +259,7 @@
     if (!row) return "—";
     if (row.client_name) return row.client_name;
     if (row.container_number) return row.container_number;
-    return statusDetailCell(row);
+    return row.status_display || row.effective_status || "—";
   }
 
 
