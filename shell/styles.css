@@ -434,6 +434,34 @@ body {
   line-height: 1.5;
 }
 
+/* ---- Charcoal Intake report (V1 dark theme on host — required in CIS V2 light workspace) ---- */
+.module-content.bm-report-host {
+  background: #0c0c0c;
+  color: #f5f0e6;
+  --bg: #0c0c0c;
+  --bg-elevated: #141414;
+  --panel: #1a1a1a;
+  --panel-2: #242424;
+  --border: #3d3520;
+  --text: #f5f0e6;
+  --muted: #a89f8a;
+  --gold-bright: #e4c04a;
+  --gold-deep: #9a7b18;
+  --gold: #c9a227;
+  min-height: 100%;
+  padding: 24px 28px;
+  box-sizing: border-box;
+}
+
+.module-content.bm-report-host .module-desc,
+.module-content.bm-report-host .muted {
+  color: var(--muted);
+}
+
+.module-content.bm-report-host h2.module-title {
+  color: var(--gold-bright);
+}
+
 /* ---- Bags Status analytics dashboard (white theme) ---- */
 .module-content.bs-dashboard-host {
   background: #E8EEF4;

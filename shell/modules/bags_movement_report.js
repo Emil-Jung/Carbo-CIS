@@ -801,6 +801,8 @@
 
   async function render(container, ctx) {
     var ui = CIS.ui;
+    /* Same pattern as Bags Status bs-dashboard-host: scoped theme so V2 light shell cannot override. */
+    container.className = "module-content module-host bm-report-host";
     var lastData = null;
     var labelInventory = null;
     var intakePace = null;
