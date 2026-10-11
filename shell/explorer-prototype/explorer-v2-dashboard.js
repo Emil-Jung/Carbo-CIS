@@ -153,41 +153,91 @@
       });
   }
 
-  function renderIntakeHero(host, movement, statusData) {
+  /** Same shape as Charcoal Intake module (nested bags/kg per stream). */
+  function streamCountKg(streams, key) {
+    var s = streams || {};
+    var node = s[key];
+    if (node && typeof node === "object") {
+      return { bags: node.bags, kg: node.kg };
+    }
+    return { bags: s[key], kg: s[key + "_kg"] };
+  }
+
+  function weekTotalsFromRows(rows) {
+    var bags = 0;
+    var kg = 0;
+    var streams = { restaurant: 0, lumpwood: 0, fines: 0, restaurant_kg: 0, lumpwood_kg: 0, fines_kg: 0 };
+    (rows || []).forEach(function (row) {
+      bags += 1;
+      var w = Number(row.net_weight_kg || 0);
+      kg += w;
+      var st = String(row.product_stream || "").toLowerCase();
+      if (st === "restaurant") {
+        streams.restaurant += 1;
+        streams.restaurant_kg += w;
+      } else if (st === "lumpwood") {
+        streams.lumpwood += 1;
+        streams.lumpwood_kg += w;
+      } else if (st === "fines") {
+        streams.fines += 1;
+        streams.fines_kg += w;
+      }
+    });
+    return {
+      bags: bags,
+      kg: Math.round(kg * 10) / 10,
+      streams: streams,
+    };
+  }
+
+  var PRODUCTION_REPORT_MODULE_IDS = {
+    bags_movement_report: true,
+    bags_status_report: true,
+  };
+
+  function renderBusinessSummary(host, movement, statusData) {
     var grid = el("div", { className: "content-grid v2-intake-grid" });
 
-    var cum = el("section", { className: "panel" });
-    cum.appendChild(
-      el("h2", { className: "panel-title" }, ["Charcoal intake & factory storage"])
-    );
-    if (movement) {
-      cum.appendChild(el("p", { className: "v2-stat-primary" }, [fmt(movement.bag_count) + " bags"]));
-      cum.appendChild(
-        el("p", { className: "v2-stat-secondary" }, [
-          fmtMass(movement.total_kg) + " cumulative in database",
-        ])
+    var factoryPanel = el("section", { className: "panel" });
+    factoryPanel.appendChild(el("h2", { className: "panel-title" }, ["Factory storage snapshot"]));
+
+    var weekRows = (movement && movement.rows) || [];
+    var week = weekTotalsFromRows(weekRows);
+    if (movement && week.bags) {
+      factoryPanel.appendChild(
+        el("p", { className: "v2-stat-primary" }, [bagsMass(week.bags, week.kg) + " sieved this week"])
       );
-      var streams = movement.streams || {};
+      if (movement.current_week_start) {
+        factoryPanel.appendChild(
+          el("p", { className: "v2-stat-secondary" }, [
+            "Week from " + fmtDayHeading(movement.current_week_start),
+          ])
+        );
+      }
       var streamLine = el("ul", { className: "legend v2-stream-legend" });
       [
         { key: "restaurant", label: "Restaurant", color: "var(--status-orange)" },
         { key: "lumpwood", label: "Lumpwood", color: "var(--status-green)" },
         { key: "fines", label: "Fines", color: "var(--status-amber)" },
       ].forEach(function (s) {
+        var part = streamCountKg(week.streams, s.key);
+        if (!part.bags && !part.kg) return;
         var li = el("li");
         var sw = el("span", { className: "legend-swatch" });
         sw.style.background = s.color;
         li.appendChild(sw);
         li.appendChild(
-          document.createTextNode(
-            s.label + ": " + fmt(streams[s.key]) + " · " + fmtMass(streams[s.key + "_kg"])
-          )
+          document.createTextNode(s.label + ": " + fmt(part.bags) + " · " + fmtMass(part.kg))
         );
         streamLine.appendChild(li);
       });
-      cum.appendChild(streamLine);
+      if (streamLine.childNodes.length) factoryPanel.appendChild(streamLine);
+    } else if (movement) {
+      factoryPanel.appendChild(
+        el("p", { className: "muted" }, ["No bags recorded this week yet — open Charcoal Intake for history."])
+      );
     } else {
-      cum.appendChild(el("p", { className: "muted" }, ["Charcoal Intake report not available."]));
+      factoryPanel.appendChild(el("p", { className: "muted" }, ["Charcoal Intake not available."]));
     }
 
     if (statusData) {
@@ -197,7 +247,8 @@
       var wx = statusBucket(factory, "in_storage_weathering");
       var early = statusBucket(factory, "in_storage_released_early");
       var weathered = statusBucket(factory, "in_storage");
-      cum.appendChild(el("h3", { className: "v2-subpanel-title" }, ["Factory weathering (Bags Status)"]));
+      factoryPanel.appendChild(el("hr", { className: "v2-panel-divider" }));
+      factoryPanel.appendChild(el("h3", { className: "v2-subpanel-title" }, ["Weathering at factory"]));
       var wxList = el("ul", { className: "legend v2-wx-legend" });
       [
         { label: "Still weathering", bags: wx.bags, kg: wx.kg, color: "var(--status-amber)" },
@@ -211,20 +262,20 @@
         li.appendChild(document.createTextNode(s.label + ": " + bagsMass(s.bags, s.kg)));
         wxList.appendChild(li);
       });
-      cum.appendChild(wxList);
+      factoryPanel.appendChild(wxList);
       if (statusData.in_system) {
-        cum.appendChild(
+        factoryPanel.appendChild(
           el("p", { className: "muted v2-footnote" }, [
-            "In system now: " + bagsMass(statusData.in_system.bags, statusData.in_system.kg),
+            "Tracked in system: " + bagsMass(statusData.in_system.bags, statusData.in_system.kg),
           ])
         );
       }
     }
 
-    grid.appendChild(cum);
+    grid.appendChild(factoryPanel);
 
     var daily = el("section", { className: "panel" });
-    daily.appendChild(el("h2", { className: "panel-title" }, ["Daily intake — current week"]));
+    daily.appendChild(el("h2", { className: "panel-title" }, ["Intake by day — this week"]));
     if (movement && movement.rows && movement.rows.length) {
       var days = buildDailySections(movement.rows);
       if (movement.current_week_start) {
@@ -282,11 +333,17 @@
     return { movement: movement, statusData: statusData };
   }
 
-  function renderReportOpenButtons(host) {
+  function renderReportOpenButtons(parent, opts) {
+    opts = opts || {};
+    if (!parent) return null;
     var canBm = moduleAccessible("bags_movement_report");
     var canBs = moduleAccessible("bags_status_report");
     if (!canBm && !canBs) return null;
-    var bar = el("div", { className: "v2-landing-report-btns" });
+    var bar = el("div", {
+      className: opts.stacked
+        ? "v2-landing-report-btns v2-landing-report-btns--stacked"
+        : "v2-landing-report-btns",
+    });
     if (canBm) {
       var b1 = el("button", { type: "button", className: "v2-action-btn v2-action-btn--primary" }, [
         "Charcoal Intake",
@@ -303,8 +360,33 @@
       });
       bar.appendChild(b2);
     }
-    host.appendChild(bar);
+    parent.appendChild(bar);
     return bar;
+  }
+
+  function renderProductionDepartment(host, group, moduleIds) {
+    var grid = el("div", { className: "content-grid v2-dept-production-grid" });
+    var appsPanel = el("section", { className: "panel" });
+    appsPanel.appendChild(el("h2", { className: "panel-title" }, ["Production apps"]));
+    appsPanel.appendChild(
+      el("p", { className: "muted v2-panel-lead" }, ["Floor tools and configuration for this shift."])
+    );
+    var appIds = moduleIds.filter(function (id) {
+      return !PRODUCTION_REPORT_MODULE_IDS[id];
+    });
+    appsPanel.appendChild(reportRowList(appIds));
+    grid.appendChild(appsPanel);
+
+    var reportsPanel = el("section", { className: "panel v2-dept-reports-panel" });
+    reportsPanel.appendChild(el("h2", { className: "panel-title" }, ["Reports"]));
+    reportsPanel.appendChild(
+      el("p", { className: "muted v2-panel-lead" }, [
+        "Full Charcoal Intake and Bags Status — same as production /cis/.",
+      ])
+    );
+    renderReportOpenButtons(reportsPanel, { stacked: true });
+    grid.appendChild(reportsPanel);
+    host.appendChild(grid);
   }
 
   function renderLandingShell(host) {
@@ -315,7 +397,7 @@
     );
     head.appendChild(
       el("p", { className: "v2-dash-tagline" }, [
-        "Reports and operational summaries — use the menu for Office, Logistics, Production, and Maintenance.",
+        "This week’s intake and factory weathering at a glance — open reports below for full detail.",
       ])
     );
     host.appendChild(head);
@@ -331,11 +413,10 @@
     fetchLandingData().then(function (data) {
       if (loadingEl && loadingEl.parentNode) loadingEl.remove();
       if (data.movement || data.statusData) {
-        renderIntakeHero(host, data.movement, data.statusData);
+        renderBusinessSummary(host, data.movement, data.statusData);
       } else if (loadingEl) {
         loadingEl.textContent = "Sign in with report permissions to see intake totals.";
       }
-      renderReportsGrid(host);
     });
   };
 
@@ -358,6 +439,10 @@
     if (group.blurb) head.appendChild(el("p", { className: "v2-dash-tagline" }, [group.blurb]));
     host.appendChild(head);
     var ids = window.CIS_V2_departmentModuleIds ? CIS_V2_departmentModuleIds(deptId) : [];
-    host.appendChild(reportRowList(ids));
+    if (deptId === "production") {
+      renderProductionDepartment(host, group, ids);
+    } else {
+      host.appendChild(reportRowList(ids));
+    }
   };
 })();

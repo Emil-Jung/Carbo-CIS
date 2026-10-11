@@ -1644,6 +1644,33 @@ body.explorer-v2-shell .workspace-module > .cis-float-nav {
   margin: 0 0 20px;
 }
 
+.v2-dashboard-host .v2-landing-report-btns--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  margin: 0;
+}
+
+.v2-dashboard-host .v2-landing-report-btns--stacked .v2-action-btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+  padding: 12px 16px;
+}
+
+.v2-dashboard-host .v2-panel-divider {
+  border: none;
+  border-top: 1px solid var(--panel-row-border);
+  margin: 14px 0 10px;
+}
+
+.v2-dashboard-host .v2-dept-production-grid {
+  margin-top: 4px;
+}
+
+.v2-dashboard-host .v2-dept-reports-panel .v2-landing-report-btns--stacked {
+  margin-top: 8px;
+}
+
 .v2-dashboard-host .v2-intake-grid {
   margin-bottom: 16px;
 }
