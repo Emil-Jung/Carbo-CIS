@@ -164,19 +164,15 @@
 
   }
 
-  function bagAtFactoryInStorage(row) {
-    var storage = ((row && row.storage_status) || "in_storage").trim();
-    return storage === "in_storage";
+  /** Last storage-status change (API: storage_status_changed_at); intake scan if never moved. */
+  function lastStatusChangeSortKey(row) {
+    if (!row) return "";
+    return String(row.status_changed_at || row.recorded_at || "");
   }
 
   function scanTimestampCell(row) {
 
     if (!row) return "—";
-
-    /* Factory in-storage only: weathering clock start (intake scan), not Walvis/transit moves. */
-    if (row.released_early && row.recorded_at && bagAtFactoryInStorage(row)) {
-      return fmtDateTime(row.recorded_at, row.recorded_time);
-    }
 
     if (row.status_changed_at) {
 
@@ -194,23 +190,10 @@
 
   }
 
-  /** Same stamp as bags-status API event buckets — newest scan first in drill lists. */
-  function scanTimeSortKey(row) {
-    if (!row) return "";
-    var status = row.effective_status || row.effectiveStatus;
-    if (status === "in_storage_released_early" && row.released_early_at) {
-      return String(row.released_early_at);
-    }
-    if (row.released_early && row.recorded_at && bagAtFactoryInStorage(row)) {
-      return String(row.recorded_at);
-    }
-    return String(row.status_changed_at || row.recorded_at || "");
-  }
-
-  function sortRowsByScanTimeNewestFirst(rows) {
+  function sortRowsByLastStatusChangeNewestFirst(rows) {
     return (rows || []).slice().sort(function (a, b) {
-      var da = scanTimeSortKey(a);
-      var db = scanTimeSortKey(b);
+      var da = lastStatusChangeSortKey(a);
+      var db = lastStatusChangeSortKey(b);
       if (da !== db) return db.localeCompare(da);
       return String(b.serial || "").localeCompare(String(a.serial || ""));
     });
@@ -223,15 +206,15 @@
 
   function sortDrillRowsForDisplay(rows) {
     if (!drillSortNewestFirstEnabled()) return (rows || []).slice();
-    return sortRowsByScanTimeNewestFirst(rows);
+    return sortRowsByLastStatusChangeNewestFirst(rows);
   }
 
   function sortPalletFlattenedRows(rows) {
     rows = (rows || []).slice();
-    if (drillSortNewestFirstEnabled()) return sortRowsByScanTimeNewestFirst(rows);
+    if (drillSortNewestFirstEnabled()) return sortRowsByLastStatusChangeNewestFirst(rows);
     rows.sort(function (a, b) {
-      var da = a.status_changed_at || a.recorded_at || "";
-      var db = b.status_changed_at || b.recorded_at || "";
+      var da = lastStatusChangeSortKey(a);
+      var db = lastStatusChangeSortKey(b);
       if (da !== db) return String(da).localeCompare(String(db));
       return String(a.serial || "").localeCompare(String(b.serial || ""));
     });
@@ -240,7 +223,7 @@
 
   function sortProducerGroupRows(rows) {
     rows = (rows || []).slice();
-    if (drillSortNewestFirstEnabled()) return sortRowsByScanTimeNewestFirst(rows);
+    if (drillSortNewestFirstEnabled()) return sortRowsByLastStatusChangeNewestFirst(rows);
     rows.sort(function (a, b) {
       return String(a.serial || "").localeCompare(String(b.serial || ""));
     });
@@ -1370,7 +1353,7 @@
     (sections || []).forEach(function (sec) {
       rows = rows.concat(sec.rows || []);
     });
-    if (drillSortNewestFirstEnabled()) return sortRowsByScanTimeNewestFirst(rows);
+    if (drillSortNewestFirstEnabled()) return sortRowsByLastStatusChangeNewestFirst(rows);
     return rows;
   }
 
@@ -2180,6 +2163,7 @@
   }
 
   function renderProducerBagTable(rows, ui, onRowClick) {
+    rows = sortDrillRowsForDisplay(rows);
     var wrap = ui.el("div", { class: "bs-dash-table-wrap" });
     var table = ui.el("table", { class: "bs-dash-table bs-dash-table--compact" });
     var thead = ui.el("thead", {});
@@ -3024,6 +3008,8 @@
           });
 
         }
+
+        locRows = sortPalletFlattenedRows(locRows);
 
         var locBuckets = buildProductBucketsFromRows(locRows);
 
