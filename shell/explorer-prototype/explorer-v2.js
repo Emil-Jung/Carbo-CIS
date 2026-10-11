@@ -216,6 +216,7 @@
     if (moduleView) {
       moduleView.hidden = true;
       moduleView.classList.add("hidden");
+      moduleView.classList.remove("workspace-module--v1-theme");
     }
     if (window.CIS && CIS._v2HideModuleHosts) CIS._v2HideModuleHosts();
   }
@@ -262,6 +263,7 @@
     if (moduleView) {
       moduleView.hidden = false;
       moduleView.classList.remove("hidden");
+      moduleView.classList.add("workspace-module--v1-theme");
     }
   }
 
