@@ -260,33 +260,6 @@
     host.appendChild(grid);
   }
 
-  function renderReportsGrid(host) {
-    var section = el("section", { className: "panel" });
-    section.appendChild(el("h2", { className: "panel-title" }, ["Reports & lookups"]));
-    section.appendChild(
-      el("p", { className: "muted v2-panel-lead" }, [
-        "Read-only reports and lookups. Departments and apps are in the left menu.",
-      ])
-    );
-    var ids = window.CIS_V2_REPORT_MODULE_IDS || [];
-    var seen = {};
-    var ordered = [];
-    ids.forEach(function (id) {
-      if (!seen[id] && moduleAccessible(id)) {
-        seen[id] = true;
-        ordered.push(id);
-      }
-    });
-    (window.CIS.modules || []).forEach(function (m) {
-      if (m.kind === "lookup" && !seen[m.id] && moduleAccessible(m.id)) {
-        seen[m.id] = true;
-        ordered.push(m.id);
-      }
-    });
-    section.appendChild(reportRowList(ordered));
-    host.appendChild(section);
-  }
-
   async function fetchLandingData() {
     var movement = null;
     var statusData = null;
