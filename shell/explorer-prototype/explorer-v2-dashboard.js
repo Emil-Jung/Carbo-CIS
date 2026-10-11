@@ -26,11 +26,14 @@
 
   function fmtMass(kg) {
     if (window.CIS && CIS.formatMassFromKg) {
-      return CIS.formatMassFromKg(kg, { forceKg: true });
+      return CIS.formatMassFromKg(kg);
     }
     var v = Number(kg);
     if (!isFinite(v)) return "—";
-    return v.toLocaleString(undefined, { maximumFractionDigits: 1 }) + " kg";
+    if (Math.abs(v) >= 1000) {
+      return (v / 1000).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " t";
+    }
+    return v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " kg";
   }
 
   function bagsMass(bags, kg) {
