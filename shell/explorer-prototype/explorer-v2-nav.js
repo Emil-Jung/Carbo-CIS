@@ -23,6 +23,7 @@
           { id: "print_labels", nestUnder: "traceability", nestDepth: 2 },
           { id: "label_deployment", nestUnder: "traceability", nestDepth: 2 },
           { id: "movement_schedule", nestUnder: "traceability" },
+          { id: "packaging_shift", nestUnder: "traceability" },
           { id: "walvis_dispatches", nestUnder: "traceability" },
           { id: "containers", nestUnder: "traceability" },
           { id: "pallet_configuration", nestUnder: "traceability" },

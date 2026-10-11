@@ -33,6 +33,7 @@
     delivery_confirmations: "traceability",
     containers: "traceability",
     movement_schedule: "traceability",
+    packaging_shift: "traceability",
     walvis_dispatches: "traceability",
     pallet_configuration: "traceability",
     manager_override: "traceability",

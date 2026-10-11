@@ -26,6 +26,7 @@
     delivery_confirmations: "traceability",
     containers: "traceability",
     movement_schedule: "traceability",
+    packaging_shift: "traceability",
     pallet_configuration: "traceability",
     manager_override: "traceability",
     bag_stock: "traceability",
