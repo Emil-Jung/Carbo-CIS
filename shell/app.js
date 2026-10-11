@@ -464,7 +464,13 @@
 
     const verEl = document.getElementById("app-version");
 
-    if (verEl) verEl.textContent = state.config && state.config.cisVersion ? ("v" + state.config.cisVersion) : "";
+    if (verEl) {
+      var cv = state.config && state.config.cisVersion;
+      var sr = state.config && state.config.shellRev;
+      var vt = cv ? ("v" + cv) : "";
+      if (vt && sr) vt += " · " + sr;
+      verEl.textContent = vt;
+    }
 
     setupUpdateButton();
 
