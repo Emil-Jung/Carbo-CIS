@@ -211,6 +211,37 @@
     });
   }
 
+  /** Production /cis/ (V1) only — V2 explorer-prototype leaves this unset. */
+  function drillSortNewestFirstEnabled() {
+    return window.CIS_BS_DRILL_SORT_NEWEST_FIRST === true;
+  }
+
+  function sortDrillRowsForDisplay(rows) {
+    if (!drillSortNewestFirstEnabled()) return (rows || []).slice();
+    return sortRowsByScanTimeNewestFirst(rows);
+  }
+
+  function sortPalletFlattenedRows(rows) {
+    rows = (rows || []).slice();
+    if (drillSortNewestFirstEnabled()) return sortRowsByScanTimeNewestFirst(rows);
+    rows.sort(function (a, b) {
+      var da = a.status_changed_at || a.recorded_at || "";
+      var db = b.status_changed_at || b.recorded_at || "";
+      if (da !== db) return String(da).localeCompare(String(db));
+      return String(a.serial || "").localeCompare(String(b.serial || ""));
+    });
+    return rows;
+  }
+
+  function sortProducerGroupRows(rows) {
+    rows = (rows || []).slice();
+    if (drillSortNewestFirstEnabled()) return sortRowsByScanTimeNewestFirst(rows);
+    rows.sort(function (a, b) {
+      return String(a.serial || "").localeCompare(String(b.serial || ""));
+    });
+    return rows;
+  }
+
   function statusDetailCell(row) {
     if (!row) return "—";
     var status = row.status_display || row.effective_status || "—";
@@ -1334,7 +1365,8 @@
     (sections || []).forEach(function (sec) {
       rows = rows.concat(sec.rows || []);
     });
-    return sortRowsByScanTimeNewestFirst(rows);
+    if (drillSortNewestFirstEnabled()) return sortRowsByScanTimeNewestFirst(rows);
+    return rows;
   }
 
   function combineTransitCoastGroups(groups) {
@@ -2008,7 +2040,7 @@
         rows.push(row);
       });
     });
-    return sortRowsByScanTimeNewestFirst(rows);
+    return sortPalletFlattenedRows(rows);
   }
 
   function palletProducerCell(row) {
@@ -2132,7 +2164,7 @@
     });
     list.forEach(function (g) {
       g.kg = Math.round(g.kg * 10) / 10;
-      g.rows = sortRowsByScanTimeNewestFirst(g.rows);
+      g.rows = sortProducerGroupRows(g.rows);
     });
     return list;
   }
@@ -2214,7 +2246,7 @@
   }
 
   function renderDrillTable(rows, ui, onRowClick) {
-    rows = sortRowsByScanTimeNewestFirst(rows);
+    rows = sortDrillRowsForDisplay(rows);
 
     var wrap = ui.el("div", { class: "bs-dash-table-wrap" });
 
