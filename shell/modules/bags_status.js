@@ -189,6 +189,28 @@
 
   }
 
+  /** Same stamp as bags-status API event buckets — newest scan first in drill lists. */
+  function scanTimeSortKey(row) {
+    if (!row) return "";
+    var status = row.effective_status || row.effectiveStatus;
+    if (status === "in_storage_released_early" && row.released_early_at) {
+      return String(row.released_early_at);
+    }
+    if (row.released_early && row.recorded_at) {
+      return String(row.recorded_at);
+    }
+    return String(row.status_changed_at || row.recorded_at || "");
+  }
+
+  function sortRowsByScanTimeNewestFirst(rows) {
+    return (rows || []).slice().sort(function (a, b) {
+      var da = scanTimeSortKey(a);
+      var db = scanTimeSortKey(b);
+      if (da !== db) return db.localeCompare(da);
+      return String(b.serial || "").localeCompare(String(a.serial || ""));
+    });
+  }
+
   function statusDetailCell(row) {
     if (!row) return "—";
     var status = row.status_display || row.effective_status || "—";
@@ -1312,7 +1334,7 @@
     (sections || []).forEach(function (sec) {
       rows = rows.concat(sec.rows || []);
     });
-    return rows;
+    return sortRowsByScanTimeNewestFirst(rows);
   }
 
   function combineTransitCoastGroups(groups) {
@@ -1986,13 +2008,7 @@
         rows.push(row);
       });
     });
-    rows.sort(function (a, b) {
-      var da = a.status_changed_at || a.recorded_at || "";
-      var db = b.status_changed_at || b.recorded_at || "";
-      if (da !== db) return String(da).localeCompare(String(db));
-      return String(a.serial || "").localeCompare(String(b.serial || ""));
-    });
-    return rows;
+    return sortRowsByScanTimeNewestFirst(rows);
   }
 
   function palletProducerCell(row) {
@@ -2116,9 +2132,7 @@
     });
     list.forEach(function (g) {
       g.kg = Math.round(g.kg * 10) / 10;
-      g.rows.sort(function (a, b) {
-        return String(a.serial || "").localeCompare(String(b.serial || ""));
-      });
+      g.rows = sortRowsByScanTimeNewestFirst(g.rows);
     });
     return list;
   }
@@ -2200,6 +2214,7 @@
   }
 
   function renderDrillTable(rows, ui, onRowClick) {
+    rows = sortRowsByScanTimeNewestFirst(rows);
 
     var wrap = ui.el("div", { class: "bs-dash-table-wrap" });
 
