@@ -32,10 +32,117 @@
     return ctx.api.traceability(path, { method: "PATCH", body: body || {} });
   }
 
-  function confirmTyped(message, requiredPhrase) {
-    var typed = window.prompt(message, "");
-    if (typed === null) return false;
-    return String(typed).trim() === requiredPhrase;
+  /** Modal with explicit Cancel — avoids prompt() treating cancel as empty OK. */
+  function showFormModal(ui, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var backdrop = ui.el("div", { class: "modal-backdrop" });
+      var modal = ui.el("div", { class: "modal modal-wide" });
+      modal.appendChild(ui.el("h3", {}, [opts.title || "Confirm"]));
+      if (opts.message) {
+        var p = ui.el("p", { class: "module-desc" });
+        p.textContent = opts.message;
+        modal.appendChild(p);
+      }
+      if (opts.detail) {
+        var pre = ui.el("pre", {
+          style: "white-space:pre-wrap;font-size:12px;max-height:14rem;overflow:auto;margin:0.5rem 0;",
+        });
+        pre.textContent = opts.detail;
+        modal.appendChild(pre);
+      }
+      var inputs = {};
+      (opts.fields || []).forEach(function (f) {
+        modal.appendChild(
+          ui.el("label", { for: "wd_" + f.key }, [f.label + (f.required ? " *" : "")])
+        );
+        var inp = ui.el("input", {
+          id: "wd_" + f.key,
+          type: f.type || "text",
+          value: f.value || "",
+          placeholder: f.placeholder || "",
+        });
+        modal.appendChild(inp);
+        inputs[f.key] = inp;
+      });
+      var actions = ui.el("div", { class: "modal-actions" });
+      var cancelBtn = ui.el("button", { type: "button", class: "btn-ghost" }, [
+        opts.cancelLabel || "Cancel",
+      ]);
+      var okBtn = ui.el("button", { type: "button", class: "settings-action-btn" }, [
+        opts.primaryLabel || "Continue",
+      ]);
+      function close(result) {
+        if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+        resolve(result);
+      }
+      cancelBtn.addEventListener("click", function () {
+        close(null);
+      });
+      okBtn.addEventListener("click", function () {
+        var out = {};
+        Object.keys(inputs).forEach(function (k) {
+          out[k] = inputs[k].value;
+        });
+        if (opts.validate) {
+          var err = opts.validate(out);
+          if (err) {
+            window.alert(err);
+            return;
+          }
+        }
+        close(out);
+      });
+      backdrop.addEventListener("click", function (e) {
+        if (e.target === backdrop) close(null);
+      });
+      actions.appendChild(cancelBtn);
+      actions.appendChild(okBtn);
+      modal.appendChild(actions);
+      backdrop.appendChild(modal);
+      document.body.appendChild(backdrop);
+      var firstField = opts.fields && opts.fields[0];
+      if (firstField) {
+        var focusEl = document.getElementById("wd_" + firstField.key);
+        if (focusEl) focusEl.focus();
+      }
+    });
+  }
+
+  function dispatchOpenLabel(d) {
+    if (!d) return "No open dispatch";
+    return (
+      "Dispatch #" +
+      d.dispatch_number +
+      (d.truck_registration ? " · " + d.truck_registration : "") +
+      " — " +
+      fmt(d.loaded_bags) +
+      " bag(s) on manifest"
+    );
+  }
+
+  async function truckDetailsModal(ui, title, message, defaults) {
+    return showFormModal(ui, {
+      title: title,
+      message: message,
+      fields: [
+        {
+          key: "truck_registration",
+          label: "Truck registration",
+          value: (defaults && defaults.truck_registration) || "",
+          placeholder: "Optional — can add later",
+        },
+        {
+          key: "transporter",
+          label: "Transporter / contractor",
+          value: (defaults && defaults.transporter) || "",
+          placeholder: "Optional",
+        },
+        { key: "notes", label: "Notes", value: (defaults && defaults.notes) || "", placeholder: "Optional" },
+      ],
+      cancelLabel: "Cancel",
+      primaryLabel: "Continue",
+    });
   }
 
   function renderDetail(container, ctx, detail) {
@@ -67,21 +174,28 @@
       style: "margin-bottom: 0.75rem;",
     }, ["Edit truck registration / transporter / notes"]);
     editMetaBtn.addEventListener("click", async function () {
-      var reg =
-        window.prompt(
-          "Truck registration:",
-          detail.truck_registration || ""
-        ) || "";
-      if (reg === null && detail.truck_registration) return;
-      var transporter =
-        window.prompt("Transporter / contractor:", detail.transporter || "") || "";
-      var notes = window.prompt("Notes:", detail.notes || "") || "";
+      var form = await showFormModal(ui, {
+        title: "Edit dispatch details",
+        message: "Cancel closes without saving.",
+        fields: [
+          {
+            key: "truck_registration",
+            label: "Truck registration",
+            value: detail.truck_registration || "",
+          },
+          { key: "transporter", label: "Transporter / contractor", value: detail.transporter || "" },
+          { key: "notes", label: "Notes", value: detail.notes || "" },
+        ],
+        cancelLabel: "Cancel",
+        primaryLabel: "Save",
+      });
+      if (!form) return;
       editMetaBtn.disabled = true;
       try {
         var updated = await apiPatch(ctx, "/walvis-dispatches/" + encodeURIComponent(detail.id), {
-          truck_registration: reg.trim(),
-          transporter: transporter.trim(),
-          notes: notes.trim(),
+          truck_registration: form.truck_registration.trim(),
+          transporter: form.transporter.trim(),
+          notes: form.notes.trim(),
         });
         renderDetail(container, ctx, updated);
       } catch (e) {
@@ -136,8 +250,8 @@
       style: "max-width: 22rem;",
     }, ["Add bag to this dispatch…"]);
     addBtn.addEventListener("click", async function () {
-      var serial = window.prompt("Bag serial (e.g. CB-…):", "");
-      if (!serial) return;
+      var serial = window.prompt("Bag serial (e.g. CB-…):\n\nCancel = do not add a bag.", "");
+      if (serial === null || !String(serial).trim()) return;
       var markReceived = window.confirm(
         "Mark this bag as received at Walvis on the manifest?\n\nOK = yes (typical if already in Walvis storage).\nCancel = loaded only."
       );
@@ -233,6 +347,14 @@
   }
 
   async function runResetAndFenceFirst(container, ctx) {
+    var ui = CIS.ui;
+    if (
+      !window.confirm(
+        "Open the Walvis reset wizard?\n\nThis is for fixing history (e.g. Dispatch #1). Cancel = stop here."
+      )
+    ) {
+      return;
+    }
     var preview;
     try {
       preview = await buildResetPreview(ctx);
@@ -240,68 +362,175 @@
       window.alert("Could not load dispatch summary: " + (e.message || e));
       return;
     }
-    var lines = [
+    var detailLines = [
       "This DELETES all Walvis dispatch records and restarts numbering at Dispatch #1.",
       "",
       "Current dispatch rows: " + preview.dispatch_rows,
       preview.walvis_storage_bags != null
         ? "Bags in Walvis storage now: " + preview.walvis_storage_bags
-        : "Bags in Walvis storage: (count unavailable — API may need restart; reset still uses live DB)",
+        : "Bags in Walvis storage: count from live DB at create time",
       "",
     ];
-    if (preview.preview_fallback) {
-      lines.push("(Used dispatch list fallback — " + (preview.preview_error || "preview API failed") + ")");
-      lines.push("");
-    }
     (preview.dispatches || []).forEach(function (d) {
-      lines.push(
-        "  · #" + d.dispatch_number + " (" + d.status + ") — " + d.bag_count + " bag(s) on manifest"
+      detailLines.push(
+        "  · #" + d.dispatch_number + " (" + d.status + ") — " + d.bag_count + " bag(s)"
       );
     });
-    lines.push("");
-    lines.push("A new CLOSED Dispatch #1 will include every Walvis storage bag.");
-    lines.push("");
-    lines.push('Type exactly ' + RESET_CONFIRM + " in the next box to continue.");
+    detailLines.push("");
+    detailLines.push("A new CLOSED Dispatch #1 will include every Walvis storage bag.");
 
-    if (!confirmTyped(lines.join("\n"), RESET_CONFIRM)) {
-      window.alert("Reset cancelled — confirmation text did not match.");
-      return;
+    var step1 = await showFormModal(ui, {
+      title: "Reset — type to continue",
+      message: "Type " + RESET_CONFIRM + " exactly, or Cancel to abort.",
+      detail: detailLines.join("\n"),
+      fields: [
+        {
+          key: "confirm",
+          label: "Confirmation",
+          placeholder: RESET_CONFIRM,
+          required: true,
+        },
+      ],
+      cancelLabel: "Cancel",
+      primaryLabel: "Next",
+      validate: function (out) {
+        if (String(out.confirm || "").trim() !== RESET_CONFIRM) {
+          return "Type " + RESET_CONFIRM + " exactly, or click Cancel.";
+        }
+        return null;
+      },
+    });
+    if (!step1) return;
+
+    var step2 = await showFormModal(ui, {
+      title: "Dispatch #1 details",
+      message: "Optional now — you can edit later on the dispatch screen. Cancel = abort (nothing created).",
+      fields: [
+        { key: "truck_registration", label: "Truck registration", placeholder: "Optional" },
+        { key: "transporter", label: "Transporter / contractor", placeholder: "Optional" },
+        {
+          key: "notes",
+          label: "Notes",
+          value: "Dispatch #1 — first Walvis offload",
+          placeholder: "Optional",
+        },
+        {
+          key: "extra_bags",
+          label: "Extra bag serial(s)",
+          placeholder: "Comma-separated, optional",
+        },
+      ],
+      cancelLabel: "Cancel",
+      primaryLabel: "Review",
+    });
+    if (!step2) return;
+
+    var extraList = (step2.extra_bags || "")
+      .split(/[,;\s]+/)
+      .map(function (s) {
+        return s.trim();
+      })
+      .filter(Boolean);
+
+    var summary =
+      "Create closed Dispatch #1 with all Walvis storage bags" +
+      (extraList.length ? " plus " + extraList.length + " extra serial(s)" : "") +
+      ".\n\nThis deletes " +
+      preview.dispatch_rows +
+      " existing dispatch row(s).\n\nProceed?";
+    if (!window.confirm(summary)) return;
+
+    try {
+      var created = await apiPost(ctx, "/walvis-dispatches/admin/reset-and-fence-first", {
+        confirm: RESET_CONFIRM,
+        truck_registration: step2.truck_registration.trim() || null,
+        transporter: step2.transporter.trim() || null,
+        notes: step2.notes.trim() || null,
+        extra_bag_identifiers: extraList,
+      });
+      renderDetail(container, ctx, created);
+    } catch (e) {
+      window.alert(e.message || String(e));
     }
+  }
 
-    var reg = window.prompt("Truck registration for Dispatch #1 (optional):", "") || "";
-    var extra = window.prompt(
-      "Extra bag serial(s) missed on the truck scan (comma-separated, optional):",
-      ""
-    );
-    var extraList = extra
-      ? extra.split(/[,;\s]+/).map(function (s) {
-          return s.trim();
-        }).filter(Boolean)
-      : [];
-
+  async function managerOpenDispatch(container, ctx, ui) {
     if (
       !window.confirm(
-        "Last chance: delete " +
-          preview.dispatch_rows +
-          " dispatch row(s) and create Dispatch #1 with " +
-          (preview.walvis_storage_bags != null
-            ? preview.walvis_storage_bags + " Walvis bag(s)"
-            : "all current Walvis storage bag(s)") +
-          (extraList.length ? " plus " + extraList.length + " extra serial(s)" : "") +
-          "?"
+        "Open a new truck dispatch for Grootfontein loading?\n\nShorty’s scanner will attach bags to this manifest.\n\nCancel = do nothing."
       )
     ) {
       return;
     }
-
+    var form = await truckDetailsModal(
+      ui,
+      "Open dispatch (Grootfontein)",
+      "Cancel closes without creating a dispatch.",
+      null
+    );
+    if (!form) return;
+    if (
+      !window.confirm(
+        "Create open Dispatch now?\n\nTruck: " +
+          (form.truck_registration.trim() || "(not set yet)") +
+          "\n\nCancel = abort."
+      )
+    ) {
+      return;
+    }
     try {
-      var detail = await apiPost(ctx, "/walvis-dispatches/admin/reset-and-fence-first", {
-        confirm: RESET_CONFIRM,
-        truck_registration: reg.trim() || null,
-        notes: "Dispatch #1 — first Walvis run (64 bags), ring-fenced from CIS",
-        extra_bag_identifiers: extraList,
+      await apiPost(ctx, "/walvis-dispatches/open", {
+        truck_registration: form.truck_registration.trim() || null,
+        transporter: form.transporter.trim() || null,
+        notes: form.notes.trim() || null,
       });
-      renderDetail(container, ctx, detail);
+      await renderList(container, ctx);
+    } catch (e) {
+      window.alert(e.message || String(e));
+    }
+  }
+
+  async function managerSwitchTruck(container, ctx, ui, openDispatch) {
+    var warn =
+      "Switch truck?\n\nThis CLOSES " +
+      (openDispatch
+        ? "Dispatch #" + openDispatch.dispatch_number + " (" + openDispatch.loaded_bags + " bags loaded)"
+        : "the current open dispatch") +
+      " and opens a NEW dispatch for the next trailer.\n\nCancel = do nothing.";
+    if (!window.confirm(warn)) return;
+    var form = await truckDetailsModal(
+      ui,
+      "Next truck",
+      "Cancel closes without switching.",
+      null
+    );
+    if (!form) return;
+    if (!window.confirm("Confirm switch truck and open the new dispatch?")) return;
+    try {
+      await apiPost(ctx, "/walvis-dispatches/switch-truck", {
+        truck_registration: form.truck_registration.trim() || null,
+        transporter: form.transporter.trim() || null,
+        notes: form.notes.trim() || null,
+      });
+      await renderList(container, ctx);
+    } catch (e) {
+      window.alert(e.message || String(e));
+    }
+  }
+
+  async function managerCloseOpen(container, ctx, openDispatch) {
+    if (
+      !window.confirm(
+        "Close open Dispatch #" +
+          openDispatch.dispatch_number +
+          "?\n\nNo new dispatch will be opened. Shorty must not load more bags until a manager opens the next dispatch.\n\nCancel = do nothing."
+      )
+    ) {
+      return;
+    }
+    try {
+      await apiPost(ctx, "/walvis-dispatches/close-open", {});
+      await renderList(container, ctx);
     } catch (e) {
       window.alert(e.message || String(e));
     }
@@ -316,12 +545,27 @@
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
         "Truck manifest at Grootfontein vs bags received into Walvis storage. ",
+        "Managers open or switch dispatches here before Shorty loads at Grootfontein. ",
         "Use ",
         ui.el("strong", {}, ["Reset & fence Dispatch #1"]),
-        " once to fix accidental dispatch rows and ring-fence the current Walvis stock. ",
-        "Day-to-day loading uses Bag Walk at Grootfontein (Switch truck).",
+        " once only to fix history.",
       ])
     );
+
+    var managerHost = ui.el("div", {
+      class: "walvis-dispatch-manager",
+      style: "margin-bottom: 1.25rem; padding: 1rem; border: 1px solid var(--border, #ccc); border-radius: 8px;",
+    });
+    managerHost.appendChild(
+      ui.el("h3", { class: "module-title", style: "font-size: 1.05rem; margin: 0 0 0.5rem;" }, [
+        "Grootfontein loading (manager)",
+      ])
+    );
+    var activeLine = ui.el("p", { class: "muted", id: "walvis-active-dispatch-line" }, ["Checking open dispatch…"]);
+    managerHost.appendChild(activeLine);
+    var managerBtns = ui.el("div", { style: "display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.75rem;" });
+    managerHost.appendChild(managerBtns);
+    container.appendChild(managerHost);
 
     var actions = ui.el("div", { class: "walvis-dispatch-actions", style: "margin-bottom: 1rem;" });
 
@@ -343,16 +587,23 @@
     fenceBtn.addEventListener("click", async function () {
       if (
         !window.confirm(
-          "Create a new closed dispatch for Walvis storage bags that are not on any manifest yet?\n\nThis does NOT delete existing dispatches."
+          "Create a new closed dispatch for Walvis storage bags not on any manifest?\n\nCancel = stop.\nThis does NOT delete existing dispatches."
         )
       ) {
         return;
       }
-      var reg = window.prompt("Truck registration (optional):", "") || "";
+      var form = await truckDetailsModal(
+        ui,
+        "Fence unassigned bags",
+        "Cancel closes without creating a dispatch.",
+        null
+      );
+      if (!form) return;
+      if (!window.confirm("Create this closed dispatch now?")) return;
       fenceBtn.disabled = true;
       try {
         var detail = await apiPost(ctx, "/walvis-dispatches/fence-unassigned-storage", {
-          truck_registration: reg.trim() || null,
+          truck_registration: form.truck_registration.trim() || null,
         });
         renderDetail(container, ctx, detail);
       } catch (e) {
@@ -367,6 +618,57 @@
     var listHost = ui.el("div", { class: "walvis-dispatch-list" });
     container.appendChild(listHost);
     listHost.textContent = "Loading…";
+
+    var openDispatch = null;
+    try {
+      var activeResp = await apiGet(ctx, "/walvis-dispatches/active");
+      openDispatch = activeResp.dispatch || null;
+    } catch (e) {
+      openDispatch = null;
+    }
+    activeLine.textContent = openDispatch
+      ? "Open for loading: " + dispatchOpenLabel(openDispatch)
+      : "No open dispatch — open one before Shorty scans bags onto the truck.";
+    managerBtns.innerHTML = "";
+    if (openDispatch) {
+      managerBtns.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "settings-action-btn",
+          onclick: function () {
+            managerSwitchTruck(container, ctx, ui, openDispatch);
+          },
+        }, ["Switch truck (close + new dispatch)"])
+      );
+      managerBtns.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn-ghost",
+          onclick: function () {
+            managerCloseOpen(container, ctx, openDispatch);
+          },
+        }, ["Close loading dispatch"])
+      );
+      managerBtns.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn-ghost",
+          onclick: function () {
+            openDetail(container, ctx, openDispatch.id);
+          },
+        }, ["View open dispatch"])
+      );
+    } else {
+      managerBtns.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "settings-action-btn",
+          onclick: function () {
+            managerOpenDispatch(container, ctx, ui);
+          },
+        }, ["Open dispatch for Shorty"])
+      );
+    }
 
     try {
       var data = await apiGet(ctx, "/walvis-dispatches?limit=50&include_closed=true");
