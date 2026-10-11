@@ -28,6 +28,10 @@
     return ctx.api.traceability(path, { method: "POST", body: body || {} });
   }
 
+  async function apiPatch(ctx, path, body) {
+    return ctx.api.traceability(path, { method: "PATCH", body: body || {} });
+  }
+
   function confirmTyped(message, requiredPhrase) {
     var typed = window.prompt(message, "");
     if (typed === null) return false;
@@ -47,11 +51,46 @@
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
         detail.status === "open" ? "Loading in progress at Grootfontein." : "Truck load closed.",
+        detail.transporter ? " · Transporter: " + detail.transporter : "",
         " Opened ",
         fmtDate(detail.opened_at),
         detail.closed_at ? " · Closed " + fmtDate(detail.closed_at) : "",
       ])
     );
+    if (detail.notes) {
+      container.appendChild(ui.el("p", { class: "muted" }, ["Notes: ", detail.notes]));
+    }
+
+    var editMetaBtn = ui.el("button", {
+      type: "button",
+      class: "btn-ghost",
+      style: "margin-bottom: 0.75rem;",
+    }, ["Edit truck registration / transporter / notes"]);
+    editMetaBtn.addEventListener("click", async function () {
+      var reg =
+        window.prompt(
+          "Truck registration:",
+          detail.truck_registration || ""
+        ) || "";
+      if (reg === null && detail.truck_registration) return;
+      var transporter =
+        window.prompt("Transporter / contractor:", detail.transporter || "") || "";
+      var notes = window.prompt("Notes:", detail.notes || "") || "";
+      editMetaBtn.disabled = true;
+      try {
+        var updated = await apiPatch(ctx, "/walvis-dispatches/" + encodeURIComponent(detail.id), {
+          truck_registration: reg.trim(),
+          transporter: transporter.trim(),
+          notes: notes.trim(),
+        });
+        renderDetail(container, ctx, updated);
+      } catch (e) {
+        window.alert(e.message || String(e));
+      } finally {
+        editMetaBtn.disabled = false;
+      }
+    });
+    container.appendChild(editMetaBtn);
 
     var summary = ui.el("div", { class: "walvis-dispatch-summary" });
     summary.appendChild(
