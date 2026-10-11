@@ -563,6 +563,12 @@
     );
     var activeLine = ui.el("p", { class: "muted", id: "walvis-active-dispatch-line" }, ["Checking open dispatch…"]);
     managerHost.appendChild(activeLine);
+    var managerHint = ui.el("p", {
+      class: "muted",
+      id: "walvis-manager-hint",
+      style: "font-size:0.88rem;margin:0.35rem 0 0;line-height:1.35;",
+    }, [""]);
+    managerHost.appendChild(managerHint);
     var managerBtns = ui.el("div", { style: "display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.75rem;" });
     managerHost.appendChild(managerBtns);
     container.appendChild(managerHost);
@@ -629,6 +635,9 @@
     activeLine.textContent = openDispatch
       ? "Open for loading: " + dispatchOpenLabel(openDispatch)
       : "No open dispatch — open one before Shorty scans bags onto the truck.";
+    managerHint.textContent = openDispatch
+      ? "Only one open manifest at a time. Use Switch truck when the trailer is full — that closes this dispatch and opens the next number."
+      : "Use Open dispatch for Shorty when the next trailer is ready at Grootfontein. This is separate from bags already on the road (Bag Status → in transit to Walvis). Closed Dispatch #1 with Walvis stock does not block opening #2.";
     managerBtns.innerHTML = "";
     if (openDispatch) {
       managerBtns.appendChild(

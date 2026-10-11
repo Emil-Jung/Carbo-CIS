@@ -1633,58 +1633,141 @@
     block.appendChild(row);
   }
 
-  function renderWalvisStorageSplit(parent, bulkStatus, palletBucket, ui, onSelect) {
-    var row = ui.el("div", { class: "bs-dash-factory-storage-split" });
-    var bagsCol = ui.el("div", { class: "bs-dash-factory-storage-split__col" });
-    bagsCol.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Bulk bags in storage"]));
-    bagsCol.appendChild(
-      ui.el("p", { class: "bs-dash-location__note bs-dash-location__note--compact muted" }, [
-        "Intake jumbos at Walvis Bay — by category and producer, same as factory storage drill-down.",
+  function walvisDispatchCardLabel(d) {
+    var parts = ["Dispatch #" + d.dispatch_number];
+    if (d.truck_registration) parts.push(d.truck_registration);
+    if (d.status === "open") parts.push("(loading open)");
+    else if (d.status === "closed") parts.push("(closed)");
+    return parts.join(" · ");
+  }
+
+  function renderWalvisStorageDispatchHub(parent, report, palletBucket, ui, onSelect) {
+    report = report || { dispatches: [], unassigned: {}, pallets: {} };
+    parent.appendChild(
+      ui.el("p", { class: "bs-dash-drill-note" }, [
+        "Bulk jumbos on the ground are grouped by truck dispatch manifest, then by category. ",
+        "The ",
+        ui.el("strong", {}, ["In transit — truck to Walvis Bay"]),
+        " tile is separate — those bags are still on the road. ",
+        "To start the next Grootfontein load (e.g. Dispatch #2), use ",
+        ui.el("strong", {}, ["Walvis dispatches"]),
+        " → Open dispatch for Shorty (only one open manifest at a time).",
       ])
-    );
-    appendStatusCards(
-      bagsCol,
-      [
-        Object.assign({}, statusForBagsOnlyDisplay(bulkStatus), {
-          key: "walvis:bulk_bags",
-          label: "Bulk bags",
-          kind: "walvis_bulk_bags",
-        }),
-      ],
-      ui,
-      null,
-      onSelect,
-      "bs-dash-status-grid--inline"
     );
 
-    var palCol = ui.el("div", { class: "bs-dash-factory-storage-split__col" });
-    palCol.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Pallets in storage"]));
-    palCol.appendChild(
-      ui.el("p", { class: "bs-dash-location__note bs-dash-location__note--compact muted" }, [
-        "Physical pallet BAG IDs in Walvis storage — tap for product mix and source producers.",
+    var dispatches = report.dispatches || [];
+    if (dispatches.length) {
+      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["By truck dispatch"]));
+      appendStatusCards(
+        parent,
+        dispatches.map(function (d) {
+          return {
+            key: "walvis:dispatch:" + d.id,
+            kind: "walvis_dispatch_select",
+            label: walvisDispatchCardLabel(d),
+            bags: d.bags_in_storage || 0,
+            kg: d.kg_in_storage || 0,
+            streams: {},
+            dispatch: d,
+          };
+        }),
+        ui,
+        null,
+        onSelect,
+        "bs-dash-status-grid--inline"
+      );
+    } else {
+      parent.appendChild(
+        ui.el("p", { class: "bs-dash-empty" }, ["No bulk bags in Walvis storage linked to a dispatch manifest yet."])
+      );
+    }
+
+    var un = report.unassigned || {};
+    if ((un.bags_in_storage || 0) > 0) {
+      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Not on a dispatch manifest"]));
+      appendStatusCards(
+        parent,
+        [
+          {
+            key: "walvis:unassigned",
+            kind: "walvis_unassigned",
+            label: "Unassigned bulk bags",
+            bags: un.bags_in_storage || 0,
+            kg: un.kg_in_storage || 0,
+            streams: {},
+            unassigned: un,
+          },
+        ],
+        ui,
+        null,
+        onSelect,
+        "bs-dash-status-grid--inline"
+      );
+    }
+
+    var palFromReport = report.pallets || {};
+    var pal = palletBucket || { bags: 0, kg: 0 };
+    var palBags = Math.max(pal.bags || 0, palFromReport.bags_in_storage || 0);
+    var palKg = Math.max(pal.kg || 0, palFromReport.kg_in_storage || 0);
+    if (palBags > 0) {
+      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Pallets in storage"]));
+      parent.appendChild(
+        ui.el("p", { class: "bs-dash-location__note bs-dash-location__note--compact muted" }, [
+          "Physical pallet BAG IDs — tap for product mix and source producers (not tied to GF truck dispatches).",
+        ])
+      );
+      appendStatusCards(
+        parent,
+        [
+          {
+            key: "walvis:pallets",
+            label: "Pallets in storage",
+            kind: "walvis_pallets",
+            bags: palBags,
+            kg: palKg,
+            streams: {},
+          },
+        ],
+        ui,
+        null,
+        onSelect,
+        "bs-dash-status-grid--inline"
+      );
+    }
+  }
+
+  function renderWalvisStorageDispatchCategories(parent, dispatch, ui, onSelect) {
+    parent.appendChild(
+      ui.el("p", { class: "bs-dash-drill-note" }, [
+        walvisDispatchCardLabel(dispatch) + " — ",
+        String(dispatch.bags_in_storage || 0) + " bulk bag(s) in Walvis storage. Tap a category for producers and bag list.",
       ])
     );
-    var pal = palletBucket || { bags: 0, kg: 0 };
+    var cats = dispatch.categories || [];
+    if (!cats.length) {
+      parent.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No categories for this dispatch."]));
+      return;
+    }
     appendStatusCards(
-      palCol,
-      [
-        {
-          key: "walvis:pallets",
-          label: "Pallets in storage",
-          kind: "walvis_pallets",
-          bags: pal.bags || 0,
-          kg: pal.kg || 0,
+      parent,
+      cats.map(function (cat) {
+        var streamKey = cat.product_stream || "unknown";
+        return {
+          key: "walvis:cat:" + dispatch.id + ":" + streamKey,
+          kind: "walvis_dispatch_category",
+          label: STREAM_LABELS[streamKey] || streamKey,
+          bags: cat.bags || 0,
+          kg: cat.kg || 0,
           streams: {},
-        },
-      ],
+          rows: cat.rows || [],
+          dispatch: dispatch,
+        };
+      }),
       ui,
       null,
       onSelect,
       "bs-dash-status-grid--inline"
     );
-    row.appendChild(bagsCol);
-    row.appendChild(palCol);
-    parent.appendChild(row);
   }
 
   function renderGroup(group, ui, selectedStatus, onSelect, dashboardSummary) {
@@ -2380,6 +2463,7 @@
 
     var wxDrill = null;
     var wxDrillToken = 0;
+    var walvisStorageReport = null;
 
 
 
@@ -2433,7 +2517,24 @@
 
     function goBackFromWxDrill() {
       wxDrillToken += 1;
+      var backTo = wxDrill && wxDrill.backTo;
+      var backDispatch = wxDrill && wxDrill.backDispatch;
       wxDrill = null;
+      if (backTo === "walvis_dispatch" && backDispatch) {
+        selected = {
+          key: WALVIS_STORAGE_STATUS,
+          mode: "walvis_storage_dispatch",
+          dispatch: backDispatch,
+          walvisReport: walvisStorageReport,
+        };
+      } else if (backTo === "walvis_unassigned") {
+        selected = {
+          key: "walvis:unassigned",
+          mode: "walvis_unassigned_hub",
+          unassigned: (walvisStorageReport && walvisStorageReport.unassigned) || {},
+          walvisReport: walvisStorageReport,
+        };
+      }
       paint();
     }
 
@@ -2472,6 +2573,30 @@
           ctx.setFloatingBack({
             onClick: function () {
               selected = null;
+              paint();
+            },
+          });
+        } else if (selected.mode === "walvis_storage_dispatch") {
+          ctx.setFloatingBack({
+            onClick: function () {
+              selected = {
+                key: WALVIS_STORAGE_STATUS,
+                label: "In storage — Walvis Bay",
+                mode: "walvis_storage_hub",
+                walvisReport: walvisStorageReport,
+              };
+              paint();
+            },
+          });
+        } else if (selected.mode === "walvis_unassigned_hub") {
+          ctx.setFloatingBack({
+            onClick: function () {
+              selected = {
+                key: WALVIS_STORAGE_STATUS,
+                label: "In storage — Walvis Bay",
+                mode: "walvis_storage_hub",
+                walvisReport: walvisStorageReport,
+              };
               paint();
             },
           });
@@ -2601,12 +2726,66 @@
 
         if (selected.mode === "walvis_storage_hub") {
           body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label || "In storage — Walvis Bay"]));
+          if (selected.walvisReportLoading) {
+            body.appendChild(renderDrillLoading("Walvis storage by dispatch", ui));
+            syncFloatingNav();
+            return;
+          }
+          if (selected.walvisReportError) {
+            body.appendChild(ui.error(selected.walvisReportError));
+            syncFloatingNav();
+            return;
+          }
+          renderWalvisStorageDispatchHub(
+            body,
+            selected.walvisReport || walvisStorageReport,
+            selected.palletBucket,
+            ui,
+            openStatus
+          );
+          syncFloatingNav();
+          return;
+        }
+
+        if (selected.mode === "walvis_storage_dispatch") {
           body.appendChild(
-            ui.el("p", { class: "bs-dash-drill-note" }, [
-              "Completed truck dispatches stay in the database for audit; stock on the ground is shown here.",
+            ui.el("h3", { class: "bs-dash-drill-title" }, [
+              selected.dispatch ? walvisDispatchCardLabel(selected.dispatch) : "Dispatch",
             ])
           );
-          renderWalvisStorageSplit(body, selected.bulkStatus || {}, selected.palletBucket, ui, openStatus);
+          renderWalvisStorageDispatchCategories(body, selected.dispatch || {}, ui, openStatus);
+          syncFloatingNav();
+          return;
+        }
+
+        if (selected.mode === "walvis_unassigned_hub") {
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, ["Not on a dispatch manifest"]));
+          body.appendChild(
+            ui.el("p", { class: "bs-dash-drill-note" }, [
+              "These bulk bags are in Walvis storage but were never linked to a GF truck manifest. Tap a category for detail.",
+            ])
+          );
+          var unHub = selected.unassigned || {};
+          appendStatusCards(
+            body,
+            (unHub.categories || []).map(function (cat) {
+              var streamKey = cat.product_stream || "unknown";
+              return {
+                key: "walvis:unassigned:cat:" + streamKey,
+                kind: "walvis_dispatch_category",
+                label: STREAM_LABELS[streamKey] || streamKey,
+                bags: cat.bags || 0,
+                kg: cat.kg || 0,
+                streams: {},
+                rows: cat.rows || [],
+                dispatch: null,
+              };
+            }),
+            ui,
+            null,
+            openStatus,
+            "bs-dash-status-grid--inline"
+          );
           syncFloatingNav();
           return;
         }
@@ -3245,7 +3424,7 @@
 
 
 
-    function openWalvisStorageHub(st) {
+    async function openWalvisStorageHub(st) {
       selectedEvent = null;
       wxDrill = null;
       selected = {
@@ -3254,8 +3433,26 @@
         mode: "walvis_storage_hub",
         bulkStatus: st,
         palletBucket: palletWalvisStorageBucket(summary.pallet_summary),
+        walvisReportLoading: !walvisStorageReport,
+        walvisReport: walvisStorageReport,
       };
       paint();
+      if (walvisStorageReport) return;
+      try {
+        walvisStorageReport = await ctx.api.traceability("/walvis-dispatches/storage-at-walvis-breakdown");
+        if (selected && selected.mode === "walvis_storage_hub") {
+          selected.walvisReport = walvisStorageReport;
+          selected.walvisReportLoading = false;
+          selected.walvisReportError = null;
+          paint();
+        }
+      } catch (e) {
+        if (selected && selected.mode === "walvis_storage_hub") {
+          selected.walvisReportLoading = false;
+          selected.walvisReportError = e.message || String(e);
+          paint();
+        }
+      }
     }
 
     async function openWalvisBulkDrill() {
@@ -3319,7 +3516,7 @@
     async function openStatus(st) {
 
       if (st.kind === "walvis_bulk_bags") {
-        await openWalvisBulkDrill();
+        await openWalvisStorageHub(st);
         return;
       }
 
@@ -3328,20 +3525,46 @@
         return;
       }
 
+      if (st.kind === "walvis_dispatch_select" && st.dispatch) {
+        selectedEvent = null;
+        wxDrill = null;
+        selected = {
+          key: st.key,
+          mode: "walvis_storage_dispatch",
+          dispatch: st.dispatch,
+          walvisReport: walvisStorageReport,
+        };
+        paint();
+        return;
+      }
+
+      if (st.kind === "walvis_unassigned" && st.unassigned) {
+        selectedEvent = null;
+        wxDrill = null;
+        selected = {
+          key: st.key,
+          mode: "walvis_unassigned_hub",
+          unassigned: st.unassigned,
+          walvisReport: walvisStorageReport,
+        };
+        paint();
+        return;
+      }
+
+      if (st.kind === "walvis_dispatch_category") {
+        selectedEvent = null;
+        wxDrill = {
+          label: st.label || "Category",
+          rows: st.rows || [],
+          backTo: st.dispatch ? "walvis_dispatch" : "walvis_unassigned",
+          backDispatch: st.dispatch || null,
+        };
+        paint();
+        return;
+      }
+
       if (isWalvisStorageStatus(st.key)) {
-        var bulkOnly = statusForBagsOnlyDisplay(st);
-        var palAtWalvis = palletWalvisStorageBucket(summary.pallet_summary);
-        if ((bulkOnly.bags || 0) > 0 && !(palAtWalvis.bags || 0)) {
-          await openWalvisBulkDrill();
-        } else if (!(bulkOnly.bags || 0) && (palAtWalvis.bags || 0)) {
-          await openWalvisPalletsDrill({
-            key: "walvis:pallets",
-            label: "Pallets in storage",
-            kind: "walvis_pallets",
-          });
-        } else {
-          openWalvisStorageHub(st);
-        }
+        await openWalvisStorageHub(st);
         return;
       }
 
