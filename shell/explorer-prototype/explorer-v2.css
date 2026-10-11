@@ -1631,39 +1631,62 @@ body.explorer-v2-shell .workspace-module > .cis-float-nav {
   max-width: 40rem;
 }
 
-.v2-dashboard-host .v2-intake-grid {
-  margin-bottom: 16px;
+.v2-dashboard-host .v2-charcoal-intake-slot {
+  margin-bottom: 18px;
 }
 
-.v2-dashboard-host .v2-stat-primary {
-  margin: 2px 0 4px;
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.1;
+/* Charcoal Intake on home — same V1 production tokens as /cis/ module (not V2 light workspace). */
+.v2-dashboard-host .v2-charcoal-intake-v1 {
+  --text: #f5f0e6;
+  --muted: #a89f8a;
+  --panel: #1a1a1a;
+  --panel-2: #242424;
+  --border: #3d3520;
+  --gold-bright: #e4c04a;
+  --gold-deep: #9a7b18;
+  --bg-elevated: #141414;
   color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px 18px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
 }
 
-.v2-dashboard-host .v2-stat-secondary {
+.v2-dashboard-host .v2-charcoal-intake-v1 .muted {
+  color: var(--muted);
+}
+
+.v2-dashboard-host .v2-charcoal-intake-v1 .module-title {
+  margin: 0 0 4px;
+}
+
+.v2-dashboard-host .v2-charcoal-intake-v1 .module-desc {
   margin: 0 0 12px;
-  font-size: 14px;
-  color: var(--text-muted);
-}
-
-.v2-dashboard-host .v2-subpanel-title {
-  margin: 16px 0 8px;
+  color: var(--muted);
   font-size: 13px;
-  font-weight: 700;
-  color: var(--text-secondary);
 }
 
-.v2-dashboard-host .v2-stream-legend,
-.v2-dashboard-host .v2-wx-legend {
+.v2-dashboard-host .v2-charcoal-intake-v1 .bm-weathering-panel {
   margin-top: 4px;
 }
 
-.v2-dashboard-host .v2-footnote {
-  margin: 12px 0 0;
-  font-size: 13px;
+.v2-dashboard-host .v2-bm-embed-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #3d3520);
+}
+
+.v2-dashboard-host .v2-charcoal-intake-v1 .v2-bm-embed-bar {
+  border-top-color: var(--border);
+}
+
+.v2-dashboard-host .v2-charcoal-intake-v1 .v2-bm-embed-ghost {
+  padding: 10px 14px;
+  border-radius: 8px;
 }
 
 .v2-dashboard-host .v2-panel-lead {

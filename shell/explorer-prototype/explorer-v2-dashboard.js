@@ -19,41 +19,6 @@
     return CIS.canAccessModule(mod);
   }
 
-  function fmt(n) {
-    if (n == null || isNaN(n)) return "—";
-    return Number(n).toLocaleString();
-  }
-
-  function fmtMass(kg) {
-    if (window.CIS && CIS.formatMassFromKg) {
-      return CIS.formatMassFromKg(kg, { forceKg: true });
-    }
-    var v = Number(kg);
-    if (!isFinite(v)) return "—";
-    return v.toLocaleString(undefined, { maximumFractionDigits: 1 }) + " kg";
-  }
-
-  function bagsMass(bags, kg) {
-    if (window.CIS && CIS.bagsAndMassText) return CIS.bagsAndMassText(bags, kg);
-    return fmt(bags) + " bags · " + fmtMass(kg);
-  }
-
-  function fmtDayHeading(iso) {
-    if (!iso) return "—";
-    try {
-      var d = new Date(iso + "T12:00:00");
-      return d.toLocaleDateString("en-GB", {
-        timeZone: DISPLAY_TZ,
-        weekday: "short",
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-    } catch (e) {
-      return iso;
-    }
-  }
-
   function greetingName() {
     var u = window.CIS && CIS._state && CIS._state.user;
     if (!u) return "there";
@@ -125,157 +90,35 @@
     return any ? list : el("p", { className: "muted" }, ["Nothing assigned to you in this area."]);
   }
 
-  function statusBucket(group, key) {
-    var list = (group && group.statuses) || [];
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].key === key) return list[i];
-    }
-    return { bags: 0, kg: 0 };
-  }
-
-  function buildDailySections(rows) {
-    var byDay = {};
-    (rows || []).forEach(function (row) {
-      var day = row.recorded_date || "";
-      if (!day) return;
-      if (!byDay[day]) byDay[day] = { date: day, bags: 0, kg: 0 };
-      byDay[day].bags += 1;
-      byDay[day].kg += Number(row.net_weight_kg || 0);
-    });
-    return Object.keys(byDay)
-      .sort(function (a, b) {
-        return b.localeCompare(a);
-      })
-      .map(function (k) {
-        var s = byDay[k];
-        s.kg = Math.round(s.kg * 10) / 10;
-        return s;
-      });
-  }
-
   function renderIntakeHero(host, movement, statusData) {
-    var grid = el("div", { className: "content-grid v2-intake-grid" });
-
-    var cum = el("section", { className: "panel" });
-    cum.appendChild(
-      el("h2", { className: "panel-title" }, ["Charcoal intake & factory storage"])
-    );
-    if (movement) {
-      cum.appendChild(el("p", { className: "v2-stat-primary" }, [fmt(movement.bag_count) + " bags"]));
-      cum.appendChild(
-        el("p", { className: "v2-stat-secondary" }, [
-          fmtMass(movement.total_kg) + " cumulative in database",
-        ])
-      );
-      var streams = movement.streams || {};
-      var streamLine = el("ul", { className: "legend v2-stream-legend" });
-      [
-        { key: "restaurant", label: "Restaurant", color: "var(--status-orange)" },
-        { key: "lumpwood", label: "Lumpwood", color: "var(--status-green)" },
-        { key: "fines", label: "Fines", color: "var(--status-amber)" },
-      ].forEach(function (s) {
-        var li = el("li");
-        var sw = el("span", { className: "legend-swatch" });
-        sw.style.background = s.color;
-        li.appendChild(sw);
-        li.appendChild(
-          document.createTextNode(
-            s.label + ": " + fmt(streams[s.key]) + " · " + fmtMass(streams[s.key + "_kg"])
-          )
-        );
-        streamLine.appendChild(li);
-      });
-      cum.appendChild(streamLine);
-    } else {
-      cum.appendChild(el("p", { className: "muted" }, ["Charcoal Intake report not available."]));
+    var slot = el("div", { className: "v2-charcoal-intake-slot" });
+    host.appendChild(slot);
+    if (!movement) {
+      slot.appendChild(el("p", { className: "muted" }, ["Charcoal Intake report not available."]));
+      return;
     }
-
-    if (statusData) {
-      var factory = (statusData.groups || []).filter(function (g) {
-        return g.key === "factory";
-      })[0];
-      var wx = statusBucket(factory, "in_storage_weathering");
-      var early = statusBucket(factory, "in_storage_released_early");
-      var weathered = statusBucket(factory, "in_storage");
-      cum.appendChild(el("h3", { className: "v2-subpanel-title" }, ["Factory weathering (Bags Status)"]));
-      var wxList = el("ul", { className: "legend v2-wx-legend" });
-      [
-        { label: "Still weathering", bags: wx.bags, kg: wx.kg, color: "var(--status-amber)" },
-        { label: "Released early", bags: early.bags, kg: early.kg, color: "var(--status-orange)" },
-        { label: "Weathered (ready)", bags: weathered.bags, kg: weathered.kg, color: "var(--status-green)" },
-      ].forEach(function (s) {
-        var li = el("li");
-        var sw = el("span", { className: "legend-swatch" });
-        sw.style.background = s.color;
-        li.appendChild(sw);
-        li.appendChild(document.createTextNode(s.label + ": " + bagsMass(s.bags, s.kg)));
-        wxList.appendChild(li);
-      });
-      cum.appendChild(wxList);
-      if (statusData.in_system) {
-        cum.appendChild(
-          el("p", { className: "muted v2-footnote" }, [
-            "In system now: " + bagsMass(statusData.in_system.bags, statusData.in_system.kg),
-          ])
-        );
-      }
+    if (
+      !window.CIS ||
+      !CIS.charcoalIntakePreview ||
+      !CIS.charcoalIntakePreview.paintDashboardEmbed ||
+      !CIS.ui
+    ) {
+      slot.appendChild(el("p", { className: "muted" }, ["Charcoal Intake module not loaded."]));
+      return;
     }
-
-    var actions = el("div", { className: "v2-panel-actions" });
+    var opts = { statusData: statusData || null };
     if (moduleAccessible("bags_movement_report")) {
-      var b1 = el("button", { type: "button", className: "v2-action-btn v2-action-btn--primary" }, [
-        "Charcoal Intake",
-      ]);
-      b1.addEventListener("click", function () {
+      opts.onOpenCharcoal = function () {
         openModule("bags_movement_report");
-      });
-      actions.appendChild(b1);
+      };
+      opts.onDrillDown = opts.onOpenCharcoal;
     }
     if (moduleAccessible("bags_status_report")) {
-      var b2 = el("button", { type: "button", className: "v2-action-btn" }, ["Bags Status"]);
-      b2.addEventListener("click", function () {
+      opts.onOpenBagsStatus = function () {
         openModule("bags_status_report");
-      });
-      actions.appendChild(b2);
+      };
     }
-    if (actions.childNodes.length) cum.appendChild(actions);
-    grid.appendChild(cum);
-
-    var daily = el("section", { className: "panel" });
-    daily.appendChild(el("h2", { className: "panel-title" }, ["Daily intake — current week"]));
-    if (movement && movement.rows && movement.rows.length) {
-      var days = buildDailySections(movement.rows);
-      if (movement.current_week_start) {
-        daily.appendChild(
-          el("p", { className: "muted" }, ["Week from " + fmtDayHeading(movement.current_week_start)])
-        );
-      }
-      if (days.length) {
-        var scroll = el("div", { className: "table-scroll" });
-        var table = el("table", { className: "data-table" });
-        table.innerHTML = "<thead><tr><th>Day</th><th>Bags</th><th>kg</th></tr></thead>";
-        var tbody = el("tbody");
-        days.slice(0, 7).forEach(function (d) {
-          var tr = el("tr");
-          tr.appendChild(el("td", {}, [fmtDayHeading(d.date)]));
-          tr.appendChild(el("td", {}, [fmt(d.bags)]));
-          tr.appendChild(el("td", {}, [fmtMass(d.kg)]));
-          tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        scroll.appendChild(table);
-        daily.appendChild(scroll);
-      } else {
-        daily.appendChild(el("p", { className: "muted" }, ["No bags recorded this week yet."]));
-      }
-    } else if (movement) {
-      daily.appendChild(el("p", { className: "muted" }, ["No bags recorded this week yet."]));
-    } else {
-      daily.appendChild(el("p", { className: "muted" }, ["—"]));
-    }
-    grid.appendChild(daily);
-
-    host.appendChild(grid);
+    CIS.charcoalIntakePreview.paintDashboardEmbed(slot, movement, opts);
   }
 
   function renderReportsGrid(host) {

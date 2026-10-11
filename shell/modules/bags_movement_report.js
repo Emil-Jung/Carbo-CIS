@@ -1027,6 +1027,122 @@
     await refreshReport({ reset: true });
   }
 
+  function factoryStatusBucket(factory, key) {
+    var list = (factory && factory.statuses) || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].key === key) return list[i];
+    }
+    return { bags: 0, kg: 0 };
+  }
+
+  function renderWeatheringPanel(statusData, ui) {
+    if (!statusData) return null;
+    var factory = (statusData.groups || []).filter(function (g) {
+      return g.key === "factory";
+    })[0];
+    if (!factory) return null;
+
+    var wx = factoryStatusBucket(factory, "in_storage_weathering");
+    var early = factoryStatusBucket(factory, "in_storage_released_early");
+    var weathered = factoryStatusBucket(factory, "in_storage");
+
+    var panel = ui.el("section", { class: "bm-cumulative-panel bm-weathering-panel" });
+    panel.appendChild(ui.el("h3", { class: "bm-panel-title" }, ["Factory storage — weathering (Bags Status)"]));
+    if (statusData.in_system) {
+      panel.appendChild(
+        ui.el("p", { class: "bm-panel-lead" }, [
+          CIS.bagsAndMassText(statusData.in_system.bags, statusData.in_system.kg) + " in system now",
+        ])
+      );
+    }
+    var cards = ui.el("div", { class: "cards bm-status-cards" });
+    [
+      { label: "Still weathering", bucket: wx, cardClass: "card-warn" },
+      { label: "Released early", bucket: early, cardClass: "card-warn" },
+      { label: "Weathered (ready)", bucket: weathered, cardClass: "card-ok" },
+    ].forEach(function (item) {
+      var card = ui.el("div", { class: "card bm-status-card " + item.cardClass });
+      card.innerHTML =
+        "<span class='label'>" +
+        ui.escape(item.label) +
+        "</span>" +
+        "<div class='value'>" +
+        fmt(item.bucket.bags) +
+        "</div>" +
+        "<span class='muted'>" +
+        ui.escape(fmtMass(item.bucket.kg)) +
+        "</span>";
+      cards.appendChild(card);
+    });
+    panel.appendChild(cards);
+    return panel;
+  }
+
+  /** CIS V2 home — reuse Charcoal Intake V1 markup/styles (bm-*). */
+  function paintDashboardEmbed(host, data, options) {
+    options = options || {};
+    if (!host || !data || !CIS.ui) return;
+    var ui = CIS.ui;
+    host.innerHTML = "";
+    var root = ui.el("div", { class: "v2-charcoal-intake-v1" });
+    root.appendChild(ui.el("h2", { class: "module-title" }, ["Charcoal Intake"]));
+    root.appendChild(
+      ui.el("p", { class: "module-desc" }, [
+        "Cumulative totals and this week by day — same report as Production.",
+      ])
+    );
+
+    root.appendChild(renderCumulativePanel(data, ui));
+    if (options.statusData) {
+      var weathering = renderWeatheringPanel(options.statusData, ui);
+      if (weathering) root.appendChild(weathering);
+    }
+
+    root.appendChild(
+      ui.el("p", { class: "muted bm-hint" }, [
+        "This week by day — click a row to open the full Charcoal Intake report. Earlier weeks stay collapsed there.",
+      ])
+    );
+
+    var currentSummary = buildSummaryRows(data.rows || []);
+    var weekHeading = data.current_week_start
+      ? "This week (from " + fmtDate(data.current_week_start) + ")"
+      : "This week";
+
+    function onDrillDown() {
+      if (typeof options.onDrillDown === "function") {
+        options.onDrillDown();
+        return;
+      }
+      if (window.CIS && CIS.openModule) CIS.openModule("bags_movement_report");
+    }
+
+    root.appendChild(renderWeekBlock(weekHeading, currentSummary, ui, onDrillDown, false));
+
+    if (!currentSummary.length) {
+      root.appendChild(ui.el("p", { class: "muted" }, ["No bags recorded this week yet."]));
+    }
+
+    var bar = ui.el("div", { class: "v2-bm-embed-bar" });
+    if (typeof options.onOpenCharcoal === "function") {
+      var openBm = ui.el("button", { type: "button", class: "bm-return-btn" }, ["Open Charcoal Intake"]);
+      openBm.addEventListener("click", options.onOpenCharcoal);
+      bar.appendChild(openBm);
+    }
+    if (typeof options.onOpenBagsStatus === "function") {
+      var openBs = ui.el("button", { type: "button", class: "btn-ghost v2-bm-embed-ghost" }, [
+        "Open Bags Status",
+      ]);
+      openBs.addEventListener("click", options.onOpenBagsStatus);
+      bar.appendChild(openBs);
+    }
+    if (bar.childNodes.length) root.appendChild(bar);
+
+    host.appendChild(root);
+  }
+
+  CIS.charcoalIntakePreview = { paintDashboardEmbed: paintDashboardEmbed };
+
   CIS.modules.push({
     id: "bags_movement_report",
     title: "Charcoal Intake",
