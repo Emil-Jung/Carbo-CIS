@@ -189,6 +189,13 @@
       if (on) btn.setAttribute("aria-current", "page");
       else btn.removeAttribute("aria-current");
     });
+    document.querySelectorAll(".nav-item[data-dept-id]").forEach(function (btn) {
+      var deptKey = "dept:" + btn.getAttribute("data-dept-id");
+      var on = id === deptKey;
+      btn.classList.toggle("is-active", on);
+      if (on) btn.setAttribute("aria-current", "page");
+      else btn.removeAttribute("aria-current");
+    });
     if (navDashboardBtn) {
       var dashOn = id === "dashboard";
       navDashboardBtn.classList.toggle("is-active", dashOn);
@@ -197,8 +204,11 @@
     }
   }
 
-  function showPrototypeDashboard(opts) {
-    opts = opts || {};
+  function dashboardHostEl() {
+    return document.getElementById("v2-dashboard-host");
+  }
+
+  function showDashboardWorkspace() {
     if (dashboardView) {
       dashboardView.hidden = false;
       dashboardView.classList.remove("hidden");
@@ -207,13 +217,40 @@
       moduleView.hidden = true;
       moduleView.classList.add("hidden");
     }
-    if (window.CIS && CIS._state) CIS._state.activeModuleId = "dashboard";
     if (window.CIS && CIS._v2HideModuleHosts) CIS._v2HideModuleHosts();
+  }
+
+  function showPrototypeDashboard(opts) {
+    opts = opts || {};
+    showDashboardWorkspace();
+    if (window.CIS && CIS._state) CIS._state.activeModuleId = "dashboard";
     setActiveNav("dashboard");
     var strong = document.querySelector(".breadcrumb strong");
-    if (strong) strong.textContent = "Carbo Namibia";
-    if (!opts.skipStackPush && window.CIS && CIS.goHome) {
-      /* goHome resets stack; avoid loop when called from goHome */
+    if (strong) strong.textContent = "Reports & summaries";
+    var host = dashboardHostEl();
+    if (host && window.CIS_V2_renderHomeDashboard) {
+      CIS_V2_renderHomeDashboard(host);
+    }
+  }
+
+  function showDepartmentDashboard(deptId) {
+    showDashboardWorkspace();
+    if (window.CIS && CIS._state) CIS._state.activeModuleId = "dept:" + deptId;
+    setActiveNav("dept:" + deptId);
+    var group = null;
+    if (window.CIS_V2_NAV) {
+      if (deptId === "administration") group = CIS_V2_NAV.dockAdministration;
+      else {
+        (CIS_V2_NAV.groups || []).forEach(function (g) {
+          if (g.id === deptId) group = g;
+        });
+      }
+    }
+    var strong = document.querySelector(".breadcrumb strong");
+    if (strong) strong.textContent = group ? group.title : "Department";
+    var host = dashboardHostEl();
+    if (host && window.CIS_V2_renderDepartmentDashboard) {
+      CIS_V2_renderDepartmentDashboard(host, deptId);
     }
   }
 
@@ -232,6 +269,10 @@
     setSidebarOpen(false);
     if (id === "dashboard") {
       showPrototypeDashboard();
+      return;
+    }
+    if (id.indexOf("dept:") === 0) {
+      showDepartmentDashboard(id.slice(5));
       return;
     }
     if (window.CIS && CIS.openModule) CIS.openModule(id);
@@ -314,53 +355,65 @@
     host.appendChild(wrap);
   }
 
-  /** First module id if the user can access exactly one department group. */
-  window.CIS_V2_singleDepartmentLanding = function () {
-    if (!window.CIS_V2_NAV || !window.CIS || !CIS.canAccessModule) return null;
-    var groups = CIS_V2_NAV.groups || [];
-    var hitGroup = null;
-    var firstMod = null;
-    for (var g = 0; g < groups.length; g++) {
-      var group = groups[g];
-      var groupFirst = null;
-      group.items.forEach(function (item) {
-        if (item.nestUnder) return;
-        var ids = [item.id];
-        group.items.forEach(function (child) {
-          if (child.nestUnder === item.id) ids.push(child.id);
+  function moduleAllowedInDept(id) {
+    var mod = modById(id);
+    if (!mod || mod.inactive) return false;
+    if (!window.CIS || !CIS._v2BridgeReady || !CIS.canAccessModule) return true;
+    return CIS.canAccessModule(mod);
+  }
+
+  function departmentHasAccessibleModules(group) {
+    if (!group) return false;
+    var deptKey = group.id === "administration" ? "administration" : group.id;
+    var ids = window.CIS_V2_departmentModuleIds
+      ? CIS_V2_departmentModuleIds(deptKey)
+      : (group.items || []).map(function (i) {
+          return i.id;
         });
-        for (var i = 0; i < ids.length; i++) {
-          if (navItemAccessible(ids[i])) {
-            groupFirst = groupFirst || ids[i];
-            break;
-          }
-        }
-      });
-      if (groupFirst) {
-        if (hitGroup) return null;
-        hitGroup = group.id;
-        firstMod = groupFirst;
-      }
+    for (var i = 0; i < ids.length; i++) {
+      if (moduleAllowedInDept(ids[i])) return true;
     }
-    return firstMod;
-  };
+    return false;
+  }
+
+  function createDepartmentNavButton(group) {
+    if (!departmentHasAccessibleModules(group)) return null;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "nav-item nav-item--dept";
+    btn.setAttribute("data-dept-id", group.id);
+    var icon =
+      group.icon && window.CIS_V2_NAV_ICONS && CIS_V2_NAV_ICONS[group.icon]
+        ? CIS_V2_NAV_ICONS[group.icon]
+        : "";
+    btn.innerHTML =
+      icon + '<span class="nav-item-label">' + group.title + "</span>";
+    btn.addEventListener("click", function () {
+      openDestination("dept:" + group.id);
+    });
+    return btn;
+  }
 
   function renderNavModules() {
     var host = document.getElementById("sidebar-nav-modules");
     var dockHost = document.getElementById("sidebar-nav-dock-admin");
     if (!window.CIS_V2_NAV) return;
-    var openState = readNavOpenState();
 
     if (host) {
       host.innerHTML = "";
       CIS_V2_NAV.groups.forEach(function (group) {
-        renderNavGroup(group, host, openState, "nav-group--main");
+        var btn = createDepartmentNavButton(group);
+        if (btn) host.appendChild(btn);
       });
     }
 
     if (dockHost && CIS_V2_NAV.dockAdministration) {
       dockHost.innerHTML = "";
-      renderNavGroup(CIS_V2_NAV.dockAdministration, dockHost, openState, "nav-group--dock");
+      var adminBtn = createDepartmentNavButton(CIS_V2_NAV.dockAdministration);
+      if (adminBtn) {
+        adminBtn.classList.add("nav-item--dock");
+        dockHost.appendChild(adminBtn);
+      }
     }
   }
 

@@ -1,14 +1,23 @@
-/* CIS Shell V2 — nav by department (module ids match production CIS.modules). */
+/* CIS Shell V2 — departments + module registry (ids match production CIS.modules). */
 (function () {
   "use strict";
 
-  /** Hidden from V2 sidebar only (modules still load for deep links). */
   window.CIS_V2_NAV_HIDDEN = {
     quality_capture: true,
     permit_status: true,
     traceability: true,
     bag_stock: true,
     maintenance_certs: true,
+    labels: true,
+    print_labels: true,
+    label_deployment: true,
+  };
+
+  /** Extra tiles on department dashboards (not in left rail). */
+  window.CIS_V2_CONTEXTUAL_MODULES = {
+    office: ["print_labels"],
+    logistics: ["print_labels"],
+    production: ["print_labels", "label_deployment"],
   };
 
   window.CIS_V2_NAV = {
@@ -18,6 +27,7 @@
         title: "Office",
         tier: "office",
         icon: "group_office",
+        blurb: "Producers, quality, deliveries and supplier records.",
         items: [
           { id: "producers_office" },
           { id: "producers_view" },
@@ -31,6 +41,7 @@
         title: "Logistics",
         tier: "logistics",
         icon: "group_logistics",
+        blurb: "Deliveries, Walvis loads, movement jobs, containers, and bag positions.",
         items: [
           { id: "delivery_confirmations" },
           { id: "walvis_dispatches" },
@@ -44,6 +55,7 @@
         title: "Control Room",
         tier: "control_room",
         icon: "group_production",
+        blurb: "Factory discharge, sieve capture, and intake posting.",
         items: [{ id: "control_room" }],
       },
       {
@@ -51,15 +63,14 @@
         title: "Production",
         tier: "production",
         icon: "group_production",
+        blurb: "Packaging shifts, pallet SKUs, labels, and production reports.",
         items: [
-          { id: "labels" },
-          { id: "print_labels", nestUnder: "labels", nestDepth: 1 },
-          { id: "label_deployment", nestUnder: "labels", nestDepth: 1 },
           { id: "packaging_shift" },
           { id: "pallet_configuration" },
           { id: "manager_override" },
           { id: "bags_movement_report" },
           { id: "restaurant_report" },
+          { id: "bags_status_report" },
         ],
       },
       {
@@ -67,6 +78,7 @@
         title: "Maintenance",
         tier: "maintenance",
         icon: "group_maintenance",
+        blurb: "Fleet, consumption, and maintenance office.",
         items: [
           { id: "maintenance_manager" },
           { id: "maintenance_ops" },
@@ -79,9 +91,28 @@
       title: "Administration",
       tier: "administration",
       icon: "group_administration",
+      blurb: "CIS users, permissions, and scanner device keys.",
       items: [{ id: "identity_admin" }, { id: "device_keys" }],
     },
   };
+
+  /** Preferred order for reports on the home dashboard. */
+  window.CIS_V2_REPORT_MODULE_IDS = [
+    "bags_movement_report",
+    "bags_status_report",
+    "deliveries_register",
+    "producers_view",
+    "quality_view",
+    "restaurant_report",
+    "maintenance_ops",
+    "consumption",
+    "supplier_contacts",
+    "movement_schedule",
+    "containers",
+    "walvis_dispatches",
+    "delivery_confirmations",
+    "permit_status",
+  ];
 
   window.CIS_V2_NAV_ICONS = {
     group_administration:
@@ -125,19 +156,39 @@
     }
     if (
       moduleId === "control_room" ||
-      moduleId === "labels" ||
-      moduleId === "print_labels" ||
-      moduleId === "label_deployment" ||
       moduleId === "delivery_confirmations" ||
       moduleId === "movement_schedule" ||
       moduleId === "walvis_dispatches" ||
       moduleId === "containers" ||
       moduleId === "pallet_configuration" ||
       moduleId === "packaging_shift" ||
-      moduleId === "manager_override"
+      moduleId === "manager_override" ||
+      moduleId === "print_labels" ||
+      moduleId === "label_deployment"
     ) {
       return icons.traceability;
     }
     return icons.default;
+  };
+
+  window.CIS_V2_departmentModuleIds = function (deptId) {
+    var nav = window.CIS_V2_NAV;
+    if (!nav) return [];
+    var group;
+    if (deptId === "administration") group = nav.dockAdministration;
+    else {
+      group = (nav.groups || []).filter(function (g) {
+        return g.id === deptId;
+      })[0];
+    }
+    if (!group) return [];
+    var ids = (group.items || []).map(function (i) {
+      return i.id;
+    });
+    var extra = (window.CIS_V2_CONTEXTUAL_MODULES && CIS_V2_CONTEXTUAL_MODULES[deptId]) || [];
+    extra.forEach(function (id) {
+      if (ids.indexOf(id) < 0) ids.push(id);
+    });
+    return ids;
   };
 })();

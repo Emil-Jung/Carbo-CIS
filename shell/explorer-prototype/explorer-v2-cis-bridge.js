@@ -20,8 +20,8 @@
 
   var MODULE_PARENTS = {
     labels: "traceability",
-    print_labels: "labels",
-    label_deployment: "labels",
+    print_labels: "traceability",
+    label_deployment: "traceability",
     control_room: "traceability",
     delivery_confirmations: "traceability",
     containers: "traceability",
@@ -518,12 +518,6 @@
     if (window.CIS_V2 && CIS_V2.showV2Shell) CIS_V2.showV2Shell(true);
     sessionStorage.removeItem("cis_v2_guest_shell");
     if (window.CIS_V2 && CIS_V2.onBridgeReady) CIS_V2.onBridgeReady();
-    var land =
-      window.CIS_V2_singleDepartmentLanding && CIS_V2_singleDepartmentLanding();
-    if (land && CIS.openModule) {
-      CIS.openModule(land);
-      return;
-    }
     if (window.CIS_V2 && CIS_V2.showPrototypeDashboard) {
       CIS_V2.showPrototypeDashboard({ skipStackPush: true });
     }
