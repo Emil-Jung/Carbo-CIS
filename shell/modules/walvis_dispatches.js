@@ -169,21 +169,51 @@
     }
   }
 
+  async function buildResetPreview(ctx) {
+    try {
+      return await apiGet(ctx, "/walvis-dispatches/preview-reset");
+    } catch (e) {
+      /* Fallback when API is stale (preview route not loaded) — list + closed only. */
+      var data = await apiGet(ctx, "/walvis-dispatches?limit=50&include_closed=true");
+      var rows = data.dispatches || [];
+      return {
+        dispatch_rows: rows.length,
+        dispatches: rows.map(function (d) {
+          return {
+            dispatch_number: d.dispatch_number,
+            status: d.status,
+            bag_count: d.loaded_bags,
+          };
+        }),
+        walvis_storage_bags: null,
+        unassigned_walvis_storage_bags: null,
+        preview_fallback: true,
+        preview_error: e.message || String(e),
+      };
+    }
+  }
+
   async function runResetAndFenceFirst(container, ctx) {
     var preview;
     try {
-      preview = await apiGet(ctx, "/walvis-dispatches/preview-reset");
+      preview = await buildResetPreview(ctx);
     } catch (e) {
-      window.alert("Could not load preview: " + (e.message || e));
+      window.alert("Could not load dispatch summary: " + (e.message || e));
       return;
     }
     var lines = [
       "This DELETES all Walvis dispatch records and restarts numbering at Dispatch #1.",
       "",
       "Current dispatch rows: " + preview.dispatch_rows,
-      "Bags in Walvis storage now: " + preview.walvis_storage_bags,
+      preview.walvis_storage_bags != null
+        ? "Bags in Walvis storage now: " + preview.walvis_storage_bags
+        : "Bags in Walvis storage: (count unavailable — API may need restart; reset still uses live DB)",
       "",
     ];
+    if (preview.preview_fallback) {
+      lines.push("(Used dispatch list fallback — " + (preview.preview_error || "preview API failed") + ")");
+      lines.push("");
+    }
     (preview.dispatches || []).forEach(function (d) {
       lines.push(
         "  · #" + d.dispatch_number + " (" + d.status + ") — " + d.bag_count + " bag(s) on manifest"
@@ -215,8 +245,9 @@
         "Last chance: delete " +
           preview.dispatch_rows +
           " dispatch row(s) and create Dispatch #1 with " +
-          preview.walvis_storage_bags +
-          " Walvis bag(s)" +
+          (preview.walvis_storage_bags != null
+            ? preview.walvis_storage_bags + " Walvis bag(s)"
+            : "all current Walvis storage bag(s)") +
           (extraList.length ? " plus " + extraList.length + " extra serial(s)" : "") +
           "?"
       )
