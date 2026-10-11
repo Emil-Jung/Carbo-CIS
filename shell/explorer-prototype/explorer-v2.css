@@ -57,6 +57,8 @@ body.explorer-v2-shell {
 body.explorer-v2-shell:not(.explorer-v2-login-only) {
   background: var(--workspace-bg);
   color: var(--text);
+  overflow: hidden;
+  height: 100dvh;
 }
 
 body.nav-open {
@@ -88,16 +90,18 @@ a {
 .explorer-app {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
 }
 
 /* ---- Sidebar (landscape + collapsible groups) ---- */
 .sidebar {
   position: sticky;
   top: 0;
-  height: 100vh;
+  align-self: start;
   height: 100dvh;
+  max-height: 100dvh;
   z-index: 200;
   border-right: 1px solid var(--sidebar-border);
   color: var(--sidebar-text);
@@ -504,11 +508,14 @@ a {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 0;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
 }
 
 .workspace-header {
+  flex-shrink: 0;
   height: var(--header-height);
   padding: 0 20px 0 16px;
   display: flex;
@@ -516,8 +523,6 @@ a {
   gap: 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--border-light);
-  position: sticky;
-  top: 0;
   z-index: 100;
 }
 
@@ -684,11 +689,12 @@ a {
 }
 
 .workspace-body {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .workspace-scroll {
