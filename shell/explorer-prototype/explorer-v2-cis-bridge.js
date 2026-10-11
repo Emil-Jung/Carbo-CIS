@@ -26,6 +26,8 @@
     delivery_confirmations: "traceability",
     containers: "traceability",
     movement_schedule: "traceability",
+    walvis_dispatches: "traceability",
+    packaging_shift: "traceability",
     pallet_configuration: "traceability",
     manager_override: "traceability",
     bag_stock: "traceability",
@@ -515,10 +517,16 @@
   function enterV2SignedInApp() {
     if (window.CIS_V2 && CIS_V2.showV2Shell) CIS_V2.showV2Shell(true);
     sessionStorage.removeItem("cis_v2_guest_shell");
+    if (window.CIS_V2 && CIS_V2.onBridgeReady) CIS_V2.onBridgeReady();
+    var land =
+      window.CIS_V2_singleDepartmentLanding && CIS_V2_singleDepartmentLanding();
+    if (land && CIS.openModule) {
+      CIS.openModule(land);
+      return;
+    }
     if (window.CIS_V2 && CIS_V2.showPrototypeDashboard) {
       CIS_V2.showPrototypeDashboard({ skipStackPush: true });
     }
-    if (window.CIS_V2 && CIS_V2.onBridgeReady) CIS_V2.onBridgeReady();
   }
 
   CIS._showApp = function () {

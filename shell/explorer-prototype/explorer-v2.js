@@ -164,6 +164,15 @@
     return true;
   }
 
+  function navItemAccessible(id) {
+    if (!navItemVisible(id)) return false;
+    var mod = modById(id);
+    if (!mod) return false;
+    if (mod.inactive) return false;
+    if (!window.CIS || !CIS._v2BridgeReady || !CIS.canAccessModule) return true;
+    return CIS.canAccessModule(mod);
+  }
+
   function navItemLocked(id) {
     var mod = modById(id);
     if (!mod) return false;
@@ -230,7 +239,7 @@
 
   function createNavItem(id, nestDepth) {
     nestDepth = nestDepth || 0;
-    if (!navItemVisible(id)) return null;
+    if (!navItemAccessible(id)) return null;
     var btn = document.createElement("button");
     btn.type = "button";
     btn.className = "nav-item nav-item--module";
@@ -298,10 +307,43 @@
       writeNavOpenState(openState);
     });
 
+    if (!body.children.length) return;
+
     wrap.appendChild(header);
     wrap.appendChild(body);
     host.appendChild(wrap);
   }
+
+  /** First module id if the user can access exactly one department group. */
+  window.CIS_V2_singleDepartmentLanding = function () {
+    if (!window.CIS_V2_NAV || !window.CIS || !CIS.canAccessModule) return null;
+    var groups = CIS_V2_NAV.groups || [];
+    var hitGroup = null;
+    var firstMod = null;
+    for (var g = 0; g < groups.length; g++) {
+      var group = groups[g];
+      var groupFirst = null;
+      group.items.forEach(function (item) {
+        if (item.nestUnder) return;
+        var ids = [item.id];
+        group.items.forEach(function (child) {
+          if (child.nestUnder === item.id) ids.push(child.id);
+        });
+        for (var i = 0; i < ids.length; i++) {
+          if (navItemAccessible(ids[i])) {
+            groupFirst = groupFirst || ids[i];
+            break;
+          }
+        }
+      });
+      if (groupFirst) {
+        if (hitGroup) return null;
+        hitGroup = group.id;
+        firstMod = groupFirst;
+      }
+    }
+    return firstMod;
+  };
 
   function renderNavModules() {
     var host = document.getElementById("sidebar-nav-modules");

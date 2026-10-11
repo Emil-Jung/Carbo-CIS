@@ -1,51 +1,35 @@
-# CIS Shell V2.0 — navigation destination map
+# CIS Shell V2 — navigation (by department)
 
-Mirrors production modules with V2 grouping. Permissions: `CIS.canAccessModule` (unchanged).
+Same production `CIS.modules` and permissions as V1. Sidebar groups replace the Traceability hub tile.
 
-## Main scroll nav
+## Departments (main nav)
 
-| Tier | Module id | Production title | Notes |
-|------|-----------|------------------|--------|
-| *(top)* | `dashboard` | Dashboard | V2 sample operational landing |
-| **Applications** | `producers_office` | Capture Producers | |
-| | `traceability` | Traceability | Hub |
-| | ↳ `control_room` | Control Room | iframe PWA — cached host in V2 |
-| | ↳ `delivery_confirmations` | Delivery Confirmations | |
-| | ↳ `labels` | Labels | Hub |
-| | ↳ `print_labels` | Print Labels | |
-| | ↳ `label_deployment` | Label Fencing | |
-| | ↳ `movement_schedule` | Movement schedule | |
-| | ↳ `walvis_dispatches` | Walvis dispatches | |
-| | ↳ `containers` | Containers | |
-| | ↳ `pallet_configuration` | Pallet Configuration | |
-| | ↳ `manager_override` | Manager Override | |
-| | ↳ `bag_stock` | Bag stock | Inactive |
-| | `maintenance_manager` | Maintenance | |
-| | `maintenance_certs` | Certificates | Inactive |
-| **Reports & lookups** | `producers_view` | View Producers | |
-| | `quality_view` | Quality Analysis | |
-| | `maintenance_ops` | Fleet Status | |
-| | `consumption` | Consumption | |
-| | `restaurant_report` | Restaurant quality | |
-| | `deliveries_register` | Charcoal deliveries | |
-| | `bags_movement_report` | Charcoal Intake | |
-| | `bags_status_report` | Bags Status | |
-| | `supplier_contacts` | Supplier contacts | |
+| Department | Module ids |
+|------------|------------|
+| **Office** | `producers_office`, `producers_view`, `quality_view`, `deliveries_register`, `supplier_contacts` |
+| **Logistics** | `delivery_confirmations`, `walvis_dispatches`, `movement_schedule`, `containers`, `bags_status_report` |
+| **Control Room** | `control_room` |
+| **Production** | `labels` (+ `print_labels`, `label_deployment`), `packaging_shift`, `pallet_configuration`, `manager_override`, `bags_movement_report`, `restaurant_report` |
+| **Maintenance** | `maintenance_manager`, `maintenance_ops`, `consumption` |
 
-## Bottom dock (fixed order)
+## Bottom dock
 
-1. **Administration** (shield) — `identity_admin`, `device_keys`
-2. **Settings** (gear + notification dot)
-3. **Ask Emil** (coming soon)
+**Administration** — `identity_admin`, `device_keys`
 
-## Hidden from V2 nav (scripts/APIs remain)
+## Hidden from nav (still loaded)
 
 | Module id | Reason |
 |-----------|--------|
-| `quality_capture` | Capture app excluded; reporting via `quality_view` |
-| `permit_status` | FSC — separate future scope |
-| *(none in CIS)* | FSC Audits, Carbo Live — not registered in shell |
+| `traceability` | Hub replaced by flat department lists |
+| `quality_capture` | Use `quality_view` |
+| `permit_status` | FSC — later |
+| `bag_stock`, `maintenance_certs` | Inactive |
 
-## State (V2 bridge)
+## Landing
 
-Module hosts are cached in `#cis-module-viewport`; switching nav hides/shows hosts instead of `innerHTML` clear. Back stack preserves app → report → app (e.g. Control Room ↔ Charcoal Intake).
+- **Multi-department access** (typical admin): Dashboard after sign-in.
+- **Single department only** (e.g. logistics-only PJ): opens first allowed module in that department.
+
+## URL
+
+https://bkweb3.bigk.co.uk/cis/explorer-prototype/ — production `/cis/` unchanged until cutover.

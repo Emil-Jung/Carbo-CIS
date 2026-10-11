@@ -1,51 +1,76 @@
-/* CIS Shell V2.0 — nav groups (ids must match production CIS.modules). */
+/* CIS Shell V2 — nav by department (module ids match production CIS.modules). */
 (function () {
   "use strict";
 
-  /** Module ids hidden from V2 nav only (scripts/APIs remain loaded). */
+  /** Hidden from V2 sidebar only (modules still load for deep links). */
   window.CIS_V2_NAV_HIDDEN = {
     quality_capture: true,
     permit_status: true,
+    traceability: true,
+    bag_stock: true,
+    maintenance_certs: true,
   };
 
   window.CIS_V2_NAV = {
     groups: [
       {
-        id: "applications",
-        title: "Applications",
-        tier: "applications",
+        id: "office",
+        title: "Office",
+        tier: "office",
+        icon: "group_office",
         items: [
           { id: "producers_office" },
-          { id: "traceability" },
-          { id: "control_room", nestUnder: "traceability" },
-          { id: "delivery_confirmations", nestUnder: "traceability" },
-          { id: "labels", nestUnder: "traceability" },
-          { id: "print_labels", nestUnder: "traceability", nestDepth: 2 },
-          { id: "label_deployment", nestUnder: "traceability", nestDepth: 2 },
-          { id: "movement_schedule", nestUnder: "traceability" },
-          { id: "walvis_dispatches", nestUnder: "traceability" },
-          { id: "containers", nestUnder: "traceability" },
-          { id: "pallet_configuration", nestUnder: "traceability" },
-          { id: "manager_override", nestUnder: "traceability" },
-          { id: "bag_stock", nestUnder: "traceability" },
-          { id: "maintenance_manager" },
-          { id: "maintenance_certs" },
+          { id: "producers_view" },
+          { id: "quality_view" },
+          { id: "deliveries_register" },
+          { id: "supplier_contacts" },
         ],
       },
       {
-        id: "reports",
-        title: "Reports & lookups",
-        tier: "reports",
+        id: "logistics",
+        title: "Logistics",
+        tier: "logistics",
+        icon: "group_logistics",
         items: [
-          { id: "producers_view" },
-          { id: "quality_view" },
+          { id: "delivery_confirmations" },
+          { id: "walvis_dispatches" },
+          { id: "movement_schedule" },
+          { id: "containers" },
+          { id: "bags_status_report" },
+        ],
+      },
+      {
+        id: "control_room_dept",
+        title: "Control Room",
+        tier: "control_room",
+        icon: "group_production",
+        items: [{ id: "control_room" }],
+      },
+      {
+        id: "production",
+        title: "Production",
+        tier: "production",
+        icon: "group_production",
+        items: [
+          { id: "labels" },
+          { id: "print_labels", nestUnder: "labels", nestDepth: 1 },
+          { id: "label_deployment", nestUnder: "labels", nestDepth: 1 },
+          { id: "packaging_shift" },
+          { id: "pallet_configuration" },
+          { id: "manager_override" },
+          { id: "bags_movement_report" },
+          { id: "restaurant_report" },
+        ],
+      },
+      {
+        id: "maintenance",
+        title: "Maintenance",
+        tier: "maintenance",
+        icon: "group_maintenance",
+        items: [
+          { id: "maintenance_manager" },
           { id: "maintenance_ops" },
           { id: "consumption" },
-          { id: "restaurant_report" },
-          { id: "deliveries_register" },
-          { id: "bags_movement_report" },
-          { id: "bags_status_report" },
-          { id: "supplier_contacts" },
         ],
       },
     ],
@@ -61,6 +86,14 @@
   window.CIS_V2_NAV_ICONS = {
     group_administration:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18 7 3.11v4.71c0 4.16-2.84 8.02-7 9.28-4.16-1.26-7-5.12-7-9.28V6.29l7-3.11z"/></svg>',
+    group_office:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>',
+    group_logistics:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18 18.5a1.5 1.5 0 0 1-1.5-1.5 1.5 1.5 0 0 1 1.5-1.5 1.5 1.5 0 0 1 1.5 1.5 1.5 1.5 0 0 1-1.5 1.5m1.5-9 1.96 2.5H17V9.5M6 18.5A1.5 1.5 0 0 1 4.5 17 1.5 1.5 0 0 1 6 15.5 1.5 1.5 0 0 1 7.5 17 1.5 1.5 0 0 1 6 18.5M20 8h-3V4H3c-1.11 0-2 .89-2 2v11h2a3 3 0 0 0 3 3 3 3 0 0 0 3-3h6a3 3 0 0 0 3 3 3 3 0 0 0 3-3h2v-5l-3-4Z"/></svg>',
+    group_production:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h16v2H4V6zm0 5h7v2H4v-2zm0 5h7v2H4v-2zm9-8h7v2h-7V8zm0 5h7v2h-7v-2zm0 5h7v2h-7v-2z"/></svg>',
+    group_maintenance:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>',
     dashboard:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/></svg>',
     identity_admin:
@@ -97,10 +130,11 @@
       moduleId === "label_deployment" ||
       moduleId === "delivery_confirmations" ||
       moduleId === "movement_schedule" ||
+      moduleId === "walvis_dispatches" ||
       moduleId === "containers" ||
       moduleId === "pallet_configuration" ||
-      moduleId === "manager_override" ||
-      moduleId === "bag_stock"
+      moduleId === "packaging_shift" ||
+      moduleId === "manager_override"
     ) {
       return icons.traceability;
     }
