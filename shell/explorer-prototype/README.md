@@ -1,8 +1,11 @@
-# CIS Shell V2.0 — visual prototype
+# CIS Shell V2 — department navigation (beta)
 
-Responsive **desktop + smartphone** shell (320px–desktop). Mobile navigation uses the **menu button** and slide-in drawer (Ask Emil, Settings, and all module labels).
+Responsive **desktop + smartphone** shell. Sidebar is grouped by **Office · Logistics · Control Room · Production · Maintenance**; only modules your permissions allow are shown.
 
-Landing order: **greeting + landscape banner**, then **operational dashboard** (KPI cards, tables, shortcuts).
+**Sign-in URL (bkweb3):** https://bkweb3.bigk.co.uk/cis/explorer-prototype/  
+Production V1 remains https://bkweb3.bigk.co.uk/cis/ until cutover.
+
+Users with access to **one department only** (e.g. logistics) land on their first module instead of the sample dashboard.
 
 Static **visual mashup** of:
 
