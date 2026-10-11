@@ -189,6 +189,21 @@
 
   }
 
+  function statusDetailCell(row) {
+    if (!row) return "—";
+    var status = row.status_display || row.effective_status || "—";
+    var since = scanTimestampCell(row);
+    if (!since || since === "—") return status;
+    return status + " · since " + since;
+  }
+
+  function movementDetailCell(row) {
+    if (!row) return "—";
+    if (row.client_name) return row.client_name;
+    if (row.container_number) return row.container_number;
+    return statusDetailCell(row);
+  }
+
 
 
   function fmtDayHeading(iso) {
@@ -2118,7 +2133,7 @@
     var table = ui.el("table", { class: "bs-dash-table bs-dash-table--compact" });
     var thead = ui.el("thead", {});
     var hr = ui.el("tr", {});
-    ["Bag", "Stream", "kg", "When", "Weathering", "Detail"].forEach(function (h) {
+    ["Bag", "Stream", "kg", "Status since", "Weathering", "Detail"].forEach(function (h) {
       hr.appendChild(ui.el("th", {}, [h]));
     });
     thead.appendChild(hr);
@@ -2146,9 +2161,7 @@
       tr.appendChild(ui.el("td", {}, [fmtMass(row.net_weight_kg, true)]));
       tr.appendChild(ui.el("td", {}, [scanTimestampCell(row)]));
       tr.appendChild(ui.el("td", {}, [weatherText(row)]));
-      tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [
-        row.client_name || row.container_number || row.status_display || "—",
-      ]));
+      tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [movementDetailCell(row)]));
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
@@ -2196,7 +2209,7 @@
 
     var hr = ui.el("tr", {});
 
-    ["#", "Bag", "Stream", "Producer", "kg", "When", "Weathering", "Detail"].forEach(function (h) {
+    ["#", "Bag", "Stream", "Producer", "kg", "Status since", "Weathering", "Detail"].forEach(function (h) {
 
       hr.appendChild(ui.el("th", {}, [h]));
 
@@ -2256,11 +2269,7 @@
 
       tr.appendChild(ui.el("td", {}, [weatherText(row)]));
 
-      tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [
-
-        row.client_name || row.container_number || row.status_display || "—",
-
-      ]));
+      tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [movementDetailCell(row)]));
 
       tbody.appendChild(tr);
 
