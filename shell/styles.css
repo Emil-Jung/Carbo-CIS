@@ -3420,6 +3420,21 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   margin-bottom: 4px;
 }
 .tsv-card-value { font-size: 15px; }
+.tsv-card--rlf { grid-column: span 1; }
+.tsv-card-rlf-lines { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+.tsv-card-rlf-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+}
+.tsv-card-rlf-key {
+  font-weight: 600;
+  color: var(--muted, #94a3b8);
+  min-width: 1.2em;
+}
+.tsv-card-rlf-val { font-size: 14px; }
 .tsv-bar-chart {
   padding: 12px 14px;
   border: 1px solid var(--border);
