@@ -434,26 +434,44 @@ body {
   line-height: 1.5;
 }
 
-.wdsl-toolbar {
+/* Day scan log — same light dashboard shell as Bags Status (readable table on #fff) */
+.module-content.bs-dashboard-host .wdsl-dashboard .wdsl-toolbar {
   flex-wrap: wrap;
   gap: 12px 16px;
   align-items: flex-end;
   margin-bottom: 12px;
 }
-.wdsl-summary {
-  font-variant-numeric: tabular-nums;
-  margin-bottom: 8px;
+.module-content.bs-dashboard-host .wdsl-dashboard .wdsl-toolbar .ct-field-label {
+  color: #64748B;
 }
-.wdsl-table .wdsl-moved-at {
+.module-content.bs-dashboard-host .wdsl-dashboard .wdsl-toolbar input,
+.module-content.bs-dashboard-host .wdsl-dashboard .wdsl-toolbar select {
+  background: #fff;
+  color: #0F172A;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.module-content.bs-dashboard-host .wdsl-dashboard .wdsl-refresh-btn {
+  align-self: flex-end;
+}
+.module-content.bs-dashboard-host .wdsl-dashboard .wdsl-summary {
+  font-variant-numeric: tabular-nums;
+}
+.module-content.bs-dashboard-host .wdsl-table td {
+  color: #0F172A;
+}
+.module-content.bs-dashboard-host .wdsl-table .wdsl-moved-at {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.wdsl-gap--long {
-  color: var(--gold-bright, #e6c04a);
-  font-weight: 600;
+.module-content.bs-dashboard-host .wdsl-gap--long {
+  color: #B45309;
+  font-weight: 700;
 }
-.wdsl-row--gap .wdsl-moved-at {
-  border-top: 2px solid var(--gold-bright, #c9a227);
+.module-content.bs-dashboard-host .wdsl-row--gap .wdsl-moved-at {
+  box-shadow: inset 0 2px 0 #F59E0B;
 }
 
 /* ---- Charcoal Intake report (V1 dark theme on host — required in CIS V2 light workspace) ---- */

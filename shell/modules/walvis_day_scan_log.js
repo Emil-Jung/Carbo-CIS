@@ -77,15 +77,19 @@
   async function render(container, ctx) {
     var ui = CIS.ui;
     container.innerHTML = "";
-    container.className = "module-content wdsl-host";
+    container.className = "module-content bs-dashboard-host";
 
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Day scan log"]));
-    container.appendChild(
-      ui.el("p", { class: "module-desc" }, [
-        "Full list for one Windhoek day — newest scan on top. ",
-        "The gap column is time since the previous scan (chronologically); a long gap often marks the start of the next truck load.",
+    var dash = ui.el("div", { class: "bs-dashboard wdsl-dashboard" });
+    dash.appendChild(
+      ui.el("header", { class: "bs-dash-header" }, [
+        ui.el("h2", { class: "bs-dash-title" }, ["Day scan log"]),
+        ui.el("p", { class: "bs-dash-lead" }, [
+          "Full list for one Windhoek day — newest scan on top. ",
+          "The gap column is time since the previous scan (chronologically); a long gap often marks the start of the next truck load.",
+        ]),
       ])
     );
+    container.appendChild(dash);
 
     var dayInput = ui.el("input", { type: "date", value: windhoekTodayIso() });
     var statusSelect = ui.el("select", {});
@@ -130,15 +134,15 @@
         gapInput,
       ])
     );
-    var refreshBtn = ui.el("button", { type: "button", class: "btn" }, ["Refresh"]);
+    var refreshBtn = ui.el("button", { type: "button", class: "btn wdsl-refresh-btn" }, ["Refresh"]);
     toolbar.appendChild(refreshBtn);
-    container.appendChild(toolbar);
+    dash.appendChild(toolbar);
 
-    var summaryEl = ui.el("p", { class: "wdsl-summary muted" });
-    container.appendChild(summaryEl);
+    var summaryEl = ui.el("p", { class: "wdsl-summary bs-dash-drill-note" });
+    dash.appendChild(summaryEl);
 
-    var body = ui.el("div", { class: "wdsl-body" });
-    container.appendChild(body);
+    var body = ui.el("div", { class: "wdsl-body bs-dash-body" });
+    dash.appendChild(body);
 
     async function load() {
       var day = dayInput.value || windhoekTodayIso();
