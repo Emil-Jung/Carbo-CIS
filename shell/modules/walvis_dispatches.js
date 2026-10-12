@@ -391,10 +391,25 @@
     }
   }
 
+  function clearWalvisFloatingBack(ctx) {
+    if (ctx && ctx.setFloatingBack) ctx.setFloatingBack(null);
+  }
+
+  function setWalvisDetailFloatingBack(container, ctx) {
+    if (!ctx || !ctx.setFloatingBack) return;
+    ctx.setFloatingBack({
+      label: "Dispatch list",
+      onClick: function () {
+        renderList(container, ctx);
+      },
+    });
+  }
+
   function renderDetail(container, ctx, detail) {
     var ui = CIS.ui;
     container.innerHTML = "";
     container.className = "module-content walvis-dispatch-host";
+    setWalvisDetailFloatingBack(container, ctx);
 
     var title =
       dispatchDisplayLabel(detail) +
