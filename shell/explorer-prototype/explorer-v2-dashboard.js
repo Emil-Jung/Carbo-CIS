@@ -358,9 +358,16 @@
     return boxWrap.box;
   }
 
-  function renderInContainerBox(coast, statusData) {
+  function renderInContainerBox(statusData) {
+    var group = groupByKey(statusData, "in_container");
+    var st = statusBucket(group, "in_container");
     var boxWrap = makeInfoBox("In container", "#059669");
-    appendCoastBulkStreams(boxWrap.body, statusBucket(coast, "in_container"));
+    boxWrap.body.appendChild(
+      el("p", { className: "muted v2-info-box__lead" }, [
+        "End of life at Carbo — ERP handoff when cargo lands in England.",
+      ])
+    );
+    appendCoastBulkStreams(boxWrap.body, st);
     appendPalletSkuBlock(boxWrap.body, "Pallets", statusData, ["in_container"]);
     return boxWrap.box;
   }
@@ -498,19 +505,19 @@
         ["storage_agl"]
       )
     );
-    asideCol.appendChild(renderInContainerBox(coast, statusData));
+    asideCol.appendChild(renderInContainerBox(statusData));
     mainGrid.appendChild(asideCol);
     wrap.appendChild(mainGrid);
     if (statusData.in_system) {
       var closed = statusData.closed || { bags: 0, kg: 0 };
       wrap.appendChild(
         el("p", { className: "muted v2-footnote" }, [
-          "Active inventory in traceability (factory, transit, yards, and in container): " +
+          "Active inventory at Carbo (factory, transit, Carbo/AGL yards — not in container): " +
             bagsMass(statusData.in_system.bags, statusData.in_system.kg) +
-            ". Excludes sold, dispatched, and bags consumed at packaging or briquettes" +
+            ". In container, sold, dispatched, and packaging/briquette consumption are end-of-life" +
             (closed.bags
-              ? " (" + massThenBags(closed.bags, closed.kg) + " closed)."
-              : ". Not cumulative intake — sieved history is under Charcoal intake."),
+              ? " (" + massThenBags(closed.bags, closed.kg) + " closed, incl. in container)."
+              : ". Not cumulative intake — see Charcoal intake."),
         ])
       );
     }

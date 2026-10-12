@@ -1856,6 +1856,12 @@ body.explorer-v2-shell .workspace-module > .cis-float-nav {
   margin-bottom: 5px;
 }
 
+.v2-dashboard-host .v2-info-box__lead {
+  margin: 0 0 4px;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
 .v2-dashboard-host .v2-info-box__title {
   font-size: 12px;
   font-weight: 700;
