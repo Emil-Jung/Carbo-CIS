@@ -14,7 +14,9 @@ Factory snapshot sections: **Bulk bags** — **Still weathering** / **Weathered*
 
 Home number format: **tonnage/kg first**, **(bag count)** in brackets — production and office read the lead weight; logistics reads the bracketed bags.
 
-Walvis Bay and AGL snapshot boxes show **Restaurant** and **Lumpwood** bulk only (no fines) plus **pallet SKUs** — aligned with container loading categories. Bag Walk blocks **fines → Walvis truck** unless a **manager PIN** override is entered.
+Coast snapshot: **Carbo Yard — Walvis Bay**, **AGL yard — Walvis Bay** (same layout: Restaurant + Lumpwood bulk, pallet SKUs), and a separate **In container** box. Bag Walk blocks **fines → Walvis truck** unless a **manager PIN** override is entered.
+
+**In system** footer on the home snapshot = bags still on an **open** storage status (includes **in container**). Excludes **sold**, **dispatched**, **packed_into_pallet**, **used_in_briquettes**. This is **not** all-time sieved intake (see Charcoal intake card).
 
 ## V1 Traceability hub → V2 department
 

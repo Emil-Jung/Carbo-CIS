@@ -350,22 +350,18 @@
     return block;
   }
 
-  function renderWalvisSnapshotBox(walvis, statusData) {
-    var boxWrap = makeInfoBox("Walvis Bay storage", "var(--status-blue)");
-    var st = statusBucket(walvis, "storage_walvisbay");
-    appendCoastBulkStreams(boxWrap.body, st);
-    appendPalletSkuBlock(boxWrap.body, "Pallets", statusData, ["storage_walvisbay"]);
+  /** Carbo Yard or AGL yard at Walvis — bulk R/L + pallet SKUs (same layout for both). */
+  function renderCoastYardBox(title, accentColor, statusSt, statusData, palletEffectiveStatuses) {
+    var boxWrap = makeInfoBox(title, accentColor);
+    appendCoastBulkStreams(boxWrap.body, statusSt);
+    appendPalletSkuBlock(boxWrap.body, "Pallets", statusData, palletEffectiveStatuses);
     return boxWrap.box;
   }
 
-  function renderAglSnapshotBox(coast, statusData) {
-    var boxWrap = makeInfoBox("AGL & coast", "#059669");
-    var secAgl = appendStorageSection(boxWrap.body, "AGL storage", "#059669");
-    appendCoastBulkStreams(secAgl, statusBucket(coast, "storage_agl"));
-    var secCont = appendStorageSection(boxWrap.body, "In container", "#059669");
-    appendCoastBulkStreams(secCont, statusBucket(coast, "in_container"));
-    appendPalletSkuBlock(boxWrap.body, "Pallets at AGL", statusData, ["storage_agl"]);
-    appendPalletSkuBlock(boxWrap.body, "Pallets in container", statusData, ["in_container"]);
+  function renderInContainerBox(coast, statusData) {
+    var boxWrap = makeInfoBox("In container", "#059669");
+    appendCoastBulkStreams(boxWrap.body, statusBucket(coast, "in_container"));
+    appendPalletSkuBlock(boxWrap.body, "Pallets", statusData, ["in_container"]);
     return boxWrap.box;
   }
 
@@ -469,7 +465,7 @@
     wrap.appendChild(el("h2", { className: "panel-title" }, ["Carbo Namibia storage snapshot"]));
     wrap.appendChild(
       el("p", { className: "muted v2-panel-lead" }, [
-        "Where stock sits now — factory yard, Walvis Bay, and the coast.",
+        "Factory yard, Carbo Yard and AGL yard at Walvis Bay, and containers staged for dispatch.",
       ])
     );
 
@@ -484,15 +480,37 @@
     mainGrid.appendChild(primaryCol);
 
     var asideCol = el("div", { className: "v2-snapshot-main-grid__aside" });
-    asideCol.appendChild(renderWalvisSnapshotBox(walvis, statusData));
-    asideCol.appendChild(renderAglSnapshotBox(coast, statusData));
+    asideCol.appendChild(
+      renderCoastYardBox(
+        "Carbo Yard — Walvis Bay",
+        "var(--status-blue)",
+        statusBucket(walvis, "storage_walvisbay"),
+        statusData,
+        ["storage_walvisbay"]
+      )
+    );
+    asideCol.appendChild(
+      renderCoastYardBox(
+        "AGL yard — Walvis Bay",
+        "#059669",
+        statusBucket(coast, "storage_agl"),
+        statusData,
+        ["storage_agl"]
+      )
+    );
+    asideCol.appendChild(renderInContainerBox(coast, statusData));
     mainGrid.appendChild(asideCol);
     wrap.appendChild(mainGrid);
     if (statusData.in_system) {
+      var closed = statusData.closed || { bags: 0, kg: 0 };
       wrap.appendChild(
         el("p", { className: "muted v2-footnote" }, [
-          "All locations tracked in system: " +
-            bagsMass(statusData.in_system.bags, statusData.in_system.kg),
+          "Active inventory in traceability (factory, transit, yards, and in container): " +
+            bagsMass(statusData.in_system.bags, statusData.in_system.kg) +
+            ". Excludes sold, dispatched, and bags consumed at packaging or briquettes" +
+            (closed.bags
+              ? " (" + massThenBags(closed.bags, closed.kg) + " closed)."
+              : ". Not cumulative intake — sieved history is under Charcoal intake."),
         ])
       );
     }
