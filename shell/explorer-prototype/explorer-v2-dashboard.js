@@ -189,9 +189,7 @@
   function appendStreamSubrow(parent, label, bags, kg) {
     var row = el("div", { className: "v2-storage-subrow" });
     row.appendChild(el("span", { className: "v2-storage-subrow__label" }, [label]));
-    row.appendChild(
-      el("span", { className: "v2-storage-subrow__value muted" }, [fmt(bags) + " · " + fmtMass(kg)])
-    );
+    row.appendChild(el("span", { className: "v2-storage-subrow__value muted" }, [fmt(bags) + " · " + fmtMass(kg)]));
     parent.appendChild(row);
   }
 
@@ -446,12 +444,17 @@
     var palletSummary = statusData.pallet_summary || {};
 
     var carboLead = factory.bags != null ? bagsMass(factory.bags, factory.kg) : "0 bags · 0 kg";
-    wrap.appendChild(renderFactorySnapshotRow(factory, statusData, carboLead));
 
-    var coastRow = el("div", { className: "v2-snapshot-coast-row" });
-    coastRow.appendChild(renderWalvisSnapshotBox(walvis, palletSummary));
-    coastRow.appendChild(renderAglSnapshotBox(coast, palletSummary));
-    wrap.appendChild(coastRow);
+    var mainGrid = el("div", { className: "v2-snapshot-main-grid" });
+    var primaryCol = el("div", { className: "v2-snapshot-main-grid__primary" });
+    primaryCol.appendChild(renderFactorySnapshotRow(factory, statusData, carboLead));
+    mainGrid.appendChild(primaryCol);
+
+    var asideCol = el("div", { className: "v2-snapshot-main-grid__aside" });
+    asideCol.appendChild(renderWalvisSnapshotBox(walvis, palletSummary));
+    asideCol.appendChild(renderAglSnapshotBox(coast, palletSummary));
+    mainGrid.appendChild(asideCol);
+    wrap.appendChild(mainGrid);
     if (statusData.in_system) {
       wrap.appendChild(
         el("p", { className: "muted v2-footnote" }, [
@@ -487,23 +490,21 @@
 
   function renderLandingShell(host) {
     host.innerHTML = "";
-    var loading = el("p", { className: "muted v2-dash-loading-first", id: "v2-dash-loading" }, [
-      "Loading storage snapshot…",
-    ]);
-    host.appendChild(loading);
-  }
-
-  function renderLandingGreeting(host) {
-    var head = el("header", { className: "v2-dash-head v2-dash-head--after-snapshot" });
+    var head = el("header", { className: "v2-dash-head" });
     head.appendChild(
       el("h1", { className: "v2-dash-greeting" }, [timeGreeting() + ", " + greetingName() + "."])
     );
     head.appendChild(
       el("p", { className: "v2-dash-tagline" }, [
-        "Charcoal intake and full Bags Status below. Departments are in the left menu.",
+        "Storage snapshot first, then charcoal intake and Bags Status. Departments are in the left menu.",
       ])
     );
     host.appendChild(head);
+    host.appendChild(
+      el("p", { className: "muted v2-dash-loading-first", id: "v2-dash-loading" }, [
+        "Loading storage snapshot…",
+      ])
+    );
   }
 
   window.CIS_V2_renderHomeDashboard = function (host) {
@@ -515,7 +516,6 @@
       if (data.statusData) {
         renderStorageSnapshot(host, data.statusData);
       }
-      renderLandingGreeting(host);
       renderHomeTraceRow(host, data);
       if (!data.statusData && !data.intakeData) {
         host.appendChild(
