@@ -1,0 +1,62 @@
+# CIS Shell V2 — development roadmap (Oct 2026)
+
+**Production V1:** https://bkweb3.bigk.co.uk/cis/  
+**V2 beta:** https://bkweb3.bigk.co.uk/cis/explorer-prototype/
+
+V2 reuses the same `shell/modules/*.js` and session token as V1; only chrome, navigation, and dashboards differ until cutover.
+
+---
+
+## Current state
+
+| Area | Status |
+|------|--------|
+| Department sidebar (Office · Logistics · Control Room · Production · Maintenance) | Live — flat department buttons |
+| Department dashboards (tile list → open module) | Live |
+| Home dashboard (storage snapshot from Bags Status API) | Live |
+| Hidden nav: `labels`, `print_labels`, `label_deployment`, `traceability` hub | Live — contextual tiles on Office / Production / Logistics |
+| Module cache (switch apps without re-fetch) | Live (`explorer-v2-cis-bridge.js`) |
+| Logistics dept “Walvis & loads” snapshot | Live (`explorer-v2-dashboard.js`) |
+| Cutover `/cis/` → V2 | **Not yet** — V1 remains default |
+
+**Code:** `shell/explorer-prototype/` — see [README](../shell/explorer-prototype/README.md), [DESIGN-DEPARTMENTS](../shell/explorer-prototype/DESIGN-DEPARTMENTS.md), [NAV-MAP](../shell/explorer-prototype/NAV-MAP.md).
+
+---
+
+## Module parity with V1
+
+V2 `index.html` must keep the **same module script versions** (and flags such as `CIS_BS_DRILL_SORT_NEWEST_FIRST`) as production `shell/index.html`. After V1 deploy, sync V2 script tags or run a diff.
+
+---
+
+## Next priorities (suggested order)
+
+1. **Logistics hub (PJ view)** — expand department dashboard: open dispatch, in-transit count, pending delivery confirmations (read-only widgets, links into modules).
+2. **Production dashboard** — packaging shift “active shift” + link to Print Labels when permitted.
+3. **Office dashboard** — deliveries register pending count.
+4. **Mobile polish** — drawer, bottom bar, module scroll + float back (reuse V1 patterns where needed).
+5. **Cutover plan** — config flag or nginx default to V2; rollback = restore V1 `index.html` as entry.
+6. **Theme tokens** — align `explorer-v2-themes.css` with [CARBO-DESIGN.md](../CARBO-DESIGN.md) for one design system.
+
+---
+
+## Deploy
+
+On bkweb3 after `git push`:
+
+```bash
+cd /opt/carbo/carbo-cis && git pull origin master && bash deploy_on_server.sh
+bash deploy_explorer_prototype_on_server.sh
+```
+
+`deploy_on_server.sh` copies all of `shell/*` (including `explorer-prototype/`). The second script rsyncs the prototype folder and verifies production `index.html` was not touched.
+
+---
+
+## Walvis / traceability work
+
+Operational fixes (dispatch #1, addendum, Bags Status audit lines) land in **shared modules** — they appear in both V1 and V2 once script versions are synced and traceability API is restarted on bkweb3.
+
+---
+
+*Updated 12 Oct 2026 — V2 development resumed after Walvis Dispatch #1 reconciliation.*

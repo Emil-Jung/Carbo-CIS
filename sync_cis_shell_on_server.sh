@@ -96,3 +96,11 @@ echo ""
 echo "Verify in browser (Ctrl+F5): https://bkweb3.bigk.co.uk/cis/"
 echo "View page source — should contain: dashboard.js, logo.png, topbar-context"
 echo "Should NOT contain: module-nav (old sidebar layout)"
+
+if [[ -x "$REPO/deploy_explorer_prototype_on_server.sh" ]]; then
+  echo ""
+  bash "$REPO/deploy_explorer_prototype_on_server.sh"
+else
+  echo ""
+  echo "V2 prototype: run bash deploy_explorer_prototype_on_server.sh for /cis/explorer-prototype/"
+fi

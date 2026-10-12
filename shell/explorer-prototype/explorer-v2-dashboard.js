@@ -322,6 +322,41 @@
     });
   };
 
+  async function loadLogisticsOpsSnapshot(lineEl) {
+    if (!lineEl || !window.CIS || !CIS.api || !CIS.api.traceability) {
+      if (lineEl) lineEl.textContent = "";
+      return;
+    }
+    try {
+      var activeResp = await CIS.api.traceability("/walvis-dispatches/active");
+      var open = activeResp && activeResp.dispatch;
+      var br = await CIS.api.traceability("/walvis-dispatches/storage-at-walvis-breakdown");
+      var parts = [];
+      if (open) {
+        parts.push(
+          "GF loading: " +
+            (open.display_label || "Dispatch #" + open.dispatch_number) +
+            " · " +
+            (open.loaded_bags || 0) +
+            " on manifest"
+        );
+      } else {
+        parts.push("No open Walvis dispatch — open one in Walvis dispatches before Shorty loads.");
+      }
+      var walvisBulk = 0;
+      (br.dispatches || []).forEach(function (d) {
+        walvisBulk += d.bags_in_storage || 0;
+      });
+      var un = (br.unassigned && br.unassigned.bags_in_storage) || 0;
+      parts.push("Walvis ground (bulk): " + walvisBulk + " bag(s) on dispatch tiles");
+      if (un) parts.push(un + " unassigned on ground");
+      lineEl.textContent = parts.join(" · ");
+    } catch (e) {
+      lineEl.textContent =
+        "Walvis summary unavailable — open Walvis dispatches or Bags Status (API may need a refresh on bkweb3).";
+    }
+  }
+
   window.CIS_V2_renderDepartmentDashboard = function (host, deptId) {
     if (!host) return;
     host.innerHTML = "";
@@ -340,6 +375,14 @@
     head.appendChild(el("h1", { className: "v2-dash-greeting" }, [group.title]));
     if (group.blurb) head.appendChild(el("p", { className: "v2-dash-tagline" }, [group.blurb]));
     host.appendChild(head);
+    if (deptId === "logistics" && moduleAccessible("walvis_dispatches")) {
+      var ops = el("section", { className: "panel v2-logistics-ops", style: "margin-bottom: 1rem;" });
+      ops.appendChild(el("h3", { className: "v2-location-title" }, ["Walvis & loads"]));
+      var opsLine = el("p", { className: "muted", id: "v2-logistics-ops-line" }, ["Loading…"]);
+      ops.appendChild(opsLine);
+      host.appendChild(ops);
+      loadLogisticsOpsSnapshot(opsLine);
+    }
     var ids = window.CIS_V2_departmentModuleIds ? CIS_V2_departmentModuleIds(deptId) : [];
     host.appendChild(reportRowList(ids));
   };

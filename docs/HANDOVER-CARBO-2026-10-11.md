@@ -7,7 +7,7 @@ Use this when you open **`G:\My Coding Projects`** (or your synced clone) **on V
 ## Mindset / context (operational)
 
 - Bags are being scanned at Carbo; **Bags Status V1** was confusing (Walvis dates, sort order). UI fixes are **live on `/cis/` only**.
-- **V2 explorer prototype is parked** — do not extend V2 unless explicitly restarted.
+- **V2 explorer prototype is active again** (12 Oct 2026) — see `docs/CIS-V2-ROADMAP.md`. Production default remains `/cis/` until cutover.
 - Tomorrow’s real work is **process + data integrity**, not more shell polish:
   - **Assign dispatches** (Walvis dispatch module / truck loads).
   - **Packaging scheduling** (`packaging_shift` module + backend shifts).
@@ -56,7 +56,7 @@ From each repo folder (not the parent monorepo root):
 <script src="modules/bags_status.js?v=1.6.31"></script>
 ```
 
-**V2:** `shell/explorer-prototype/` — **parked**. Same `modules/bags_status.js` file but **without** the flag.
+**V2:** `shell/explorer-prototype/` — **beta** at `/cis/explorer-prototype/`. Keep module script tags in sync with V1 (including `CIS_BS_DRILL_SORT_NEWEST_FIRST`).
 
 ---
 
