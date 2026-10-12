@@ -179,6 +179,140 @@
     });
   }
 
+  function applyBreakdownReconcile(detail, breakdown) {
+    var manifestIds = {};
+    (detail.bags || []).forEach(function (b) {
+      manifestIds[b.bag_identifier] = true;
+    });
+    var all = [];
+    function pushFromCategories(categories, otherLabel) {
+      (categories || []).forEach(function (cat) {
+        (cat.rows || []).forEach(function (r) {
+          var serial = r.bag_identifier;
+          if (!serial) return;
+          all.push({
+            bag_identifier: serial,
+            product_stream: r.product_stream,
+            net_weight_kg: r.net_weight_kg,
+            on_this_manifest: !!manifestIds[serial],
+            other_dispatch_label: manifestIds[serial] ? null : otherLabel,
+          });
+        });
+      });
+    }
+    (breakdown.dispatches || []).forEach(function (d) {
+      var label =
+        d.display_label ||
+        (d.dispatch_number != null ? "Dispatch #" + d.dispatch_number : "Other dispatch");
+      var onThis = String(d.id) === String(detail.id);
+      pushFromCategories(d.categories, onThis ? null : label);
+    });
+    pushFromCategories(
+      breakdown.unassigned && breakdown.unassigned.categories,
+      null
+    );
+    (breakdown.pallets && breakdown.pallets.rows || []).forEach(function (r) {
+      var serial = r.bag_identifier;
+      if (!serial) return;
+      all.push({
+        bag_identifier: serial,
+        product_stream: r.product_stream || "pallet",
+        net_weight_kg: r.net_weight_kg,
+        on_this_manifest: !!manifestIds[serial],
+        other_dispatch_label: manifestIds[serial] ? null : null,
+      });
+    });
+    var seen = {};
+    all = all.filter(function (b) {
+      if (seen[b.bag_identifier]) return false;
+      seen[b.bag_identifier] = true;
+      return true;
+    });
+    all.sort(function (a, b) {
+      return String(a.bag_identifier).localeCompare(String(b.bag_identifier));
+    });
+    var gap = all
+      .filter(function (b) {
+        return !manifestIds[b.bag_identifier];
+      })
+      .map(function (b) {
+        return {
+          bag_identifier: b.bag_identifier,
+          product_stream: b.product_stream,
+          net_weight_kg: b.net_weight_kg,
+          other_dispatch_label: b.other_dispatch_label,
+        };
+      });
+    detail.walvis_ground_all = all;
+    detail.walvis_ground_total_count = all.length;
+    detail.walvis_ground_on_manifest_count = all.filter(function (b) {
+      return b.on_this_manifest;
+    }).length;
+    detail.walvis_ground_not_on_manifest = gap;
+    detail.walvis_ground_not_on_manifest_count = gap.length;
+    detail._reconcile_from_breakdown = true;
+  }
+
+  async function enrichDetailWithGroundReconcile(ctx, detail) {
+    var hasGround =
+      (detail.walvis_ground_total_count != null && detail.walvis_ground_total_count > 0) ||
+      (detail.walvis_ground_all && detail.walvis_ground_all.length > 0);
+    if (hasGround) return detail;
+    try {
+      var recon = await apiGet(
+        ctx,
+        "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/ground-reconcile"
+      );
+      detail.walvis_ground_all = recon.walvis_ground_all;
+      detail.walvis_ground_total_count = recon.walvis_ground_total_count;
+      detail.walvis_ground_on_manifest_count = recon.walvis_ground_on_manifest_count;
+      detail.walvis_ground_not_on_manifest = recon.walvis_ground_not_on_manifest;
+      detail.walvis_ground_not_on_manifest_count = recon.walvis_ground_not_on_manifest_count;
+      return detail;
+    } catch (e) {
+      /* old API — fall back to Bags Status breakdown (already deployed). */
+    }
+    try {
+      var breakdown = await apiGet(ctx, "/walvis-dispatches/storage-at-walvis-breakdown");
+      applyBreakdownReconcile(detail, breakdown);
+    } catch (e2) {
+      detail._reconcile_unavailable = true;
+    }
+    return detail;
+  }
+
+  async function promptAndAddBagToDispatch(container, ctx, detail, presetSerial) {
+    var serial =
+      presetSerial != null && String(presetSerial).trim()
+        ? String(presetSerial).trim()
+        : window.prompt(
+            "Bag serial (e.g. BAG-2026-001234):\n\nOne bag per prompt — repeat for each missing bag.\nCancel = stop.",
+            ""
+          );
+    if (serial === null || !String(serial).trim()) return false;
+    serial = String(serial).trim();
+    var markReceived = window.confirm(
+      "Add " +
+        serial +
+        " to " +
+        dispatchDisplayLabel(detail) +
+        " and mark received at Walvis?\n\n" +
+        "OK = yes (bag is already in Walvis storage).\n" +
+        "Cancel = add to manifest only (still on truck)."
+    );
+    try {
+      await apiPost(ctx, "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/bags", {
+        bag_identifier: serial,
+        mark_received: markReceived,
+      });
+      await openDetail(container, ctx, detail.id);
+      return true;
+    } catch (e) {
+      window.alert(e.message || String(e));
+      return false;
+    }
+  }
+
   function renderDetail(container, ctx, detail) {
     var ui = CIS.ui;
     container.innerHTML = "";
@@ -346,29 +480,79 @@
       recon.appendChild(allPre);
     }
 
+    if (detail._reconcile_unavailable) {
+      recon.appendChild(
+        ui.el("p", { class: "walvis-dispatch-missing" }, [
+          "Could not load Walvis ground stock. Restart charcoal-traceability on bkweb3, then Ctrl+F5.",
+        ])
+      );
+    } else if (
+      groundTotal === 0 &&
+      (detail.bags || []).some(function (b) {
+        return b.storage_status === "storage_walvisbay";
+      })
+    ) {
+      recon.appendChild(
+        ui.el("p", { class: "muted" }, ["Loading reconcile counts… use “Add bag” below if this stays at 0 after refresh."])
+      );
+    }
+
+    var addPrimaryBtn = ui.el("button", {
+      type: "button",
+      class: "settings-action-btn",
+      style: "max-width: 100%; margin: 0.5rem 0;",
+    }, ["Add bag to this dispatch…"]);
+    addPrimaryBtn.addEventListener("click", function () {
+      addPrimaryBtn.disabled = true;
+      promptAndAddBagToDispatch(container, ctx, detail).finally(function () {
+        addPrimaryBtn.disabled = false;
+      });
+    });
+    recon.appendChild(addPrimaryBtn);
+    recon.appendChild(
+      ui.el("p", { class: "muted", style: "margin:0 0 0.5rem 0;font-size:12px;" }, [
+        "Use for each missing serial: confirm ",
+        ui.el("strong", {}, ["mark received at Walvis"]),
+        " when the bag is already on the ground (typical for the 7 missed GF scans).",
+      ])
+    );
+
     if (groundGap.length) {
       recon.appendChild(
         ui.el("p", { class: "walvis-dispatch-missing", style: "margin:0.5rem 0 0.25rem 0;" }, [
-          ui.el("strong", {}, ["Add these to this dispatch (one serial at a time below):"]),
+          ui.el("strong", {}, [
+            String(groundGap.length) + " missing from this manifest — add each (Add next to serial):",
+          ]),
         ])
       );
-      var gapLines = groundGap.map(function (b) {
-        var line = b.bag_identifier;
-        if (b.other_dispatch_label) {
-          line += "  (was on " + b.other_dispatch_label + ")";
-        }
-        return line;
+      var gapList = ui.el("ul", {
+        style: "list-style:none;padding:0;margin:0.25rem 0;max-height:14rem;overflow:auto;",
       });
-      recon.appendChild(
-        ui.el(
-          "pre",
-          {
-            style:
-              "white-space:pre-wrap;font-size:12px;max-height:14rem;overflow:auto;margin:0.25rem 0;",
-          },
-          [gapLines.join("\n")]
-        )
-      );
+      groundGap.forEach(function (b) {
+        var row = ui.el("li", {
+          style: "display:flex;flex-wrap:wrap;align-items:center;gap:0.35rem;margin:0.35rem 0;",
+        });
+        row.appendChild(ui.el("code", {}, [b.bag_identifier]));
+        if (b.other_dispatch_label) {
+          row.appendChild(
+            ui.el("span", { class: "muted", style: "font-size:12px;" }, [
+              "(" + b.other_dispatch_label + ")",
+            ])
+          );
+        }
+        var addOne = ui.el("button", { type: "button", class: "btn-ghost", style: "padding:0.2rem 0.5rem;" }, [
+          "Add",
+        ]);
+        addOne.addEventListener("click", function () {
+          addOne.disabled = true;
+          promptAndAddBagToDispatch(container, ctx, detail, b.bag_identifier).finally(function () {
+            addOne.disabled = false;
+          });
+        });
+        row.appendChild(addOne);
+        gapList.appendChild(row);
+      });
+      recon.appendChild(gapList);
     } else if (groundTotal > 0 && onManifest === groundTotal) {
       recon.appendChild(
         ui.el("p", { class: "muted" }, [
@@ -411,47 +595,6 @@
         .join(" · ");
       container.appendChild(ui.el("p", { class: "muted" }, ["Mix on manifest: ", streamLine]));
     }
-
-    var addRow = ui.el("div", { class: "walvis-dispatch-add-bag", style: "margin: 1rem 0;" });
-    addRow.appendChild(
-      ui.el("p", { class: "muted" }, [
-        "Add bags Shorty missed at Grootfontein (must exist as BAG-… labels). ",
-        "If the bag is already in Walvis storage, mark received — the server uses the bag’s Walvis scan time when possible.",
-      ])
-    );
-    var addBtn = ui.el("button", {
-      type: "button",
-      class: "settings-action-btn",
-      style: "max-width: 22rem;",
-    }, ["Add bag to this dispatch…"]);
-    addBtn.addEventListener("click", async function () {
-      var serial = window.prompt(
-        "Bag serial (e.g. BAG-2026-001234):\n\nOne bag per prompt — repeat for each missing bag.\nCancel = stop.",
-        ""
-      );
-      if (serial === null || !String(serial).trim()) return;
-      var markReceived = window.confirm(
-        "Mark this bag as received at Walvis on " +
-          dispatchDisplayLabel(detail) +
-          "?\n\n" +
-          "OK = yes (use when bag is already in Walvis storage — typical for Wynand/paper offload).\n" +
-          "Cancel = manifest load only (still on truck)."
-      );
-      addBtn.disabled = true;
-      try {
-        var updated = await apiPost(ctx, "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/bags", {
-          bag_identifier: serial.trim(),
-          mark_received: markReceived,
-        });
-        renderDetail(container, ctx, updated);
-      } catch (e) {
-        window.alert(e.message || String(e));
-      } finally {
-        addBtn.disabled = false;
-      }
-    });
-    addRow.appendChild(addBtn);
-    container.appendChild(addRow);
 
     var deleteRow = ui.el("div", { style: "margin: 1.5rem 0 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle,#333);" });
     deleteRow.appendChild(
@@ -549,6 +692,7 @@
     container.innerHTML = "<p class=\"muted\">Loading dispatch…</p>";
     try {
       var detail = await apiGet(ctx, "/walvis-dispatches/" + encodeURIComponent(id));
+      detail = await enrichDetailWithGroundReconcile(ctx, detail);
       renderDetail(container, ctx, detail);
     } catch (e) {
       container.innerHTML = "";
