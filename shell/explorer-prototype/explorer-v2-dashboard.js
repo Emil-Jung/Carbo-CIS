@@ -170,6 +170,12 @@
     { key: "fines", label: "Fines" },
   ];
 
+  /** Walvis / AGL container loading — restaurant & lumpwood only (no fines on snapshot). */
+  var COAST_BULK_STREAMS = [
+    { key: "restaurant", label: "Restaurant" },
+    { key: "lumpwood", label: "Lumpwood" },
+  ];
+
   var FACTORY_PALLET_YARD_STATUSES = ["in_storage", "in_storage_weathering", "in_storage_released_early"];
 
   function streamBagsInStatus(st, streamKey) {
@@ -212,7 +218,7 @@
     parent.appendChild(row);
   }
 
-  function factoryPalletProductsInYard(statusData) {
+  function palletProductsAtStatuses(statusData, effectiveStatuses) {
     var out = {};
     (statusData && statusData.physical_pallets && statusData.physical_pallets.by_product
       ? statusData.physical_pallets.by_product
@@ -220,7 +226,7 @@
     ).forEach(function (bucket) {
       (bucket.rows || []).forEach(function (row) {
         var eff = row.effective_status || row.storage_status || "";
-        if (FACTORY_PALLET_YARD_STATUSES.indexOf(eff) < 0) return;
+        if (effectiveStatuses.indexOf(eff) < 0) return;
         var code = (row.product_code || "").trim() || "—";
         if (!out[code]) out[code] = { code: code, bags: 0, kg: 0 };
         out[code].bags += 1;
@@ -233,6 +239,28 @@
         out[k].kg = Math.round(out[k].kg * 1000) / 1000;
         return out[k];
       });
+  }
+
+  function factoryPalletProductsInYard(statusData) {
+    return palletProductsAtStatuses(statusData, FACTORY_PALLET_YARD_STATUSES);
+  }
+
+  function appendCoastBulkStreams(parent, statusSt) {
+    COAST_BULK_STREAMS.forEach(function (s) {
+      appendStreamSubrow(parent, s.label, streamBagsInStatus(statusSt, s.key), streamKgInStatus(statusSt, s.key));
+    });
+  }
+
+  function appendPalletSkuBlock(parent, title, statusData, effectiveStatuses) {
+    var sec = appendStorageSection(parent, title, "#c2185b");
+    var products = palletProductsAtStatuses(statusData, effectiveStatuses);
+    if (products.length) {
+      products.forEach(function (p) {
+        appendStreamSubrow(sec, p.code, p.bags, p.kg);
+      });
+    } else {
+      appendStreamSubrow(sec, "—", 0, 0);
+    }
   }
 
   function renderOpenModuleAction(moduleId, label) {
@@ -322,36 +350,22 @@
     return block;
   }
 
-  function renderWalvisSnapshotBox(walvis, palletSummary) {
+  function renderWalvisSnapshotBox(walvis, statusData) {
     var boxWrap = makeInfoBox("Walvis Bay storage", "var(--status-blue)");
-    var bulk = statusBucket(walvis, "storage_walvisbay");
-    var bulkBags = bulk.bags;
-    var bulkKg = bulk.kg;
-    var palWalvis = palletSummaryBucket(palletSummary, "storage_walvisbay");
-    bulkBags = Math.max(0, bulkBags - (palWalvis.bags || 0));
-    bulkKg = Math.max(0, bulkKg - (palWalvis.kg || 0));
-    appendStreamSubrow(boxWrap.body, "Bulk bags", bulkBags, bulkKg);
-    appendStreamSubrow(boxWrap.body, "Pallets", palWalvis.bags, palWalvis.kg);
-    var briquetteW = streamBagsInGroup(walvis, "briquettes");
-    var briquetteKg = streamKgInGroup(walvis, "briquettes");
-    appendStreamSubrow(boxWrap.body, "Briquettes", briquetteW, briquetteKg);
-    var lead = walvis ? bagsMass(walvis.bags, walvis.kg) : massThenBags(0, 0);
-    boxWrap.box.appendChild(el("p", { className: "v2-info-box__foot muted" }, [lead]));
+    var st = statusBucket(walvis, "storage_walvisbay");
+    appendCoastBulkStreams(boxWrap.body, st);
+    appendPalletSkuBlock(boxWrap.body, "Pallets", statusData, ["storage_walvisbay"]);
     return boxWrap.box;
   }
 
-  function renderAglSnapshotBox(coast, palletSummary) {
+  function renderAglSnapshotBox(coast, statusData) {
     var boxWrap = makeInfoBox("AGL & coast", "#059669");
-    var agl = statusBucket(coast, "storage_agl");
-    var inCont = statusBucket(coast, "in_container");
-    appendStreamSubrow(boxWrap.body, "AGL storage", agl.bags, agl.kg);
-    appendStreamSubrow(boxWrap.body, "In container", inCont.bags, inCont.kg);
-    var palCoast = palletSummaryBucket(palletSummary, "at_coast");
-    var palCont = palletSummaryBucket(palletSummary, "in_container");
-    appendStreamSubrow(boxWrap.body, "Pallets at AGL", palCoast.bags, palCoast.kg);
-    appendStreamSubrow(boxWrap.body, "Pallets in container", palCont.bags, palCont.kg);
-    var lead = coast ? bagsMass(coast.bags, coast.kg) : massThenBags(0, 0);
-    boxWrap.box.appendChild(el("p", { className: "v2-info-box__foot muted" }, [lead]));
+    var secAgl = appendStorageSection(boxWrap.body, "AGL storage", "#059669");
+    appendCoastBulkStreams(secAgl, statusBucket(coast, "storage_agl"));
+    var secCont = appendStorageSection(boxWrap.body, "In container", "#059669");
+    appendCoastBulkStreams(secCont, statusBucket(coast, "in_container"));
+    appendPalletSkuBlock(boxWrap.body, "Pallets at AGL", statusData, ["storage_agl"]);
+    appendPalletSkuBlock(boxWrap.body, "Pallets in container", statusData, ["in_container"]);
     return boxWrap.box;
   }
 
@@ -462,8 +476,6 @@
     var factory = groupByKey(statusData, "factory") || { statuses: [] };
     var walvis = groupByKey(statusData, "walvis_storage") || { statuses: [] };
     var coast = groupByKey(statusData, "coast") || { statuses: [] };
-    var palletSummary = statusData.pallet_summary || {};
-
     var carboLead = factory.bags != null ? bagsMass(factory.bags, factory.kg) : massThenBags(0, 0);
 
     var mainGrid = el("div", { className: "v2-snapshot-main-grid" });
@@ -472,8 +484,8 @@
     mainGrid.appendChild(primaryCol);
 
     var asideCol = el("div", { className: "v2-snapshot-main-grid__aside" });
-    asideCol.appendChild(renderWalvisSnapshotBox(walvis, palletSummary));
-    asideCol.appendChild(renderAglSnapshotBox(coast, palletSummary));
+    asideCol.appendChild(renderWalvisSnapshotBox(walvis, statusData));
+    asideCol.appendChild(renderAglSnapshotBox(coast, statusData));
     mainGrid.appendChild(asideCol);
     wrap.appendChild(mainGrid);
     if (statusData.in_system) {
