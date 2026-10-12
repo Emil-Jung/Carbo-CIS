@@ -1,4 +1,5 @@
-/* Walvis dispatches — truck manifest (GF load) vs received (Walvis storage). */
+/* Walvis dispatches — truck manifest (GF load) vs received (Walvis storage).
+   Display names: Dispatch [DAY] [DATE] #[N] — Windhoek day; N = 1st/2nd/… dispatch that day (API display_label). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
