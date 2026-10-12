@@ -52,16 +52,14 @@
     };
   }
 
-  /**
-   * + = physical heavier than digital (amber). − = lighter (green). ~0 blue.
-   */
+  /** + plain (bag/tare); − highlighted (investigate — e.g. wrong stream/category). */
   function varianceColorClass(kg) {
-    if (kg == null || kg === "") return "tsv-var--zero";
+    if (kg == null || kg === "") return "";
     var n = Number(kg);
     if (!Number.isFinite(n)) return "";
     if (Math.abs(n) < 0.05) return "tsv-var--zero";
-    if (n > 0) return "tsv-var--over";
-    return "tsv-var--under";
+    if (n < 0) return "tsv-var--investigate";
+    return "tsv-var--plain";
   }
 
   /** Column bands for borders / header grouping (must match renderTable column order). */
@@ -155,14 +153,12 @@
       " (Control Room) is what you pay on. ",
       ui.el("strong", {}, ["Vs digital"]),
       ": ",
-      ui.el("strong", {}, ["+ kg"]),
-      " = bags in storage weighed ",
-      ui.el("strong", {}, ["heavier"]),
-      " at scan than digital; ",
       ui.el("strong", {}, ["− kg"]),
-      " = lighter. Example 1 243 digital, 1 308 scanned → ",
-      ui.el("strong", {}, ["+65.0 kg"]),
-      ". Filters match ",
+      " (highlighted) = scans ",
+      ui.el("strong", {}, ["lighter"]),
+      " than digital — check stream/category (e.g. restaurant vs lumpwood). ",
+      ui.el("strong", {}, ["+ kg"]),
+      " = heavier at scan (often bag weight); shown plain. Filters match ",
       ui.el("strong", {}, ["Charcoal deliveries"]),
       ". |Vs digital| over ",
       ui.el("strong", {}, ["5 kg"]),
