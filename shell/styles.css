@@ -3015,36 +3015,69 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .delivery-conf-tracker-scroll {
   overflow-x: auto;
   margin: 12px 0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid #3a6fa8;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+.delivery-conf-tracker-sheet {
+  background: #ffffff;
+  color: #000000;
 }
 .delivery-conf-tracker-table {
   width: max-content;
   min-width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.2;
 }
 .delivery-conf-tracker-table th {
   background: #4a86c7;
-  color: #0a0a0a;
+  color: #000000;
   font-weight: 700;
   font-style: italic;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid #3a6fa8;
   white-space: nowrap;
   text-align: left;
   vertical-align: bottom;
 }
+.delivery-conf-tracker-table th.delivery-conf-th--f {
+  text-align: center;
+  min-width: 2rem;
+  padding-left: 4px;
+  padding-right: 4px;
+}
 .delivery-conf-tracker-table td {
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  background: var(--panel);
+  padding: 4px 8px;
+  border: 1px solid #d0d0d0;
+  background: #ffffff;
+  color: #000000;
   vertical-align: middle;
   min-width: 5.5rem;
 }
+.delivery-conf-tracker-table td.delivery-conf-td--num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.delivery-conf-tracker-table td.delivery-conf-td--f {
+  text-align: center;
+  min-width: 2rem;
+}
+.delivery-conf-tracker-table td.delivery-conf-td--remarks {
+  min-width: 14rem;
+  max-width: 22rem;
+  white-space: normal;
+}
 .delivery-conf-tracker-table--list tbody tr.delivery-conf-row { cursor: pointer; }
+.delivery-conf-tracker-table--list tbody tr.delivery-conf-row:nth-child(even) td {
+  background: #f9f9f9;
+}
+.delivery-conf-tracker-table--list tbody tr.delivery-conf-row--complete td {
+  background: #f3f7fc;
+}
 .delivery-conf-tracker-table--list tbody tr.delivery-conf-row:hover td {
-  background: rgba(74, 134, 199, 0.12);
+  background: rgba(74, 134, 199, 0.18);
 }
 .delivery-conf-cell-input {
   width: 100%;

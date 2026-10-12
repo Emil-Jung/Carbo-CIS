@@ -91,11 +91,15 @@
         tableHost.appendChild(ui.el("p", { class: "muted" }, ["No delivery rows for this filter."]));
         return;
       }
-      var table = ui.el("table", { class: "print-labels-history delivery-conf-history deliveries-register-table" });
+      var scroll = ui.el("div", { class: "delivery-conf-tracker-scroll delivery-conf-tracker-sheet" });
+      var table = ui.el("table", {
+        class: "delivery-conf-tracker-table deliveries-register-table",
+      });
       var thead = ui.el("thead");
       var hr = ui.el("tr");
       COLS.forEach(function (c) {
-        hr.appendChild(ui.el("th", {}, [c.label]));
+        var thClass = c.key === "fsc_flag" ? "delivery-conf-th--f" : "";
+        hr.appendChild(ui.el("th", { class: thClass }, [c.label]));
       });
       thead.appendChild(hr);
       table.appendChild(thead);
@@ -103,12 +107,17 @@
       rows.forEach(function (row) {
         var tr = ui.el("tr");
         COLS.forEach(function (c) {
-          tr.appendChild(ui.el("td", {}, [cellText(row, c)]));
+          var tdClass = "";
+          if (c.ton || c.pct || c.key === "distance_km") tdClass = "delivery-conf-td--num";
+          if (c.key === "fsc_flag") tdClass = "delivery-conf-td--f";
+          if (c.key === "remarks") tdClass = "delivery-conf-td--remarks";
+          tr.appendChild(ui.el("td", { class: tdClass }, [cellText(row, c)]));
         });
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      tableHost.appendChild(table);
+      scroll.appendChild(table);
+      tableHost.appendChild(scroll);
     }
 
     async function loadData() {

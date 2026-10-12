@@ -37,6 +37,33 @@
     { key: "pct_unburned_wood", label: "% Unburned Wood" },
   ];
 
+  /** Full Deliveries sheet columns (same order as export / xlsb row 1). */
+  var LIST_COLS = ROW1.concat(
+    ROW2,
+    PCT_FIELDS.map(function (p) {
+      return { key: p.key, label: p.label, pct: true };
+    }),
+    [{ key: "remarks", label: "Remarks" }]
+  );
+
+  function listCellText(row, col) {
+    var val = row[col.key];
+    if (col.ton) return fmtTon(val);
+    if (col.pct) {
+      if (val === null || val === undefined || val === "") return "";
+      return num(val).toFixed(2);
+    }
+    if (val == null || val === "") return "";
+    return String(val);
+  }
+
+  function listCellClass(col) {
+    if (col.ton || col.pct || col.key === "distance_km") return "delivery-conf-td--num";
+    if (col.key === "fsc_flag") return "delivery-conf-td--f";
+    if (col.key === "remarks") return "delivery-conf-td--remarks";
+    return "";
+  }
+
   function num(v) {
     var n = Number(v);
     return isFinite(n) ? n : 0;
@@ -144,7 +171,7 @@
 
     var listWrap = ui.el("div", { class: "delivery-conf-list-wrap" });
     var listMsg = ui.el("p", { class: "delivery-conf-msg muted" });
-    var listTableHost = ui.el("div", { class: "print-labels-history-wrap" });
+    var listTableHost = ui.el("div", { class: "delivery-conf-list-table-host" });
     listWrap.appendChild(listMsg);
     listWrap.appendChild(listTableHost);
     container.appendChild(listWrap);
@@ -178,11 +205,15 @@
         ]));
         return;
       }
-      var table = ui.el("table", { class: "print-labels-history delivery-conf-history" });
+      var scroll = ui.el("div", { class: "delivery-conf-tracker-scroll delivery-conf-tracker-sheet" });
+      var table = ui.el("table", {
+        class: "delivery-conf-tracker-table delivery-conf-tracker-table--list deliveries-register-table",
+      });
       var thead = ui.el("thead");
       var hr = ui.el("tr");
-      ["Booking Date", "Supplier", "GRN", "Weight (t)", "Posted", "Status"].forEach(function (h) {
-        hr.appendChild(ui.el("th", {}, [h]));
+      LIST_COLS.forEach(function (col) {
+        var thClass = col.key === "fsc_flag" ? "delivery-conf-th--f" : "";
+        hr.appendChild(ui.el("th", { class: thClass }, [col.label]));
       });
       thead.appendChild(hr);
       table.appendChild(thead);
@@ -190,24 +221,20 @@
       rows.forEach(function (row) {
         var tr = ui.el("tr", {
           class: "delivery-conf-row",
+          title: "Click row to edit office fields",
           onclick: function () {
             openDetail(row.intake_id);
           },
         });
-        tr.appendChild(ui.el("td", {}, [row.booking_date || "—"]));
-        tr.appendChild(ui.el("td", {}, [row.supplier || "—"]));
-        tr.appendChild(ui.el("td", {}, [row.grn || "—"]));
-        tr.appendChild(ui.el("td", {}, [row.weight_ton != null ? fmtTon(row.weight_ton) : "—"]));
-        tr.appendChild(ui.el("td", {}, [formatPosted(row.factory_posted_at)]));
-        var statusTd = ui.el("td", {});
-        statusTd.appendChild(ui.el("span", {
-          class: "pill " + (row.office_status === "complete" ? "ok" : "warn"),
-        }, [row.office_status === "complete" ? "Complete" : "Pending"]));
-        tr.appendChild(statusTd);
+        if (row.office_status === "complete") tr.classList.add("delivery-conf-row--complete");
+        LIST_COLS.forEach(function (col) {
+          tr.appendChild(ui.el("td", { class: listCellClass(col) }, [listCellText(row, col)]));
+        });
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      listTableHost.appendChild(table);
+      scroll.appendChild(table);
+      listTableHost.appendChild(scroll);
     }
 
     async function loadList() {
