@@ -273,8 +273,8 @@
     var addRow = ui.el("div", { class: "walvis-dispatch-add-bag", style: "margin: 1rem 0;" });
     addRow.appendChild(
       ui.el("p", { class: "muted" }, [
-        "Add a bag that was missed on the truck scan (must exist as a label in the system). ",
-        "Mark received if it is already in Walvis storage.",
+        "Add bags Shorty missed at Grootfontein (must exist as BAG-… labels). ",
+        "If the bag is already in Walvis storage, mark received — the server uses the bag’s Walvis scan time when possible.",
       ])
     );
     var addBtn = ui.el("button", {
@@ -283,10 +283,17 @@
       style: "max-width: 22rem;",
     }, ["Add bag to this dispatch…"]);
     addBtn.addEventListener("click", async function () {
-      var serial = window.prompt("Bag serial (e.g. CB-…):\n\nCancel = do not add a bag.", "");
+      var serial = window.prompt(
+        "Bag serial (e.g. BAG-2026-001234):\n\nOne bag per prompt — repeat for each missing bag.\nCancel = stop.",
+        ""
+      );
       if (serial === null || !String(serial).trim()) return;
       var markReceived = window.confirm(
-        "Mark this bag as received at Walvis on the manifest?\n\nOK = yes (typical if already in Walvis storage).\nCancel = loaded only."
+        "Mark this bag as received at Walvis on " +
+          dispatchDisplayLabel(detail) +
+          "?\n\n" +
+          "OK = yes (use when bag is already in Walvis storage — typical for Wynand/paper offload).\n" +
+          "Cancel = manifest load only (still on truck)."
       );
       addBtn.disabled = true;
       try {
