@@ -239,12 +239,151 @@
     });
     container.appendChild(editMetaBtn);
 
+    function copyText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(function () {
+          window.prompt("Copy these serials:", text);
+        });
+      } else {
+        window.prompt("Copy these serials:", text);
+      }
+    }
+
+    var groundAll = detail.walvis_ground_all || [];
+    var groundGap = detail.walvis_ground_not_on_manifest || [];
+    var groundTotal =
+      detail.walvis_ground_total_count != null
+        ? detail.walvis_ground_total_count
+        : groundAll.length;
+    var onManifest =
+      detail.walvis_ground_on_manifest_count != null
+        ? detail.walvis_ground_on_manifest_count
+        : groundAll.filter(function (b) {
+            return b.on_this_manifest;
+          }).length;
+
+    var recon = ui.el("div", {
+      class: "walvis-dispatch-summary",
+      style: "border:1px solid var(--border-subtle,#444);padding:0.75rem;margin:0.75rem 0;",
+    });
+    recon.appendChild(ui.el("h4", { style: "margin:0 0 0.5rem 0;" }, [
+      "Walvis Bay ground stock vs this manifest",
+    ]));
+    recon.appendChild(
+      ui.el("p", { class: "muted", style: "margin:0 0 0.5rem 0;" }, [
+        "Every bag currently in storage at Walvis Bay (",
+        String(groundTotal),
+        "), compared to what is recorded on ",
+        dispatchDisplayLabel(detail),
+        " — not grouped by other dispatch tiles.",
+      ])
+    );
+    recon.appendChild(
+      ui.el("p", { style: "margin:0.25rem 0;" }, [
+        ui.el("strong", {}, ["At Walvis now: "]),
+        String(groundTotal),
+        " · On this manifest and at Walvis: ",
+        String(onManifest),
+        " · ",
+        ui.el("strong", {}, ["Missing from this manifest: "]),
+        String(groundGap.length),
+      ])
+    );
+
+    var reconActions = ui.el("div", { style: "display:flex;flex-wrap:wrap;gap:0.5rem;margin:0.5rem 0;" });
+    var copyAllBtn = ui.el("button", { type: "button", class: "btn-ghost" }, [
+      "Copy all Walvis serials",
+    ]);
+    copyAllBtn.addEventListener("click", function () {
+      copyText(
+        groundAll
+          .map(function (b) {
+            return b.bag_identifier;
+          })
+          .join("\n")
+      );
+    });
+    reconActions.appendChild(copyAllBtn);
+    if (groundGap.length) {
+      var copyGapBtn = ui.el("button", { type: "button", class: "settings-action-btn" }, [
+        "Copy missing serials (" + groundGap.length + ")",
+      ]);
+      copyGapBtn.addEventListener("click", function () {
+        copyText(
+          groundGap
+            .map(function (b) {
+              return b.bag_identifier;
+            })
+            .join("\n")
+        );
+      });
+      reconActions.appendChild(copyGapBtn);
+    }
+    recon.appendChild(reconActions);
+
+    if (groundAll.length) {
+      var allPre = ui.el("details", { style: "margin:0.5rem 0;" });
+      allPre.appendChild(
+        ui.el("summary", {}, ["All bags at Walvis Bay (" + groundAll.length + ")"])
+      );
+      allPre.appendChild(
+        ui.el(
+          "pre",
+          {
+            style:
+              "white-space:pre-wrap;font-size:12px;max-height:12rem;overflow:auto;margin:0.35rem 0;",
+          },
+          [
+            groundAll
+              .map(function (b) {
+                var mark = b.on_this_manifest ? "✓ manifest" : "— not on manifest";
+                return b.bag_identifier + "  " + mark;
+              })
+              .join("\n"),
+          ]
+        )
+      );
+      recon.appendChild(allPre);
+    }
+
+    if (groundGap.length) {
+      recon.appendChild(
+        ui.el("p", { class: "walvis-dispatch-missing", style: "margin:0.5rem 0 0.25rem 0;" }, [
+          ui.el("strong", {}, ["Add these to this dispatch (one serial at a time below):"]),
+        ])
+      );
+      var gapLines = groundGap.map(function (b) {
+        var line = b.bag_identifier;
+        if (b.other_dispatch_label) {
+          line += "  (was on " + b.other_dispatch_label + ")";
+        }
+        return line;
+      });
+      recon.appendChild(
+        ui.el(
+          "pre",
+          {
+            style:
+              "white-space:pre-wrap;font-size:12px;max-height:14rem;overflow:auto;margin:0.25rem 0;",
+          },
+          [gapLines.join("\n")]
+        )
+      );
+    } else if (groundTotal > 0 && onManifest === groundTotal) {
+      recon.appendChild(
+        ui.el("p", { class: "muted" }, [
+          "Ground stock matches this manifest — every Walvis bag is on this dispatch.",
+        ])
+      );
+    }
+    container.appendChild(recon);
+
     var summary = ui.el("div", { class: "walvis-dispatch-summary" });
     summary.appendChild(
       ui.el("p", {}, [
-        ui.el("strong", {}, ["Loaded: "]),
+        ui.el("strong", {}, ["Manifest: "]),
         CIS.bagsAndMassText(detail.loaded_bags, detail.kg_loaded) +
-          " · Received: " +
+          " loaded · Received at Walvis: " +
           CIS.bagsAndMassText(detail.received_bags, detail.kg_received),
       ])
     );
@@ -261,28 +400,6 @@
             : "",
         ])
       );
-    }
-    var groundGap = detail.walvis_ground_not_on_manifest || [];
-    if (groundGap.length) {
-      summary.appendChild(
-        ui.el("p", { class: "walvis-dispatch-missing" }, [
-          ui.el("strong", {}, [
-            String(groundGap.length) +
-              " bag(s) in Walvis storage but NOT on this dispatch manifest",
-          ]),
-          " — missed GF load scan; add below with “Add bag to this dispatch”. ",
-          "This is not the same as Bags Status “Unassigned” (that means no manifest anywhere).",
-        ])
-      );
-      var gapList = ui.el(
-        "pre",
-        {
-          style:
-            "white-space:pre-wrap;font-size:12px;max-height:10rem;overflow:auto;margin:0.5rem 0;",
-        },
-        [groundGap.map(function (b) { return b.bag_identifier; }).join("\n")]
-      );
-      summary.appendChild(gapList);
     }
     container.appendChild(summary);
 
@@ -336,92 +453,57 @@
     addRow.appendChild(addBtn);
     container.appendChild(addRow);
 
-    var mergeRow = ui.el("div", { style: "margin: 1rem 0;" });
-    mergeRow.appendChild(
+    var deleteRow = ui.el("div", { style: "margin: 1.5rem 0 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle,#333);" });
+    deleteRow.appendChild(
       ui.el("p", { class: "muted" }, [
-        "Wrong dispatch number (e.g. bags on Sun #3 that belong on Sat #1)? ",
-        "Merge moves every bag on the other manifest onto this dispatch and closes an empty source.",
+        "Remove a mistaken dispatch record (#2, #3, …) after bags are on the correct manifest. ",
+        "Deletes only the dispatch header and its manifest rows — bags stay in Walvis storage.",
       ])
     );
-    var mergeBtn = ui.el("button", {
+    var deleteBtn = ui.el("button", {
       type: "button",
       class: "btn-ghost",
-      style: "max-width: 28rem;",
-    }, ["Merge another dispatch into this one…"]);
-    mergeBtn.addEventListener("click", async function () {
-      mergeBtn.disabled = true;
+      style: "max-width: 26rem; color: var(--danger, #c44);",
+    }, ["Delete this dispatch record…"]);
+    deleteBtn.addEventListener("click", async function () {
+      var num = detail.dispatch_number;
+      var token = "DELETE_DISPATCH_" + num;
+      var typed = window.prompt(
+        "Permanently delete " +
+          dispatchDisplayLabel(detail) +
+          "?\n\nType exactly:\n" +
+          token +
+          "\n\nCancel = stop."
+      );
+      if (typed === null || String(typed).trim() !== token) {
+        if (typed !== null && String(typed).trim()) {
+          window.alert("Confirmation did not match " + token + ". Nothing deleted.");
+        }
+        return;
+      }
+      deleteBtn.disabled = true;
       try {
-        var data = await apiGet(ctx, "/walvis-dispatches?limit=50&include_closed=true");
-        var others = (data.dispatches || []).filter(function (d) {
-          return d.id !== detail.id && (d.loaded_bags || 0) > 0;
-        });
-        if (!others.length) {
-          window.alert("No other dispatches with bags on the manifest.");
-          return;
-        }
-        var lines = others
-          .map(function (d, i) {
-            return (
-              String(i + 1) +
-              ". " +
-              dispatchDisplayLabel(d) +
-              " — " +
-              fmt(d.loaded_bags) +
-              " loaded"
-            );
-          })
-          .join("\n");
-        var pick = window.prompt(
-          "Merge which dispatch into " +
-            dispatchDisplayLabel(detail) +
-            "?\n\n" +
-            lines +
-            "\n\nEnter the number (1–" +
-            others.length +
-            "), or Cancel."
-        );
-        if (pick === null || !String(pick).trim()) return;
-        var idx = parseInt(String(pick).trim(), 10) - 1;
-        if (isNaN(idx) || idx < 0 || idx >= others.length) {
-          window.alert("Invalid choice.");
-          return;
-        }
-        var source = others[idx];
-        if (
-          !window.confirm(
-            "Move all " +
-              source.loaded_bags +
-              " bag(s) from " +
-              dispatchDisplayLabel(source) +
-              " onto " +
-              dispatchDisplayLabel(detail) +
-              "?\n\nBags already in Walvis will be marked received on this manifest.\n\nCancel = stop."
-          )
-        ) {
-          return;
-        }
-        var updated = await apiPost(
+        var result = await apiPost(
           ctx,
-          "/walvis-dispatches/" +
-            encodeURIComponent(detail.id) +
-            "/merge-from/" +
-            encodeURIComponent(source.id),
-          {}
+          "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/delete",
+          { confirm: token }
         );
         window.alert(
-          "Merged " +
-            (updated.merged_bag_count || source.loaded_bags) +
-            " bag(s). Refresh Bags Status to see one dispatch tile."
+          "Deleted " +
+            (result.display_label || "dispatch #" + result.dispatch_number) +
+            ". Manifest rows removed: " +
+            (result.manifest_rows_removed || 0) +
+            "."
         );
-        renderDetail(container, ctx, updated);
+        renderList(container, ctx);
       } catch (e) {
         window.alert(e.message || String(e));
       } finally {
-        mergeBtn.disabled = false;
+        deleteBtn.disabled = false;
       }
     });
-    mergeRow.appendChild(mergeBtn);
-    container.appendChild(mergeRow);
+    deleteRow.appendChild(deleteBtn);
+    container.appendChild(deleteRow);
 
     var table = ui.el("table", { class: "data-table walvis-dispatch-table" });
     var thead = ui.el("thead");
