@@ -82,7 +82,7 @@
 
     var status = ui.el("p", { class: "muted deliveries-register-status" }, ["Loading…"]);
     container.appendChild(status);
-    var tableHost = ui.el("div", { class: "print-labels-history-wrap deliveries-register-table-wrap" });
+    var tableHost = ui.el("div", { class: "deliveries-register-table-wrap" });
     container.appendChild(tableHost);
 
     function renderTable(rows) {
@@ -91,6 +91,9 @@
         tableHost.appendChild(ui.el("p", { class: "muted" }, ["No delivery rows for this filter."]));
         return;
       }
+      tableHost.appendChild(ui.el("p", { class: "delivery-conf-tracker-scroll-hint muted" }, [
+        "Wide sheet — scroll horizontally to see all Deliveries columns through Remarks.",
+      ]));
       var scroll = ui.el("div", { class: "delivery-conf-tracker-scroll delivery-conf-tracker-sheet" });
       var table = ui.el("table", {
         class: "delivery-conf-tracker-table deliveries-register-table",

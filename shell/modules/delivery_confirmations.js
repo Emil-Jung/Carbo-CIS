@@ -205,6 +205,9 @@
         ]));
         return;
       }
+      listTableHost.appendChild(ui.el("p", { class: "delivery-conf-tracker-scroll-hint muted" }, [
+        "Wide sheet — scroll horizontally (or trackpad shift-scroll) to reach Remarks and % columns.",
+      ]));
       var scroll = ui.el("div", { class: "delivery-conf-tracker-scroll delivery-conf-tracker-sheet" });
       var table = ui.el("table", {
         class: "delivery-conf-tracker-table delivery-conf-tracker-table--list deliveries-register-table",
