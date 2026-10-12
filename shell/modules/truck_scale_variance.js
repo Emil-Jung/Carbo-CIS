@@ -63,12 +63,12 @@
     },
     {
       key: "waste",
-      label: "Waste (digital scale only)",
-      columns: ["Dig. S&A", "Dig. unburned"],
+      label: "Waste (physical scale)",
+      columns: ["Phys. S&A", "Phys. unburned"],
     },
     {
       key: "truck",
-      label: "Truck total (R/L/F + waste)",
+      label: "Truck total (digital vs scans + phys. waste)",
       columns: ["Digital truck", "Physical+cmp", "Δ truck"],
     },
   ];
@@ -130,7 +130,7 @@
       "One row per truck with factory digital scale weights (Control Room / Fransina capture) compared to ",
       "Charcoal intake bag scans. Filters match ",
       ui.el("strong", {}, ["Charcoal deliveries"]),
-      ". Truck-total compare adds digital sand & ash and unburned wood to the scanned side (investigation only). ",
+      ". Truck-total compare adds physical-scale sand & ash and unburned (Control Room sheet) to scanned R/L/F (investigation only). ",
       "|Δ| over ",
       ui.el("strong", {}, ["5 kg"]),
       " flags the row.",
@@ -232,7 +232,7 @@
       barWrap.appendChild(titleRow);
       barWrap.appendChild(
         ui.el("p", { class: "muted tsv-bar-help" }, [
-          "Blue and green bars are the sum of truck-scale weight vs sum of scanned restaurant/lumpwood/fines plus digital sand & ash and unburned (same as column “Physical+cmp” and “Δ truck”). ",
+          "Blue and green bars are the sum of digital truck-scale weight vs sum of scanned restaurant/lumpwood/fines plus physical-scale sand & ash and unburned (same as “Physical+cmp” and “Δ truck”). ",
           "Columns Δ R / Δ L / Δ F compare digital streams to scanned bags only — they do not include waste and can be large on one stream while the truck total still matches. ",
           absStream > 0
             ? "Σ |Δ R|+|Δ L|+|Δ F| for this filter: " + fmtVar(absStream) + " (absolute stream disagreement)."
@@ -240,7 +240,7 @@
         ])
       );
       var max = Math.max(digital, physical, 1);
-      ["Digital (scale)", "Scanned R/L/F + digital waste"].forEach(function (label, i) {
+      ["Digital truck (scale)", "Scanned R/L/F + phys. waste"].forEach(function (label, i) {
         var val = i === 0 ? digital : physical;
         var row = ui.el("div", { class: "tsv-bar-row" });
         row.appendChild(ui.el("span", { class: "tsv-bar-label" }, [label]));
