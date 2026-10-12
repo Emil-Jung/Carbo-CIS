@@ -33,14 +33,17 @@
     return (n >= 0 ? "+" : "") + n.toFixed(1) + " kg";
   }
 
-  /** Δ = scan − digital: positive green (bags heavier), negative red, ~zero blue. */
+  /**
+   * Vs digital: + = physical (scanned) heavier than pay weight — flag (amber).
+   * − = physical lighter than digital — green. ~0 blue.
+   */
   function varianceColorClass(kg) {
     if (kg == null || kg === "") return "tsv-var--zero";
     var n = Number(kg);
     if (!Number.isFinite(n)) return "";
     if (Math.abs(n) < 0.05) return "tsv-var--zero";
-    if (n > 0) return "tsv-var--pos";
-    return "tsv-var--neg";
+    if (n > 0) return "tsv-var--over";
+    return "tsv-var--under";
   }
 
   /** Column bands for borders / header grouping (must match renderTable column order). */
@@ -49,17 +52,17 @@
     {
       key: "r",
       label: "Restaurant (R)",
-      columns: ["Digital R", "Scan R", "Scan − digital"],
+      columns: ["Digital R", "Scan R", "Vs digital"],
     },
     {
       key: "l",
       label: "Lumpwood (L)",
-      columns: ["Digital L", "Scan L", "Scan − digital"],
+      columns: ["Digital L", "Scan L", "Vs digital"],
     },
     {
       key: "f",
       label: "Fines (F)",
-      columns: ["Digital F", "Scan F", "Scan − digital"],
+      columns: ["Digital F", "Scan F", "Vs digital"],
     },
   ];
 
@@ -117,18 +120,20 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Scale vs intake variance"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Compare ",
-      ui.el("strong", {}, ["digital scale"]),
-      " weights (Control Room — payment reference) to ",
-      ui.el("strong", {}, ["scanned bag"]),
-      " totals at Charcoal intake (physical scale as bags are QR-tagged). ",
-      "Each ",
-      ui.el("strong", {}, ["Scan − digital"]),
-      " cell is ",
+      ui.el("strong", {}, ["Digital"]),
+      " (Control Room) is the pay weight. ",
+      ui.el("strong", {}, ["Vs digital"]),
+      " is how much ",
+      ui.el("strong", {}, ["physical scans"]),
+      " differ: we show ",
       ui.el("strong", {}, ["scanned − digital"]),
-      " kg: e.g. 102 digital and 106 scanned → ",
-      ui.el("strong", {}, ["+4.0 kg"]),
-      " (bags weigh 4 kg more than digital). Filters match ",
+      ", not digital − scanned. Example: 1 243 kg digital and 1 308 kg scanned — digital−scan is −65, but here you read ",
+      ui.el("strong", {}, ["+65.0 kg"]),
+      " (bags ",
+      ui.el("strong", {}, ["65 kg heavier"]),
+      " than digital; bag tare / tagging). ",
+      ui.el("strong", {}, ["+"]),
+      " = physical above pay weight. Filters match ",
       ui.el("strong", {}, ["Charcoal deliveries"]),
       ". |Δ| over ",
       ui.el("strong", {}, ["5 kg"]),
@@ -194,12 +199,12 @@
       ]));
       var absStream = sumAbsStreamVariance(rows);
       cards.appendChild(ui.el("div", { class: "tsv-card" }, [
-        ui.el("span", { class: "tsv-card-label" }, ["Σ |Scan − digital| (R+L+F)"]),
+        ui.el("span", { class: "tsv-card-label" }, ["Σ |Vs digital| (R+L+F)"]),
         ui.el("strong", { class: "tsv-card-value" }, [fmtKg(absStream)]),
       ]));
       var rlfCard = ui.el("div", { class: "tsv-card tsv-card--rlf" });
       rlfCard.appendChild(
-        ui.el("span", { class: "tsv-card-label" }, ["Σ Scan − digital by stream"])
+        ui.el("span", { class: "tsv-card-label" }, ["Σ Vs digital by stream"])
       );
       var rlfVals = ui.el("div", { class: "tsv-card-rlf-lines" });
       [
