@@ -3487,6 +3487,50 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   background: rgba(74, 134, 199, 0.15);
   font-weight: 600;
 }
+.truck-scale-variance-table .tsv-group-head-row th {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.truck-scale-variance-table .tsv-col-head-row th {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.truck-scale-variance-table .tsv-grp-start {
+  border-left: 2px solid rgba(148, 163, 184, 0.65);
+}
+.truck-scale-variance-table thead .tsv-grp--meta.tsv-grp-start {
+  border-left: none;
+}
+.truck-scale-variance-table .tsv-grp--meta th,
+.truck-scale-variance-table .tsv-grp--meta td {
+  background: rgba(30, 41, 59, 0.35);
+}
+.truck-scale-variance-table .tsv-grp--r th,
+.truck-scale-variance-table .tsv-grp--r td {
+  background: rgba(74, 134, 199, 0.07);
+}
+.truck-scale-variance-table .tsv-grp--l th,
+.truck-scale-variance-table .tsv-grp--l td {
+  background: rgba(106, 168, 79, 0.08);
+}
+.truck-scale-variance-table .tsv-grp--f th,
+.truck-scale-variance-table .tsv-grp--f td {
+  background: rgba(180, 140, 90, 0.1);
+}
+.truck-scale-variance-table .tsv-grp--waste th,
+.truck-scale-variance-table .tsv-grp--waste td {
+  background: rgba(148, 163, 184, 0.1);
+}
+.truck-scale-variance-table .tsv-grp--truck th,
+.truck-scale-variance-table .tsv-grp--truck td {
+  background: rgba(126, 184, 232, 0.12);
+}
+.truck-scale-variance-table .tsv-grp--truck.tsv-grp-start {
+  border-left: 2px solid rgba(126, 184, 232, 0.75);
+}
 .tsv-td--num { text-align: right; font-variant-numeric: tabular-nums; }
 .tsv-td--var { font-weight: 600; }
 .truck-scale-variance-table .tsv-var--neg { color: #f87171; }

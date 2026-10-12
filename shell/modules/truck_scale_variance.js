@@ -43,6 +43,42 @@
     return "tsv-var--neg";
   }
 
+  /** Column bands for borders / header grouping (must match renderTable column order). */
+  var TSV_TABLE_GROUPS = [
+    { key: "meta", label: "Delivery", columns: ["Booking date", "Supplier", "GRN", "Truck", "Transporter", "Bags"] },
+    {
+      key: "r",
+      label: "Restaurant (R)",
+      columns: ["Digital R", "Scan R", "Δ R"],
+    },
+    {
+      key: "l",
+      label: "Lumpwood (L)",
+      columns: ["Digital L", "Scan L", "Δ L"],
+    },
+    {
+      key: "f",
+      label: "Fines (F)",
+      columns: ["Digital F", "Scan F", "Δ F"],
+    },
+    {
+      key: "waste",
+      label: "Waste (digital scale only)",
+      columns: ["Dig. S&A", "Dig. unburned"],
+    },
+    {
+      key: "truck",
+      label: "Truck total (R/L/F + waste)",
+      columns: ["Digital truck", "Physical+cmp", "Δ truck"],
+    },
+  ];
+
+  function tsvCellGroupClass(groupKey, colInGroup) {
+    var cls = "tsv-grp tsv-grp--" + groupKey;
+    if (colInGroup === 0) cls += " tsv-grp-start";
+    return cls;
+  }
+
   /** Sum of |Δ R|+|Δ L|+|Δ F| across rows — stream gaps (table), not net truck total. */
   function sumAbsStreamVariance(rows) {
     var total = 0;
@@ -234,38 +270,37 @@
       var table = ui.el("table", {
         class: "truck-scale-variance-table delivery-conf-tracker-table deliveries-register-table",
       });
-      var headers = [
-        "Booking date",
-        "Supplier",
-        "GRN",
-        "Truck",
-        "Transporter",
-        "Bags",
-        "Digital R",
-        "Scan R",
-        "Δ R",
-        "Digital L",
-        "Scan L",
-        "Δ L",
-        "Digital F",
-        "Scan F",
-        "Δ F",
-        "Dig. S&A",
-        "Dig. unburned",
-        "Digital truck",
-        "Physical+cmp",
-        "Δ truck",
-      ];
       var thead = ui.el("thead");
-      var hr = ui.el("tr");
-      headers.forEach(function (h) {
-        hr.appendChild(ui.el("th", {}, [h]));
+      var groupHr = ui.el("tr", { class: "tsv-group-head-row" });
+      TSV_TABLE_GROUPS.forEach(function (g) {
+        groupHr.appendChild(
+          ui.el(
+            "th",
+            {
+              colspan: String(g.columns.length),
+              class: "tsv-grp-head tsv-grp--" + g.key + " tsv-grp-start",
+            },
+            [g.label]
+          )
+        );
       });
-      thead.appendChild(hr);
+      thead.appendChild(groupHr);
+      var colHr = ui.el("tr", { class: "tsv-col-head-row" });
+      TSV_TABLE_GROUPS.forEach(function (g) {
+        g.columns.forEach(function (h, i) {
+          colHr.appendChild(
+            ui.el("th", { class: tsvCellGroupClass(g.key, i) }, [h])
+          );
+        });
+      });
+      thead.appendChild(colHr);
       table.appendChild(thead);
       var tbody = ui.el("tbody");
-      function appendNumTd(tr, text, isVar, rawKg) {
-        var cls = "tsv-td--num delivery-conf-td--num";
+      function appendTextTd(tr, text, groupKey, colInGroup) {
+        tr.appendChild(ui.el("td", { class: tsvCellGroupClass(groupKey, colInGroup) }, [text]));
+      }
+      function appendNumTd(tr, text, groupKey, colInGroup, isVar, rawKg) {
+        var cls = tsvCellGroupClass(groupKey, colInGroup) + " tsv-td--num delivery-conf-td--num";
         if (isVar) cls += " tsv-td--var " + varianceColorClass(rawKg);
         tr.appendChild(ui.el("td", { class: cls }, [text]));
       }
@@ -276,30 +311,26 @@
         var sc = row.scanned || {};
         var v = row.variance_kg || {};
         var scanF = Number(sc.fines_kg || 0) + Number(sc.bulk_fines_kg || 0);
-        [
-          row.booking_date || "",
-          row.supplier || "",
-          row.grn || "",
-          row.truck_reg || "",
-          row.transporter || "",
-          String(row.bag_count != null ? row.bag_count : ""),
-        ].forEach(function (text) {
-          tr.appendChild(ui.el("td", {}, [text]));
-        });
-        appendNumTd(tr, fmtKg(d.restaurant_kg), false);
-        appendNumTd(tr, fmtKg(sc.restaurant_kg), false);
-        appendNumTd(tr, fmtVar(v.restaurant_kg), true, v.restaurant_kg);
-        appendNumTd(tr, fmtKg(d.lumpwood_kg), false);
-        appendNumTd(tr, fmtKg(sc.lumpwood_kg), false);
-        appendNumTd(tr, fmtVar(v.lumpwood_kg), true, v.lumpwood_kg);
-        appendNumTd(tr, fmtKg(d.fines_kg), false);
-        appendNumTd(tr, fmtKg(scanF), false);
-        appendNumTd(tr, fmtVar(v.fines_kg), true, v.fines_kg);
-        appendNumTd(tr, fmtKg(d.sand_ash_kg), false);
-        appendNumTd(tr, fmtKg(d.unburned_kg), false);
-        appendNumTd(tr, fmtKg(d.truck_total_kg), false);
-        appendNumTd(tr, fmtKg(row.physical_truck_compare_kg), false);
-        appendNumTd(tr, fmtVar(v.truck_total_kg), true, v.truck_total_kg);
+        appendTextTd(tr, row.booking_date || "", "meta", 0);
+        appendTextTd(tr, row.supplier || "", "meta", 1);
+        appendTextTd(tr, row.grn || "", "meta", 2);
+        appendTextTd(tr, row.truck_reg || "", "meta", 3);
+        appendTextTd(tr, row.transporter || "", "meta", 4);
+        appendTextTd(tr, String(row.bag_count != null ? row.bag_count : ""), "meta", 5);
+        appendNumTd(tr, fmtKg(d.restaurant_kg), "r", 0, false);
+        appendNumTd(tr, fmtKg(sc.restaurant_kg), "r", 1, false);
+        appendNumTd(tr, fmtVar(v.restaurant_kg), "r", 2, true, v.restaurant_kg);
+        appendNumTd(tr, fmtKg(d.lumpwood_kg), "l", 0, false);
+        appendNumTd(tr, fmtKg(sc.lumpwood_kg), "l", 1, false);
+        appendNumTd(tr, fmtVar(v.lumpwood_kg), "l", 2, true, v.lumpwood_kg);
+        appendNumTd(tr, fmtKg(d.fines_kg), "f", 0, false);
+        appendNumTd(tr, fmtKg(scanF), "f", 1, false);
+        appendNumTd(tr, fmtVar(v.fines_kg), "f", 2, true, v.fines_kg);
+        appendNumTd(tr, fmtKg(d.sand_ash_kg), "waste", 0, false);
+        appendNumTd(tr, fmtKg(d.unburned_kg), "waste", 1, false);
+        appendNumTd(tr, fmtKg(d.truck_total_kg), "truck", 0, false);
+        appendNumTd(tr, fmtKg(row.physical_truck_compare_kg), "truck", 1, false);
+        appendNumTd(tr, fmtVar(v.truck_total_kg), "truck", 2, true, v.truck_total_kg);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
