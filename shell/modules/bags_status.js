@@ -1669,11 +1669,26 @@
 
   function walvisDispatchCardLabel(d) {
     var parts = [walvisDispatchDisplayLabel(d)];
+    if (d.manifest_audit_line) parts.push(d.manifest_audit_line);
+    else if (d.manifest_loaded_day_min || d.manifest_received_day_min) {
+      var audit = [];
+      if (d.manifest_loaded_day_min) audit.push("Loaded " + d.manifest_loaded_day_min);
+      if (d.manifest_received_day_min) {
+        audit.push(
+          "Received " +
+            (d.manifest_received_day_max &&
+            d.manifest_received_day_max !== d.manifest_received_day_min
+              ? d.manifest_received_day_min + " – " + d.manifest_received_day_max
+              : d.manifest_received_day_min)
+        );
+      }
+      if (audit.length) parts.push(audit.join(" · "));
+    }
     if (d.truck_registration) parts.push(d.truck_registration);
     if (d.status === "open") {
       if ((d.bags_in_storage || 0) > 0) parts.push("(open — bags at Walvis)");
       else parts.push("(loading at GF)");
-    } else if (d.status === "closed") parts.push("(closed)");
+    } else if (d.status === "closed" && !d.manifest_audit_line) parts.push("(closed)");
     return parts.join(" · ");
   }
 
@@ -1689,15 +1704,17 @@
     report = report || { dispatches: [], unassigned: {}, pallets: {} };
     parent.appendChild(
       ui.el("p", { class: "bs-dash-drill-note" }, [
-        "Bulk jumbos on the ground are grouped by truck dispatch manifest, then by category. ",
-        "The ",
+        "Bulk jumbos on the ground are grouped by ",
+        ui.el("strong", {}, ["dispatch manifest"]),
+        " (one tile per truck run), then by category. Each tile shows ",
+        ui.el("strong", {}, ["Loaded / Received"]),
+        " days and ",
+        ui.el("strong", {}, ["GF scan vs CIS addendum"]),
+        " counts when the server has audit data. ",
         ui.el("strong", {}, ["In transit — truck to Walvis Bay"]),
-        " tile is separate — those bags are still on the road. ",
-        "Open loads at Grootfontein appear here with ",
-        ui.el("strong", {}, ["(loading at GF)"]),
-        " even before bags are in Walvis storage. Use ",
-        ui.el("strong", {}, ["Walvis dispatches"]),
-        " to open or switch trucks.",
+        " is separate (still on the road). Retro fixes belong on the manifest as ",
+        ui.el("strong", {}, ["CIS addendum"]),
+        ", not a second dispatch tile.",
       ])
     );
 
@@ -1783,10 +1800,17 @@
   }
 
   function renderWalvisStorageDispatchCategories(parent, dispatch, ui, onSelect) {
+    var intro =
+      String(dispatch.bags_in_storage || 0) +
+      " bulk bag(s) in Walvis storage on this manifest.";
+    if (dispatch.manifest_audit_line) {
+      intro += " Audit: " + dispatch.manifest_audit_line + ".";
+    }
     parent.appendChild(
       ui.el("p", { class: "bs-dash-drill-note" }, [
-        walvisDispatchCardLabel(dispatch) + " — ",
-        String(dispatch.bags_in_storage || 0) + " bulk bag(s) in Walvis storage. Tap a category for producers and bag list.",
+        walvisDispatchDisplayLabel(dispatch) + " — ",
+        intro,
+        " Tap a category for producers and bag list.",
       ])
     );
     var cats = dispatch.categories || [];

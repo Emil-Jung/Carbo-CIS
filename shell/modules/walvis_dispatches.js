@@ -658,6 +658,19 @@
           CIS.bagsAndMassText(detail.received_bags, detail.kg_received),
       ])
     );
+    if (detail.manifest_audit_line) {
+      summary.appendChild(
+        ui.el("p", { class: "muted" }, [
+          ui.el("strong", {}, ["Audit trail: "]),
+          detail.manifest_audit_line,
+          " — ",
+          ui.el("strong", {}, ["GF scan"]),
+          " = Shorty load scan; ",
+          ui.el("strong", {}, ["CIS addendum"]),
+          " = retro manifest fix (offload / paper reconcile), kept on the same dispatch.",
+        ])
+      );
+    }
     if (detail.missing_count) {
       summary.appendChild(
         ui.el("p", { class: "walvis-dispatch-missing" }, [
@@ -744,12 +757,20 @@
         ui.el("th", {}, ["kg"]),
         ui.el("th", {}, ["Loaded"]),
         ui.el("th", {}, ["Received Walvis"]),
+        ui.el("th", {}, ["On manifest"]),
         ui.el("th", {}, ["Status now"]),
       ])
     );
     table.appendChild(thead);
     var tbody = ui.el("tbody");
     (detail.bags || []).forEach(function (b) {
+      var src = b.load_source || (b.manifest_addendum ? "cis_addendum" : "gf_scan");
+      var srcLabel =
+        src === "cis_addendum"
+          ? "CIS addendum"
+          : src === "fence_bulk"
+            ? "Fenced bulk"
+            : "GF scan";
       tbody.appendChild(
         ui.el("tr", {}, [
           ui.el("td", {}, [b.bag_identifier]),
@@ -757,6 +778,7 @@
           ui.el("td", {}, [CIS.formatMassFromKg(b.net_weight_kg, { forceKg: true })]),
           ui.el("td", {}, [fmtDate(b.loaded_at)]),
           ui.el("td", {}, [b.received_at ? fmtDate(b.received_at) : "—"]),
+          ui.el("td", {}, [srcLabel]),
           ui.el("td", {}, [b.storage_status || "—"]),
         ])
       );
