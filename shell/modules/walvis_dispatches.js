@@ -179,16 +179,21 @@
     });
   }
 
+  function rowSerial(r) {
+    return (r && (r.bag_identifier || r.serial)) || "";
+  }
+
   function applyBreakdownReconcile(detail, breakdown) {
     var manifestIds = {};
     (detail.bags || []).forEach(function (b) {
       manifestIds[b.bag_identifier] = true;
     });
     var all = [];
+
     function pushFromCategories(categories, otherLabel) {
       (categories || []).forEach(function (cat) {
         (cat.rows || []).forEach(function (r) {
-          var serial = r.bag_identifier;
+          var serial = rowSerial(r);
           if (!serial) return;
           all.push({
             bag_identifier: serial,
@@ -212,7 +217,7 @@
       null
     );
     (breakdown.pallets && breakdown.pallets.rows || []).forEach(function (r) {
-      var serial = r.bag_identifier;
+      var serial = rowSerial(r);
       if (!serial) return;
       all.push({
         bag_identifier: serial,
@@ -275,10 +280,62 @@
     try {
       var breakdown = await apiGet(ctx, "/walvis-dispatches/storage-at-walvis-breakdown");
       applyBreakdownReconcile(detail, breakdown);
+      if (detail.walvis_ground_total_count > 0) return detail;
     } catch (e2) {
+      /* bags-status report works on older API builds too */
+    }
+    try {
+      var report = await apiGet(
+        ctx,
+        "/reports/bags-status?status=" + encodeURIComponent("storage_walvisbay")
+      );
+      var manifestIds = {};
+      (detail.bags || []).forEach(function (b) {
+        manifestIds[b.bag_identifier] = true;
+      });
+      var all = [];
+      (report.event_sections || []).forEach(function (sec) {
+        (sec.rows || []).forEach(function (r) {
+          var serial = rowSerial(r);
+          if (!serial) return;
+          all.push({
+            bag_identifier: serial,
+            product_stream: r.product_stream,
+            net_weight_kg: r.net_weight_kg,
+            on_this_manifest: !!manifestIds[serial],
+          });
+        });
+      });
+      all.sort(function (a, b) {
+        return a.bag_identifier.localeCompare(b.bag_identifier);
+      });
+      var gap = all
+        .filter(function (b) {
+          return !manifestIds[b.bag_identifier];
+        })
+        .map(function (b) {
+          return {
+            bag_identifier: b.bag_identifier,
+            product_stream: b.product_stream,
+            net_weight_kg: b.net_weight_kg,
+          };
+        });
+      detail.walvis_ground_all = all;
+      detail.walvis_ground_total_count = all.length;
+      detail.walvis_ground_on_manifest_count = all.filter(function (b) {
+        return b.on_this_manifest;
+      }).length;
+      detail.walvis_ground_not_on_manifest = gap;
+      detail.walvis_ground_not_on_manifest_count = gap.length;
+      detail._reconcile_from_bags_status = true;
+    } catch (e3) {
       detail._reconcile_unavailable = true;
     }
     return detail;
+  }
+
+  function rowSerial(r) {
+    return (r && (r.bag_identifier || r.serial)) || "";
   }
 
   async function promptAndAddBagToDispatch(container, ctx, detail, presetSerial) {
