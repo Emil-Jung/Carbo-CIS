@@ -231,35 +231,28 @@
     return actions;
   }
 
-  function renderFactoryCarboPanel(factory, statusData, lead) {
-    var panel = el("section", { className: "panel v2-snapshot-tile" });
-    panel.appendChild(el("h3", { className: "v2-location-title" }, ["At Carbo (factory)"]));
-    if (lead) panel.appendChild(el("p", { className: "v2-snapshot-lead muted" }, [lead]));
-
-    var body = el("div", { className: "v2-factory-breakdown" });
-    var wx = statusBucket(factory, "in_storage_weathering");
-    var weathered = statusBucket(factory, "in_storage");
-
-    var secWx = appendStorageSection(body, "Still weathering", "var(--status-amber)");
-    INTAKE_STREAMS.forEach(function (s) {
-      appendStreamSubrow(secWx, s.label, streamBagsInStatus(wx, s.key), streamKgInStatus(wx, s.key));
-    });
-
-    var secReady = appendStorageSection(body, "Weathered", "var(--status-green)");
-    INTAKE_STREAMS.forEach(function (s) {
-      appendStreamSubrow(secReady, s.label, streamBagsInStatus(weathered, s.key), streamKgInStatus(weathered, s.key));
-    });
-
-    var secPal = appendStorageSection(body, "Pallets in storage", "#c2185b");
-    var products = factoryPalletProductsInYard(statusData);
-    if (products.length) {
-      products.forEach(function (p) {
-        appendStreamSubrow(secPal, p.code, p.bags, p.kg);
-      });
-    } else {
-      appendStreamSubrow(secPal, "—", 0, 0);
+  function makeInfoBox(title, accentColor) {
+    var box = el("div", { className: "v2-info-box" });
+    var head = el("div", { className: "v2-info-box__head" });
+    if (accentColor) {
+      var sw = el("span", { className: "v2-storage-section-accent" });
+      sw.style.background = accentColor;
+      head.appendChild(sw);
     }
+    head.appendChild(el("span", { className: "v2-info-box__title" }, [title]));
+    box.appendChild(head);
+    var body = el("div", { className: "v2-info-box__body" });
+    box.appendChild(body);
+    return { box: box, body: body };
+  }
 
+  function appendStreamsBlock(parent, statusSt) {
+    INTAKE_STREAMS.forEach(function (s) {
+      appendStreamSubrow(parent, s.label, streamBagsInStatus(statusSt, s.key), streamKgInStatus(statusSt, s.key));
+    });
+  }
+
+  function factoryBriquetteTotals(factory) {
     var briquetteBags = streamBagsInGroup(factory, "briquettes");
     var briquetteKg = streamKgInGroup(factory, "briquettes");
     var atPlant = statusBucket(factory, "at_briquette_plant");
@@ -267,15 +260,82 @@
       briquetteBags = atPlant.bags;
       briquetteKg = atPlant.kg;
     }
-    var secBriq = appendStorageSection(body, "Briquettes", "#8d6e63");
-    secBriq.appendChild(
-      el("p", { className: "v2-storage-section-single muted" }, [
-        fmt(briquetteBags) + " · " + fmtMass(briquetteKg),
-      ])
-    );
+    return { bags: briquetteBags, kg: briquetteKg };
+  }
 
-    panel.appendChild(body);
-    return panel;
+  function renderFactorySnapshotRow(factory, statusData, lead) {
+    var block = el("div", { className: "v2-snapshot-location-block" });
+    var headRow = el("div", { className: "v2-snapshot-location-head" });
+    headRow.appendChild(el("h3", { className: "v2-location-title" }, ["At Carbo (factory)"]));
+    headRow.appendChild(el("span", { className: "v2-snapshot-location-total muted" }, [lead]));
+    block.appendChild(headRow);
+
+    var wx = statusBucket(factory, "in_storage_weathering");
+    var weathered = statusBucket(factory, "in_storage");
+    var briq = factoryBriquetteTotals(factory);
+    var products = factoryPalletProductsInYard(statusData);
+
+    var cols = el("div", { className: "v2-snapshot-three-col" });
+
+    var wxBox = makeInfoBox("Jumbos", "var(--status-amber)");
+    wxBox.body.classList.add("v2-info-box__body--stacked");
+    var secWx = appendStorageSection(wxBox.body, "Still weathering", "var(--status-amber)");
+    appendStreamsBlock(secWx, wx);
+    var secReady = appendStorageSection(wxBox.body, "Weathered", "var(--status-green)");
+    appendStreamsBlock(secReady, weathered);
+    cols.appendChild(wxBox.box);
+
+    var palBox = makeInfoBox("Pallets in storage", "#c2185b");
+    if (products.length) {
+      products.forEach(function (p) {
+        appendStreamSubrow(palBox.body, p.code, p.bags, p.kg);
+      });
+    } else {
+      appendStreamSubrow(palBox.body, "—", 0, 0);
+    }
+    cols.appendChild(palBox.box);
+
+    var briqBox = makeInfoBox("Briquettes", "#8d6e63");
+    briqBox.body.appendChild(
+      el("p", { className: "v2-info-box__stat muted" }, [fmt(briq.bags) + " · " + fmtMass(briq.kg)])
+    );
+    cols.appendChild(briqBox.box);
+
+    block.appendChild(cols);
+    return block;
+  }
+
+  function renderWalvisSnapshotBox(walvis, palletSummary) {
+    var boxWrap = makeInfoBox("Walvis Bay storage", "var(--status-blue)");
+    var bulk = statusBucket(walvis, "storage_walvisbay");
+    var bulkBags = bulk.bags;
+    var bulkKg = bulk.kg;
+    var palWalvis = palletSummaryBucket(palletSummary, "storage_walvisbay");
+    bulkBags = Math.max(0, bulkBags - (palWalvis.bags || 0));
+    bulkKg = Math.max(0, bulkKg - (palWalvis.kg || 0));
+    appendStreamSubrow(boxWrap.body, "Bulk bags", bulkBags, bulkKg);
+    appendStreamSubrow(boxWrap.body, "Pallets", palWalvis.bags, palWalvis.kg);
+    var briquetteW = streamBagsInGroup(walvis, "briquettes");
+    var briquetteKg = streamKgInGroup(walvis, "briquettes");
+    appendStreamSubrow(boxWrap.body, "Briquettes", briquetteW, briquetteKg);
+    var lead = walvis ? bagsMass(walvis.bags, walvis.kg) : "0 · 0 kg";
+    boxWrap.box.appendChild(el("p", { className: "v2-info-box__foot muted" }, [lead]));
+    return boxWrap.box;
+  }
+
+  function renderAglSnapshotBox(coast, palletSummary) {
+    var boxWrap = makeInfoBox("AGL & coast", "#059669");
+    var agl = statusBucket(coast, "storage_agl");
+    var inCont = statusBucket(coast, "in_container");
+    appendStreamSubrow(boxWrap.body, "AGL storage", agl.bags, agl.kg);
+    appendStreamSubrow(boxWrap.body, "In container", inCont.bags, inCont.kg);
+    var palCoast = palletSummaryBucket(palletSummary, "at_coast");
+    var palCont = palletSummaryBucket(palletSummary, "in_container");
+    appendStreamSubrow(boxWrap.body, "Pallets at AGL", palCoast.bags, palCoast.kg);
+    appendStreamSubrow(boxWrap.body, "Pallets in container", palCont.bags, palCont.kg);
+    var lead = coast ? bagsMass(coast.bags, coast.kg) : "0 · 0 kg";
+    boxWrap.box.appendChild(el("p", { className: "v2-info-box__foot muted" }, [lead]));
+    return boxWrap.box;
   }
 
   function renderHomeTraceRow(host, data) {
@@ -376,57 +436,22 @@
     wrap.appendChild(el("h2", { className: "panel-title" }, ["Carbo Namibia storage snapshot"]));
     wrap.appendChild(
       el("p", { className: "muted v2-panel-lead" }, [
-        "Factory yard and Walvis Bay — weathering jumbos, pallets by SKU, and briquettes.",
+        "Where stock sits now — factory yard, Walvis Bay, and the coast.",
       ])
     );
 
-    var factory = groupByKey(statusData, "factory");
-    var walvis = groupByKey(statusData, "walvis_storage");
+    var factory = groupByKey(statusData, "factory") || { statuses: [] };
+    var walvis = groupByKey(statusData, "walvis_storage") || { statuses: [] };
+    var coast = groupByKey(statusData, "coast") || { statuses: [] };
     var palletSummary = statusData.pallet_summary || {};
 
-    var grid = el("div", { className: "content-grid v2-intake-grid" });
+    var carboLead = factory.bags != null ? bagsMass(factory.bags, factory.kg) : "0 bags · 0 kg";
+    wrap.appendChild(renderFactorySnapshotRow(factory, statusData, carboLead));
 
-    var carboLead = factory ? bagsMass(factory.bags, factory.kg) : "0 bags · 0 kg";
-    if (factory) {
-      grid.appendChild(renderFactoryCarboPanel(factory, statusData, carboLead));
-    } else {
-      grid.appendChild(renderFactoryCarboPanel({ statuses: [] }, statusData, carboLead));
-    }
-
-    var walvisLead = walvis ? bagsMass(walvis.bags, walvis.kg) : null;
-    var walvisLines = [];
-    if (walvis) {
-      var bulk = statusBucket(walvis, "storage_walvisbay");
-      var bulkBags = bulk.bags;
-      var bulkKg = bulk.kg;
-      var palWalvis = palletSummaryBucket(palletSummary, "storage_walvisbay");
-      bulkBags = Math.max(0, bulkBags - (palWalvis.bags || 0));
-      bulkKg = Math.max(0, bulkKg - (palWalvis.kg || 0));
-      walvisLines.push({
-        label: "Bulk bags in storage",
-        bags: bulkBags,
-        kg: bulkKg,
-        color: "var(--status-blue)",
-      });
-      walvisLines.push({
-        label: "Pallets in storage",
-        bags: palWalvis.bags,
-        kg: palWalvis.kg,
-        color: "#c2185b",
-      });
-      var briquetteW = streamBagsInGroup(walvis, "briquettes");
-      if (briquetteW) {
-        walvisLines.push({
-          label: "Briquettes",
-          bags: briquetteW,
-          kg: streamKgInGroup(walvis, "briquettes"),
-          color: "#8d6e63",
-        });
-      }
-    }
-    grid.appendChild(renderLocationPanel("Walvis Bay storage", walvisLead, walvisLines));
-
-    wrap.appendChild(grid);
+    var coastRow = el("div", { className: "v2-snapshot-coast-row" });
+    coastRow.appendChild(renderWalvisSnapshotBox(walvis, palletSummary));
+    coastRow.appendChild(renderAglSnapshotBox(coast, palletSummary));
+    wrap.appendChild(coastRow);
     if (statusData.in_system) {
       wrap.appendChild(
         el("p", { className: "muted v2-footnote" }, [
@@ -462,18 +487,23 @@
 
   function renderLandingShell(host) {
     host.innerHTML = "";
-    var head = el("header", { className: "v2-dash-head" });
+    var loading = el("p", { className: "muted v2-dash-loading-first", id: "v2-dash-loading" }, [
+      "Loading storage snapshot…",
+    ]);
+    host.appendChild(loading);
+  }
+
+  function renderLandingGreeting(host) {
+    var head = el("header", { className: "v2-dash-head v2-dash-head--after-snapshot" });
     head.appendChild(
       el("h1", { className: "v2-dash-greeting" }, [timeGreeting() + ", " + greetingName() + "."])
     );
     head.appendChild(
       el("p", { className: "v2-dash-tagline" }, [
-        "Traceability at a glance — intake, bag positions, and storage. Departments are in the left menu.",
+        "Charcoal intake and full Bags Status below. Departments are in the left menu.",
       ])
     );
     host.appendChild(head);
-    var loading = el("p", { className: "muted", id: "v2-dash-loading" }, ["Loading traceability summary…"]);
-    host.appendChild(loading);
   }
 
   window.CIS_V2_renderHomeDashboard = function (host) {
@@ -482,10 +512,12 @@
     var loadingEl = document.getElementById("v2-dash-loading");
     fetchLandingData().then(function (data) {
       if (loadingEl && loadingEl.parentNode) loadingEl.remove();
-      renderHomeTraceRow(host, data);
       if (data.statusData) {
         renderStorageSnapshot(host, data.statusData);
-      } else if (!data.intakeData) {
+      }
+      renderLandingGreeting(host);
+      renderHomeTraceRow(host, data);
+      if (!data.statusData && !data.intakeData) {
         host.appendChild(
           el("p", { className: "muted" }, [
             "Charcoal intake and Bags Status are not assigned to your account yet.",
