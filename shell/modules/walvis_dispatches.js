@@ -334,10 +334,6 @@
     return detail;
   }
 
-  function rowSerial(r) {
-    return (r && (r.bag_identifier || r.serial)) || "";
-  }
-
   async function promptAndAddBagToDispatch(container, ctx, detail, presetSerial) {
     var serial =
       presetSerial != null && String(presetSerial).trim()
