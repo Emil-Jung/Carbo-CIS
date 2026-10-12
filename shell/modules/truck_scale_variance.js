@@ -33,7 +33,7 @@
     return (n >= 0 ? "+" : "") + n.toFixed(1) + " kg";
   }
 
-  /** Δ styling: negative red, positive green, ~zero blue (digital vs scanned). */
+  /** Δ = scan − digital: positive green (bags heavier), negative red, ~zero blue. */
   function varianceColorClass(kg) {
     if (kg == null || kg === "") return "tsv-var--zero";
     var n = Number(kg);
@@ -49,33 +49,17 @@
     {
       key: "r",
       label: "Restaurant (R)",
-      columns: ["Digital R", "Scan R", "Δ vs digital"],
+      columns: ["Digital R", "Scan R", "Scan − digital"],
     },
     {
       key: "l",
       label: "Lumpwood (L)",
-      columns: ["Digital L", "Scan L", "Δ vs digital"],
+      columns: ["Digital L", "Scan L", "Scan − digital"],
     },
     {
       key: "f",
       label: "Fines (F)",
-      columns: ["Digital F", "Scan F", "Δ vs digital"],
-    },
-    {
-      key: "waste",
-      label: "Waste (physical scale)",
-      columns: ["Phys. S&A", "Phys. unburned"],
-    },
-    {
-      key: "truck",
-      label: "Truck (pay sheet vs intake)",
-      columns: [
-        "Digital truck",
-        "Digital sum",
-        "Δ balance",
-        "Scan+cmp",
-        "Δ vs intake",
-      ],
+      columns: ["Digital F", "Scan F", "Scan − digital"],
     },
   ];
 
@@ -133,17 +117,18 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Scale vs intake variance"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Suppliers are paid on ",
+      "Compare ",
       ui.el("strong", {}, ["digital scale"]),
-      " weights (Control Room). ",
-      "Δ on R / L / F is ",
-      ui.el("strong", {}, ["digital − scanned bags"]),
-      " (positive = pay weight above scans). ",
-      "Truck ",
-      ui.el("strong", {}, ["Δ balance"]),
-      " is digital truck total minus digital R/L/F plus physical-scale sand & ash and unburned. ",
-      ui.el("strong", {}, ["Δ vs intake"]),
-      " compares the same digital truck to scanned R/L/F + waste. Filters match ",
+      " weights (Control Room — payment reference) to ",
+      ui.el("strong", {}, ["scanned bag"]),
+      " totals at Charcoal intake (physical scale as bags are QR-tagged). ",
+      "Each ",
+      ui.el("strong", {}, ["Scan − digital"]),
+      " cell is ",
+      ui.el("strong", {}, ["scanned − digital"]),
+      " kg: e.g. 102 digital and 106 scanned → ",
+      ui.el("strong", {}, ["+4.0 kg"]),
+      " (bags weigh 4 kg more than digital). Filters match ",
       ui.el("strong", {}, ["Charcoal deliveries"]),
       ". |Δ| over ",
       ui.el("strong", {}, ["5 kg"]),
@@ -207,16 +192,15 @@
         ui.el("span", { class: "tsv-card-label" }, ["Flagged"]),
         ui.el("strong", { class: "tsv-card-value" }, [String(data.flagged_count || 0)]),
       ]));
+      var absStream = sumAbsStreamVariance(rows);
       cards.appendChild(ui.el("div", { class: "tsv-card" }, [
-        ui.el("span", { class: "tsv-card-label" }, ["Σ truck balance (digital − digital sum)"]),
-        ui.el("strong", { class: "tsv-card-value" }, [fmtVar(s.variance_truck_total_kg)]),
-      ]));
-      cards.appendChild(ui.el("div", { class: "tsv-card" }, [
-        ui.el("span", { class: "tsv-card-label" }, ["Σ vs intake (digital truck − scans)"]),
-        ui.el("strong", { class: "tsv-card-value" }, [fmtVar(s.variance_intake_truck_kg)]),
+        ui.el("span", { class: "tsv-card-label" }, ["Σ |Scan − digital| (R+L+F)"]),
+        ui.el("strong", { class: "tsv-card-value" }, [fmtKg(absStream)]),
       ]));
       var rlfCard = ui.el("div", { class: "tsv-card tsv-card--rlf" });
-      rlfCard.appendChild(ui.el("span", { class: "tsv-card-label" }, ["Σ R / L / F vs digital (pay)"]));
+      rlfCard.appendChild(
+        ui.el("span", { class: "tsv-card-label" }, ["Σ Scan − digital by stream"])
+      );
       var rlfVals = ui.el("div", { class: "tsv-card-rlf-lines" });
       [
         ["R", s.variance_restaurant_kg],
@@ -235,54 +219,6 @@
       rlfCard.appendChild(rlfVals);
       cards.appendChild(rlfCard);
       summaryHost.appendChild(cards);
-
-      var barWrap = ui.el("div", { class: "tsv-bar-chart" });
-      var digital = Number(s.digital_truck_total_kg || 0);
-      var sheetSum = Number(s.digital_sheet_total_kg || 0);
-      var truckNetVar =
-        s.variance_truck_total_kg != null ? Number(s.variance_truck_total_kg) : digital - sheetSum;
-      var absStream = sumAbsStreamVariance(rows);
-      var titleRow = ui.el("div", { class: "tsv-bar-head" });
-      titleRow.appendChild(
-        ui.el("h3", { class: "tsv-bar-title" }, ["Digital truck vs digital pay-sheet total"])
-      );
-      titleRow.appendChild(
-        ui.el("span", { class: "tsv-bar-variance" + (Math.abs(truckNetVar) > 5 ? " tsv-bar-variance--warn" : "") }, [
-          "Σ balance: ",
-          fmtVar(truckNetVar),
-        ])
-      );
-      barWrap.appendChild(titleRow);
-      barWrap.appendChild(
-        ui.el("p", { class: "muted tsv-bar-help" }, [
-          "Bars sum digital weighbridge truck weight vs sum of digital R/L/F plus physical-scale sand & ash and unburned (pay sheet). ",
-          "Should be near zero when Control Room lines add up. ",
-          "Use column ",
-          ui.el("strong", {}, ["Δ vs intake"]),
-          " and R/L/F ",
-          ui.el("strong", {}, ["Δ vs digital"]),
-          " to compare payment weights to bag scans. ",
-          absStream > 0
-            ? "Σ |Δ R|+|Δ L|+|Δ F| (absolute): " + fmtVar(absStream) + "."
-            : "",
-        ])
-      );
-      var max = Math.max(digital, sheetSum, 1);
-      ["Digital truck (weighbridge)", "Digital sum (R+L+F+waste)"].forEach(function (label, i) {
-        var val = i === 0 ? digital : sheetSum;
-        var row = ui.el("div", { class: "tsv-bar-row" });
-        row.appendChild(ui.el("span", { class: "tsv-bar-label" }, [label]));
-        var track = ui.el("div", { class: "tsv-bar-track" });
-        var fill = ui.el("div", {
-          class: "tsv-bar-fill" + (i === 1 ? " tsv-bar-fill--physical" : ""),
-          style: "width:" + Math.round((val / max) * 100) + "%",
-        });
-        track.appendChild(fill);
-        row.appendChild(track);
-        row.appendChild(ui.el("span", { class: "tsv-bar-val" }, [fmtKg(val)]));
-        barWrap.appendChild(row);
-      });
-      summaryHost.appendChild(barWrap);
     }
 
     function renderTable(rows) {
@@ -354,13 +290,6 @@
         appendNumTd(tr, fmtKg(d.fines_kg), "f", 0, false);
         appendNumTd(tr, fmtKg(scanF), "f", 1, false);
         appendNumTd(tr, fmtVar(v.fines_kg), "f", 2, true, v.fines_kg);
-        appendNumTd(tr, fmtKg(d.sand_ash_kg), "waste", 0, false);
-        appendNumTd(tr, fmtKg(d.unburned_kg), "waste", 1, false);
-        appendNumTd(tr, fmtKg(d.truck_total_kg), "truck", 0, false);
-        appendNumTd(tr, fmtKg(row.digital_sheet_total_kg), "truck", 1, false);
-        appendNumTd(tr, fmtVar(v.truck_total_kg), "truck", 2, true, v.truck_total_kg);
-        appendNumTd(tr, fmtKg(row.intake_truck_compare_kg), "truck", 3, false);
-        appendNumTd(tr, fmtVar(v.intake_truck_kg), "truck", 4, true, v.intake_truck_kg);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
