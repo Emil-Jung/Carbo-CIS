@@ -52,14 +52,14 @@
     };
   }
 
-  /** + plain (bag/tare); − highlighted (investigate — e.g. wrong stream/category). */
+  /** − red (investigate); + normal text; ~0 muted. */
   function varianceColorClass(kg) {
     if (kg == null || kg === "") return "";
     var n = Number(kg);
     if (!Number.isFinite(n)) return "";
     if (Math.abs(n) < 0.05) return "tsv-var--zero";
-    if (n < 0) return "tsv-var--investigate";
-    return "tsv-var--plain";
+    if (n < 0) return "tsv-var--neg";
+    return "tsv-var--pos";
   }
 
   /** Column bands for borders / header grouping (must match renderTable column order). */
@@ -113,6 +113,25 @@
     return { restaurant_kg: r, lumpwood_kg: l, fines_kg: f };
   }
 
+  function sumDigitalAndScanRlf(rows) {
+    var digital = 0;
+    var scan = 0;
+    (rows || []).forEach(function (row) {
+      var d = row.digital || {};
+      var sc = row.scanned || {};
+      digital +=
+        Number(d.restaurant_kg || 0) +
+        Number(d.lumpwood_kg || 0) +
+        Number(d.fines_kg || 0);
+      scan +=
+        Number(sc.restaurant_kg || 0) +
+        Number(sc.lumpwood_kg || 0) +
+        Number(sc.fines_kg || 0) +
+        Number(sc.bulk_fines_kg || 0);
+    });
+    return { digital_kg: digital, scan_kg: scan, net_vs_digital_kg: scan - digital };
+  }
+
   function fillYearOptions(sel, years, current) {
     sel.innerHTML = "";
     sel.appendChild(CIS.ui.el("option", { value: "all" }, ["All years"]));
@@ -154,11 +173,11 @@
       ui.el("strong", {}, ["Vs digital"]),
       ": ",
       ui.el("strong", {}, ["− kg"]),
-      " (highlighted) = scans ",
-      ui.el("strong", {}, ["lighter"]),
-      " than digital — check stream/category (e.g. restaurant vs lumpwood). ",
+      " in ",
+      ui.el("strong", {}, ["red"]),
+      " = scans lighter than digital (stream/category errors). ",
       ui.el("strong", {}, ["+ kg"]),
-      " = heavier at scan (often bag weight); shown plain. Filters match ",
+      " in normal text = heavier at scan. Net total can look small while R/L/F still disagree. Filters match ",
       ui.el("strong", {}, ["Charcoal deliveries"]),
       ". |Vs digital| over ",
       ui.el("strong", {}, ["5 kg"]),
@@ -223,6 +242,17 @@
         ui.el("strong", { class: "tsv-card-value" }, [String(data.flagged_count || 0)]),
       ]));
       var absStream = sumAbsStreamVariance(rows);
+      var rlfTotals = sumDigitalAndScanRlf(rows);
+      var netAll =
+        streamSum.restaurant_kg + streamSum.lumpwood_kg + streamSum.fines_kg;
+      cards.appendChild(ui.el("div", { class: "tsv-card" }, [
+        ui.el("span", { class: "tsv-card-label" }, ["Σ net Vs digital (R+L+F)"]),
+        ui.el(
+          "strong",
+          { class: "tsv-card-value " + varianceColorClass(netAll) },
+          [fmtVar(netAll)]
+        ),
+      ]));
       cards.appendChild(ui.el("div", { class: "tsv-card" }, [
         ui.el("span", { class: "tsv-card-label" }, ["Σ |Vs digital| (R+L+F)"]),
         ui.el("strong", { class: "tsv-card-value" }, [fmtKg(absStream)]),
@@ -249,6 +279,45 @@
       rlfCard.appendChild(rlfVals);
       cards.appendChild(rlfCard);
       summaryHost.appendChild(cards);
+
+      var barWrap = ui.el("div", { class: "tsv-bar-chart" });
+      var netBar = rlfTotals.net_vs_digital_kg;
+      var titleRow = ui.el("div", { class: "tsv-bar-head" });
+      titleRow.appendChild(
+        ui.el("h3", { class: "tsv-bar-title" }, ["Digital vs scanned R/L/F totals"])
+      );
+      titleRow.appendChild(
+        ui.el("span", { class: "tsv-bar-variance " + varianceColorClass(netBar) }, [
+          "Net Vs digital: ",
+          fmtVar(netBar),
+        ])
+      );
+      barWrap.appendChild(titleRow);
+      barWrap.appendChild(
+        ui.el("p", { class: "muted tsv-bar-help" }, [
+          "Two bars = pay weight (digital) vs bag scans (physical). Net can be near zero while ",
+          fmtKg(absStream),
+          " absolute kg still sits in R / L / F — operator or category mistakes offset in the total.",
+        ])
+      );
+      var max = Math.max(rlfTotals.digital_kg, rlfTotals.scan_kg, 1);
+      [
+        ["Digital R+L+F (pay)", rlfTotals.digital_kg],
+        ["Scanned R+L+F (bags)", rlfTotals.scan_kg],
+      ].forEach(function (pair, i) {
+        var row = ui.el("div", { class: "tsv-bar-row" });
+        row.appendChild(ui.el("span", { class: "tsv-bar-label" }, [pair[0]]));
+        var track = ui.el("div", { class: "tsv-bar-track" });
+        var fill = ui.el("div", {
+          class: "tsv-bar-fill" + (i === 1 ? " tsv-bar-fill--physical" : ""),
+          style: "width:" + Math.round((pair[1] / max) * 100) + "%",
+        });
+        track.appendChild(fill);
+        row.appendChild(track);
+        row.appendChild(ui.el("span", { class: "tsv-bar-val" }, [fmtKg(pair[1])]));
+        barWrap.appendChild(row);
+      });
+      summaryHost.appendChild(barWrap);
     }
 
     function renderTable(rows) {

@@ -3548,17 +3548,24 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .tsv-td--num { text-align: right; font-variant-numeric: tabular-nums; }
 .tsv-td--var { font-weight: 600; }
-.truck-scale-variance-table .tsv-var--plain,
-.truck-scale-variance-table .tsv-card-rlf-val.tsv-var--plain {
-  color: var(--text, #e2e8f0);
-  font-weight: 600;
-}
-.truck-scale-variance-table .tsv-var--investigate,
-.truck-scale-variance-table .tsv-card-rlf-val.tsv-var--investigate {
-  color: #fbbf24;
+.truck-scale-variance-host .tsv-var--neg,
+.truck-scale-variance-table .tsv-var--neg,
+.truck-scale-variance-host .tsv-card-rlf-val.tsv-var--neg,
+.truck-scale-variance-host .tsv-card-value.tsv-var--neg,
+.truck-scale-variance-host .tsv-bar-variance.tsv-var--neg {
+  color: #f87171;
   font-weight: 700;
 }
+.truck-scale-variance-host .tsv-var--pos,
+.truck-scale-variance-table .tsv-var--pos,
+.truck-scale-variance-host .tsv-card-rlf-val.tsv-var--pos,
+.truck-scale-variance-host .tsv-card-value.tsv-var--pos,
+.truck-scale-variance-host .tsv-bar-variance.tsv-var--pos {
+  color: inherit;
+  font-weight: 600;
+}
+.truck-scale-variance-host .tsv-var--zero,
 .truck-scale-variance-table .tsv-var--zero,
-.truck-scale-variance-table .tsv-card-rlf-val.tsv-var--zero {
+.truck-scale-variance-host .tsv-card-rlf-val.tsv-var--zero {
   color: var(--muted, #94a3b8);
 }
