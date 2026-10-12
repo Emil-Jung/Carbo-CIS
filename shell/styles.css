@@ -3489,10 +3489,6 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .tsv-td--num { text-align: right; font-variant-numeric: tabular-nums; }
 .tsv-td--var { font-weight: 600; }
-tr.tsv-row--flagged td {
-  background: rgba(248, 113, 113, 0.12);
-}
-tr.tsv-row--flagged td:last-child {
-  color: #dc2626;
-  font-weight: 600;
-}
+.truck-scale-variance-table .tsv-var--neg { color: #f87171; }
+.truck-scale-variance-table .tsv-var--pos { color: #86efac; }
+.truck-scale-variance-table .tsv-var--zero { color: #7eb8e8; }

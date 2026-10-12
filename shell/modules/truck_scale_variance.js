@@ -33,6 +33,16 @@
     return (n >= 0 ? "+" : "") + n.toFixed(1) + " kg";
   }
 
+  /** Δ styling: negative red, positive green, ~zero blue (digital vs scanned). */
+  function varianceColorClass(kg) {
+    if (kg == null || kg === "") return "tsv-var--zero";
+    var n = Number(kg);
+    if (!Number.isFinite(n)) return "";
+    if (Math.abs(n) < 0.05) return "tsv-var--zero";
+    if (n > 0) return "tsv-var--pos";
+    return "tsv-var--neg";
+  }
+
   /** Sum of |Δ R|+|Δ L|+|Δ F| across rows — stream gaps (table), not net truck total. */
   function sumAbsStreamVariance(rows) {
     var total = 0;
@@ -245,7 +255,6 @@
         "Digital truck",
         "Physical+cmp",
         "Δ truck",
-        "Flags",
       ];
       var thead = ui.el("thead");
       var hr = ui.el("tr");
@@ -255,40 +264,42 @@
       thead.appendChild(hr);
       table.appendChild(thead);
       var tbody = ui.el("tbody");
+      function appendNumTd(tr, text, isVar, rawKg) {
+        var cls = "tsv-td--num delivery-conf-td--num";
+        if (isVar) cls += " tsv-td--var " + varianceColorClass(rawKg);
+        tr.appendChild(ui.el("td", { class: cls }, [text]));
+      }
+
       rows.forEach(function (row) {
-        var tr = ui.el("tr", { class: row.flagged ? "tsv-row--flagged" : "" });
+        var tr = ui.el("tr");
         var d = row.digital || {};
         var sc = row.scanned || {};
         var v = row.variance_kg || {};
         var scanF = Number(sc.fines_kg || 0) + Number(sc.bulk_fines_kg || 0);
-        var cells = [
+        [
           row.booking_date || "",
           row.supplier || "",
           row.grn || "",
           row.truck_reg || "",
           row.transporter || "",
           String(row.bag_count != null ? row.bag_count : ""),
-          fmtKg(d.restaurant_kg),
-          fmtKg(sc.restaurant_kg),
-          fmtVar(v.restaurant_kg),
-          fmtKg(d.lumpwood_kg),
-          fmtKg(sc.lumpwood_kg),
-          fmtVar(v.lumpwood_kg),
-          fmtKg(d.fines_kg),
-          fmtKg(scanF),
-          fmtVar(v.fines_kg),
-          fmtKg(d.sand_ash_kg),
-          fmtKg(d.unburned_kg),
-          fmtKg(d.truck_total_kg),
-          fmtKg(row.physical_truck_compare_kg),
-          fmtVar(v.truck_total_kg),
-          (row.flags || []).join(", "),
-        ];
-        cells.forEach(function (text, idx) {
-          var cls = idx >= 6 && idx <= 19 ? "tsv-td--num delivery-conf-td--num" : "";
-          if (idx >= 8 && idx <= 19 && (idx - 8) % 3 === 0) cls += " tsv-td--var";
-          tr.appendChild(ui.el("td", { class: cls }, [text]));
+        ].forEach(function (text) {
+          tr.appendChild(ui.el("td", {}, [text]));
         });
+        appendNumTd(tr, fmtKg(d.restaurant_kg), false);
+        appendNumTd(tr, fmtKg(sc.restaurant_kg), false);
+        appendNumTd(tr, fmtVar(v.restaurant_kg), true, v.restaurant_kg);
+        appendNumTd(tr, fmtKg(d.lumpwood_kg), false);
+        appendNumTd(tr, fmtKg(sc.lumpwood_kg), false);
+        appendNumTd(tr, fmtVar(v.lumpwood_kg), true, v.lumpwood_kg);
+        appendNumTd(tr, fmtKg(d.fines_kg), false);
+        appendNumTd(tr, fmtKg(scanF), false);
+        appendNumTd(tr, fmtVar(v.fines_kg), true, v.fines_kg);
+        appendNumTd(tr, fmtKg(d.sand_ash_kg), false);
+        appendNumTd(tr, fmtKg(d.unburned_kg), false);
+        appendNumTd(tr, fmtKg(d.truck_total_kg), false);
+        appendNumTd(tr, fmtKg(row.physical_truck_compare_kg), false);
+        appendNumTd(tr, fmtVar(v.truck_total_kg), true, v.truck_total_kg);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
