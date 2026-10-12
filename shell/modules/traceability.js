@@ -56,7 +56,7 @@
     {
       id: "walvis_day_scan_log",
       title: "Day scan log",
-      description: "One Windhoek day — full scan list, newest on top, gaps between bags.",
+      description: "One day — all movement scans (not intake), packaging yield, truck gaps.",
       requires: "traceability.bags_status",
       icon: "schedule",
     },

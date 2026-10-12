@@ -6,9 +6,10 @@
   CIS.modules = CIS.modules || [];
 
   var DISPLAY_TZ = "Africa/Windhoek";
-  var STATUS_OPTIONS = [
+  var FALLBACK_STATUS_OPTIONS = [
+    { value: "all", label: "All movement scans" },
+    { value: "packaging", label: "Packaging — in, consumed, pallet wrapped" },
     { value: "storage_walvisbay", label: "Into storage — Walvis Bay" },
-    { value: "on_truck_walvisbay", label: "In transit — truck to Walvis Bay" },
   ];
   var STREAM_OPTIONS = [
     { value: "", label: "All streams" },
@@ -84,8 +85,9 @@
       ui.el("header", { class: "bs-dash-header" }, [
         ui.el("h2", { class: "bs-dash-title" }, ["Day scan log"]),
         ui.el("p", { class: "bs-dash-lead" }, [
-          "Full list for one Windhoek day — newest scan on top. ",
-          "The gap column is time since the previous scan (chronologically); a long gap often marks the start of the next truck load.",
+          "Every bag movement scan for one Windhoek day (sieve Charcoal Intake is excluded). ",
+          "Newest on top — use packaging filters to compare jumbo consumed vs pallets wrapped (wastage). ",
+          "Gap column = time since the previous scan; long gaps often mark a new truck batch.",
         ]),
       ])
     );
@@ -93,9 +95,21 @@
 
     var dayInput = ui.el("input", { type: "date", value: windhoekTodayIso() });
     var statusSelect = ui.el("select", {});
-    STATUS_OPTIONS.forEach(function (opt) {
-      statusSelect.appendChild(ui.el("option", { value: opt.value }, [opt.label]));
-    });
+    function fillStatusOptions(list) {
+      statusSelect.innerHTML = "";
+      (list || FALLBACK_STATUS_OPTIONS).forEach(function (opt) {
+        statusSelect.appendChild(ui.el("option", { value: opt.value }, [opt.label]));
+      });
+    }
+    fillStatusOptions(FALLBACK_STATUS_OPTIONS);
+    try {
+      var optData = await ctx.api.traceability("/reports/bag-movements-by-day/status-options");
+      if (optData && optData.options && optData.options.length) {
+        fillStatusOptions(optData.options);
+      }
+    } catch (e) {
+      /* fallback list */
+    }
     var streamSelect = ui.el("select", {});
     STREAM_OPTIONS.forEach(function (opt) {
       streamSelect.appendChild(ui.el("option", { value: opt.value }, [opt.label]));
@@ -118,7 +132,7 @@
     );
     toolbar.appendChild(
       ui.el("label", { class: "ct-field" }, [
-        ui.el("span", { class: "ct-field-label" }, ["Status moved into"]),
+        ui.el("span", { class: "ct-field-label" }, ["Movement filter"]),
         statusSelect,
       ])
     );
@@ -141,8 +155,50 @@
     var summaryEl = ui.el("p", { class: "wdsl-summary bs-dash-drill-note" });
     dash.appendChild(summaryEl);
 
+    var balanceEl = ui.el("div", { class: "wdsl-packaging-balance" });
+    dash.appendChild(balanceEl);
+
     var body = ui.el("div", { class: "wdsl-body bs-dash-body" });
     dash.appendChild(body);
+
+    function renderPackagingBalance(byProduct) {
+      balanceEl.innerHTML = "";
+      var keys = Object.keys(byProduct || {}).sort();
+      if (!keys.length) return;
+      var panel = ui.el("div", { class: "wdsl-balance-panel" });
+      panel.appendChild(
+        ui.el("h3", { class: "wdsl-balance-title" }, ["Packaging balance by SKU (this day)"])
+      );
+      panel.appendChild(
+        ui.el("p", { class: "bs-dash-drill-note" }, [
+          "Consumed jumbo kg vs pallet output kg — variance near zero suggests full yield; negative means more in than pallets out (same day).",
+        ])
+      );
+      var wrap = ui.el("div", { class: "bs-dash-table-wrap" });
+      var table = ui.el("table", { class: "bs-dash-table wdsl-table" });
+      var hr = ui.el("tr", {});
+      ["SKU", "Jumbo consumed (kg)", "Pallet output (kg)", "Variance (kg)"].forEach(function (h) {
+        hr.appendChild(ui.el("th", {}, [h]));
+      });
+      table.appendChild(ui.el("thead", {}, [hr]));
+      var tbody = ui.el("tbody", {});
+      keys.forEach(function (code) {
+        var b = byProduct[code];
+        var tr = ui.el("tr", {});
+        tr.appendChild(ui.el("td", {}, [code]));
+        tr.appendChild(ui.el("td", {}, [fmtMass(b.consumed_kg)]));
+        tr.appendChild(ui.el("td", {}, [fmtMass(b.pallet_output_kg)]));
+        var varTd = ui.el("td", {});
+        varTd.textContent = fmtMass(b.variance_kg);
+        if (Math.abs(Number(b.variance_kg || 0)) > 50) varTd.className = "wdsl-gap--long";
+        tr.appendChild(varTd);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      panel.appendChild(wrap);
+      balanceEl.appendChild(panel);
+    }
 
     async function load() {
       var day = dayInput.value || windhoekTodayIso();
@@ -150,6 +206,7 @@
       var stream = streamSelect.value;
       var gapMin = parseInt(gapInput.value, 10) || 20;
       body.innerHTML = "";
+      balanceEl.innerHTML = "";
       summaryEl.textContent = "Loading…";
       refreshBtn.disabled = true;
       try {
@@ -169,8 +226,9 @@
           (data.status_label || data.status || status) +
           " · " +
           rows.length +
-          " bags · " +
+          " events · " +
           fmtMass(data.kg);
+        renderPackagingBalance(data.packaging_balance_by_product);
         if (!rows.length) {
           body.appendChild(
             ui.el("p", { class: "muted" }, ["No scans on this day for the selected filters."])
@@ -181,7 +239,7 @@
         var table = ui.el("table", { class: "bs-dash-table wdsl-table" });
         var thead = ui.el("thead", {});
         var hr = ui.el("tr", {});
-        ["#", "Bag", "Producer", "Stream", "kg", "Moved at", "Gap since prior scan"].forEach(function (h) {
+        ["#", "Bag", "Movement", "SKU", "Producer", "Stream", "kg", "Moved at", "Gap"].forEach(function (h) {
           hr.appendChild(ui.el("th", {}, [h]));
         });
         thead.appendChild(hr);
@@ -192,6 +250,8 @@
           if (row.gap_highlight) tr.className = "wdsl-row--gap";
           tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [String(i + 1)]));
           tr.appendChild(ui.el("td", {}, [row.serial || "—"]));
+          tr.appendChild(ui.el("td", { class: "wdsl-movement" }, [row.movement_summary || "—"]));
+          tr.appendChild(ui.el("td", {}, [row.movement_product_code || row.product_code || "—"]));
           tr.appendChild(ui.el("td", {}, [row.producer_name || "—"]));
           tr.appendChild(ui.el("td", {}, [streamLabel(row)]));
           tr.appendChild(ui.el("td", {}, [fmtMass(row.net_weight_kg)]));
@@ -232,7 +292,7 @@
     kind: "lookup",
     order: 18,
     icon: "schedule",
-    description: "One day, all scans, newest first — spot gaps between truck loads",
+    description: "One day, all movement scans — packaging yield and truck gaps",
     requires: "traceability.bags_status",
     render: render,
   });
