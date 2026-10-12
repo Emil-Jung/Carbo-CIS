@@ -12,6 +12,8 @@ V1 **Traceability** tile (`shell/modules/traceability.js`) is hidden in V2. The 
 
 Factory snapshot sections: **Bulk bags** — **Still weathering** / **Weathered** (Restaurant, Lumpwood, Fines always shown); **Pallets in storage** (product codes from `physical_pallets.by_product` on yard statuses); **Briquettes**.
 
+Home number format: **tonnage/kg first**, **(bag count)** in brackets — production and office read the lead weight; logistics reads the bracketed bags.
+
 ## V1 Traceability hub → V2 department
 
 | V1 hub option | V2 home |

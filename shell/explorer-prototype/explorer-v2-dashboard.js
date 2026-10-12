@@ -36,9 +36,19 @@
     return v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " kg";
   }
 
+  /** V2 home: tonnage first (production / office), bag count in brackets (logistics cue). */
+  function bagCountLabel(bags) {
+    var b = Number(bags || 0);
+    if (!isFinite(b)) return "— bags";
+    return fmt(b) + (b === 1 ? " bag" : " bags");
+  }
+
+  function massThenBags(bags, kg) {
+    return fmtMass(kg) + " (" + bagCountLabel(bags) + ")";
+  }
+
   function bagsMass(bags, kg) {
-    if (window.CIS && CIS.bagsAndMassText) return CIS.bagsAndMassText(bags, kg);
-    return fmt(bags) + " bags · " + fmtMass(kg);
+    return massThenBags(bags, kg);
   }
 
   function greetingName() {
@@ -186,10 +196,19 @@
     return sec;
   }
 
+  function appendMassBagsValue(parentClass, bags, kg) {
+    var val = el("span", { className: parentClass });
+    val.appendChild(document.createTextNode(fmtMass(kg) + " "));
+    val.appendChild(
+      el("span", { className: "v2-mass-bags-bracket muted" }, ["(" + bagCountLabel(bags) + ")"])
+    );
+    return val;
+  }
+
   function appendStreamSubrow(parent, label, bags, kg) {
     var row = el("div", { className: "v2-storage-subrow" });
     row.appendChild(el("span", { className: "v2-storage-subrow__label" }, [label]));
-    row.appendChild(el("span", { className: "v2-storage-subrow__value muted" }, [fmt(bags) + " · " + fmtMass(kg)]));
+    row.appendChild(appendMassBagsValue("v2-storage-subrow__value", bags, kg));
     parent.appendChild(row);
   }
 
@@ -295,7 +314,7 @@
 
     var briqBox = makeInfoBox("Briquettes", "#8d6e63");
     briqBox.body.appendChild(
-      el("p", { className: "v2-info-box__stat muted" }, [fmt(briq.bags) + " · " + fmtMass(briq.kg)])
+      el("p", { className: "v2-info-box__stat" }, [massThenBags(briq.bags, briq.kg)])
     );
     cols.appendChild(briqBox.box);
 
@@ -316,7 +335,7 @@
     var briquetteW = streamBagsInGroup(walvis, "briquettes");
     var briquetteKg = streamKgInGroup(walvis, "briquettes");
     appendStreamSubrow(boxWrap.body, "Briquettes", briquetteW, briquetteKg);
-    var lead = walvis ? bagsMass(walvis.bags, walvis.kg) : "0 · 0 kg";
+    var lead = walvis ? bagsMass(walvis.bags, walvis.kg) : massThenBags(0, 0);
     boxWrap.box.appendChild(el("p", { className: "v2-info-box__foot muted" }, [lead]));
     return boxWrap.box;
   }
@@ -331,7 +350,7 @@
     var palCont = palletSummaryBucket(palletSummary, "in_container");
     appendStreamSubrow(boxWrap.body, "Pallets at AGL", palCoast.bags, palCoast.kg);
     appendStreamSubrow(boxWrap.body, "Pallets in container", palCont.bags, palCont.kg);
-    var lead = coast ? bagsMass(coast.bags, coast.kg) : "0 · 0 kg";
+    var lead = coast ? bagsMass(coast.bags, coast.kg) : massThenBags(0, 0);
     boxWrap.box.appendChild(el("p", { className: "v2-info-box__foot muted" }, [lead]));
     return boxWrap.box;
   }
@@ -346,7 +365,9 @@
       var cardIn = el("section", { className: "panel v2-snapshot-tile v2-home-trace-card" });
       cardIn.appendChild(el("h3", { className: "v2-location-title" }, ["Charcoal intake"]));
       cardIn.appendChild(
-        el("p", { className: "v2-stat-primary" }, [fmt(intake.bag_count) + " bags sieved"])
+        el("p", { className: "v2-stat-primary" }, [
+          massThenBags(intake.bag_count, intake.total_kg) + " sieved",
+        ])
       );
       var streams = intake.streams || {};
       var streamBlock = el("div", { className: "v2-factory-breakdown v2-home-trace-detail" });
@@ -378,7 +399,7 @@
       cardBs.appendChild(el("h3", { className: "v2-location-title" }, ["Bags Status"]));
       var inSys = sd.in_system || { bags: 0, kg: 0 };
       cardBs.appendChild(
-        el("p", { className: "v2-stat-primary" }, [fmt(inSys.bags) + " bags in system"])
+        el("p", { className: "v2-stat-primary" }, [massThenBags(inSys.bags, inSys.kg) + " in system"])
       );
       var factory = groupByKey(sd, "factory");
       var transit = transitBagsFromStatus(sd);
@@ -443,7 +464,7 @@
     var coast = groupByKey(statusData, "coast") || { statuses: [] };
     var palletSummary = statusData.pallet_summary || {};
 
-    var carboLead = factory.bags != null ? bagsMass(factory.bags, factory.kg) : "0 bags · 0 kg";
+    var carboLead = factory.bags != null ? bagsMass(factory.bags, factory.kg) : massThenBags(0, 0);
 
     var mainGrid = el("div", { className: "v2-snapshot-main-grid" });
     var primaryCol = el("div", { className: "v2-snapshot-main-grid__primary" });
