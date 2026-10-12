@@ -109,6 +109,30 @@
     });
   }
 
+  function windhoekLabelDateYmd(iso) {
+    if (!iso) return "";
+    try {
+      var parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Windhoek",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(new Date(iso));
+      var y = "";
+      var m = "";
+      var d = "";
+      parts.forEach(function (p) {
+        if (p.type === "year") y = p.value;
+        if (p.type === "month") m = p.value;
+        if (p.type === "day") d = p.value;
+      });
+      if (y && m && d) return y + "-" + m + "-" + d;
+    } catch (e) {
+      /* ignore */
+    }
+    return "";
+  }
+
   function dispatchDisplayLabel(d) {
     if (!d) return "Dispatch";
     if (d.display_label) return d.display_label;
@@ -392,12 +416,20 @@
       type: "button",
       class: "btn-ghost",
       style: "margin-bottom: 0.75rem;",
-    }, ["Edit truck registration / transporter / notes"]);
+    }, ["Edit truck, label date, transporter, notes"]);
     editMetaBtn.addEventListener("click", async function () {
       var form = await showFormModal(ui, {
         title: "Edit dispatch details",
-        message: "Cancel closes without saving.",
+        message:
+          "Dispatch label day uses Windhoek date (e.g. 2026-10-09 → Dispatch Fri 09-10-26 #1). Cancel closes without saving.",
         fields: [
+          {
+            key: "label_date",
+            label: "Dispatch label day (Windhoek YYYY-MM-DD)",
+            value: windhoekLabelDateYmd(detail.opened_at),
+            placeholder: "2026-10-09",
+            required: true,
+          },
           {
             key: "truck_registration",
             label: "Truck registration",
@@ -413,6 +445,7 @@
       editMetaBtn.disabled = true;
       try {
         var updated = await apiPatch(ctx, "/walvis-dispatches/" + encodeURIComponent(detail.id), {
+          label_date: form.label_date.trim(),
           truck_registration: form.truck_registration.trim(),
           transporter: form.transporter.trim(),
           notes: form.notes.trim(),
