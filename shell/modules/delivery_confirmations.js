@@ -423,11 +423,15 @@
         ]));
       }
 
+      /** Plain text (no number spinners); auto-filled from Weight (t), PJ can override. */
+      var shortageLockedByUser =
+        row.shortage_on_tonnage != null && row.shortage_on_tonnage !== "";
       var shortageInput = ui.el("input", {
-        type: "number",
-        class: "delivery-conf-input delivery-conf-input--ton",
-        step: "0.001",
-        min: "0",
+        type: "text",
+        class: "delivery-conf-input delivery-conf-input--ton delivery-conf-input--decimal",
+        inputMode: "decimal",
+        autocomplete: "off",
+        placeholder: "0.000",
       });
       if (locked) shortageInput.readOnly = true;
       var shortageNadEl = ui.el("span", { class: "delivery-conf-penalty-nad" }, ["—"]);
@@ -449,41 +453,48 @@
         return row.weight_ton != null ? num(row.weight_ton) : null;
       }
 
+      function calculatedShortageTon() {
+        return suggestedPenaltyShortageTon(currentWeightTon());
+      }
+
+      function applyAutoShortageToField() {
+        if (locked || shortageLockedByUser) return;
+        var s = calculatedShortageTon();
+        if (s != null) shortageInput.value = fmtTon(s);
+      }
+
       function refreshDerived() {
+        applyAutoShortageToField();
         var calc = sheetRowFromInputs(tonInputs, row);
         var w = currentWeightTon();
-        var suggested =
-          row.suggested_penalty_shortage_ton != null
-            ? num(row.suggested_penalty_shortage_ton)
-            : suggestedPenaltyShortageTon(w);
+        var calculated = calculatedShortageTon();
         shortageHint.textContent =
-          "Minimum penalty-free load " +
-          MIN_LOAD_TON +
-          " t. Suggested shortage: max(0, " +
-          MIN_LOAD_TON +
-          " − Weight) = " +
-          (suggested != null ? fmtTon(suggested) + " t" : "—") +
-          ". Enter 0 for no penalty.";
+          w != null
+            ? "Calculated: max(0, " +
+              MIN_LOAD_TON +
+              " − " +
+              fmtTon(w) +
+              ") = " +
+              (calculated != null ? fmtTon(calculated) + " t" : "—") +
+              (shortageLockedByUser
+                ? " — saved or edited by you; change this box (e.g. 0 for no penalty)."
+                : " — updates when Weight (t) changes. Type 0 for no penalty.")
+            : "Enter Weight (t) to calculate shortage (minimum load " + MIN_LOAD_TON + " t).";
         var shortageVal =
-          shortageInput.value.trim() !== ""
-            ? num(shortageInput.value)
-            : row.shortage_on_tonnage != null
-              ? num(row.shortage_on_tonnage)
-              : suggested != null
-                ? suggested
-                : null;
+          shortageInput.value.trim() !== "" ? num(shortageInput.value) : calculated;
         shortageNadEl.textContent = fmtNad(penaltyNad(shortageVal));
         PCT_FIELDS.forEach(function (f) {
           pctEls[f.key].textContent = fmtPct(calc[f.key]);
         });
       }
 
-      if (row.shortage_on_tonnage != null && row.shortage_on_tonnage !== "") {
+      if (shortageLockedByUser) {
         shortageInput.value = fmtTon(row.shortage_on_tonnage);
-      } else if (row.suggested_penalty_shortage_ton != null) {
-        shortageInput.value = fmtTon(row.suggested_penalty_shortage_ton);
       } else {
-        var initS = suggestedPenaltyShortageTon(row.weight_ton);
+        var initS = calculatedShortageTon();
+        if (initS == null && row.suggested_penalty_shortage_ton != null) {
+          initS = num(row.suggested_penalty_shortage_ton);
+        }
         shortageInput.value = initS != null ? fmtTon(initS) : "";
       }
 
@@ -513,7 +524,10 @@
       Object.keys(tonInputs).forEach(function (k) {
         tonInputs[k].addEventListener("input", refreshDerived);
       });
-      shortageInput.addEventListener("input", refreshDerived);
+      shortageInput.addEventListener("input", function () {
+        shortageLockedByUser = true;
+        refreshDerived();
+      });
       refreshDerived();
 
       var actions = ui.el("div", { class: "delivery-conf-actions" });
