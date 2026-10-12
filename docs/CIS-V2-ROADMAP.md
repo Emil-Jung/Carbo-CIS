@@ -13,7 +13,7 @@ V2 reuses the same `shell/modules/*.js` and session token as V1; only chrome, na
 |------|--------|
 | Department sidebar (Office · Logistics · Control Room · Production · Maintenance) | Live — flat department buttons |
 | Department dashboards (tile list → open module) | Live |
-| Home dashboard (storage snapshot from Bags Status API) | Live |
+| Home dashboard (Charcoal intake + Bags Status + storage snapshot) | Live |
 | Hidden nav: `labels`, `print_labels`, `label_deployment`, `traceability` hub | Live — contextual tiles on Office / Production / Logistics |
 | Module cache (switch apps without re-fetch) | Live (`explorer-v2-cis-bridge.js`) |
 | Logistics / Office / Production dept hub widgets | Live — Walvis, in transit, pending deliveries, packaging shift (`explorer-v2-dashboard.js`) |
@@ -28,6 +28,10 @@ V2 reuses the same `shell/modules/*.js` and session token as V1; only chrome, na
 V2 `index.html` must keep the **same module script versions** (and flags such as `CIS_BS_DRILL_SORT_NEWEST_FIRST`) as production `shell/index.html`. After V1 deploy, sync V2 script tags or run a diff.
 
 ---
+
+## Traceability-first (Oct 2026)
+
+Home dashboard leads with **Charcoal intake** + **Bags Status**, then **storage snapshot** (factory stream breakdown). See [CIS-V2-TRACEABILITY.md](./CIS-V2-TRACEABILITY.md) for V1 hub → V2 mapping.
 
 ## Next priorities (suggested order)
 

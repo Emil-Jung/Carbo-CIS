@@ -1622,9 +1622,9 @@ body.explorer-v2-shell .workspace-module > .cis-float-nav {
 }
 
 .v2-dash-greeting {
-  font-family: var(--font-display);
-  font-size: clamp(1.75rem, 4vw, 2.1rem);
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   margin: 0 0 6px;
   color: var(--text);
 }
@@ -1673,6 +1673,93 @@ body.explorer-v2-shell .workspace-module > .cis-float-nav {
 
 .v2-dashboard-host .v2-storage-snapshot {
   margin-bottom: 16px;
+}
+
+.v2-dashboard-host .v2-snapshot-tile {
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  background: linear-gradient(165deg, var(--surface-raised) 0%, var(--surface) 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.v2-dashboard-host .v2-snapshot-hero {
+  padding: 20px 20px 18px;
+}
+
+.v2-dashboard-host .v2-snapshot-lead {
+  margin: -4px 0 12px;
+  font-size: 13px;
+}
+
+.v2-dashboard-host .v2-home-trace-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.v2-dashboard-host .v2-home-trace-card .v2-stat-primary {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+}
+
+.v2-dashboard-host .v2-home-trace-detail {
+  margin-bottom: 4px;
+}
+
+.v2-dashboard-host .v2-home-trace-foot {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.v2-dashboard-host .v2-storage-section {
+  margin-top: 14px;
+}
+
+.v2-dashboard-host .v2-storage-section:first-child {
+  margin-top: 4px;
+}
+
+.v2-dashboard-host .v2-storage-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.v2-dashboard-host .v2-storage-section-accent {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.v2-dashboard-host .v2-storage-subrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0 3px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--panel-row-border);
+}
+
+.v2-dashboard-host .v2-storage-subrow:last-child {
+  border-bottom: none;
+}
+
+.v2-dashboard-host .v2-storage-subrow__label {
+  color: var(--text-secondary);
+}
+
+.v2-dashboard-host .v2-storage-section-single {
+  margin: 0;
+  padding: 2px 0 2px 16px;
+  font-size: 13px;
 }
 
 .v2-dashboard-host .v2-location-title {
