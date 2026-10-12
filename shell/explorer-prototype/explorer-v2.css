@@ -1686,6 +1686,29 @@ body.explorer-v2-shell .workspace-module > .cis-float-nav {
   margin-bottom: 16px;
 }
 
+.v2-dashboard-host .v2-dept-hub {
+  margin-bottom: 16px;
+}
+
+.v2-dashboard-host .v2-dept-hub-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.v2-dashboard-host .v2-stat-card {
+  margin: 0;
+  padding: 14px 16px 12px;
+}
+
+.v2-dashboard-host .v2-stat-card .v2-stat-primary {
+  font-size: 1.35rem;
+}
+
+.v2-dashboard-host .v2-stat-card .v2-panel-actions {
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
 .v2-dashboard-host .v2-stat-primary {
   margin: 2px 0 4px;
   font-size: 28px;

@@ -322,38 +322,225 @@
     });
   };
 
-  async function loadLogisticsOpsSnapshot(lineEl) {
-    if (!lineEl || !window.CIS || !CIS.api || !CIS.api.traceability) {
-      if (lineEl) lineEl.textContent = "";
-      return;
-    }
-    try {
-      var activeResp = await CIS.api.traceability("/walvis-dispatches/active");
-      var open = activeResp && activeResp.dispatch;
-      var br = await CIS.api.traceability("/walvis-dispatches/storage-at-walvis-breakdown");
-      var parts = [];
-      if (open) {
-        parts.push(
-          "GF loading: " +
-            (open.display_label || "Dispatch #" + open.dispatch_number) +
-            " · " +
-            (open.loaded_bags || 0) +
-            " on manifest"
-        );
-      } else {
-        parts.push("No open Walvis dispatch — open one in Walvis dispatches before Shorty loads.");
-      }
-      var walvisBulk = 0;
-      (br.dispatches || []).forEach(function (d) {
-        walvisBulk += d.bags_in_storage || 0;
+  function makeStatCard(title, moduleId, openLabel) {
+    var card = el("section", { className: "panel v2-stat-card" });
+    card.appendChild(el("h3", { className: "v2-location-title" }, [title]));
+    var primaryEl = el("p", { className: "v2-stat-primary" }, ["…"]);
+    var detailEl = el("p", { className: "muted v2-stat-secondary" }, ["Loading…"]);
+    card.appendChild(primaryEl);
+    card.appendChild(detailEl);
+    if (moduleId && moduleAccessible(moduleId)) {
+      var actions = el("div", { className: "v2-panel-actions" });
+      var btn = el(
+        "button",
+        { type: "button", className: "v2-action-btn v2-action-btn--primary" },
+        [openLabel || "Open"]
+      );
+      btn.addEventListener("click", function () {
+        openModule(moduleId);
       });
-      var un = (br.unassigned && br.unassigned.bags_in_storage) || 0;
-      parts.push("Walvis ground (bulk): " + walvisBulk + " bag(s) on dispatch tiles");
-      if (un) parts.push(un + " unassigned on ground");
-      lineEl.textContent = parts.join(" · ");
-    } catch (e) {
-      lineEl.textContent =
-        "Walvis summary unavailable — open Walvis dispatches or Bags Status (API may need a refresh on bkweb3).";
+      actions.appendChild(btn);
+      card.appendChild(actions);
+    }
+    return { card: card, primaryEl: primaryEl, detailEl: detailEl };
+  }
+
+  function appendDeptHub(host, cards) {
+    if (!cards.length) return;
+    var hub = el("section", { className: "v2-dept-hub" });
+    var grid = el("div", { className: "content-grid v2-dept-hub-grid" });
+    cards.forEach(function (c) {
+      grid.appendChild(c);
+    });
+    hub.appendChild(grid);
+    host.appendChild(hub);
+  }
+
+  function transitBagsFromStatus(statusData) {
+    var transit = groupByKey(statusData, "in_transit");
+    var coast = groupByKey(statusData, "coast");
+    var bags = (transit && transit.bags) || 0;
+    var kg = (transit && transit.kg) || 0;
+    if (coast) {
+      bags += coast.bags || 0;
+      kg += coast.kg || 0;
+    }
+    return { bags: bags, kg: kg };
+  }
+
+  async function loadLogisticsHub(host) {
+    if (!host || !window.CIS || !CIS.api || !CIS.api.traceability) return;
+    var cards = [];
+    var walvisCard = null;
+    var transitCard = null;
+    var dcCard = null;
+
+    if (moduleAccessible("walvis_dispatches")) {
+      walvisCard = makeStatCard("Walvis dispatch", "walvis_dispatches", "Walvis dispatches");
+      cards.push(walvisCard.card);
+    }
+    if (moduleAccessible("bags_status_report")) {
+      transitCard = makeStatCard("In transit", "bags_status_report", "Bags Status");
+      cards.push(transitCard.card);
+    }
+    if (moduleAccessible("delivery_confirmations")) {
+      dcCard = makeStatCard("Delivery confirmations", "delivery_confirmations", "Confirm deliveries");
+      cards.push(dcCard.card);
+    }
+    appendDeptHub(host, cards);
+
+    var jobs = [];
+
+    if (walvisCard) {
+      jobs.push(
+        (async function () {
+          try {
+            var activeResp = await CIS.api.traceability("/walvis-dispatches/active");
+            var open = activeResp && activeResp.dispatch;
+            var br = await CIS.api.traceability("/walvis-dispatches/storage-at-walvis-breakdown");
+            if (open) {
+              walvisCard.primaryEl.textContent =
+                (open.loaded_bags || 0) + " on manifest";
+              walvisCard.detailEl.textContent =
+                "Open: " + (open.display_label || "Dispatch #" + open.dispatch_number);
+            } else {
+              walvisCard.primaryEl.textContent = "No open dispatch";
+              walvisCard.detailEl.textContent =
+                "Open a dispatch before Shorty loads at Grootfontein.";
+            }
+            var walvisBulk = 0;
+            (br.dispatches || []).forEach(function (d) {
+              walvisBulk += d.bags_in_storage || 0;
+            });
+            var un = (br.unassigned && br.unassigned.bags_in_storage) || 0;
+            var ground = "Walvis ground: " + walvisBulk + " bag(s)";
+            if (un) ground += " · " + un + " unassigned";
+            walvisCard.detailEl.textContent += open ? " · " + ground : ground;
+          } catch (e) {
+            walvisCard.primaryEl.textContent = "Unavailable";
+            walvisCard.detailEl.textContent = "Walvis API could not be reached.";
+          }
+        })()
+      );
+    }
+
+    if (transitCard) {
+      jobs.push(
+        (async function () {
+          try {
+            var statusData = await CIS.api.traceability("/reports/bags-status");
+            var t = transitBagsFromStatus(statusData);
+            transitCard.primaryEl.textContent = fmt(t.bags) + " bags";
+            transitCard.detailEl.textContent =
+              t.bags ? bagsMass(t.bags, t.kg) + " — trucks & coast" : "Nothing in transit right now.";
+          } catch (e) {
+            transitCard.primaryEl.textContent = "Unavailable";
+            transitCard.detailEl.textContent = "Bags Status report could not be loaded.";
+          }
+        })()
+      );
+    }
+
+    if (dcCard) {
+      jobs.push(
+        (async function () {
+          try {
+            var dc = await CIS.api.traceability(
+              "/delivery-confirmations?status=pending&limit=200"
+            );
+            var n = dc.count != null ? dc.count : (dc.rows || []).length;
+            dcCard.primaryEl.textContent = fmt(n) + (n >= 200 ? "+" : "");
+            dcCard.detailEl.textContent =
+              n === 1
+                ? "Truck waiting for office confirmation."
+                : n
+                  ? "Factory-posted loads pending PJ / office fields."
+                  : "No pending confirmations.";
+          } catch (e) {
+            dcCard.primaryEl.textContent = "Unavailable";
+            dcCard.detailEl.textContent = "Delivery confirmations could not be loaded.";
+          }
+        })()
+      );
+    }
+
+    await Promise.all(jobs);
+  }
+
+  async function loadOfficeHub(host) {
+    if (!host || !window.CIS || !CIS.api) return;
+    var cards = [];
+    var dcCard = null;
+    var regCard = null;
+
+    if (moduleAccessible("delivery_confirmations") && CIS.api.traceability) {
+      dcCard = makeStatCard("Deliveries to confirm", "delivery_confirmations", "Delivery confirmations");
+      cards.push(dcCard.card);
+    } else if (moduleAccessible("deliveries_register") && CIS.api.qualityReports) {
+      regCard = makeStatCard("Deliveries register", "deliveries_register", "Open register");
+      cards.push(regCard.card);
+    }
+    appendDeptHub(host, cards);
+
+    if (dcCard) {
+      try {
+        var dc = await CIS.api.traceability("/delivery-confirmations?status=pending&limit=200");
+        var n = dc.count != null ? dc.count : (dc.rows || []).length;
+        dcCard.primaryEl.textContent = fmt(n) + (n >= 200 ? "+" : "");
+        dcCard.detailEl.textContent = n
+          ? "Pending office confirmation after factory POST."
+          : "All caught up on delivery confirmations.";
+      } catch (e) {
+        dcCard.primaryEl.textContent = "Unavailable";
+        dcCard.detailEl.textContent = String(e.message || e);
+      }
+    } else if (regCard) {
+      try {
+        var year = String(new Date().getFullYear());
+        var reg = await CIS.api.qualityReports("/deliveries-register?year=" + encodeURIComponent(year));
+        var n = reg.count != null ? reg.count : (reg.rows || []).length;
+        regCard.primaryEl.textContent = fmt(n) + " rows";
+        regCard.detailEl.textContent = "Charcoal Tracker deliveries — calendar year " + year + ".";
+      } catch (e) {
+        regCard.primaryEl.textContent = "Unavailable";
+        regCard.detailEl.textContent = String(e.message || e);
+      }
+    }
+  }
+
+  async function loadProductionHub(host) {
+    if (!host || !window.CIS || !CIS.api || !CIS.api.traceability) return;
+    var cards = [];
+    var shiftCard = null;
+
+    if (moduleAccessible("packaging_shift")) {
+      shiftCard = makeStatCard("Packaging shift", "packaging_shift", "Packaging shift");
+      cards.push(shiftCard.card);
+    }
+    if (moduleAccessible("print_labels")) {
+      cards.push(makeStatCard("Print labels", "print_labels", "Print labels").card);
+    }
+    appendDeptHub(host, cards);
+
+    if (shiftCard) {
+      try {
+        var data = await CIS.api.traceability("/packaging-shifts");
+        var active = null;
+        (data.shifts || []).forEach(function (s) {
+          if (s.status === "active") active = s;
+        });
+        if (active) {
+          shiftCard.primaryEl.textContent = "Active";
+          shiftCard.detailEl.textContent =
+            (active.product_codes || []).join(", ") || active.title || "Shift in progress";
+        } else {
+          shiftCard.primaryEl.textContent = "None active";
+          shiftCard.detailEl.textContent = "Start a shift when Candy / wrap should scan scheduled SKUs.";
+        }
+      } catch (e) {
+        shiftCard.primaryEl.textContent = "Unavailable";
+        shiftCard.detailEl.textContent = String(e.message || e);
+      }
     }
   }
 
@@ -375,13 +562,12 @@
     head.appendChild(el("h1", { className: "v2-dash-greeting" }, [group.title]));
     if (group.blurb) head.appendChild(el("p", { className: "v2-dash-tagline" }, [group.blurb]));
     host.appendChild(head);
-    if (deptId === "logistics" && moduleAccessible("walvis_dispatches")) {
-      var ops = el("section", { className: "panel v2-logistics-ops", style: "margin-bottom: 1rem;" });
-      ops.appendChild(el("h3", { className: "v2-location-title" }, ["Walvis & loads"]));
-      var opsLine = el("p", { className: "muted", id: "v2-logistics-ops-line" }, ["Loading…"]);
-      ops.appendChild(opsLine);
-      host.appendChild(ops);
-      loadLogisticsOpsSnapshot(opsLine);
+    if (deptId === "logistics") {
+      void loadLogisticsHub(host);
+    } else if (deptId === "office") {
+      void loadOfficeHub(host);
+    } else if (deptId === "production") {
+      void loadProductionHub(host);
     }
     var ids = window.CIS_V2_departmentModuleIds ? CIS_V2_departmentModuleIds(deptId) : [];
     host.appendChild(reportRowList(ids));

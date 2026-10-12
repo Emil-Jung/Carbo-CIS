@@ -70,5 +70,5 @@ Unchanged: each tile/module still uses `CIS.canAccessModule`. PJ sees a thin Log
 2. ✅ Department dashboard host + tile grid per `CIS_V2_NAV.groups[].items`.  
 3. ✅ Contextual `print_labels` on Office / Production / Logistics dashboards (`CIS_V2_CONTEXTUAL_MODULES`).  
 4. ✅ Hide `labels`, `print_labels`, `label_deployment` from sidebar; keep modules loaded.  
-5. **In progress** — Logistics hub widgets (Walvis & loads snapshot on Logistics dashboard; expand next).  
+5. ✅ Department hub stat cards (Logistics, Office, Production).  
 6. Cutover `/cis/` → V2.

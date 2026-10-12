@@ -16,7 +16,7 @@ V2 reuses the same `shell/modules/*.js` and session token as V1; only chrome, na
 | Home dashboard (storage snapshot from Bags Status API) | Live |
 | Hidden nav: `labels`, `print_labels`, `label_deployment`, `traceability` hub | Live — contextual tiles on Office / Production / Logistics |
 | Module cache (switch apps without re-fetch) | Live (`explorer-v2-cis-bridge.js`) |
-| Logistics dept “Walvis & loads” snapshot | Live (`explorer-v2-dashboard.js`) |
+| Logistics / Office / Production dept hub widgets | Live — Walvis, in transit, pending deliveries, packaging shift (`explorer-v2-dashboard.js`) |
 | Cutover `/cis/` → V2 | **Not yet** — V1 remains default |
 
 **Code:** `shell/explorer-prototype/` — see [README](../shell/explorer-prototype/README.md), [DESIGN-DEPARTMENTS](../shell/explorer-prototype/DESIGN-DEPARTMENTS.md), [NAV-MAP](../shell/explorer-prototype/NAV-MAP.md).
@@ -31,12 +31,13 @@ V2 `index.html` must keep the **same module script versions** (and flags such as
 
 ## Next priorities (suggested order)
 
-1. **Logistics hub (PJ view)** — expand department dashboard: open dispatch, in-transit count, pending delivery confirmations (read-only widgets, links into modules).
-2. **Production dashboard** — packaging shift “active shift” + link to Print Labels when permitted.
-3. **Office dashboard** — deliveries register pending count.
-4. **Mobile polish** — drawer, bottom bar, module scroll + float back (reuse V1 patterns where needed).
-5. **Cutover plan** — config flag or nginx default to V2; rollback = restore V1 `index.html` as entry.
-6. **Theme tokens** — align `explorer-v2-themes.css` with [CARBO-DESIGN.md](../CARBO-DESIGN.md) for one design system.
+1. ~~**Logistics hub (PJ view)**~~ — done (stat cards + module shortcuts).
+2. ~~**Production dashboard**~~ — done (active packaging shift + Print labels tile).
+3. ~~**Office dashboard**~~ — done (pending delivery confirmations or deliveries register row count).
+4. **Logistics hub (phase 2)** — movement schedule “due today”, container highlights.
+5. **Mobile polish** — drawer, bottom bar, module scroll + float back (reuse V1 patterns where needed).
+6. **Cutover plan** — config flag or nginx default to V2; rollback = restore V1 `index.html` as entry.
+7. **Theme tokens** — align `explorer-v2-themes.css` with [CARBO-DESIGN.md](../CARBO-DESIGN.md) for one design system.
 
 ---
 
