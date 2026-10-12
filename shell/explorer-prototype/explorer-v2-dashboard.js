@@ -275,7 +275,7 @@
 
     var cols = el("div", { className: "v2-snapshot-three-col" });
 
-    var wxBox = makeInfoBox("Jumbos", "var(--status-amber)");
+    var wxBox = makeInfoBox("Bulk bags", "var(--status-amber)");
     wxBox.body.classList.add("v2-info-box__body--stacked");
     var secWx = appendStorageSection(wxBox.body, "Still weathering", "var(--status-amber)");
     appendStreamsBlock(secWx, wx);

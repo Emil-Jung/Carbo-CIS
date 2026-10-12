@@ -10,7 +10,7 @@ V1 **Traceability** tile (`shell/modules/traceability.js`) is hidden in V2. The 
 | Bags Status summary | `bags_status_report` | `GET /reports/bags-status` |
 | Storage snapshot | `bags_status_report` | Same — factory breakdown by stream + pallet SKU |
 
-Factory snapshot sections: **Still weathering** / **Weathered** (Restaurant, Lumpwood, Fines always shown), **Pallets in storage** (product codes from `physical_pallets.by_product` on yard statuses), **Briquettes**.
+Factory snapshot sections: **Bulk bags** — **Still weathering** / **Weathered** (Restaurant, Lumpwood, Fines always shown); **Pallets in storage** (product codes from `physical_pallets.by_product` on yard statuses); **Briquettes**.
 
 ## V1 Traceability hub → V2 department
 
