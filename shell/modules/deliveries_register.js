@@ -91,10 +91,6 @@
         tableHost.appendChild(ui.el("p", { class: "muted" }, ["No delivery rows for this filter."]));
         return;
       }
-      tableHost.appendChild(ui.el("p", { class: "delivery-conf-tracker-scroll-hint muted" }, [
-        "Wide sheet — scroll horizontally to see all Deliveries columns through Remarks.",
-      ]));
-      var scroll = ui.el("div", { class: "delivery-conf-tracker-scroll delivery-conf-tracker-sheet" });
       var table = ui.el("table", {
         class: "delivery-conf-tracker-table deliveries-register-table",
       });
@@ -119,8 +115,11 @@
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      scroll.appendChild(table);
-      tableHost.appendChild(scroll);
+      if (CIS.wrapDeliveryTrackerTable) {
+        tableHost.appendChild(CIS.wrapDeliveryTrackerTable(ui, table));
+      } else {
+        tableHost.appendChild(table);
+      }
     }
 
     async function loadData() {

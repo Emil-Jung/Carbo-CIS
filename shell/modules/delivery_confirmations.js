@@ -61,6 +61,7 @@
     if (col.ton || col.pct || col.key === "distance_km") return "delivery-conf-td--num";
     if (col.key === "fsc_flag") return "delivery-conf-td--f";
     if (col.key === "remarks") return "delivery-conf-td--remarks";
+    if (col.key === "supplier") return "delivery-conf-td--supplier";
     return "";
   }
 
@@ -205,10 +206,6 @@
         ]));
         return;
       }
-      listTableHost.appendChild(ui.el("p", { class: "delivery-conf-tracker-scroll-hint muted" }, [
-        "Wide sheet — scroll horizontally (or trackpad shift-scroll) to reach Remarks and % columns.",
-      ]));
-      var scroll = ui.el("div", { class: "delivery-conf-tracker-scroll delivery-conf-tracker-sheet" });
       var table = ui.el("table", {
         class: "delivery-conf-tracker-table delivery-conf-tracker-table--list deliveries-register-table",
       });
@@ -236,8 +233,11 @@
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      scroll.appendChild(table);
-      listTableHost.appendChild(scroll);
+      if (CIS.wrapDeliveryTrackerTable) {
+        listTableHost.appendChild(CIS.wrapDeliveryTrackerTable(ui, table));
+      } else {
+        listTableHost.appendChild(table);
+      }
     }
 
     async function loadList() {

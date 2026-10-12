@@ -3024,25 +3024,67 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   max-width: 100%;
   min-width: 0;
 }
-.delivery-conf-tracker-scroll {
-  display: block;
+.delivery-conf-tracker-frame {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: visible;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
   margin: 12px 0;
   border: 1px solid #3a6fa8;
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  max-height: min(70vh, 640px);
+}
+.delivery-conf-tracker-frame-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #d0d0d0;
+  background: #f3f3f3;
+  color: #222;
+  flex-shrink: 0;
+}
+.delivery-conf-tracker-frame-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.delivery-conf-tracker-zoom-label {
+  font-size: 12px;
+  margin-left: auto;
+}
+.delivery-conf-tracker-zoom {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #bbb;
+}
+.delivery-conf-tracker-viewport {
+  flex: 1;
+  min-height: 220px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
-.delivery-conf-tracker-scroll-hint {
-  margin: 0 0 6px;
-  font-size: 12px;
-  color: var(--muted, #888);
+.delivery-conf-tracker-scroll {
+  display: inline-block;
+  min-width: 100%;
+  margin: 0;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
+  zoom: var(--tracker-zoom, 0.9);
+}
+@supports not (zoom: 1) {
+  .delivery-conf-tracker-scroll {
+    transform: scale(var(--tracker-zoom, 0.9));
+    transform-origin: top left;
+  }
 }
 .delivery-conf-tracker-sheet {
   background: #ffffff;
@@ -3072,13 +3114,22 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   padding-left: 4px;
   padding-right: 4px;
 }
+.delivery-conf-tracker-viewport .delivery-conf-tracker-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
 .delivery-conf-tracker-table td {
-  padding: 4px 8px;
+  padding: 3px 6px;
   border: 1px solid #d0d0d0;
   background: #ffffff;
   color: #000000;
   vertical-align: middle;
-  min-width: 5.5rem;
+  min-width: 3.25rem;
+}
+.delivery-conf-tracker-table td.delivery-conf-td--supplier {
+  min-width: 7rem;
+  max-width: 11rem;
 }
 .delivery-conf-tracker-table td.delivery-conf-td--num {
   text-align: right;
@@ -3205,7 +3256,7 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .delivery-conf-history tbody tr.delivery-conf-row { cursor: pointer; }
 .delivery-conf-history tbody tr.delivery-conf-row:hover td { background: rgba(201, 162, 39, 0.06); }
-.deliveries-register-table { min-width: 2400px; }
+.deliveries-register-table { min-width: 1680px; }
 .deliveries-register-host .deliveries-register-table-wrap { margin-top: 8px; }
 .delivery-conf-panel {
   background: var(--panel);
