@@ -407,7 +407,7 @@
       panel.appendChild(buildFieldGrid(ui, ROW1, row, inputs, locked));
 
       panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, [
-        "Weights (t) — pre-filled from factory POST; edit here if the sheet differs (cannot re-POST after next Discharge)",
+        "Weights (tonnes, 3 dp) — same as Excel Deliveries; 320 kg = 0.320, not 320. Max ~45 t per truck.",
       ]));
       panel.appendChild(buildFieldGrid(ui, ROW2, row, tonInputs, locked));
 
@@ -597,11 +597,18 @@
 
       async function save(markComplete) {
         if (!ctx.api || !ctx.api.traceability) return;
+        var patch = buildPatch(markComplete);
+        if (CIS.validateTrackerTonnes) {
+          var tonErr = CIS.validateTrackerTonnes(patch);
+          if (tonErr) {
+            setDetailMsg(tonErr, true);
+            return;
+          }
+        }
         setDetailMsg("Saving…");
         saveBtn.disabled = true;
         completeBtn.disabled = true;
         try {
-          var patch = buildPatch(markComplete);
           var res = await ctx.api.traceability(
             "/delivery-confirmations/" + encodeURIComponent(row.intake_id),
             { method: "PATCH", body: patch }

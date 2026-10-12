@@ -402,6 +402,64 @@
 
   /** DB/API store kilograms. Summaries ≥1000 kg show as tonnes (3 dp). */
   CIS.MASS_TONNE_THRESHOLD_KG = 1000;
+  CIS.TRACKER_MIN_TRUCK_TON = 0.5;
+  CIS.TRACKER_MAX_TRUCK_TON = 45;
+  CIS.TRACKER_MAX_STREAM_TON = 30;
+
+  CIS.parseTrackerTonnes = function (raw) {
+    if (raw == null || raw === "") return null;
+    var s = String(raw).trim().replace(",", ".");
+    if (!s) return null;
+    var n = Number(s);
+    return isFinite(n) ? n : null;
+  };
+
+  /** Returns error string or null if OK (Charcoal Tracker / Control Room tonnes). */
+  CIS.validateTrackerTonnes = function (fields) {
+    fields = fields || {};
+    var wt = fields.weight_ton;
+    if (wt != null && wt !== "") {
+      var w = CIS.parseTrackerTonnes(wt);
+      if (w == null) return "Weight (ton) is not a valid number.";
+      if (w < CIS.TRACKER_MIN_TRUCK_TON) {
+        return (
+          "Weight " +
+          w +
+          " t is below 0.5 t — enter tonnes (e.g. 6.5), not kilograms (6500)."
+        );
+      }
+      if (w > CIS.TRACKER_MAX_TRUCK_TON) {
+        return (
+          "Weight " +
+          w +
+          " t exceeds 45 t. Use tonnes: 320 kg = 0.320 t, not 320."
+        );
+      }
+    }
+    var streamKeys = [
+      ["restaurant_ton", "Restaurant"],
+      ["lumpwood_ton", "Lumpwood"],
+      ["fines_ton", "Fines"],
+      ["sand_ash_ton", "Sand & Ash"],
+      ["unburned_wood_ton", "Unburned Wood"],
+    ];
+    for (var i = 0; i < streamKeys.length; i++) {
+      var key = streamKeys[i][0];
+      var label = streamKeys[i][1];
+      if (fields[key] == null || fields[key] === "") continue;
+      var t = CIS.parseTrackerTonnes(fields[key]);
+      if (t == null) return label + " is not a valid number.";
+      if (t > CIS.TRACKER_MAX_STREAM_TON) {
+        return (
+          label +
+          " " +
+          t +
+          " t exceeds 30 t per line. Use tonnes: 320 kg = 0.320 t."
+        );
+      }
+    }
+    return null;
+  };
 
   CIS.formatMassFromKg = function (kg, options) {
     options = options || {};
