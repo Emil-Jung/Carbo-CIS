@@ -3548,24 +3548,33 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .tsv-td--num { text-align: right; font-variant-numeric: tabular-nums; }
 .tsv-td--var { font-weight: 600; }
-.truck-scale-variance-host .tsv-var--neg,
-.truck-scale-variance-table .tsv-var--neg,
+/* Deliveries sheet frame forces td { color:#000 } — override for Vs digital cells. */
+.truck-scale-variance-host .delivery-conf-tracker-table td.tsv-var--neg,
+.truck-scale-variance-host .truck-scale-variance-table td.tsv-var--neg {
+  color: #dc2626 !important;
+  font-weight: 700;
+}
+.truck-scale-variance-host .delivery-conf-tracker-table td.tsv-var--pos,
+.truck-scale-variance-host .truck-scale-variance-table td.tsv-var--pos {
+  color: #000000 !important;
+  font-weight: 600;
+}
+.truck-scale-variance-host .delivery-conf-tracker-table td.tsv-var--zero,
+.truck-scale-variance-host .truck-scale-variance-table td.tsv-var--zero {
+  color: #64748b !important;
+}
 .truck-scale-variance-host .tsv-card-rlf-val.tsv-var--neg,
 .truck-scale-variance-host .tsv-card-value.tsv-var--neg,
 .truck-scale-variance-host .tsv-bar-variance.tsv-var--neg {
-  color: #f87171;
+  color: #dc2626 !important;
   font-weight: 700;
 }
-.truck-scale-variance-host .tsv-var--pos,
-.truck-scale-variance-table .tsv-var--pos,
 .truck-scale-variance-host .tsv-card-rlf-val.tsv-var--pos,
 .truck-scale-variance-host .tsv-card-value.tsv-var--pos,
 .truck-scale-variance-host .tsv-bar-variance.tsv-var--pos {
-  color: inherit;
+  color: var(--text, #e2e8f0);
   font-weight: 600;
 }
-.truck-scale-variance-host .tsv-var--zero,
-.truck-scale-variance-table .tsv-var--zero,
 .truck-scale-variance-host .tsv-card-rlf-val.tsv-var--zero {
   color: var(--muted, #94a3b8);
 }
