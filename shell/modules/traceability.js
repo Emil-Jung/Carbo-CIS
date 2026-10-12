@@ -54,6 +54,13 @@
       icon: "schedule",
     },
     {
+      id: "walvis_day_scan_log",
+      title: "Day scan log",
+      description: "One Windhoek day — full scan list, newest on top, gaps between bags.",
+      requires: "traceability.bags_status",
+      icon: "schedule",
+    },
+    {
       id: "containers",
       title: "Containers",
       description: "Preload container numbers and bookings for Walvis Bay.",

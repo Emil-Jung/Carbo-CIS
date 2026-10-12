@@ -434,6 +434,28 @@ body {
   line-height: 1.5;
 }
 
+.wdsl-toolbar {
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+.wdsl-summary {
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 8px;
+}
+.wdsl-table .wdsl-moved-at {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.wdsl-gap--long {
+  color: var(--gold-bright, #e6c04a);
+  font-weight: 600;
+}
+.wdsl-row--gap .wdsl-moved-at {
+  border-top: 2px solid var(--gold-bright, #c9a227);
+}
+
 /* ---- Charcoal Intake report (V1 dark theme on host — required in CIS V2 light workspace) ---- */
 .module-content.bm-report-host {
   background: #0c0c0c;
