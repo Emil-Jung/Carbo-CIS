@@ -26,8 +26,10 @@
     { key: "fines_ton", label: "Fines", patchKey: "fines_ton", ton: true },
     { key: "lumpwood_ton", label: "Lumpwood", patchKey: "lumpwood_ton", ton: true },
     { key: "restaurant_ton", label: "Restaurant", patchKey: "restaurant_ton", ton: true },
-    { key: "shortage_on_tonnage", label: "Shortage on Tonnage", readOnly: true, ton: true },
   ];
+
+  var MIN_LOAD_TON = 30;
+  var PENALTY_NAD_PER_TON = 250;
 
   var PCT_FIELDS = [
     { key: "pct_restaurant", label: "% Restaurant" },
@@ -80,6 +82,25 @@
     return num(v).toFixed(2) + "%";
   }
 
+  function suggestedPenaltyShortageTon(weightTon) {
+    if (weightTon == null || weightTon === "") return null;
+    var w = num(weightTon);
+    var s = MIN_LOAD_TON - w;
+    return s > 0 ? Math.round(s * 1000) / 1000 : 0;
+  }
+
+  function penaltyNad(shortageTon) {
+    if (shortageTon == null || shortageTon === "") return null;
+    var s = num(shortageTon);
+    if (s <= 0) return 0;
+    return Math.round(s * PENALTY_NAD_PER_TON * 100) / 100;
+  }
+
+  function fmtNad(v) {
+    if (v == null || v === "") return "—";
+    return "NAD " + num(v).toFixed(2);
+  }
+
   /** Same as Excel Deliveries: each stream ÷ Weight (ton). */
   function sheetRowFromInputs(tonInputs, baseRow) {
     var row = {};
@@ -99,8 +120,8 @@
       num(row.fines_ton) +
       num(row.unburned_wood_ton) +
       num(row.sand_ash_ton);
-    row.shortage_on_tonnage = num(row.weight_ton) - sum;
-    if (Math.abs(row.shortage_on_tonnage) < 0.0005) row.shortage_on_tonnage = 0;
+    row.sheet_shortage_on_tonnage = num(row.weight_ton) - sum;
+    if (Math.abs(row.sheet_shortage_on_tonnage) < 0.0005) row.sheet_shortage_on_tonnage = 0;
     var w = num(row.weight_ton);
     if (w <= 0) {
       return Object.assign({}, row, {
@@ -388,10 +409,7 @@
       panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, [
         "Weights (t) — pre-filled from factory POST; edit here if the sheet differs (cannot re-POST after next Discharge)",
       ]));
-      var row2Grid = buildFieldGrid(ui, ROW2.filter(function (f) {
-        return f.key !== "shortage_on_tonnage";
-      }), row, tonInputs, locked);
-      panel.appendChild(row2Grid);
+      panel.appendChild(buildFieldGrid(ui, ROW2, row, tonInputs, locked));
 
       if (row.scr1_20_60_ton != null || row.scr2_60_plus_ton != null) {
         panel.appendChild(ui.el("p", { class: "delivery-conf-sheet-hint muted" }, [
@@ -405,7 +423,15 @@
         ]));
       }
 
-      var shortageEl = ui.el("div", { class: "delivery-conf-readonly delivery-conf-shortage" });
+      var shortageInput = ui.el("input", {
+        type: "number",
+        class: "delivery-conf-input delivery-conf-input--ton",
+        step: "0.001",
+        min: "0",
+      });
+      if (locked) shortageInput.readOnly = true;
+      var shortageNadEl = ui.el("span", { class: "delivery-conf-penalty-nad" }, ["—"]);
+      var shortageHint = ui.el("p", { class: "muted delivery-conf-shortage-hint" }, [""]);
       var pctWrap = ui.el("div", { class: "delivery-conf-pct-row" });
       var pctEls = {};
       PCT_FIELDS.forEach(function (f) {
@@ -417,17 +443,60 @@
         pctWrap.appendChild(box);
       });
 
+      function currentWeightTon() {
+        var raw = tonInputs.weight_ton && tonInputs.weight_ton.value.trim();
+        if (raw !== "") return num(raw);
+        return row.weight_ton != null ? num(row.weight_ton) : null;
+      }
+
       function refreshDerived() {
         var calc = sheetRowFromInputs(tonInputs, row);
-        shortageEl.textContent = fmtTon(calc.shortage_on_tonnage);
+        var w = currentWeightTon();
+        var suggested =
+          row.suggested_penalty_shortage_ton != null
+            ? num(row.suggested_penalty_shortage_ton)
+            : suggestedPenaltyShortageTon(w);
+        shortageHint.textContent =
+          "Minimum penalty-free load " +
+          MIN_LOAD_TON +
+          " t. Suggested shortage: max(0, " +
+          MIN_LOAD_TON +
+          " − Weight) = " +
+          (suggested != null ? fmtTon(suggested) + " t" : "—") +
+          ". Enter 0 for no penalty.";
+        var shortageVal =
+          shortageInput.value.trim() !== ""
+            ? num(shortageInput.value)
+            : row.shortage_on_tonnage != null
+              ? num(row.shortage_on_tonnage)
+              : suggested != null
+                ? suggested
+                : null;
+        shortageNadEl.textContent = fmtNad(penaltyNad(shortageVal));
         PCT_FIELDS.forEach(function (f) {
           pctEls[f.key].textContent = fmtPct(calc[f.key]);
         });
       }
 
+      if (row.shortage_on_tonnage != null && row.shortage_on_tonnage !== "") {
+        shortageInput.value = fmtTon(row.shortage_on_tonnage);
+      } else if (row.suggested_penalty_shortage_ton != null) {
+        shortageInput.value = fmtTon(row.suggested_penalty_shortage_ton);
+      } else {
+        var initS = suggestedPenaltyShortageTon(row.weight_ton);
+        shortageInput.value = initS != null ? fmtTon(initS) : "";
+      }
+
       var shortageField = ui.el("label", { class: "delivery-conf-field delivery-conf-field--shortage" });
-      shortageField.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, ["Shortage on Tonnage"]));
-      shortageField.appendChild(shortageEl);
+      shortageField.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, ["Shortage on Tonnage (t)"]));
+      var shortageRow = ui.el("div", { class: "delivery-conf-shortage-row" });
+      shortageRow.appendChild(shortageInput);
+      shortageRow.appendChild(
+        ui.el("span", { class: "delivery-conf-penalty-nad-label" }, ["Penalty (PJ only): "])
+      );
+      shortageRow.appendChild(shortageNadEl);
+      shortageField.appendChild(shortageRow);
+      shortageField.appendChild(shortageHint);
       panel.appendChild(shortageField);
       panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, ["Percentages (calculated like Excel)"]));
       panel.appendChild(pctWrap);
@@ -444,6 +513,7 @@
       Object.keys(tonInputs).forEach(function (k) {
         tonInputs[k].addEventListener("input", refreshDerived);
       });
+      shortageInput.addEventListener("input", refreshDerived);
       refreshDerived();
 
       var actions = ui.el("div", { class: "delivery-conf-actions" });
@@ -500,6 +570,8 @@
           var raw = tonInputs[key].value.trim();
           payload[key] = raw === "" ? null : num(raw);
         });
+        var shRaw = shortageInput.value.trim();
+        payload.shortage_on_tonnage = shRaw === "" ? null : num(shRaw);
         if (inputs.remarks) payload.remarks = inputs.remarks.value.trim() || null;
         if (markComplete) payload.mark_complete = true;
         return payload;
