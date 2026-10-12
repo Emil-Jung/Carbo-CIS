@@ -1036,6 +1036,63 @@
     });
     actions.appendChild(resetBtn);
 
+    var roadCatchupLine = ui.el("p", {
+      class: "muted",
+      id: "walvis-road-catchup-line",
+      style: "font-size:0.88rem;margin:0.5rem 0 0;line-height:1.35;",
+    }, ["Checking in-transit manifest gap…"]);
+    actions.appendChild(roadCatchupLine);
+
+    var roadCatchupBtn = ui.el("button", {
+      type: "button",
+      class: "settings-action-btn",
+      style: "max-width: 32rem; margin-bottom: 0.5rem; display: block;",
+    }, ["Queue in-transit bags on one dispatch (no GF scan manifest)"]);
+    roadCatchupBtn.addEventListener("click", async function () {
+      var preview;
+      try {
+        preview = await apiGet(ctx, "/walvis-dispatches/preview-road-catchup");
+      } catch (e) {
+        window.alert(e.message || String(e));
+        return;
+      }
+      var n = preview.unmanifested_in_transit_bags || 0;
+      if (!n) {
+        window.alert("Every in-transit bag is already on a dispatch manifest.");
+        return;
+      }
+      if (
+        !window.confirm(
+          "Create one closed dispatch for " +
+            n +
+            " bag(s) already In transit with no manifest?\n\n" +
+            "Bag status stays in transit — Wynand can still offload scan. Cancel = stop."
+        )
+      ) {
+        return;
+      }
+      var form = await truckDetailsModal(
+        ui,
+        "In-transit catch-up dispatch",
+        "Optional truck reg / notes for paper reconcile.",
+        null
+      );
+      if (!form) return;
+      roadCatchupBtn.disabled = true;
+      try {
+        var detail = await apiPost(ctx, "/walvis-dispatches/road-catchup-in-transit", {
+          truck_registration: form.truck_registration.trim() || null,
+          notes: form.notes ? form.notes.trim() : null,
+        });
+        renderDetail(container, ctx, detail);
+      } catch (e) {
+        window.alert(e.message || String(e));
+      } finally {
+        roadCatchupBtn.disabled = false;
+      }
+    });
+    actions.appendChild(roadCatchupBtn);
+
     var fenceBtn = ui.el("button", {
       type: "button",
       class: "btn-ghost",
@@ -1128,6 +1185,18 @@
           },
         }, ["Open dispatch for Shorty"])
       );
+    }
+
+    try {
+      var roadPreview = await apiGet(ctx, "/walvis-dispatches/preview-road-catchup");
+      var roadN = roadPreview.unmanifested_in_transit_bags || 0;
+      roadCatchupLine.textContent = roadN
+        ? roadN +
+          " bag(s) in transit with no dispatch manifest — use the queue button before offload if scanners get stuck."
+        : "All in-transit bags are on a dispatch manifest.";
+      roadCatchupBtn.disabled = roadN === 0;
+    } catch (e) {
+      roadCatchupLine.textContent = "Could not load in-transit manifest count.";
     }
 
     try {
