@@ -34,8 +34,26 @@
   }
 
   /**
-   * Vs digital: + = physical (scanned) heavier than pay weight — flag (amber).
-   * − = physical lighter than digital — green. ~0 blue.
+   * Vs digital (storage scan vs pay weight): + kg = bags heavier than digital;
+   * − kg = bags lighter. Computed as scan − digital (flip of digital − scan).
+   */
+  function vsDigitalKg(scanKg, digitalKg) {
+    return Number(scanKg || 0) - Number(digitalKg || 0);
+  }
+
+  function rowVsDigital(row) {
+    var d = row.digital || {};
+    var sc = row.scanned || {};
+    var scanF = Number(sc.fines_kg || 0) + Number(sc.bulk_fines_kg || 0);
+    return {
+      restaurant_kg: vsDigitalKg(sc.restaurant_kg, d.restaurant_kg),
+      lumpwood_kg: vsDigitalKg(sc.lumpwood_kg, d.lumpwood_kg),
+      fines_kg: vsDigitalKg(scanF, d.fines_kg),
+    };
+  }
+
+  /**
+   * + = physical heavier than digital (amber). − = lighter (green). ~0 blue.
    */
   function varianceColorClass(kg) {
     if (kg == null || kg === "") return "tsv-var--zero";
@@ -76,12 +94,25 @@
   function sumAbsStreamVariance(rows) {
     var total = 0;
     (rows || []).forEach(function (row) {
-      var v = row.variance_kg || {};
-      total += Math.abs(Number(v.restaurant_kg || 0));
-      total += Math.abs(Number(v.lumpwood_kg || 0));
-      total += Math.abs(Number(v.fines_kg || 0));
+      var v = rowVsDigital(row);
+      total += Math.abs(v.restaurant_kg);
+      total += Math.abs(v.lumpwood_kg);
+      total += Math.abs(v.fines_kg);
     });
     return total;
+  }
+
+  function sumVsDigitalByStream(rows) {
+    var r = 0;
+    var l = 0;
+    var f = 0;
+    (rows || []).forEach(function (row) {
+      var v = rowVsDigital(row);
+      r += v.restaurant_kg;
+      l += v.lumpwood_kg;
+      f += v.fines_kg;
+    });
+    return { restaurant_kg: r, lumpwood_kg: l, fines_kg: f };
   }
 
   function fillYearOptions(sel, years, current) {
@@ -121,21 +152,19 @@
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Scale vs intake variance"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       ui.el("strong", {}, ["Digital"]),
-      " (Control Room) is the pay weight. ",
+      " (Control Room) is what you pay on. ",
       ui.el("strong", {}, ["Vs digital"]),
-      " is how much ",
-      ui.el("strong", {}, ["physical scans"]),
-      " differ: we show ",
-      ui.el("strong", {}, ["scanned − digital"]),
-      ", not digital − scanned. Example: 1 243 kg digital and 1 308 kg scanned — digital−scan is −65, but here you read ",
+      ": ",
+      ui.el("strong", {}, ["+ kg"]),
+      " = bags in storage weighed ",
+      ui.el("strong", {}, ["heavier"]),
+      " at scan than digital; ",
+      ui.el("strong", {}, ["− kg"]),
+      " = lighter. Example 1 243 digital, 1 308 scanned → ",
       ui.el("strong", {}, ["+65.0 kg"]),
-      " (bags ",
-      ui.el("strong", {}, ["65 kg heavier"]),
-      " than digital; bag tare / tagging). ",
-      ui.el("strong", {}, ["+"]),
-      " = physical above pay weight. Filters match ",
+      ". Filters match ",
       ui.el("strong", {}, ["Charcoal deliveries"]),
-      ". |Δ| over ",
+      ". |Vs digital| over ",
       ui.el("strong", {}, ["5 kg"]),
       " flags the row.",
     ]));
@@ -186,8 +215,8 @@
 
     function renderSummary(data) {
       summaryHost.innerHTML = "";
-      var s = data.summary || {};
       var rows = data.rows || [];
+      var streamSum = sumVsDigitalByStream(rows);
       var cards = ui.el("div", { class: "truck-scale-variance-cards" });
       cards.appendChild(ui.el("div", { class: "tsv-card" }, [
         ui.el("span", { class: "tsv-card-label" }, ["Trucks in report"]),
@@ -208,9 +237,9 @@
       );
       var rlfVals = ui.el("div", { class: "tsv-card-rlf-lines" });
       [
-        ["R", s.variance_restaurant_kg],
-        ["L", s.variance_lumpwood_kg],
-        ["F", s.variance_fines_kg],
+        ["R", streamSum.restaurant_kg],
+        ["L", streamSum.lumpwood_kg],
+        ["F", streamSum.fines_kg],
       ].forEach(function (pair) {
         var line = ui.el("div", { class: "tsv-card-rlf-line" });
         line.appendChild(ui.el("span", { class: "tsv-card-rlf-key" }, [pair[0]]));
@@ -278,7 +307,7 @@
         var tr = ui.el("tr");
         var d = row.digital || {};
         var sc = row.scanned || {};
-        var v = row.variance_kg || {};
+        var v = rowVsDigital(row);
         var scanF = Number(sc.fines_kg || 0) + Number(sc.bulk_fines_kg || 0);
         appendTextTd(tr, row.booking_date || "", "meta", 0);
         appendTextTd(tr, row.supplier || "", "meta", 1);
