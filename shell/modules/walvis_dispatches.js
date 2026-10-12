@@ -251,13 +251,38 @@
     if (detail.missing_count) {
       summary.appendChild(
         ui.el("p", { class: "walvis-dispatch-missing" }, [
-          ui.el("strong", {}, [String(detail.missing_count) + " bag(s) not yet scanned in Walvis storage"]),
+          ui.el("strong", {}, [
+            String(detail.missing_count) +
+              " on manifest but not yet received at Walvis (Received column empty)",
+          ]),
           detail.missing_bags && detail.missing_bags.length
             ? ": " + detail.missing_bags.slice(0, 12).join(", ") +
               (detail.missing_bags.length > 12 ? "…" : "")
             : "",
         ])
       );
+    }
+    var groundGap = detail.walvis_ground_not_on_manifest || [];
+    if (groundGap.length) {
+      summary.appendChild(
+        ui.el("p", { class: "walvis-dispatch-missing" }, [
+          ui.el("strong", {}, [
+            String(groundGap.length) +
+              " bag(s) in Walvis storage but NOT on this dispatch manifest",
+          ]),
+          " — missed GF load scan; add below with “Add bag to this dispatch”. ",
+          "This is not the same as Bags Status “Unassigned” (that means no manifest anywhere).",
+        ])
+      );
+      var gapList = ui.el(
+        "pre",
+        {
+          style:
+            "white-space:pre-wrap;font-size:12px;max-height:10rem;overflow:auto;margin:0.5rem 0;",
+        },
+        [groundGap.map(function (b) { return b.bag_identifier; }).join("\n")]
+      );
+      summary.appendChild(gapList);
     }
     container.appendChild(summary);
 
