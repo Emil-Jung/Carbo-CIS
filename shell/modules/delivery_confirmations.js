@@ -392,6 +392,20 @@
         detailHost.appendChild(ui.el("p", { class: "delivery-conf-msg is-error" }, [
           "Factory weights are missing — Control Room must POST the capture sheet before PJ can confirm this row.",
         ]));
+      } else if (CIS.validateTrackerTonnes) {
+        var preErr = CIS.validateTrackerTonnes({
+          weight_ton: row.weight_ton,
+          restaurant_ton: row.restaurant_ton,
+          lumpwood_ton: row.lumpwood_ton,
+          fines_ton: row.fines_ton,
+          sand_ash_ton: row.sand_ash_ton,
+          unburned_wood_ton: row.unburned_wood_ton,
+        });
+        if (preErr) {
+          detailHost.appendChild(ui.el("p", { class: "delivery-conf-msg is-error" }, [
+            "Factory weights look wrong — fix tonne columns before Save or mark complete: " + preErr,
+          ]));
+        }
       }
 
       var panel = ui.el("section", { class: "delivery-conf-panel" });
