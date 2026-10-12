@@ -3285,3 +3285,121 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   border: none;
 }
 .delivery-conf-msg.is-error { color: #f87171; }
+
+.deliveries-register-toolbar {
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+}
+.deliveries-register-totals {
+  margin: 12px 0 4px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.deliveries-register-totals-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.deliveries-register-totals-title--ytd {
+  margin-top: 14px;
+  color: var(--muted, #94a3b8);
+}
+.deliveries-register-totals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px 12px;
+}
+.deliveries-register-totals-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.deliveries-register-totals-label {
+  color: var(--muted, #94a3b8);
+  font-size: 11px;
+}
+
+.truck-scale-variance-summary { margin: 12px 0; }
+.truck-scale-variance-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.tsv-card {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.tsv-card--warn {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+}
+.tsv-card-label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted, #94a3b8);
+  margin-bottom: 4px;
+}
+.tsv-card-value { font-size: 15px; }
+.tsv-bar-chart {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.tsv-bar-title { margin: 0 0 10px; font-size: 14px; }
+.tsv-bar-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 100px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.tsv-bar-track {
+  height: 14px;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.tsv-bar-fill {
+  height: 100%;
+  background: #4a86c7;
+  border-radius: 4px;
+}
+.tsv-bar-fill--physical { background: #6aa84f; }
+.truck-scale-variance-table-wrap {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+.truck-scale-variance-table {
+  width: 100%;
+  min-width: 1200px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.truck-scale-variance-table th,
+.truck-scale-variance-table td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: left;
+}
+.truck-scale-variance-table th {
+  background: rgba(74, 134, 199, 0.15);
+  font-weight: 600;
+}
+.tsv-td--num { text-align: right; font-variant-numeric: tabular-nums; }
+.tsv-td--var { font-weight: 600; }
+tr.tsv-row--flagged td {
+  background: rgba(248, 113, 113, 0.12);
+}
+tr.tsv-row--flagged td:last-child {
+  color: #dc2626;
+  font-weight: 600;
+}
