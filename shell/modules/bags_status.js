@@ -1634,7 +1634,7 @@
   }
 
   function walvisDispatchCardLabel(d) {
-    var parts = ["Dispatch #" + d.dispatch_number];
+    var parts = [d.display_label || ("Dispatch #" + d.dispatch_number)];
     if (d.truck_registration) parts.push(d.truck_registration);
     if (d.status === "open") parts.push("(loading open)");
     else if (d.status === "closed") parts.push("(closed)");

@@ -109,11 +109,17 @@
     });
   }
 
+  function dispatchDisplayLabel(d) {
+    if (!d) return "Dispatch";
+    if (d.display_label) return d.display_label;
+    if (d.dispatch_number != null) return "Dispatch #" + d.dispatch_number;
+    return "Dispatch";
+  }
+
   function dispatchOpenLabel(d) {
     if (!d) return "No open dispatch";
     return (
-      "Dispatch #" +
-      d.dispatch_number +
+      dispatchDisplayLabel(d) +
       (d.truck_registration ? " · " + d.truck_registration : "") +
       " — " +
       fmt(d.loaded_bags) +
@@ -151,8 +157,7 @@
     container.className = "module-content walvis-dispatch-host";
 
     var title =
-      "Dispatch #" +
-      detail.dispatch_number +
+      dispatchDisplayLabel(detail) +
       (detail.truck_registration ? " · " + detail.truck_registration : "");
     container.appendChild(ui.el("h2", { class: "module-title" }, [title]));
     container.appendChild(
@@ -494,7 +499,7 @@
     var warn =
       "Switch truck?\n\nThis CLOSES " +
       (openDispatch
-        ? "Dispatch #" + openDispatch.dispatch_number + " (" + openDispatch.loaded_bags + " bags loaded)"
+        ? dispatchDisplayLabel(openDispatch) + " (" + openDispatch.loaded_bags + " bags loaded)"
         : "the current open dispatch") +
       " and opens a NEW dispatch for the next trailer.\n\nCancel = do nothing.";
     if (!window.confirm(warn)) return;
@@ -521,8 +526,8 @@
   async function managerCloseOpen(container, ctx, openDispatch) {
     if (
       !window.confirm(
-        "Close open Dispatch #" +
-          openDispatch.dispatch_number +
+        "Close open " +
+          dispatchDisplayLabel(openDispatch) +
           "?\n\nNo new dispatch will be opened. Shorty must not load more bags until a manager opens the next dispatch.\n\nCancel = do nothing."
       )
     ) {
@@ -700,8 +705,7 @@
           },
         });
         var label =
-          "Dispatch #" +
-          d.dispatch_number +
+          dispatchDisplayLabel(d) +
           (d.truck_registration ? " · " + d.truck_registration : "") +
           (d.status === "open" ? " (loading)" : " (closed)");
         card.appendChild(ui.el("span", { class: "dashboard-tile-title" }, [label]));
