@@ -336,6 +336,93 @@
     addRow.appendChild(addBtn);
     container.appendChild(addRow);
 
+    var mergeRow = ui.el("div", { style: "margin: 1rem 0;" });
+    mergeRow.appendChild(
+      ui.el("p", { class: "muted" }, [
+        "Wrong dispatch number (e.g. bags on Sun #3 that belong on Sat #1)? ",
+        "Merge moves every bag on the other manifest onto this dispatch and closes an empty source.",
+      ])
+    );
+    var mergeBtn = ui.el("button", {
+      type: "button",
+      class: "btn-ghost",
+      style: "max-width: 28rem;",
+    }, ["Merge another dispatch into this one…"]);
+    mergeBtn.addEventListener("click", async function () {
+      mergeBtn.disabled = true;
+      try {
+        var data = await apiGet(ctx, "/walvis-dispatches?limit=50&include_closed=true");
+        var others = (data.dispatches || []).filter(function (d) {
+          return d.id !== detail.id && (d.loaded_bags || 0) > 0;
+        });
+        if (!others.length) {
+          window.alert("No other dispatches with bags on the manifest.");
+          return;
+        }
+        var lines = others
+          .map(function (d, i) {
+            return (
+              String(i + 1) +
+              ". " +
+              dispatchDisplayLabel(d) +
+              " — " +
+              fmt(d.loaded_bags) +
+              " loaded"
+            );
+          })
+          .join("\n");
+        var pick = window.prompt(
+          "Merge which dispatch into " +
+            dispatchDisplayLabel(detail) +
+            "?\n\n" +
+            lines +
+            "\n\nEnter the number (1–" +
+            others.length +
+            "), or Cancel."
+        );
+        if (pick === null || !String(pick).trim()) return;
+        var idx = parseInt(String(pick).trim(), 10) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= others.length) {
+          window.alert("Invalid choice.");
+          return;
+        }
+        var source = others[idx];
+        if (
+          !window.confirm(
+            "Move all " +
+              source.loaded_bags +
+              " bag(s) from " +
+              dispatchDisplayLabel(source) +
+              " onto " +
+              dispatchDisplayLabel(detail) +
+              "?\n\nBags already in Walvis will be marked received on this manifest.\n\nCancel = stop."
+          )
+        ) {
+          return;
+        }
+        var updated = await apiPost(
+          ctx,
+          "/walvis-dispatches/" +
+            encodeURIComponent(detail.id) +
+            "/merge-from/" +
+            encodeURIComponent(source.id),
+          {}
+        );
+        window.alert(
+          "Merged " +
+            (updated.merged_bag_count || source.loaded_bags) +
+            " bag(s). Refresh Bags Status to see one dispatch tile."
+        );
+        renderDetail(container, ctx, updated);
+      } catch (e) {
+        window.alert(e.message || String(e));
+      } finally {
+        mergeBtn.disabled = false;
+      }
+    });
+    mergeRow.appendChild(mergeBtn);
+    container.appendChild(mergeRow);
+
     var table = ui.el("table", { class: "data-table walvis-dispatch-table" });
     var thead = ui.el("thead");
     thead.appendChild(

@@ -1670,8 +1670,10 @@
   function walvisDispatchCardLabel(d) {
     var parts = [walvisDispatchDisplayLabel(d)];
     if (d.truck_registration) parts.push(d.truck_registration);
-    if (d.status === "open") parts.push("(loading at GF)");
-    else if (d.status === "closed") parts.push("(closed)");
+    if (d.status === "open") {
+      if ((d.bags_in_storage || 0) > 0) parts.push("(open — bags at Walvis)");
+      else parts.push("(loading at GF)");
+    } else if (d.status === "closed") parts.push("(closed)");
     return parts.join(" · ");
   }
 
