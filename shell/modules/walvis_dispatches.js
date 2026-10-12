@@ -112,6 +112,34 @@
   function dispatchDisplayLabel(d) {
     if (!d) return "Dispatch";
     if (d.display_label) return d.display_label;
+    var idx =
+      d.dispatch_day_index != null && d.dispatch_day_index !== ""
+        ? d.dispatch_day_index
+        : d.dispatch_number;
+    if (d.opened_at) {
+      try {
+        var dt = new Date(d.opened_at);
+        var wd = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Africa/Windhoek",
+          weekday: "short",
+        }).format(dt);
+        var day = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Africa/Windhoek",
+          day: "2-digit",
+        }).format(dt);
+        var mon = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Africa/Windhoek",
+          month: "2-digit",
+        }).format(dt);
+        var yr = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Africa/Windhoek",
+          year: "2-digit",
+        }).format(dt);
+        return "Dispatch " + wd + " " + day + "-" + mon + "-" + yr + " #" + idx;
+      } catch (e) {
+        /* fall through */
+      }
+    }
     if (d.dispatch_number != null) return "Dispatch #" + d.dispatch_number;
     return "Dispatch";
   }

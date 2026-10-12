@@ -1633,12 +1633,54 @@
     block.appendChild(row);
   }
 
+  function walvisDispatchDisplayLabel(d) {
+    if (!d) return "Dispatch";
+    if (d.display_label) return d.display_label;
+    var idx =
+      d.dispatch_day_index != null && d.dispatch_day_index !== ""
+        ? d.dispatch_day_index
+        : d.dispatch_number;
+    if (d.opened_at) {
+      try {
+        var dt = new Date(d.opened_at);
+        var wd = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Africa/Windhoek",
+          weekday: "short",
+        }).format(dt);
+        var day = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Africa/Windhoek",
+          day: "2-digit",
+        }).format(dt);
+        var mon = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Africa/Windhoek",
+          month: "2-digit",
+        }).format(dt);
+        var yr = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Africa/Windhoek",
+          year: "2-digit",
+        }).format(dt);
+        return "Dispatch " + wd + " " + day + "-" + mon + "-" + yr + " #" + idx;
+      } catch (e) {
+        /* fall through */
+      }
+    }
+    return "Dispatch #" + (d.dispatch_number != null ? d.dispatch_number : "?");
+  }
+
   function walvisDispatchCardLabel(d) {
-    var parts = [d.display_label || ("Dispatch #" + d.dispatch_number)];
+    var parts = [walvisDispatchDisplayLabel(d)];
     if (d.truck_registration) parts.push(d.truck_registration);
-    if (d.status === "open") parts.push("(loading open)");
+    if (d.status === "open") parts.push("(loading at GF)");
     else if (d.status === "closed") parts.push("(closed)");
     return parts.join(" · ");
+  }
+
+  function walvisDispatchTileBags(d) {
+    var inStore = d.bags_in_storage || 0;
+    if (inStore > 0) return inStore;
+    if (d.status === "open" && (d.loaded_bags || 0) > 0) return d.loaded_bags;
+    if (d.loading_at_grootfontein && (d.loaded_bags || 0) > 0) return d.loaded_bags;
+    return inStore;
   }
 
   function renderWalvisStorageDispatchHub(parent, report, palletBucket, ui, onSelect) {
@@ -1649,9 +1691,11 @@
         "The ",
         ui.el("strong", {}, ["In transit — truck to Walvis Bay"]),
         " tile is separate — those bags are still on the road. ",
-        "To start the next Grootfontein load (e.g. Dispatch #2), use ",
+        "Open loads at Grootfontein appear here with ",
+        ui.el("strong", {}, ["(loading at GF)"]),
+        " even before bags are in Walvis storage. Use ",
         ui.el("strong", {}, ["Walvis dispatches"]),
-        " → Open dispatch for Shorty (only one open manifest at a time).",
+        " to open or switch trucks.",
       ])
     );
 
@@ -1665,7 +1709,7 @@
             key: "walvis:dispatch:" + d.id,
             kind: "walvis_dispatch_select",
             label: walvisDispatchCardLabel(d),
-            bags: d.bags_in_storage || 0,
+            bags: walvisDispatchTileBags(d),
             kg: d.kg_in_storage || 0,
             streams: {},
             dispatch: d,
