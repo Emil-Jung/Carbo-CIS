@@ -33,6 +33,18 @@
     return (n >= 0 ? "+" : "") + n.toFixed(1) + " kg";
   }
 
+  /** Sum of |Δ R|+|Δ L|+|Δ F| across rows — stream gaps (table), not net truck total. */
+  function sumAbsStreamVariance(rows) {
+    var total = 0;
+    (rows || []).forEach(function (row) {
+      var v = row.variance_kg || {};
+      total += Math.abs(Number(v.restaurant_kg || 0));
+      total += Math.abs(Number(v.lumpwood_kg || 0));
+      total += Math.abs(Number(v.fines_kg || 0));
+    });
+    return total;
+  }
+
   function fillYearOptions(sel, years, current) {
     sel.innerHTML = "";
     sel.appendChild(CIS.ui.el("option", { value: "all" }, ["All years"]));
@@ -125,6 +137,7 @@
     function renderSummary(data) {
       summaryHost.innerHTML = "";
       var s = data.summary || {};
+      var rows = data.rows || [];
       var cards = ui.el("div", { class: "truck-scale-variance-cards" });
       cards.appendChild(ui.el("div", { class: "tsv-card" }, [
         ui.el("span", { class: "tsv-card-label" }, ["Trucks in report"]),
@@ -155,9 +168,31 @@
       summaryHost.appendChild(cards);
 
       var barWrap = ui.el("div", { class: "tsv-bar-chart" });
-      barWrap.appendChild(ui.el("h3", { class: "tsv-bar-title" }, ["Digital vs physical (compare) truck totals"]));
       var digital = Number(s.digital_truck_total_kg || 0);
       var physical = Number(s.physical_truck_compare_kg || 0);
+      var truckNetVar =
+        s.variance_truck_total_kg != null ? Number(s.variance_truck_total_kg) : digital - physical;
+      var absStream = sumAbsStreamVariance(rows);
+      var titleRow = ui.el("div", { class: "tsv-bar-head" });
+      titleRow.appendChild(
+        ui.el("h3", { class: "tsv-bar-title" }, ["Digital vs physical (compare) truck totals"])
+      );
+      titleRow.appendChild(
+        ui.el("span", { class: "tsv-bar-variance" + (Math.abs(truckNetVar) > 5 ? " tsv-bar-variance--warn" : "") }, [
+          "Net gap: ",
+          fmtVar(truckNetVar),
+        ])
+      );
+      barWrap.appendChild(titleRow);
+      barWrap.appendChild(
+        ui.el("p", { class: "muted tsv-bar-help" }, [
+          "Blue and green bars are the sum of truck-scale weight vs sum of scanned restaurant/lumpwood/fines plus digital sand & ash and unburned (same as column “Physical+cmp” and “Δ truck”). ",
+          "Columns Δ R / Δ L / Δ F compare digital streams to scanned bags only — they do not include waste and can be large on one stream while the truck total still matches. ",
+          absStream > 0
+            ? "Σ |Δ R|+|Δ L|+|Δ F| for this filter: " + fmtVar(absStream) + " (absolute stream disagreement)."
+            : "",
+        ])
+      );
       var max = Math.max(digital, physical, 1);
       ["Digital (scale)", "Scanned R/L/F + digital waste"].forEach(function (label, i) {
         var val = i === 0 ? digital : physical;

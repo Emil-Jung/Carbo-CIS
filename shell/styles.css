@@ -3426,7 +3426,27 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   border-radius: 8px;
   background: var(--panel);
 }
-.tsv-bar-title { margin: 0 0 10px; font-size: 14px; }
+.tsv-bar-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+.tsv-bar-title { margin: 0; font-size: 14px; }
+.tsv-bar-variance {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #e2e8f0);
+}
+.tsv-bar-variance--warn { color: #fbbf24; }
+.tsv-bar-help {
+  margin: 0 0 12px;
+  font-size: 11px;
+  line-height: 1.45;
+  max-width: 72rem;
+}
 .tsv-bar-row {
   display: grid;
   grid-template-columns: 120px 1fr 100px;
