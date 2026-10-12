@@ -8,14 +8,14 @@
 
   /** Matches 2026 Carbo Charcoal Tracker — Deliveries (cols A–U + Remarks). */
   var ROW1 = [
-    { key: "booking_date", label: "Booking Date", readOnly: true },
-    { key: "supplier", label: "Supplier", readOnly: true },
+    { key: "booking_date", label: "Booking Date", patchKey: "booking_date", inputType: "date" },
+    { key: "supplier", label: "Supplier", patchKey: "supplier" },
     { key: "contact_number", label: "Contact Number", patchKey: "contact_number" },
-    { key: "fsc_flag", label: "F", readOnly: true },
-    { key: "grn", label: "GRN", readOnly: true },
-    { key: "permit_no", label: "Permit No.", readOnly: true },
-    { key: "transporter", label: "Transporter", readOnly: true },
-    { key: "truck_reg", label: "Truck Reg. No.", readOnly: true },
+    { key: "fsc_flag", label: "F (f=FSC, n=non-FSC)", patchKey: "fsc_flag", inputType: "text" },
+    { key: "grn", label: "GRN", patchKey: "grn" },
+    { key: "permit_no", label: "Permit No.", patchKey: "permit_no" },
+    { key: "transporter", label: "Transporter", patchKey: "transporter" },
+    { key: "truck_reg", label: "Truck Reg. No.", patchKey: "truck_reg" },
     { key: "distance_km", label: "Distance from Factory (Km)", patchKey: "distance_km", inputType: "number" },
   ];
 
@@ -144,7 +144,7 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Delivery Confirmations"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Charcoal Tracker — Deliveries. All weights are tonnes (t), 3 decimals — same as the spreadsheet. Factory POST pre-fills; PJ fixes mistakes here (re-POST is not possible after the next truck). Mark complete to feed the restaurant report (server DB). Export CSV or XLSX anytime.",
+      "Charcoal Tracker — Deliveries. Factory POST pre-fills the row; PJ can edit any column (GRN, F, weights, etc.) to fix Control Room mistakes — re-POST is not possible after the next truck. Mark complete to feed the restaurant report. Export CSV or XLSX anytime.",
     ]));
     var statusTabs = ui.el("div", { class: "delivery-conf-tabs" });
     var tabPending = ui.el("button", { type: "button", class: "delivery-conf-tab delivery-conf-tab--active" }, ["Pending"]);
@@ -380,7 +380,9 @@
       var tonInputs = {};
       var locked = row.office_status === "complete";
 
-      panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, ["Truck & supplier (from Control Room discharge)"]));
+      panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, [
+        "Truck & supplier — edit if Control Room discharge/POST had wrong values",
+      ]));
       panel.appendChild(buildFieldGrid(ui, ROW1, row, inputs, locked));
 
       panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, [
@@ -476,9 +478,20 @@
 
       function buildPatch(markComplete) {
         var payload = {};
-        if (inputs.contact_number) {
-          payload.contact_number = inputs.contact_number.value.trim() || null;
-        }
+        [
+          "booking_date",
+          "supplier",
+          "contact_number",
+          "fsc_flag",
+          "grn",
+          "permit_no",
+          "transporter",
+          "truck_reg",
+        ].forEach(function (key) {
+          if (inputs[key]) {
+            payload[key] = inputs[key].value.trim() || null;
+          }
+        });
         if (inputs.distance_km) {
           var d = inputs.distance_km.value.trim();
           payload.distance_km = d === "" ? null : num(d);
