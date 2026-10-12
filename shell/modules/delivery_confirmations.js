@@ -423,9 +423,8 @@
         ]));
       }
 
-      /** Plain text (no number spinners); auto-filled from Weight (t), PJ can override. */
-      var shortageLockedByUser =
-        row.shortage_on_tonnage != null && row.shortage_on_tonnage !== "";
+      /** True only after PJ saved a value to the database (not the API suggestion). */
+      var shortageLockedByUser = row.penalty_shortage_saved === true;
       var shortageInput = ui.el("input", {
         type: "text",
         class: "delivery-conf-input delivery-conf-input--ton delivery-conf-input--decimal",
@@ -457,28 +456,36 @@
         return suggestedPenaltyShortageTon(currentWeightTon());
       }
 
-      function applyAutoShortageToField() {
-        if (locked || shortageLockedByUser) return;
+      function syncShortageInputFromWeight() {
+        if (locked || shortageLockedByUser) {
+          if (shortageLockedByUser && row.shortage_on_tonnage != null) {
+            shortageInput.value = fmtTon(row.shortage_on_tonnage);
+          }
+          return;
+        }
         var s = calculatedShortageTon();
-        if (s != null) shortageInput.value = fmtTon(s);
+        if (s == null && row.suggested_penalty_shortage_ton != null) {
+          s = num(row.suggested_penalty_shortage_ton);
+        }
+        shortageInput.value = s != null ? fmtTon(s) : "";
       }
 
       function refreshDerived() {
-        applyAutoShortageToField();
+        syncShortageInputFromWeight();
         var calc = sheetRowFromInputs(tonInputs, row);
         var w = currentWeightTon();
         var calculated = calculatedShortageTon();
         shortageHint.textContent =
           w != null
-            ? "Calculated: max(0, " +
+            ? "Auto: max(0, " +
               MIN_LOAD_TON +
               " − " +
               fmtTon(w) +
               ") = " +
               (calculated != null ? fmtTon(calculated) + " t" : "—") +
               (shortageLockedByUser
-                ? " — saved or edited by you; change this box (e.g. 0 for no penalty)."
-                : " — updates when Weight (t) changes. Type 0 for no penalty.")
+                ? " — saved value; edit this box (e.g. 0 for no penalty)."
+                : " — changes with Weight (t). Type 0 for no penalty.")
             : "Enter Weight (t) to calculate shortage (minimum load " + MIN_LOAD_TON + " t).";
         var shortageVal =
           shortageInput.value.trim() !== "" ? num(shortageInput.value) : calculated;
@@ -488,22 +495,14 @@
         });
       }
 
-      if (shortageLockedByUser) {
-        shortageInput.value = fmtTon(row.shortage_on_tonnage);
-      } else {
-        var initS = calculatedShortageTon();
-        if (initS == null && row.suggested_penalty_shortage_ton != null) {
-          initS = num(row.suggested_penalty_shortage_ton);
-        }
-        shortageInput.value = initS != null ? fmtTon(initS) : "";
-      }
+      syncShortageInputFromWeight();
 
       var shortageField = ui.el("label", { class: "delivery-conf-field delivery-conf-field--shortage" });
       shortageField.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, ["Shortage on Tonnage (t)"]));
       var shortageRow = ui.el("div", { class: "delivery-conf-shortage-row" });
       shortageRow.appendChild(shortageInput);
       shortageRow.appendChild(
-        ui.el("span", { class: "delivery-conf-penalty-nad-label" }, ["Penalty (PJ only): "])
+        ui.el("span", { class: "delivery-conf-penalty-nad-label" }, ["Penalty: "])
       );
       shortageRow.appendChild(shortageNadEl);
       shortageField.appendChild(shortageRow);
@@ -585,7 +584,12 @@
           payload[key] = raw === "" ? null : num(raw);
         });
         var shRaw = shortageInput.value.trim();
-        payload.shortage_on_tonnage = shRaw === "" ? null : num(shRaw);
+        if (shRaw !== "") {
+          payload.shortage_on_tonnage = num(shRaw);
+        } else {
+          var autoSh = calculatedShortageTon();
+          payload.shortage_on_tonnage = autoSh != null ? autoSh : null;
+        }
         if (inputs.remarks) payload.remarks = inputs.remarks.value.trim() || null;
         if (markComplete) payload.mark_complete = true;
         return payload;
