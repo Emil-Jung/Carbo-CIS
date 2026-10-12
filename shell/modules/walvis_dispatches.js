@@ -741,11 +741,25 @@
       }
       deleteBtn.disabled = true;
       try {
-        var result = await apiPost(
-          ctx,
-          "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/delete",
-          { confirm: token }
-        );
+        var result;
+        try {
+          result = await apiPost(
+            ctx,
+            "/walvis-dispatches/by-number/" + encodeURIComponent(num) + "/delete",
+            { confirm: token }
+          );
+        } catch (eByNum) {
+          var msg = eByNum && eByNum.message ? String(eByNum.message) : "";
+          if (detail.id && (msg.indexOf("404") >= 0 || /not found/i.test(msg))) {
+            result = await apiPost(
+              ctx,
+              "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/delete",
+              { confirm: token }
+            );
+          } else {
+            throw eByNum;
+          }
+        }
         window.alert(
           "Deleted " +
             (result.display_label || "dispatch #" + result.dispatch_number) +
@@ -755,7 +769,12 @@
         );
         renderList(container, ctx);
       } catch (e) {
-        window.alert(e.message || String(e));
+        var errText = e.message || String(e);
+        if (/not found/i.test(errText)) {
+          errText +=
+            "\n\nIf this persists, the traceability API on bkweb3 may need a restart to load the delete endpoint.";
+        }
+        window.alert(errText);
       } finally {
         deleteBtn.disabled = false;
       }
@@ -1040,6 +1059,7 @@
 
   async function renderList(container, ctx) {
     var ui = CIS.ui;
+    clearWalvisFloatingBack(ctx);
     container.innerHTML = "";
     container.className = "module-content walvis-dispatch-host";
 
