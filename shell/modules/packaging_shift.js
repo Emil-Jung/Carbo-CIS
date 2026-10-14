@@ -128,12 +128,6 @@
     );
 
     var productHost = ui.el("div", { class: "packaging-shift-products" });
-    var notesInput = ui.el("textarea", {
-      rows: "2",
-      placeholder: "Optional notes for supervisors and the floor",
-      autocomplete: "off",
-      class: "input",
-    });
     var activateNow = ui.el("input", { type: "checkbox", id: "packaging-shift-activate-now" });
     activateNow.checked = true;
 
@@ -167,10 +161,6 @@
     );
     form.appendChild(activateBlock);
 
-    form.appendChild(ui.el("label", { class: "ct-field" }, [
-      ui.el("span", { class: "ct-field-label" }, ["Notes"]),
-      notesInput,
-    ]));
     var saveBtn = ui.el("button", { class: "btn", type: "submit" }, ["Save shift"]);
     form.appendChild(saveBtn);
     formSection.appendChild(form);
@@ -194,7 +184,6 @@
       productHost.querySelectorAll("input[type=checkbox]").forEach(function (cb) {
         cb.disabled = busy;
       });
-      notesInput.disabled = busy;
       activateNow.disabled = busy;
       panelBodies.forEach(function (body) {
         body.querySelectorAll("button").forEach(function (btn) {
@@ -457,11 +446,9 @@
           method: "POST",
           body: {
             product_codes: codes,
-            notes: notesInput.value.trim() || null,
             activate: activateNow.checked,
           },
         });
-        notesInput.value = "";
         await load();
         setStatus(
           activateNow.checked ? "Shift saved and active on scanners." : "Shift saved (scheduled).",
