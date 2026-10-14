@@ -798,7 +798,7 @@
             (active.product_codes || []).join(", ") || active.title || "Shift in progress";
         } else {
           shiftCard.primaryEl.textContent = "None active";
-          shiftCard.detailEl.textContent = "Start a shift when Candy / wrap should scan scheduled SKUs.";
+          shiftCard.detailEl.textContent = "Start a shift when packaging should scan scheduled SKUs.";
         }
       } catch (e) {
         shiftCard.primaryEl.textContent = "Unavailable";
