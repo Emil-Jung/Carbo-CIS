@@ -15,6 +15,19 @@
     return Number(n).toLocaleString();
   }
 
+  var FSC_BAG_POLICIES = [
+    { value: "fsc_only", label: "FSC only" },
+    { value: "non_fsc_only", label: "Non-FSC only" },
+    { value: "mixed", label: "Mixed FSC & non-FSC" },
+  ];
+
+  function fscPolicyLabel(code) {
+    var found = FSC_BAG_POLICIES.filter(function (o) {
+      return o.value === code;
+    })[0];
+    return (found && found.label) || code || "—";
+  }
+
   function render(container, ctx) {
     var ui = CIS.ui;
     var products = [];
@@ -73,6 +86,10 @@
       var prodPackInput = ui.el("input", { class: "input", type: "number", min: "0.001", step: "0.001" });
       var activeInput = ui.el("input", { type: "checkbox" });
       activeInput.checked = true;
+      var fscSel = ui.el("select", { class: "input" });
+      FSC_BAG_POLICIES.forEach(function (opt) {
+        fscSel.appendChild(ui.el("option", { value: opt.value }, [opt.label]));
+      });
 
       if (product) {
         nameInput.value = product.name || "";
@@ -89,6 +106,9 @@
         prodPackInput.value =
           product.production_pack_weight_kg != null ? String(product.production_pack_weight_kg) : "";
         activeInput.checked = product.active !== false;
+        fscSel.value = product.fsc_bag_policy || "mixed";
+      } else {
+        fscSel.value = "mixed";
       }
 
       function field(label, control, hint) {
@@ -108,6 +128,13 @@
       el.appendChild(field("Production pallet target (kg)", prodPalletInput, "Kg accumulated before one pallet is complete."));
       el.appendChild(field("Commercial pallet weight (kg)", commercialInput, "Optional nominal weight for reports."));
       el.appendChild(field("Production pack weight (kg)", prodPackInput, "Optional — when fill weight differs from declared retail (e.g. LF4)."));
+      el.appendChild(
+        field(
+          "Source bags (FSC)",
+          fscSel,
+          "Which jumbos may be scanned into this SKU at Candy / wrap. LF lines are typically FSC only."
+        )
+      );
       el.appendChild(field("Active", activeInput, "Inactive products are hidden from scanners but history is kept."));
 
       var actions = ui.el("div", { class: "pallet-config-form-actions" });
@@ -134,6 +161,7 @@
           production_pallet_weight_kg: parseFloat(prodPalletInput.value),
           client_name: clientInput.value.trim() || null,
           active: activeInput.checked,
+          fsc_bag_policy: fscSel.value,
         };
         var commercial = commercialInput.value.trim();
         if (commercial) payload.commercial_pallet_weight_kg = parseFloat(commercial);
@@ -177,7 +205,7 @@
       table.innerHTML =
         "<thead><tr>" +
         "<th>Code</th><th>Name</th><th>Client</th>" +
-        "<th>Retail</th><th>Bags</th><th>Production target</th><th>Status</th><th></th>" +
+        "<th>Source FSC</th><th>Retail</th><th>Bags</th><th>Production target</th><th>Status</th><th></th>" +
         "</tr></thead>";
       var tbody = ui.el("tbody");
       products.forEach(function (p) {
@@ -187,6 +215,7 @@
           "<td><strong>" + ui.escape(p.product_code) + "</strong></td>" +
           "<td>" + ui.escape(p.name || "—") + "</td>" +
           "<td>" + ui.escape(p.client_name || "—") + "</td>" +
+          "<td>" + ui.escape(p.fsc_bag_policy_label || fscPolicyLabel(p.fsc_bag_policy)) + "</td>" +
           "<td>" + ui.escape(fmtKg(p.retail_bag_weight_kg)) + "</td>" +
           "<td>" + ui.escape(fmtNum(p.bags_per_pallet)) + "</td>" +
           "<td>" + ui.escape(fmtKg(p.production_target_kg)) + "</td>" +
