@@ -86,7 +86,7 @@
         ui.el("h2", { class: "bs-dash-title" }, ["Day scan log"]),
         ui.el("p", { class: "bs-dash-lead" }, [
           "Every bag movement scan for one Windhoek day (sieve Charcoal Intake is excluded). ",
-          "Newest on top — use packaging filters to compare jumbo consumed vs pallets wrapped (wastage). ",
+          "Newest on top — use packaging filters to compare bulk bag consumed vs pallets wrapped (wastage). ",
           "Gap column = time since the previous scan; long gaps often mark a new truck batch.",
         ]),
       ])
@@ -171,13 +171,13 @@
       );
       panel.appendChild(
         ui.el("p", { class: "bs-dash-drill-note" }, [
-          "Consumed jumbo kg vs pallet output kg — variance near zero suggests full yield; negative means more in than pallets out (same day).",
+          "Consumed bulk bag kg vs pallet output kg — variance near zero suggests full yield; negative means more in than pallets out (same day).",
         ])
       );
       var wrap = ui.el("div", { class: "bs-dash-table-wrap" });
       var table = ui.el("table", { class: "bs-dash-table wdsl-table" });
       var hr = ui.el("tr", {});
-      ["SKU", "Jumbo consumed (kg)", "Pallet output (kg)", "Variance (kg)"].forEach(function (h) {
+      ["SKU", "Bulk bag consumed (kg)", "Pallet output (kg)", "Variance (kg)"].forEach(function (h) {
         hr.appendChild(ui.el("th", {}, [h]));
       });
       table.appendChild(ui.el("thead", {}, [hr]));

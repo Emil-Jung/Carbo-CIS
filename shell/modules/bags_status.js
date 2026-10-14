@@ -1708,7 +1708,7 @@
     report = report || { dispatches: [], unassigned: {}, pallets: {} };
     parent.appendChild(
       ui.el("p", { class: "bs-dash-drill-note" }, [
-        "Bulk jumbos on the ground are grouped by ",
+        "Bulk bags on the ground are grouped by ",
         ui.el("strong", {}, ["dispatch manifest"]),
         " (one tile per truck run), then by category. Each tile shows ",
         ui.el("strong", {}, ["Loaded / Received"]),

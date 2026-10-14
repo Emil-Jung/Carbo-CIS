@@ -33,6 +33,19 @@
     var status = ui.el("p", { class: "muted packaging-shift-status" }, [""]);
     container.appendChild(status);
 
+    var busyOverlay = ui.el("div", {
+      class: "packaging-shift-busy-overlay",
+      hidden: true,
+      "aria-live": "polite",
+      "aria-busy": "true",
+    }, [
+      ui.el("div", { class: "packaging-shift-busy-card" }, [
+        ui.el("p", { class: "packaging-shift-busy-title" }, ["Working…"]),
+        ui.el("p", { class: "packaging-shift-busy-detail" }, [""]),
+      ]),
+    ]);
+    container.appendChild(busyOverlay);
+
     var shiftsSection = ui.el("section", { class: "packaging-shift-section" });
     shiftsSection.appendChild(
       ui.el("h3", { class: "print-labels-panel-title" }, ["Shifts on the floor"])
@@ -144,7 +157,20 @@
       });
       notesInput.disabled = busy;
       activateNow.disabled = busy;
-      if (busy) setStatus(message || "Please wait…", false, true);
+      shiftsBody.querySelectorAll("button").forEach(function (btn) {
+        btn.disabled = busy;
+      });
+      toggle.disabled = busy;
+      var detail = busyOverlay.querySelector(".packaging-shift-busy-detail");
+      if (busy) {
+        var text = message || "Please wait…";
+        if (detail) detail.textContent = text;
+        busyOverlay.hidden = false;
+        setStatus(text, false, true);
+      } else {
+        busyOverlay.hidden = true;
+        if (detail) detail.textContent = "";
+      }
     }
 
     function paintProductChecks() {
@@ -331,7 +357,9 @@
         setStatus("Select at least one product for this shift.", true, false);
         return;
       }
-      var msg = activateNow.checked ? "Saving and activating shift…" : "Saving shift…";
+      var msg = activateNow.checked
+        ? "Activating shift on scanners — please wait…"
+        : "Saving shift — please wait…";
       setBusy(true, msg);
       try {
         await ctx.api.traceability("/packaging-shifts", {
