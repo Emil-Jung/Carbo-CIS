@@ -201,10 +201,10 @@
   }
 
   function timerText(row) {
+    if (row.weathered) return "Weathered — " + weatheredAtText(row);
     if (row.effective_status === "in_storage_weathering") {
       return String(row.days_remaining) + " days left";
     }
-    if (row.weathered) return weatheredAtText(row);
     return "—";
   }
 

@@ -308,31 +308,21 @@
     var isWeathered = !!(row && row.weathered) || (days !== null && days !== undefined && Number(days) <= 0);
 
     if (isWeathered) {
-
-      var when = formatWeatheredAt(row);
-
-      parts.push("Weathered — " + when);
-
+      parts.push("Weathered — " + formatWeatheredAt(row));
       return parts.join(" · ");
-
     }
 
     if (days === null || days === undefined) {
-
       return parts.length ? parts.join(" · ") : "—";
-
     }
 
     days = Number(days);
 
     if (days > 0) {
-
       parts.push(days + (days === 1 ? " day left" : " days left"));
-
     }
 
     var endLabel = fmtWeatherEndDate(row.weathering_end_date);
-
     if (endLabel) parts.push("ends " + endLabel);
 
     return parts.join(" · ");
