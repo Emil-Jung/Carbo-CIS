@@ -109,6 +109,11 @@
         fscSel.value = product.fsc_bag_policy || "mixed";
       } else {
         fscSel.value = "mixed";
+        codeInput.addEventListener("input", function () {
+          if (codeInput.value.trim().toUpperCase().indexOf("LF") === 0) {
+            fscSel.value = "fsc_only";
+          }
+        });
       }
 
       function field(label, control, hint) {
