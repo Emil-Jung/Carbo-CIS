@@ -138,7 +138,7 @@
         field(
           "Source bags (FSC)",
           fscSel,
-          "Which jumbos may be scanned into this SKU at Candy / wrap. LF lines are typically FSC only."
+          "Which bulk bags may be scanned into this SKU at Candy / wrap. LF lines are typically FSC only."
         )
       );
       el.appendChild(field("Active", activeInput, "Inactive products are hidden from scanners but history is kept."));

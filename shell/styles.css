@@ -3642,3 +3642,11 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .packaging-shift-actions { white-space: nowrap; }
 .packaging-shift-actions .btn-sm { margin-right: 0.35rem; margin-bottom: 0.25rem; }
 .packaging-shift-table { margin-top: 0.25rem; }
+.packaging-shift-status--busy {
+  padding: 0.65rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--gold, #c9a227);
+  background: rgba(201, 162, 39, 0.15);
+  color: var(--text, #e2e8f0);
+  font-weight: 600;
+}

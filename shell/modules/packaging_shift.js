@@ -7,6 +7,7 @@
   var STATUS_LABEL = {
     scheduled: "Scheduled (not on scanners yet)",
     active: "Active on scanners",
+    paused: "Paused (off scanners until resumed)",
     completed: "Completed",
     cancelled: "Cancelled",
   };
@@ -24,7 +25,7 @@
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
         "Tell Candy and wrap which pallet SKUs may be used today. ",
-        "Only the ticked products appear when assigning jumbos to a pool or creating a pallet. ",
+        "Only the ticked products appear when assigning bulk bags to a pool or creating a pallet. ",
         "Bag Walk storage steps are not limited — this applies to packaging product buttons only.",
       ])
     );
@@ -38,8 +39,8 @@
     );
     shiftsSection.appendChild(
       ui.el("p", { class: "muted packaging-shift-section-hint" }, [
-        "At most one shift is active. While active, scanners show only its SKUs. ",
-        "Scheduled shifts wait until you press Activate.",
+        "Several shifts can be active at once — scanners show the combined ticked SKUs. ",
+        "Pause a shift to take it off scanners without completing it. Only Complete closes a shift.",
       ])
     );
     var activeBanner = ui.el("p", {
@@ -103,8 +104,8 @@
     );
     activateBlock.appendChild(
       ui.el("p", { class: "muted packaging-shift-activate-hint" }, [
-        "When ticked: this shift goes live now and replaces any current active shift. ",
-        "Only the products you ticked above become available on scanners — not the whole catalog.",
+        "When ticked: this shift goes live on scanners as soon as it is saved. ",
+        "Other active shifts stay active — scanners show the union of all active SKUs.",
       ])
     );
     activateBlock.appendChild(
@@ -119,15 +120,31 @@
       ui.el("span", { class: "ct-field-label" }, ["Notes"]),
       notesInput,
     ]));
-    form.appendChild(
-      ui.el("button", { class: "btn", type: "submit" }, ["Save shift"])
-    );
+    var saveBtn = ui.el("button", { class: "btn", type: "submit" }, ["Save shift"]);
+    form.appendChild(saveBtn);
     formSection.appendChild(form);
     container.appendChild(formSection);
 
-    function setStatus(text, isError) {
+    var busy = false;
+
+    function setStatus(text, isError, isBusy) {
       status.textContent = text || "";
-      status.className = (isError ? "error-box" : "muted") + " packaging-shift-status";
+      var cls = "packaging-shift-status";
+      if (isBusy) cls += " packaging-shift-status--busy";
+      else if (isError) cls += " error-box";
+      else cls += " muted";
+      status.className = cls;
+    }
+
+    function setBusy(on, message) {
+      busy = !!on;
+      saveBtn.disabled = busy;
+      productHost.querySelectorAll("input[type=checkbox]").forEach(function (cb) {
+        cb.disabled = busy;
+      });
+      notesInput.disabled = busy;
+      activateNow.disabled = busy;
+      if (busy) setStatus(message || "Please wait…", false, true);
     }
 
     function paintProductChecks() {
@@ -156,31 +173,48 @@
       return codes;
     }
 
-    async function act(shiftId, payload, describe) {
+    async function act(shiftId, payload, describe, busyMsg) {
+      if (busy) return;
       if (!window.confirm(describe + "?")) return;
+      setBusy(true, busyMsg || "Updating shift…");
       try {
         await ctx.api.traceability("/packaging-shifts/" + encodeURIComponent(shiftId), {
           method: "PATCH",
           body: payload,
         });
         await load();
+        setStatus("Shift updated.", false, false);
       } catch (e) {
-        setStatus("Could not update: " + (e.message || e), true);
+        setStatus("Could not update: " + (e.message || e), true, false);
+      } finally {
+        setBusy(false);
       }
     }
 
     function paintActiveBanner() {
-      var active = shifts.filter(function (s) {
+      var actives = shifts.filter(function (s) {
         return s.status === "active";
-      })[0];
-      if (!active) {
+      });
+      if (!actives.length) {
         activeBanner.hidden = true;
         activeBanner.textContent = "";
         return;
       }
+      var skuSet = {};
+      actives.forEach(function (s) {
+        (s.product_codes || []).forEach(function (c) {
+          skuSet[c] = true;
+        });
+      });
+      var skus = Object.keys(skuSet).sort();
       activeBanner.hidden = false;
       activeBanner.textContent =
-        "Active now on scanners: " + (active.product_codes || []).join(", ");
+        "On scanners now (" +
+        actives.length +
+        " active shift" +
+        (actives.length === 1 ? "" : "s") +
+        "): " +
+        skus.join(", ");
     }
 
     function paintShifts() {
@@ -207,7 +241,7 @@
           ui.escape(STATUS_LABEL[s.status] || s.status) +
           "</td>";
         var actions = ui.el("td", { class: "packaging-shift-actions" });
-        if (s.status === "scheduled") {
+        if (s.status === "scheduled" || s.status === "paused") {
           actions.appendChild(
             ui.el("button", {
               class: "btn btn-sm",
@@ -216,13 +250,30 @@
                 act(
                   s.id,
                   { status: "active" },
-                  "Activate this shift on scanners (" + (s.product_codes || []).join(", ") + ")"
+                  "Activate this shift on scanners (" + (s.product_codes || []).join(", ") + ")",
+                  "Activating shift on scanners…"
                 );
               },
             }, ["Activate on scanners"])
           );
         }
-        if (s.status === "scheduled" || s.status === "active") {
+        if (s.status === "active") {
+          actions.appendChild(
+            ui.el("button", {
+              class: "btn btn-sm",
+              type: "button",
+              onclick: function () {
+                act(
+                  s.id,
+                  { status: "paused" },
+                  "Pause this shift (remove its SKUs from scanners until resumed)",
+                  "Pausing shift…"
+                );
+              },
+            }, ["Pause"])
+          );
+        }
+        if (s.status === "scheduled" || s.status === "active" || s.status === "paused") {
           actions.appendChild(
             ui.el("button", {
               class: "btn btn-sm",
@@ -274,12 +325,14 @@
 
     form.addEventListener("submit", async function (ev) {
       ev.preventDefault();
+      if (busy) return;
       var codes = selectedCodes();
       if (!codes.length) {
-        setStatus("Select at least one product for this shift.", true);
+        setStatus("Select at least one product for this shift.", true, false);
         return;
       }
-      setStatus("Saving…");
+      var msg = activateNow.checked ? "Saving and activating shift…" : "Saving shift…";
+      setBusy(true, msg);
       try {
         await ctx.api.traceability("/packaging-shifts", {
           method: "POST",
@@ -291,9 +344,15 @@
         });
         notesInput.value = "";
         await load();
-        setStatus("Packaging shift saved.");
+        setStatus(
+          activateNow.checked ? "Shift saved and active on scanners." : "Shift saved (scheduled).",
+          false,
+          false
+        );
       } catch (e) {
-        setStatus("Could not save: " + (e.message || e), true);
+        setStatus("Could not save: " + (e.message || e), true, false);
+      } finally {
+        setBusy(false);
       }
     });
 
