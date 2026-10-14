@@ -3578,3 +3578,67 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .truck-scale-variance-host .tsv-card-rlf-val.tsv-var--zero {
   color: var(--muted, #94a3b8);
 }
+
+/* Packaging Shifts */
+.packaging-shift-host { max-width: 720px; }
+.packaging-shift-section {
+  margin-top: 1.5rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border, #334155);
+  border-radius: 8px;
+  background: var(--surface, rgba(15, 23, 42, 0.35));
+}
+.packaging-shift-section--form { margin-top: 2rem; }
+.packaging-shift-section-hint { margin: 0.35rem 0 0.85rem; font-size: 0.92rem; line-height: 1.45; }
+.packaging-shift-field-hint { margin: 0.25rem 0 0.5rem; font-size: 0.88rem; }
+.packaging-shift-active-banner {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #059669;
+  background: rgba(16, 185, 129, 0.12);
+  color: #6ee7b7;
+  font-weight: 600;
+}
+.packaging-shift-products {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px dashed var(--border, #475569);
+  border-radius: 6px;
+}
+.packaging-shift-product-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.packaging-shift-activate-block {
+  margin: 1rem 0;
+  padding: 0.75rem 0.85rem;
+  border-left: 3px solid var(--gold, #c9a227);
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 0 6px 6px 0;
+}
+.packaging-shift-activate-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.packaging-shift-activate-hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  max-width: 42rem;
+}
+.packaging-shift-form.ct-form { align-items: stretch; margin-top: 0; }
+.packaging-shift-form .btn { align-self: flex-start; margin-top: 0.5rem; }
+.packaging-shift-toggle-closed { margin-top: 0.75rem; }
+.packaging-shift-actions { white-space: nowrap; }
+.packaging-shift-actions .btn-sm { margin-right: 0.35rem; margin-bottom: 0.25rem; }
+.packaging-shift-table { margin-top: 0.25rem; }
