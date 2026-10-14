@@ -37,7 +37,7 @@
     },
     {
       id: "packaging_shift",
-      title: "Packaging shift",
+      title: "Packaging Shifts",
       description: "Limit Candy and wrap to today's pallet SKUs while a shift is active.",
       requires: "traceability.packaging_shift",
       icon: "schedule",

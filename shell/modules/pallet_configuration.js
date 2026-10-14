@@ -86,7 +86,8 @@
       var prodPackInput = ui.el("input", { class: "input", type: "number", min: "0.001", step: "0.001" });
       var activeInput = ui.el("input", { type: "checkbox" });
       activeInput.checked = true;
-      var fscSel = ui.el("select", { class: "input" });
+      var fscSel = ui.el("select", { class: "input", required: "required" });
+      fscSel.appendChild(ui.el("option", { value: "" }, ["— Select source-bag policy —"]));
       FSC_BAG_POLICIES.forEach(function (opt) {
         fscSel.appendChild(ui.el("option", { value: opt.value }, [opt.label]));
       });
@@ -108,7 +109,7 @@
         activeInput.checked = product.active !== false;
         fscSel.value = product.fsc_bag_policy || "mixed";
       } else {
-        fscSel.value = "mixed";
+        fscSel.value = "";
         codeInput.addEventListener("input", function () {
           if (codeInput.value.trim().toUpperCase().indexOf("LF") === 0) {
             fscSel.value = "fsc_only";
@@ -159,6 +160,11 @@
 
       el.addEventListener("submit", function (ev) {
         ev.preventDefault();
+        if (!fscSel.value) {
+          setStatus("Choose source bags (FSC) — mixed, FSC only, or non-FSC only.", true);
+          fscSel.focus();
+          return;
+        }
         var payload = {
           name: nameInput.value.trim(),
           retail_bag_weight_kg: parseFloat(retailInput.value),

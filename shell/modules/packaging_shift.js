@@ -17,7 +17,7 @@
     var products = [];
     var showClosed = false;
 
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Packaging shift"]));
+    container.appendChild(ui.el("h2", { class: "module-title" }, ["Packaging Shifts"]));
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
         "Choose which pallet SKUs Candy and wrap may use while a shift is active. ",
@@ -223,7 +223,7 @@
 
   CIS.modules.push({
     id: "packaging_shift",
-    title: "Packaging shift",
+    title: "Packaging Shifts",
     section: "Applications",
     parent: "traceability",
     requires: "traceability.packaging_shift",
