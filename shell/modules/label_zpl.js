@@ -11,6 +11,7 @@
     textReserveMm: 27,
     qrMag: 0,
     qrBoostMag: 0,
+    qrLeftInsetMm: 0,
     symbol: "qr",
   };
 
@@ -19,6 +20,9 @@
 
   /** Nudge entire layout down on 28 mm face (QR + text together). ~1.5 mm @ 203 dpi. */
   var PRODUCTION_LAYOUT_Y_OFFSET_DOTS = 12;
+
+  /** Extra inset for QR from left label edge (beyond marginMm). Tolerates slight horizontal misfeed. */
+  var PRODUCTION_QR_LEFT_INSET_MM = 1.5;
 
   /** Zebra ~SD darkness 00–30 (higher = darker). Tune with a test print; 22 is a solid default for ZT231. */
   var PRODUCTION_DARKNESS = 22;
@@ -75,9 +79,13 @@
     var s = Object.assign({}, DEFAULT_SPEC, spec || {});
     var d = specToDots(s);
     var payload = symbolPayload(serial, s);
+    var qrLeftInset = mmToDots(parseFloat(s.qrLeftInsetMm) || 0, d.dpi);
     var usableW = d.pw - 2 * d.margin;
     var usableH = d.ll - 2 * d.margin;
-    var mag = d.qrMag > 0 ? d.qrMag : autoQrMag(payload.data, Math.min(usableH, usableW - d.textReserve - d.gap));
+    var mag = d.qrMag > 0 ? d.qrMag : autoQrMag(
+      payload.data,
+      Math.min(usableH, usableW - d.textReserve - d.gap - qrLeftInset)
+    );
     if (!d.qrMag && (s.qrBoostMag || 0) > 0) {
       mag = Math.min(mag + parseInt(s.qrBoostMag, 10), 10);
     }
@@ -87,12 +95,12 @@
       mag = Math.max(2, Math.floor(usableH / modules));
       qrSize = qrPrintedSize(modules, mag);
     }
-    var maxQrW = usableW - d.textReserve - d.gap;
+    var maxQrW = usableW - d.textReserve - d.gap - qrLeftInset;
     if (qrSize > maxQrW) {
       mag = Math.max(2, Math.floor(maxQrW / modules));
       qrSize = qrPrintedSize(modules, mag);
     }
-    var qrX = d.margin;
+    var qrX = d.margin + qrLeftInset;
     var qrY = d.margin + Math.round((usableH - qrSize) / 2);
     var textX = qrX + qrSize + d.gap;
     var textAreaW = Math.max(40, d.pw - d.margin - textX);
@@ -177,6 +185,7 @@
         textReserveMm: 27,
         qrMag: 0,
         qrBoostMag: PRODUCTION_QR_BOOST_MAG,
+        qrLeftInsetMm: PRODUCTION_QR_LEFT_INSET_MM,
         layoutYOffsetDots: PRODUCTION_LAYOUT_Y_OFFSET_DOTS,
         darkness: PRODUCTION_DARKNESS,
         symbol: "qr",
@@ -189,6 +198,7 @@
     DEFAULT_SPEC: DEFAULT_SPEC,
     PRODUCTION_QR_BOOST_MAG: PRODUCTION_QR_BOOST_MAG,
     PRODUCTION_LAYOUT_Y_OFFSET_DOTS: PRODUCTION_LAYOUT_Y_OFFSET_DOTS,
+    PRODUCTION_QR_LEFT_INSET_MM: PRODUCTION_QR_LEFT_INSET_MM,
     PRODUCTION_DARKNESS: PRODUCTION_DARKNESS,
     mmToDots: mmToDots,
     specToDots: specToDots,
