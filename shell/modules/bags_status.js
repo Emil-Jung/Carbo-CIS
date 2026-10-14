@@ -287,6 +287,16 @@
 
 
 
+  function formatWeatheredAt(row) {
+
+    if (row && row.weathered_at) return fmtDateTime(row.weathered_at);
+
+    var endLabel = fmtWeatherEndDate(row && row.weathering_end_date);
+
+    return endLabel ? endLabel + " · 00:00" : "—";
+
+  }
+
   function weatherText(row) {
 
     var parts = [];
@@ -294,6 +304,18 @@
     if (row.released_early) parts.push("Released early");
 
     var days = row.days_remaining;
+
+    var isWeathered = !!(row && row.weathered) || (days !== null && days !== undefined && Number(days) <= 0);
+
+    if (isWeathered) {
+
+      var when = formatWeatheredAt(row);
+
+      parts.push("Weathered — " + when);
+
+      return parts.join(" · ");
+
+    }
 
     if (days === null || days === undefined) {
 
@@ -306,14 +328,6 @@
     if (days > 0) {
 
       parts.push(days + (days === 1 ? " day left" : " days left"));
-
-    } else {
-
-      var over = Math.abs(days);
-
-      if (over === 0) parts.push("Ready today");
-
-      else parts.push("Ready " + over + (over === 1 ? " day" : " days") + " ago");
 
     }
 

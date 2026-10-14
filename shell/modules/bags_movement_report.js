@@ -190,12 +190,21 @@
     return "—";
   }
 
+  function weatheredAtText(row) {
+    if (row.weathered_at) {
+      return fmtDateTime(row.weathered_at);
+    }
+    if (row.weathering_end_date) {
+      return fmtDate(row.weathering_end_date) + " · 00:00";
+    }
+    return "Weathered";
+  }
+
   function timerText(row) {
     if (row.effective_status === "in_storage_weathering") {
       return String(row.days_remaining) + " days left";
     }
-    if (row.effective_status === "in_storage" && row.weathered) return "Weathered";
-    if (row.weathered) return "Weathered";
+    if (row.weathered) return weatheredAtText(row);
     return "—";
   }
 
