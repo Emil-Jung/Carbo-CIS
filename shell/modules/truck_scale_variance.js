@@ -63,6 +63,9 @@
   }
 
   /** Column bands for borders / header grouping (must match renderTable column order). */
+  var SIEVE_SAMPLE_DAYS = 5;
+  var BOOKING_SAMPLE_VALUE = "__sample5__";
+
   var TSV_TABLE_GROUPS = [
     { key: "meta", label: "Delivery", columns: ["Booking date", "Supplier", "GRN", "Truck", "Transporter", "Bags"] },
     {
@@ -153,11 +156,24 @@
 
   function fillBookingDateOptions(sel, dates, current) {
     sel.innerHTML = "";
-    sel.appendChild(CIS.ui.el("option", { value: "" }, ["All booking dates"]));
+    sel.appendChild(
+      CIS.ui.el("option", { value: BOOKING_SAMPLE_VALUE }, [
+        "Last " + SIEVE_SAMPLE_DAYS + " sieving days",
+      ])
+    );
+    sel.appendChild(CIS.ui.el("option", { value: "all" }, ["All dates in filter"]));
     (dates || []).forEach(function (d) {
       sel.appendChild(CIS.ui.el("option", { value: String(d).slice(0, 10) }, [String(d).slice(0, 10)]));
     });
-    if (current != null) sel.value = current;
+    var allowed = [BOOKING_SAMPLE_VALUE, "all"].concat(
+      (dates || []).map(function (d) {
+        return String(d).slice(0, 10);
+      })
+    );
+    var want =
+      current != null && current !== "" ? String(current) : BOOKING_SAMPLE_VALUE;
+    if (allowed.indexOf(want) < 0) want = BOOKING_SAMPLE_VALUE;
+    sel.value = want;
   }
 
   function fillYearOptions(sel, years, current) {
@@ -224,7 +240,7 @@
     toolbar.appendChild(ui.el("label", { for: "tsv-month" }, ["Month"]));
     var monthSel = ui.el("select", { id: "tsv-month" });
     toolbar.appendChild(monthSel);
-    toolbar.appendChild(ui.el("label", { for: "tsv-booking-date" }, ["Booking date"]));
+    toolbar.appendChild(ui.el("label", { for: "tsv-booking-date" }, ["Sample"]));
     var bookingDateSel = ui.el("select", { id: "tsv-booking-date" });
     bookingDateSel.style.maxWidth = "140px";
     toolbar.appendChild(bookingDateSel);
@@ -253,13 +269,23 @@
     container.appendChild(tableHost);
 
     function queryString() {
+      var sample = bookingDateSel.value || BOOKING_SAMPLE_VALUE;
+      var bookingDate = "";
+      var sievingDays = "0";
+      if (sample === BOOKING_SAMPLE_VALUE) {
+        sievingDays = String(SIEVE_SAMPLE_DAYS);
+      } else if (sample !== "all") {
+        bookingDate = sample;
+      }
       return (
         "?year=" +
         encodeURIComponent(yearSel.value || "all") +
         "&month=" +
         encodeURIComponent(monthSel.value || "all") +
         "&booking_date=" +
-        encodeURIComponent(bookingDateSel.value || "") +
+        encodeURIComponent(bookingDate) +
+        "&sieving_days=" +
+        encodeURIComponent(sievingDays) +
         "&supplier=" +
         encodeURIComponent(supplierSel.value || "") +
         "&flagged_only=" +
@@ -322,11 +348,25 @@
       if (!rows.length) return;
 
       var netBar = rlfTotals.net_vs_digital_kg;
+      var barTitle = "Digital vs scanned R/L/F totals";
+      if (data.sample_booking_dates && data.sample_booking_dates.length) {
+        var sd = data.sample_booking_dates;
+        barTitle =
+          "Digital vs scanned R/L/F — last " +
+          sd.length +
+          " sieving day" +
+          (sd.length === 1 ? "" : "s") +
+          " (" +
+          sd[sd.length - 1] +
+          " → " +
+          sd[0] +
+          ")";
+      } else if (bookingDateSel.value && bookingDateSel.value !== BOOKING_SAMPLE_VALUE && bookingDateSel.value !== "all") {
+        barTitle = "Digital vs scanned R/L/F — " + bookingDateSel.value;
+      }
       var barWrap = ui.el("div", { class: "tsv-bar-chart" });
       var titleRow = ui.el("div", { class: "tsv-bar-head" });
-      titleRow.appendChild(
-        ui.el("h3", { class: "tsv-bar-title" }, ["Digital vs scanned R/L/F totals"])
-      );
+      titleRow.appendChild(ui.el("h3", { class: "tsv-bar-title" }, [barTitle]));
       titleRow.appendChild(
         ui.el("span", { class: "tsv-bar-variance " + varianceColorClass(netBar) }, [
           "Net Vs digital: ",
@@ -505,7 +545,11 @@
         status.textContent =
           (data.count != null ? data.count + " trucks" : "") +
           (data.flagged_count ? " · " + data.flagged_count + " flagged" : "") +
-          (data.date_min && data.date_max ? " · " + data.date_min + " → " + data.date_max : "") +
+          (data.sample_booking_dates && data.sample_booking_dates.length
+            ? " · sample: " + data.sample_booking_dates.join(", ")
+            : data.date_min && data.date_max
+              ? " · " + data.date_min + " → " + data.date_max
+              : "") +
           (data.eligible_truck_count != null && data.eligible_truck_count !== data.count
             ? " · " + data.eligible_truck_count + " eligible before flagged filter"
             : "");
@@ -540,12 +584,14 @@
 
     yearSel.addEventListener("change", function () {
       monthSel.value = "all";
-      bookingDateSel.value = "";
+      bookingDateSel.value = BOOKING_SAMPLE_VALUE;
       supplierSel.value = "";
       void loadFilters().then(loadData);
     });
     monthSel.addEventListener("change", function () {
-      bookingDateSel.value = "";
+      if (bookingDateSel.value !== BOOKING_SAMPLE_VALUE && bookingDateSel.value !== "all") {
+        bookingDateSel.value = BOOKING_SAMPLE_VALUE;
+      }
       supplierSel.value = "";
       void loadFilters().then(loadData);
     });
@@ -560,6 +606,7 @@
 
     yearSel.value = "all";
     monthSel.value = "all";
+    bookingDateSel.value = BOOKING_SAMPLE_VALUE;
     await loadFilters();
     await loadData();
   }
