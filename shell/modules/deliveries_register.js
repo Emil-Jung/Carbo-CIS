@@ -157,22 +157,23 @@
       "totals match the filtered rows (YTD when a calendar year is selected). PJ edits in Traceability → Delivery Confirmations.",
     ]));
 
-    var toolbar = ui.el("div", { class: "toolbar deliveries-register-toolbar" });
-    toolbar.appendChild(ui.el("label", { for: "deliveries-register-year" }, ["Year"]));
+    var filterBar = ui.el("div", {
+      class: "toolbar deliveries-register-toolbar deliveries-register-frame-filters",
+    });
+    filterBar.appendChild(ui.el("label", { for: "deliveries-register-year" }, ["Year"]));
     var yearSel = ui.el("select", { id: "deliveries-register-year" });
-    toolbar.appendChild(yearSel);
-    toolbar.appendChild(ui.el("label", { for: "deliveries-register-month" }, ["Month"]));
+    filterBar.appendChild(yearSel);
+    filterBar.appendChild(ui.el("label", { for: "deliveries-register-month" }, ["Month"]));
     var monthSel = ui.el("select", { id: "deliveries-register-month" });
-    toolbar.appendChild(monthSel);
-    toolbar.appendChild(ui.el("label", { for: "deliveries-register-supplier" }, ["Supplier"]));
+    filterBar.appendChild(monthSel);
+    filterBar.appendChild(ui.el("label", { for: "deliveries-register-supplier" }, ["Supplier"]));
     var supplierSel = ui.el("select", { id: "deliveries-register-supplier" });
-    supplierSel.style.maxWidth = "280px";
-    toolbar.appendChild(supplierSel);
+    supplierSel.style.maxWidth = "220px";
+    filterBar.appendChild(supplierSel);
     var dlBtn = ui.el("button", { type: "button", class: "btn-sm delivery-conf-export-btn" }, [
-      "Download Excel (Deliveries sheet)",
+      "Download Excel",
     ]);
-    toolbar.appendChild(dlBtn);
-    container.appendChild(toolbar);
+    filterBar.appendChild(dlBtn);
 
     var status = ui.el("p", { class: "muted deliveries-register-status" }, ["Loading…"]);
     container.appendChild(status);
@@ -223,8 +224,11 @@
       });
       table.appendChild(tbody);
       if (CIS.wrapDeliveryTrackerTable) {
-        tableHost.appendChild(CIS.wrapDeliveryTrackerTable(ui, table));
+        tableHost.appendChild(
+          CIS.wrapDeliveryTrackerTable(ui, table, { frameBarExtra: filterBar })
+        );
       } else {
+        tableHost.appendChild(filterBar);
         tableHost.appendChild(table);
       }
     }

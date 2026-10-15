@@ -3364,6 +3364,26 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   gap: 10px 14px;
   align-items: center;
 }
+.delivery-conf-tracker-frame-bar .deliveries-register-frame-filters {
+  display: flex;
+  flex: 1 1 320px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  min-width: 0;
+}
+.delivery-conf-tracker-frame-bar .deliveries-register-frame-filters label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.delivery-conf-tracker-frame-bar .deliveries-register-frame-filters select {
+  font-size: 12px;
+  max-width: 220px;
+}
 .deliveries-register-totals {
   margin: 12px 0 4px;
   padding: 12px 14px;

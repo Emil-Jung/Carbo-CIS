@@ -17,13 +17,24 @@
    * Wrap a <table> in a framed viewport (vertical + horizontal scroll inside the frame).
    * @returns {HTMLElement} frame root
    */
-  CIS.wrapDeliveryTrackerTable = function (ui, table) {
+  CIS.wrapDeliveryTrackerTable = function (ui, table, options) {
+    options = options || {};
     var zoom = readZoom();
     var frame = ui.el("div", { class: "delivery-conf-tracker-frame" });
     var bar = ui.el("div", { class: "delivery-conf-tracker-frame-bar" });
     bar.appendChild(ui.el("span", { class: "delivery-conf-tracker-frame-label" }, [
       "Deliveries sheet",
     ]));
+    if (options.frameBarExtra) {
+      var extra = options.frameBarExtra;
+      if (extra.nodeType === 1) {
+        bar.appendChild(extra);
+      } else if (extra.length) {
+        for (var i = 0; i < extra.length; i++) {
+          if (extra[i]) bar.appendChild(extra[i]);
+        }
+      }
+    }
     var zoomLabel = ui.el("label", { class: "delivery-conf-tracker-zoom-label" }, ["Zoom"]);
     var sel = ui.el("select", {
       class: "delivery-conf-tracker-zoom",
