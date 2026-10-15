@@ -79,10 +79,15 @@
   function fillYearOptions(sel, years, current) {
     sel.innerHTML = "";
     sel.appendChild(CIS.ui.el("option", { value: "all" }, ["All years"]));
+    var allowed = ["all"];
     (years || []).forEach(function (y) {
-      sel.appendChild(CIS.ui.el("option", { value: String(y) }, [String(y)]));
+      var s = String(y);
+      allowed.push(s);
+      sel.appendChild(CIS.ui.el("option", { value: s }, [s]));
     });
-    if (current) sel.value = current;
+    var want = current != null && current !== "" ? String(current) : "all";
+    if (allowed.indexOf(want) < 0) want = "all";
+    sel.value = want;
   }
 
   function fillMonthOptions(sel, months, current) {
@@ -241,7 +246,7 @@
     function registerQuery() {
       var q =
         "?year=" +
-        encodeURIComponent(yearSel.value) +
+        encodeURIComponent(yearSel.value || "all") +
         "&month=" +
         encodeURIComponent(monthSel.value) +
         "&supplier=" +
@@ -292,10 +297,10 @@
     async function loadFilters() {
       try {
         var f = await ctx.api.qualityReports(
-          "/deliveries-register/filters?year=" + encodeURIComponent(yearSel.value)
+          "/deliveries-register/filters?year=" + encodeURIComponent(yearSel.value || "all")
         );
         var merged = mergeFilterPayload(f, []);
-        fillYearOptions(yearSel, merged.available_years, yearSel.value || "2026");
+        fillYearOptions(yearSel, merged.available_years, yearSel.value || "all");
         fillMonthOptions(monthSel, merged.available_months, monthSel.value);
         fillSupplierOptions(supplierSel, merged.suppliers, supplierSel.value);
       } catch (e) {
@@ -363,7 +368,7 @@
       void downloadXlsx();
     });
 
-    yearSel.value = "2026";
+    yearSel.value = "all";
     await loadFilters();
     await loadData();
   }

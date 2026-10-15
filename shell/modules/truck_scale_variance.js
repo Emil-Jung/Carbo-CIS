@@ -174,10 +174,15 @@
   function fillYearOptions(sel, years, current) {
     sel.innerHTML = "";
     sel.appendChild(CIS.ui.el("option", { value: "all" }, ["All years"]));
+    var allowed = ["all"];
     (years || []).forEach(function (y) {
-      sel.appendChild(CIS.ui.el("option", { value: String(y) }, [String(y)]));
+      var s = String(y);
+      allowed.push(s);
+      sel.appendChild(CIS.ui.el("option", { value: s }, [s]));
     });
-    if (current) sel.value = current;
+    var want = current != null && current !== "" ? String(current) : "all";
+    if (allowed.indexOf(want) < 0) want = "all";
+    sel.value = want;
   }
 
   function fillMonthOptions(sel, months, current) {
@@ -518,7 +523,7 @@
             "&supplier=" +
             encodeURIComponent(supplierSel.value || "")
         );
-        fillYearOptions(yearSel, f.available_years, yearSel.value || "2026");
+        fillYearOptions(yearSel, f.available_years, yearSel.value || "all");
         fillMonthOptions(monthSel, f.available_months, monthSel.value);
         fillBookingDateOptions(
           bookingDateSel,
@@ -527,7 +532,7 @@
         );
         fillSupplierOptions(supplierSel, f.suppliers, supplierSel.value);
       } catch (e) {
-        fillYearOptions(yearSel, [2026, 2025], yearSel.value || "2026");
+        fillYearOptions(yearSel, [], yearSel.value || "all");
         fillMonthOptions(monthSel, [], monthSel.value || "all");
         fillSupplierOptions(supplierSel, [], supplierSel.value || "");
       }
@@ -612,7 +617,7 @@
       void downloadCsv();
     });
 
-    yearSel.value = "2026";
+    yearSel.value = "all";
     monthSel.value = "all";
     await loadFilters();
     await loadData();
