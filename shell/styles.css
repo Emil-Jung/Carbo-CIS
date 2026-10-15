@@ -3460,13 +3460,15 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--panel);
+  width: fit-content;
+  max-width: min(100%, 40rem);
 }
 .tsv-bar-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px 16px;
+  justify-content: flex-start;
+  gap: 8px 14px;
   margin-bottom: 8px;
 }
 .tsv-bar-title { margin: 0; font-size: 14px; }
@@ -3480,19 +3482,19 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   margin: 0 0 12px;
   font-size: 11px;
   line-height: 1.45;
-  max-width: 72rem;
+  max-width: 40rem;
 }
 .tsv-bar-row {
   display: grid;
-  grid-template-columns: 120px 1fr 100px;
+  grid-template-columns: 118px 14rem 6.5rem;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
   margin-bottom: 8px;
   font-size: 12px;
 }
 .tsv-bar-row--compact {
-  grid-template-columns: 120px minmax(0, 18rem) 100px;
-  max-width: 36rem;
+  grid-template-columns: 118px 14rem 6.5rem;
+  max-width: none;
 }
 .tsv-bar-row--compact .tsv-bar-track {
   width: 100%;
