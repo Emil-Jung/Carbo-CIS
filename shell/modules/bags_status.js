@@ -2142,6 +2142,7 @@
     "FSC Carbo": "carbo",
     "FSC Other": "other",
     "Non-FSC": "non",
+    "Mixed FSC": "mixed",
     FSC: "fsc",
   };
 
@@ -2319,13 +2320,19 @@
     return ui.el("span", { class: "bs-dash-fsc-pill bs-dash-fsc-pill--" + tone }, [label]);
   }
 
+  function fscTableCell(row, ui) {
+    var td = ui.el("td", { class: "bs-dash-fsc-cell" });
+    td.appendChild(renderFscPill(fscText(row), ui));
+    return td;
+  }
+
   function renderProducerBagTable(rows, ui, onRowClick) {
     rows = sortDrillRowsForDisplay(rows);
     var wrap = ui.el("div", { class: "bs-dash-table-wrap" });
     var table = ui.el("table", { class: "bs-dash-table bs-dash-table--compact" });
     var thead = ui.el("thead", {});
     var hr = ui.el("tr", {});
-    ["Bag", "Stream", "kg", "Status since", "Weathering", "Detail"].forEach(function (h) {
+    ["Bag", "Stream", "FSC", "kg", "Status since", "Weathering", "Detail"].forEach(function (h) {
       hr.appendChild(ui.el("th", {}, [h]));
     });
     thead.appendChild(hr);
@@ -2350,6 +2357,7 @@
         streamTd.appendChild(document.createTextNode(streamText(row)));
       }
       tr.appendChild(streamTd);
+      tr.appendChild(fscTableCell(row, ui));
       tr.appendChild(ui.el("td", {}, [fmtMass(row.net_weight_kg, true)]));
       tr.appendChild(ui.el("td", {}, [scanTimestampCell(row)]));
       tr.appendChild(ui.el("td", {}, [weatherText(row)]));
@@ -2402,7 +2410,7 @@
 
     var hr = ui.el("tr", {});
 
-    ["#", "Bag", "Stream", "Producer", "kg", "Status since", "Weathering", "Detail"].forEach(function (h) {
+    ["#", "Bag", "Stream", "Producer", "FSC", "kg", "Status since", "Weathering", "Detail"].forEach(function (h) {
 
       hr.appendChild(ui.el("th", {}, [h]));
 
@@ -2455,6 +2463,8 @@
       tr.appendChild(streamTd);
 
       tr.appendChild(ui.el("td", {}, [palletProducerCell(row)]));
+
+      tr.appendChild(fscTableCell(row, ui));
 
       tr.appendChild(ui.el("td", {}, [fmtMass(row.net_weight_kg, true)]));
 
