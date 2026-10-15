@@ -105,6 +105,62 @@
     if (current != null) sel.value = current;
   }
 
+  /** When the filters API is unavailable, derive lists from loaded rows. */
+  function filtersFromRows(rows) {
+    var monthSet = {};
+    var supplierSet = {};
+    var yearSet = {};
+    (rows || []).forEach(function (row) {
+      var bd = row.booking_date;
+      if (bd && String(bd).length >= 7) {
+        var parts = String(bd).slice(0, 10).split("-");
+        var y = parseInt(parts[0], 10);
+        var m = parseInt(parts[1], 10);
+        if (y) yearSet[y] = true;
+        if (m >= 1 && m <= 12) monthSet[m] = true;
+      }
+      var sup = row.supplier;
+      if (sup && String(sup).trim()) supplierSet[String(sup).trim()] = true;
+    });
+    function sortedKeys(obj, numeric) {
+      return Object.keys(obj)
+        .map(function (k) {
+          return numeric ? parseInt(k, 10) : k;
+        })
+        .filter(function (v) {
+          return numeric ? v >= 1 && v <= 12 : true;
+        })
+        .sort(function (a, b) {
+          return numeric ? a - b : String(a).localeCompare(String(b));
+        });
+    }
+    return {
+      available_years: sortedKeys(yearSet, true),
+      available_months: sortedKeys(monthSet, true),
+      suppliers: sortedKeys(supplierSet, false),
+    };
+  }
+
+  function mergeFilterPayload(apiFilters, rows) {
+    var fromRows = filtersFromRows(rows);
+    var f = apiFilters || {};
+    return {
+      available_years: (f.available_years && f.available_years.length
+        ? f.available_years
+        : fromRows.available_years),
+      available_months: (f.available_months && f.available_months.length
+        ? f.available_months
+        : fromRows.available_months),
+      suppliers: (f.suppliers && f.suppliers.length ? f.suppliers : fromRows.suppliers),
+    };
+  }
+
+  function detachFilterBar(filterBar) {
+    if (filterBar && filterBar.parentNode) {
+      filterBar.parentNode.removeChild(filterBar);
+    }
+  }
+
   function renderTotalsPanel(ui, totals, yearSel, monthSel) {
     if (!totals) return ui.el("div");
     var wrap = ui.el("div", { class: "deliveries-register-totals" });
@@ -238,28 +294,27 @@
         var f = await ctx.api.qualityReports(
           "/deliveries-register/filters?year=" + encodeURIComponent(yearSel.value)
         );
-        fillYearOptions(yearSel, f.available_years, yearSel.value || "2026");
-        fillMonthOptions(monthSel, f.available_months, monthSel.value);
-        fillSupplierOptions(supplierSel, f.suppliers, supplierSel.value);
+        var merged = mergeFilterPayload(f, []);
+        fillYearOptions(yearSel, merged.available_years, yearSel.value || "2026");
+        fillMonthOptions(monthSel, merged.available_months, monthSel.value);
+        fillSupplierOptions(supplierSel, merged.suppliers, supplierSel.value);
       } catch (e) {
-        fillYearOptions(yearSel, [2026, 2025], "2026");
-        fillMonthOptions(monthSel, [], "all");
-        fillSupplierOptions(supplierSel, [], "");
+        /* loadData will populate filters from register payload or rows */
       }
     }
 
     async function loadData() {
       status.textContent = "Loading…";
       status.style.display = "";
+      detachFilterBar(filterBar);
       tableHost.innerHTML = "";
       totalsHost.innerHTML = "";
       try {
         var data = await ctx.api.qualityReports("/deliveries-register" + registerQuery());
-        if (data.filters) {
-          fillYearOptions(yearSel, data.filters.available_years, yearSel.value);
-          fillMonthOptions(monthSel, data.filters.available_months, monthSel.value);
-          fillSupplierOptions(supplierSel, data.filters.suppliers, supplierSel.value);
-        }
+        var mergedFilters = mergeFilterPayload(data.filters, data.rows || []);
+        fillYearOptions(yearSel, mergedFilters.available_years, yearSel.value);
+        fillMonthOptions(monthSel, mergedFilters.available_months, monthSel.value);
+        fillSupplierOptions(supplierSel, mergedFilters.suppliers, supplierSel.value);
         status.textContent =
           (data.count != null ? data.count + " rows" : "") +
           (data.date_min && data.date_max ? " · " + data.date_min + " → " + data.date_max : "") +
