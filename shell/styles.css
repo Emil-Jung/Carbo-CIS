@@ -3490,6 +3490,13 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   margin-bottom: 8px;
   font-size: 12px;
 }
+.tsv-bar-row--compact {
+  grid-template-columns: 120px minmax(0, 18rem) 100px;
+  max-width: 36rem;
+}
+.tsv-bar-row--compact .tsv-bar-track {
+  width: 100%;
+}
 .tsv-bar-track {
   height: 14px;
   background: rgba(148, 163, 184, 0.2);
@@ -3502,44 +3509,6 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   border-radius: 4px;
 }
 .tsv-bar-fill--physical { background: #6aa84f; }
-.tsv-bar-chart--daily { margin-top: 12px; }
-.tsv-bar-chart--truck {
-  margin-top: 12px;
-  opacity: 0.95;
-  border-style: dashed;
-}
-.tsv-bar-pick {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  margin-bottom: 8px;
-  font-size: 12px;
-}
-.tsv-truck-pick {
-  flex: 1 1 240px;
-  max-width: 100%;
-  font-size: 12px;
-}
-.tsv-bar-axis {
-  font-size: 10px;
-  color: var(--muted, #94a3b8);
-  margin-bottom: 6px;
-}
-.tsv-bar-track--zoom {
-  height: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-}
-.tsv-bar-delta {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border);
-  font-size: 13px;
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-}
-.tsv-bar-delta-label { color: var(--muted, #94a3b8); }
 .truck-scale-variance-table-wrap {
   overflow-x: auto;
   margin-top: 10px;
