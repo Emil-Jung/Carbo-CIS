@@ -218,7 +218,9 @@
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Scale vs intake variance"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       ui.el("strong", {}, ["Digital"]),
-      " (Control Room) is what you pay on. ",
+      " is PJ ",
+      ui.el("strong", {}, ["Complete"]),
+      " Delivery Confirmation pay weight (shotoff kg). Pending loads are excluded. ",
       ui.el("strong", {}, ["Vs digital"]),
       ": ",
       ui.el("strong", {}, ["− kg"]),
@@ -426,7 +428,7 @@
       if (!rows.length) {
         tableHost.appendChild(
           ui.el("p", { class: "muted" }, [
-            "No trucks for this filter. Trucks need Control Room factory weights (digital scale POST) and Charcoal intake scans.",
+            "No trucks for this filter. Each row needs PJ Complete on Delivery Confirmations plus Charcoal intake scans.",
           ])
         );
         return;
