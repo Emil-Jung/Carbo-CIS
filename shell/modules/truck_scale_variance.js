@@ -132,20 +132,23 @@
     return { digital_kg: digital, scan_kg: scan, net_vs_digital_kg: scan - digital };
   }
 
-  /** Scale bar length between digital and scan so a small net gap is visible (not 0–max tonnes). */
-  function compareBarScale(digitalKg, scanKg) {
+  /**
+   * Bar width: mostly vs full total (honest scale), with a little tight-scale mix
+   * so small gaps are visible without looking enormous.
+   */
+  function compareBarWidthPct(value, digitalKg, scanKg) {
+    var hi = Math.max(digitalKg, scanKg, 1);
+    var fullPct = (value / hi) * 100;
     var lo = Math.min(digitalKg, scanKg);
-    var hi = Math.max(digitalKg, scanKg);
     var span = hi - lo;
-    var pad = Math.max(span * 0.4, 200);
+    if (span < 0.05) return fullPct;
+    var pad = Math.min(Math.max(span * 0.15, 120), hi * 0.012);
     var base = Math.max(0, lo - pad);
     var top = hi + pad;
     var range = top - base || 1;
-    return {
-      pct: function (v) {
-        return Math.max(0, Math.min(100, ((v - base) / range) * 100));
-      },
-    };
+    var tightPct = ((value - base) / range) * 100;
+    var mix = 0.12;
+    return Math.max(0, Math.min(100, fullPct * (1 - mix) + tightPct * mix));
   }
 
   function fillBookingDateOptions(sel, dates, current) {
@@ -333,16 +336,15 @@
       barWrap.appendChild(titleRow);
       barWrap.appendChild(
         ui.el("p", { class: "muted tsv-bar-help" }, [
-          "Bar length uses a tight scale between digital and scan (not full tonnes), so the gap shows clearly. Net can be near zero while ",
+          "Bar length is mostly by total tonnes, with a slight emphasis on digital vs scan so the gap is visible but not overstated. Net can be near zero while ",
           fmtKg(absStream),
           " absolute kg still sits in R / L / F — stream mistakes can offset in the total.",
         ])
       );
       var digitalKg = rlfTotals.digital_kg;
       var scanKg = rlfTotals.scan_kg;
-      var scale = compareBarScale(digitalKg, scanKg);
-      var digitalPct = scale.pct(digitalKg);
-      var scanPct = scale.pct(scanKg);
+      var digitalPct = compareBarWidthPct(digitalKg, digitalKg, scanKg);
+      var scanPct = compareBarWidthPct(scanKg, digitalKg, scanKg);
       [
         ["Digital R+L+F (pay)", digitalKg, digitalPct, ""],
         ["Scanned R+L+F (bags)", scanKg, scanPct, " tsv-bar-fill--physical"],
@@ -361,7 +363,7 @@
         barWrap.appendChild(row);
       });
       var gapLeft = Math.min(digitalPct, scanPct);
-      var gapWidth = Math.max(Math.abs(digitalPct - scanPct), netBar !== 0 ? 3 : 0);
+      var gapWidth = Math.abs(digitalPct - scanPct);
       var gapRow = ui.el("div", { class: "tsv-bar-row tsv-bar-row--compact tsv-bar-row--gap" });
       gapRow.appendChild(ui.el("span", { class: "tsv-bar-label" }, ["Gap (visual)"]));
       var gapTrack = ui.el("div", { class: "tsv-bar-track tsv-bar-track--gap" });
