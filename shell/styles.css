@@ -3604,6 +3604,37 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   color: var(--muted, #94a3b8);
 }
 .packaging-shift-panel-body { min-height: 2.5rem; }
+.packaging-shift-panel-hint {
+  margin: -0.15rem 0 0.45rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+.packaging-shift-date-group {
+  margin: 0 0 0.45rem;
+  border: 1px solid var(--border, #334155);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.1);
+}
+.packaging-shift-date-summary {
+  cursor: pointer;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  list-style: none;
+}
+.packaging-shift-date-summary::-webkit-details-marker { display: none; }
+.packaging-shift-date-summary::before {
+  content: "▸ ";
+  color: var(--gold, #c9a227);
+}
+.packaging-shift-date-group[open] .packaging-shift-date-summary::before {
+  content: "▾ ";
+}
+.packaging-shift-date-body {
+  padding: 0 0.45rem 0.55rem;
+  border-top: 1px solid var(--border, #334155);
+}
+.packaging-shift-date-body .packaging-shift-table { margin-top: 0.35rem; }
 .packaging-shift-empty {
   margin: 0;
   padding: 0.55rem 0.65rem;

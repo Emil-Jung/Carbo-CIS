@@ -19,9 +19,12 @@
       "None waiting. Save a shift without “Activate immediately” to queue it here.",
     paused:
       "None. Pause removes a shift from scanners during a long wait; Activate puts it back.",
+    pausedHint: "Grouped by pause date — expand a day to see shifts.",
     completed:
       "None yet. Only Complete closes a shift. Active shifts stay on scanners overnight until a manager completes or pauses them.",
+    completedHint: "Grouped by completion date — expand a day to see shifts.",
     cancelled: "None.",
+    cancelledHint: "Grouped by date — expand a day to see shifts.",
   };
 
   function render(container, ctx) {
@@ -94,6 +97,9 @@
 
     var colSide = ui.el("div", { class: "packaging-shift-column packaging-shift-column--side" });
     colSide.appendChild(ui.el("h4", { class: "packaging-shift-panel-title" }, ["Paused"]));
+    colSide.appendChild(
+      ui.el("p", { class: "packaging-shift-panel-hint muted" }, [EMPTY.pausedHint])
+    );
     var pausedBody = ui.el("div", { class: "packaging-shift-panel-body" });
     colSide.appendChild(pausedBody);
     colSide.appendChild(
@@ -101,12 +107,18 @@
         "Completed",
       ])
     );
+    colSide.appendChild(
+      ui.el("p", { class: "packaging-shift-panel-hint muted" }, [EMPTY.completedHint])
+    );
     var completedBody = ui.el("div", { class: "packaging-shift-panel-body" });
     colSide.appendChild(completedBody);
     colSide.appendChild(
       ui.el("h4", { class: "packaging-shift-panel-title packaging-shift-panel-title--sub" }, [
         "Cancelled",
       ])
+    );
+    colSide.appendChild(
+      ui.el("p", { class: "packaging-shift-panel-hint muted" }, [EMPTY.cancelledHint])
     );
     var cancelledBody = ui.el("div", { class: "packaging-shift-panel-body" });
     colSide.appendChild(cancelledBody);
@@ -265,13 +277,51 @@
 
     function shiftMeta(s) {
       var parts = [];
-      if (s.started_at) parts.push("On scanners since " + formatWhen(s.started_at));
-      else if (s.created_at) parts.push("Created " + formatWhen(s.created_at));
-      if (s.status === "completed" && s.completed_at) {
-        parts.push("Completed " + formatWhen(s.completed_at));
+      if (s.status === "paused" && s.paused_at) {
+        parts.push("Paused " + formatWhen(s.paused_at));
+      } else if (s.started_at) {
+        parts.push("On scanners since " + formatWhen(s.started_at));
+      } else if (s.created_at) {
+        parts.push("Created " + formatWhen(s.created_at));
+      }
+      if ((s.status === "completed" || s.status === "cancelled") && s.completed_at) {
+        parts.push(
+          (s.status === "cancelled" ? "Cancelled " : "Completed ") + formatWhen(s.completed_at)
+        );
       }
       if (s.notes) parts.push(s.notes);
       return parts.join(" · ");
+    }
+
+    function pad2(n) {
+      return n < 10 ? "0" + n : String(n);
+    }
+
+    function dateGroupKey(iso) {
+      if (!iso) return "unknown";
+      var d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "unknown";
+      return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+    }
+
+    function todayGroupKey() {
+      return dateGroupKey(new Date().toISOString());
+    }
+
+    function formatDateHeading(iso) {
+      if (!iso) return "Date unknown";
+      var d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "Date unknown";
+      return d.toLocaleDateString(undefined, {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    }
+
+    function sortIsoForShift(s, dateField) {
+      return s[dateField] || s.completed_at || s.paused_at || s.started_at || s.created_at || "";
     }
 
     function appendActions(actions, s) {
@@ -329,16 +379,7 @@
       }
     }
 
-    function paintTable(host, list, emptyText) {
-      host.innerHTML = "";
-      if (!list.length) {
-        host.appendChild(ui.el("p", { class: "packaging-shift-empty" }, [emptyText]));
-        return;
-      }
-      var table = ui.el("table", { class: "data packaging-shift-table" });
-      table.innerHTML =
-        "<thead><tr><th>Products</th><th>Details</th><th>Actions</th></tr></thead>";
-      var tbody = ui.el("tbody");
+    function paintShiftRows(tbody, list) {
       list.forEach(function (s) {
         var tr = ui.el("tr");
         tr.innerHTML =
@@ -353,8 +394,72 @@
         tr.appendChild(actions);
         tbody.appendChild(tr);
       });
+    }
+
+    function paintTable(host, list, emptyText) {
+      host.innerHTML = "";
+      if (!list.length) {
+        host.appendChild(ui.el("p", { class: "packaging-shift-empty" }, [emptyText]));
+        return;
+      }
+      var table = ui.el("table", { class: "data packaging-shift-table" });
+      table.innerHTML =
+        "<thead><tr><th>Products</th><th>Details</th><th>Actions</th></tr></thead>";
+      var tbody = ui.el("tbody");
+      paintShiftRows(tbody, list);
       table.appendChild(tbody);
       host.appendChild(table);
+    }
+
+    function paintTableByDate(host, list, emptyText, dateField) {
+      host.innerHTML = "";
+      if (!list.length) {
+        host.appendChild(ui.el("p", { class: "packaging-shift-empty" }, [emptyText]));
+        return;
+      }
+      var groups = {};
+      list.forEach(function (s) {
+        var iso = sortIsoForShift(s, dateField);
+        var key = dateGroupKey(iso);
+        if (!groups[key]) groups[key] = { iso: iso, items: [] };
+        groups[key].items.push(s);
+      });
+      var keys = Object.keys(groups).filter(function (k) {
+        return k !== "unknown";
+      });
+      keys.sort(function (a, b) {
+        return b.localeCompare(a);
+      });
+      if (groups.unknown) keys.push("unknown");
+      var todayKey = todayGroupKey();
+      keys.forEach(function (key) {
+        var g = groups[key];
+        g.items.sort(function (a, b) {
+          return sortIsoForShift(b, dateField).localeCompare(sortIsoForShift(a, dateField));
+        });
+        var details = ui.el("details", {
+          class: "packaging-shift-date-group",
+        });
+        if (key === todayKey) details.open = true;
+        var label =
+          key === "unknown"
+            ? "Date unknown"
+            : formatDateHeading(g.iso);
+        var countLabel = g.items.length === 1 ? "1 shift" : g.items.length + " shifts";
+        details.appendChild(
+          ui.el("summary", { class: "packaging-shift-date-summary" }, [label + " · " + countLabel])
+        );
+        var inner = ui.el("div", { class: "packaging-shift-date-body" });
+        var table = ui.el("table", { class: "data packaging-shift-table" });
+        table.innerHTML =
+          "<thead><tr><th>Products</th><th>Details</th><th>Actions</th></tr></thead>";
+        var tbody = ui.el("tbody");
+        paintShiftRows(tbody, g.items);
+        table.appendChild(tbody);
+        inner.appendChild(table);
+        details.appendChild(inner);
+        host.appendChild(details);
+      });
     }
 
     function paintScannerBanner() {
@@ -401,9 +506,9 @@
       });
       paintTable(activeBody, byStatus.active, EMPTY.active);
       paintTable(scheduledBody, byStatus.scheduled, EMPTY.scheduled);
-      paintTable(pausedBody, byStatus.paused, EMPTY.paused);
-      paintTable(completedBody, byStatus.completed, EMPTY.completed);
-      paintTable(cancelledBody, byStatus.cancelled, EMPTY.cancelled);
+      paintTableByDate(pausedBody, byStatus.paused, EMPTY.paused, "paused_at");
+      paintTableByDate(completedBody, byStatus.completed, EMPTY.completed, "completed_at");
+      paintTableByDate(cancelledBody, byStatus.cancelled, EMPTY.cancelled, "completed_at");
     }
 
     async function load() {
