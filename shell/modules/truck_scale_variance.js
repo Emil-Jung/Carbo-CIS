@@ -132,6 +132,45 @@
     return { digital_kg: digital, scan_kg: scan, net_vs_digital_kg: scan - digital };
   }
 
+  function rlfTotalsForRow(row) {
+    var d = row.digital || {};
+    var sc = row.scanned || {};
+    var digital =
+      Number(d.restaurant_kg || 0) +
+      Number(d.lumpwood_kg || 0) +
+      Number(d.fines_kg || 0);
+    var scan =
+      Number(sc.restaurant_kg || 0) +
+      Number(sc.lumpwood_kg || 0) +
+      Number(sc.fines_kg || 0) +
+      Number(sc.bulk_fines_kg || 0);
+    return { digital_kg: digital, scan_kg: scan, net_vs_digital_kg: scan - digital };
+  }
+
+  function truckBarLabel(row) {
+    var parts = [];
+    if (row.grn) parts.push("GRN " + row.grn);
+    if (row.booking_date) parts.push(String(row.booking_date).slice(0, 10));
+    if (row.supplier) parts.push(row.supplier);
+    if (row.truck_reg) parts.push(row.truck_reg);
+    return parts.join(" · ") || row.intake_id || "Truck";
+  }
+
+  /** Bar width on a zoomed axis so ~1 t gaps show on multi‑tonne trucks. */
+  function zoomedBarWidth(val, base, range) {
+    if (!Number.isFinite(val) || range <= 0) return 0;
+    return Math.max(0, Math.min(100, Math.round(((val - base) / range) * 100)));
+  }
+
+  function fillBookingDateOptions(sel, dates, current) {
+    sel.innerHTML = "";
+    sel.appendChild(CIS.ui.el("option", { value: "" }, ["All booking dates"]));
+    (dates || []).forEach(function (d) {
+      sel.appendChild(CIS.ui.el("option", { value: String(d).slice(0, 10) }, [String(d).slice(0, 10)]));
+    });
+    if (current != null) sel.value = current;
+  }
+
   function fillYearOptions(sel, years, current) {
     sel.innerHTML = "";
     sel.appendChild(CIS.ui.el("option", { value: "all" }, ["All years"]));
@@ -191,6 +230,10 @@
     toolbar.appendChild(ui.el("label", { for: "tsv-month" }, ["Month"]));
     var monthSel = ui.el("select", { id: "tsv-month" });
     toolbar.appendChild(monthSel);
+    toolbar.appendChild(ui.el("label", { for: "tsv-booking-date" }, ["Booking date"]));
+    var bookingDateSel = ui.el("select", { id: "tsv-booking-date" });
+    bookingDateSel.style.maxWidth = "140px";
+    toolbar.appendChild(bookingDateSel);
     toolbar.appendChild(ui.el("label", { for: "tsv-supplier" }, ["Supplier"]));
     var supplierSel = ui.el("select", { id: "tsv-supplier" });
     supplierSel.style.maxWidth = "280px";
@@ -215,12 +258,16 @@
     var tableHost = ui.el("div", { class: "truck-scale-variance-table-wrap deliveries-register-table-wrap" });
     container.appendChild(tableHost);
 
+    var selectedTruckId = "";
+
     function queryString() {
       return (
         "?year=" +
         encodeURIComponent(yearSel.value || "all") +
         "&month=" +
         encodeURIComponent(monthSel.value || "all") +
+        "&booking_date=" +
+        encodeURIComponent(bookingDateSel.value || "") +
         "&supplier=" +
         encodeURIComponent(supplierSel.value || "") +
         "&flagged_only=" +
@@ -228,7 +275,101 @@
       );
     }
 
+    function renderTruckCompareChart(ui, rows) {
+      if (!rows.length) return ui.el("div");
+      var pick =
+        rows.find(function (r) {
+          return r.intake_id === selectedTruckId;
+        }) || rows[0];
+      if (!pick) return ui.el("div");
+      selectedTruckId = pick.intake_id || selectedTruckId;
+
+      var totals = rlfTotalsForRow(pick);
+      var netBar = totals.net_vs_digital_kg;
+      var lo = Math.min(totals.digital_kg, totals.scan_kg);
+      var hi = Math.max(totals.digital_kg, totals.scan_kg);
+      var span = hi - lo;
+      var pad = Math.max(span * 0.2, 80);
+      var base = Math.max(0, lo - pad);
+      var top = hi + pad;
+      var range = top - base || 1;
+
+      var barWrap = ui.el("div", { class: "tsv-bar-chart tsv-bar-chart--truck" });
+      var head = ui.el("div", { class: "tsv-bar-head" });
+      head.appendChild(
+        ui.el("h3", { class: "tsv-bar-title" }, ["Digital vs scanned R/L/F — one truck"])
+      );
+      head.appendChild(
+        ui.el("span", { class: "tsv-bar-variance " + varianceColorClass(netBar) }, [
+          "Net Vs digital: ",
+          fmtVar(netBar),
+        ])
+      );
+      barWrap.appendChild(head);
+
+      var pickRow = ui.el("div", { class: "tsv-bar-pick" });
+      pickRow.appendChild(ui.el("label", { for: "tsv-truck-pick" }, ["Truck"]));
+      var truckSel = ui.el("select", { id: "tsv-truck-pick", class: "tsv-truck-pick" });
+      rows.forEach(function (row) {
+        truckSel.appendChild(
+          ui.el(
+            "option",
+            { value: row.intake_id || "" },
+            [truckBarLabel(row) + (row.flagged ? " ⚠" : "")]
+          )
+        );
+      });
+      truckSel.value = pick.intake_id || "";
+      truckSel.addEventListener("change", function () {
+        selectedTruckId = truckSel.value;
+        renderSummary(lastSummaryData);
+      });
+      pickRow.appendChild(truckSel);
+      barWrap.appendChild(pickRow);
+
+      barWrap.appendChild(
+        ui.el("p", { class: "muted tsv-bar-help" }, [
+          "Bars use a ",
+          ui.el("strong", {}, ["zoomed"]),
+          " scale around this truck’s digital and scan totals so a ",
+          fmtVar(netBar),
+          " gap is visible (fleet-wide totals hide small % gaps).",
+        ])
+      );
+
+      var axis = ui.el("div", { class: "tsv-bar-axis" }, [
+        fmtKg(base) + " … " + fmtKg(top),
+      ]);
+      barWrap.appendChild(axis);
+
+      [
+        ["Digital R+L+F (pay)", totals.digital_kg, ""],
+        ["Scanned R+L+F (bags)", totals.scan_kg, " tsv-bar-fill--physical"],
+      ].forEach(function (pair) {
+        var rowEl = ui.el("div", { class: "tsv-bar-row" });
+        rowEl.appendChild(ui.el("span", { class: "tsv-bar-label" }, [pair[0]]));
+        var track = ui.el("div", { class: "tsv-bar-track tsv-bar-track--zoom" });
+        var fill = ui.el("div", {
+          class: "tsv-bar-fill" + pair[2],
+          style: "width:" + zoomedBarWidth(pair[1], base, range) + "%",
+        });
+        track.appendChild(fill);
+        rowEl.appendChild(track);
+        rowEl.appendChild(ui.el("span", { class: "tsv-bar-val" }, [fmtKg(pair[1])]));
+        barWrap.appendChild(rowEl);
+      });
+
+      var deltaRow = ui.el("div", { class: "tsv-bar-delta " + varianceColorClass(netBar) });
+      deltaRow.appendChild(ui.el("span", { class: "tsv-bar-delta-label" }, ["Gap (scan − digital)"]));
+      deltaRow.appendChild(ui.el("strong", {}, [fmtVar(netBar)]));
+      barWrap.appendChild(deltaRow);
+      return barWrap;
+    }
+
+    var lastSummaryData = null;
+
     function renderSummary(data) {
+      lastSummaryData = data;
       summaryHost.innerHTML = "";
       var rows = data.rows || [];
       var streamSum = sumVsDigitalByStream(rows);
@@ -242,7 +383,6 @@
         ui.el("strong", { class: "tsv-card-value" }, [String(data.flagged_count || 0)]),
       ]));
       var absStream = sumAbsStreamVariance(rows);
-      var rlfTotals = sumDigitalAndScanRlf(rows);
       var netAll =
         streamSum.restaurant_kg + streamSum.lumpwood_kg + streamSum.fines_kg;
       cards.appendChild(ui.el("div", { class: "tsv-card" }, [
@@ -280,44 +420,13 @@
       cards.appendChild(rlfCard);
       summaryHost.appendChild(cards);
 
-      var barWrap = ui.el("div", { class: "tsv-bar-chart" });
-      var netBar = rlfTotals.net_vs_digital_kg;
-      var titleRow = ui.el("div", { class: "tsv-bar-head" });
-      titleRow.appendChild(
-        ui.el("h3", { class: "tsv-bar-title" }, ["Digital vs scanned R/L/F totals"])
-      );
-      titleRow.appendChild(
-        ui.el("span", { class: "tsv-bar-variance " + varianceColorClass(netBar) }, [
-          "Net Vs digital: ",
-          fmtVar(netBar),
-        ])
-      );
-      barWrap.appendChild(titleRow);
-      barWrap.appendChild(
-        ui.el("p", { class: "muted tsv-bar-help" }, [
-          "Two bars = pay weight (digital) vs bag scans (physical). Net can be near zero while ",
-          fmtKg(absStream),
-          " absolute kg still sits in R / L / F — operator or category mistakes offset in the total.",
-        ])
-      );
-      var max = Math.max(rlfTotals.digital_kg, rlfTotals.scan_kg, 1);
-      [
-        ["Digital R+L+F (pay)", rlfTotals.digital_kg],
-        ["Scanned R+L+F (bags)", rlfTotals.scan_kg],
-      ].forEach(function (pair, i) {
-        var row = ui.el("div", { class: "tsv-bar-row" });
-        row.appendChild(ui.el("span", { class: "tsv-bar-label" }, [pair[0]]));
-        var track = ui.el("div", { class: "tsv-bar-track" });
-        var fill = ui.el("div", {
-          class: "tsv-bar-fill" + (i === 1 ? " tsv-bar-fill--physical" : ""),
-          style: "width:" + Math.round((pair[1] / max) * 100) + "%",
+      if (!selectedTruckId && rows.length) {
+        var flagged = rows.find(function (r) {
+          return r.flagged;
         });
-        track.appendChild(fill);
-        row.appendChild(track);
-        row.appendChild(ui.el("span", { class: "tsv-bar-val" }, [fmtKg(pair[1])]));
-        barWrap.appendChild(row);
-      });
-      summaryHost.appendChild(barWrap);
+        selectedTruckId = (flagged || rows[0]).intake_id || "";
+      }
+      summaryHost.appendChild(renderTruckCompareChart(ui, rows));
     }
 
     function renderTable(rows) {
@@ -405,10 +514,17 @@
           "/reports/scale-vs-intake-variance/filters?year=" +
             encodeURIComponent(yearSel.value || "all") +
             "&month=" +
-            encodeURIComponent(monthSel.value || "all")
+            encodeURIComponent(monthSel.value || "all") +
+            "&supplier=" +
+            encodeURIComponent(supplierSel.value || "")
         );
         fillYearOptions(yearSel, f.available_years, yearSel.value || "2026");
         fillMonthOptions(monthSel, f.available_months, monthSel.value);
+        fillBookingDateOptions(
+          bookingDateSel,
+          f.available_booking_dates,
+          bookingDateSel.value
+        );
         fillSupplierOptions(supplierSel, f.suppliers, supplierSel.value);
       } catch (e) {
         fillYearOptions(yearSel, [2026, 2025], yearSel.value || "2026");
@@ -427,6 +543,11 @@
         if (data.filters) {
           fillYearOptions(yearSel, data.filters.available_years, yearSel.value);
           fillMonthOptions(monthSel, data.filters.available_months, monthSel.value);
+          fillBookingDateOptions(
+            bookingDateSel,
+            data.filters.available_booking_dates,
+            bookingDateSel.value
+          );
           fillSupplierOptions(supplierSel, data.filters.suppliers, supplierSel.value);
         }
         status.textContent =
@@ -467,14 +588,25 @@
 
     yearSel.addEventListener("change", function () {
       monthSel.value = "all";
+      bookingDateSel.value = "";
       supplierSel.value = "";
+      selectedTruckId = "";
       void loadFilters().then(loadData);
     });
     monthSel.addEventListener("change", function () {
+      bookingDateSel.value = "";
       supplierSel.value = "";
+      selectedTruckId = "";
       void loadFilters().then(loadData);
     });
-    supplierSel.addEventListener("change", loadData);
+    bookingDateSel.addEventListener("change", function () {
+      selectedTruckId = "";
+      void loadFilters().then(loadData);
+    });
+    supplierSel.addEventListener("change", function () {
+      selectedTruckId = "";
+      void loadFilters().then(loadData);
+    });
     flaggedOnly.addEventListener("change", loadData);
     csvBtn.addEventListener("click", function () {
       void downloadCsv();
