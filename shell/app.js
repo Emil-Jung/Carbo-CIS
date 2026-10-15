@@ -35,6 +35,7 @@
     movement_schedule: "traceability",
     packaging_shift: "traceability",
     walvis_dispatches: "traceability",
+    walvis_day_scan_log: "traceability",
     pallet_configuration: "traceability",
     manager_override: "traceability",
     bag_stock: "traceability",
@@ -43,6 +44,7 @@
   function getModuleParent(moduleId) {
     const mod = CIS.modules.find(function (m) { return m.id === moduleId; });
     if (mod && mod.parentModule) return mod.parentModule;
+    if (mod && mod.parent) return mod.parent;
     return MODULE_PARENTS[moduleId] || null;
   }
 
@@ -72,12 +74,24 @@
     }
 
     const parent = getModuleParent(id);
-    if (top === "dashboard" || parent === top) {
+    if (top === "dashboard") {
+      if (parent && parent !== "dashboard" && navStack.indexOf(parent) === -1) {
+        navStack.push(parent);
+      }
       navStack.push(id);
       return;
     }
-
-    navStack.length = 1;
+    if (parent === top) {
+      navStack.push(id);
+      return;
+    }
+    if (!parent) {
+      navStack.push(id);
+      return;
+    }
+    if (navStack.indexOf(parent) === -1) {
+      navStack.push(parent);
+    }
     navStack.push(id);
   }
 

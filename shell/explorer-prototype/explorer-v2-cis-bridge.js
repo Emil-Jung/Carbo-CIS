@@ -27,10 +27,13 @@
     containers: "traceability",
     movement_schedule: "traceability",
     walvis_dispatches: "traceability",
+    walvis_day_scan_log: "traceability",
     packaging_shift: "traceability",
     pallet_configuration: "traceability",
     manager_override: "traceability",
     bag_stock: "traceability",
+    print_labels: "labels",
+    label_deployment: "labels",
   };
 
   var SIGNIN_HOST_ID = "__cis_v2_signin";
@@ -244,8 +247,16 @@
       navStack.length = idx + 1;
       return;
     }
-    var parent = MODULE_PARENTS[id];
+    var mod = CIS.modules.find(function (m) { return m.id === id; });
+    var parent =
+      (mod && mod.parentModule) ||
+      (mod && mod.parent) ||
+      MODULE_PARENTS[id] ||
+      null;
     if (top === "dashboard") {
+      if (parent && parent !== "dashboard" && navStack.indexOf(parent) === -1) {
+        navStack.push(parent);
+      }
       navStack.push(id);
       return;
     }
@@ -253,7 +264,13 @@
       navStack.push(id);
       return;
     }
-    /* App ↔ report (e.g. Control Room → Charcoal Intake): keep stack for Back + cached hosts */
+    if (!parent) {
+      navStack.push(id);
+      return;
+    }
+    if (navStack.indexOf(parent) === -1) {
+      navStack.push(parent);
+    }
     navStack.push(id);
   }
 
