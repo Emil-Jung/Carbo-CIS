@@ -132,6 +132,22 @@
     return { digital_kg: digital, scan_kg: scan, net_vs_digital_kg: scan - digital };
   }
 
+  /** Scale bar length between digital and scan so a small net gap is visible (not 0–max tonnes). */
+  function compareBarScale(digitalKg, scanKg) {
+    var lo = Math.min(digitalKg, scanKg);
+    var hi = Math.max(digitalKg, scanKg);
+    var span = hi - lo;
+    var pad = Math.max(span * 0.4, 200);
+    var base = Math.max(0, lo - pad);
+    var top = hi + pad;
+    var range = top - base || 1;
+    return {
+      pct: function (v) {
+        return Math.max(0, Math.min(100, ((v - base) / range) * 100));
+      },
+    };
+  }
+
   function fillBookingDateOptions(sel, dates, current) {
     sel.innerHTML = "";
     sel.appendChild(CIS.ui.el("option", { value: "" }, ["All booking dates"]));
@@ -317,28 +333,49 @@
       barWrap.appendChild(titleRow);
       barWrap.appendChild(
         ui.el("p", { class: "muted tsv-bar-help" }, [
-          "Two bars = pay weight (digital) vs bag scans (physical) for the filtered trucks. Net can be near zero while ",
+          "Bar length uses a tight scale between digital and scan (not full tonnes), so the gap shows clearly. Net can be near zero while ",
           fmtKg(absStream),
-          " absolute kg still sits in R / L / F — operator or category mistakes offset in the total.",
+          " absolute kg still sits in R / L / F — stream mistakes can offset in the total.",
         ])
       );
-      var max = Math.max(rlfTotals.digital_kg, rlfTotals.scan_kg, 1);
+      var digitalKg = rlfTotals.digital_kg;
+      var scanKg = rlfTotals.scan_kg;
+      var scale = compareBarScale(digitalKg, scanKg);
+      var digitalPct = scale.pct(digitalKg);
+      var scanPct = scale.pct(scanKg);
       [
-        ["Digital R+L+F (pay)", rlfTotals.digital_kg],
-        ["Scanned R+L+F (bags)", rlfTotals.scan_kg],
-      ].forEach(function (pair, i) {
+        ["Digital R+L+F (pay)", digitalKg, digitalPct, ""],
+        ["Scanned R+L+F (bags)", scanKg, scanPct, " tsv-bar-fill--physical"],
+      ].forEach(function (pair) {
         var row = ui.el("div", { class: "tsv-bar-row tsv-bar-row--compact" });
         row.appendChild(ui.el("span", { class: "tsv-bar-label" }, [pair[0]]));
         var track = ui.el("div", { class: "tsv-bar-track" });
-        var fill = ui.el("div", {
-          class: "tsv-bar-fill" + (i === 1 ? " tsv-bar-fill--physical" : ""),
-          style: "width:" + Math.round((pair[1] / max) * 100) + "%",
-        });
-        track.appendChild(fill);
+        track.appendChild(
+          ui.el("div", {
+            class: "tsv-bar-fill" + pair[3],
+            style: "width:" + Math.round(pair[2]) + "%",
+          })
+        );
         row.appendChild(track);
         row.appendChild(ui.el("span", { class: "tsv-bar-val" }, [fmtKg(pair[1])]));
         barWrap.appendChild(row);
       });
+      var gapLeft = Math.min(digitalPct, scanPct);
+      var gapWidth = Math.max(Math.abs(digitalPct - scanPct), netBar !== 0 ? 3 : 0);
+      var gapRow = ui.el("div", { class: "tsv-bar-row tsv-bar-row--compact tsv-bar-row--gap" });
+      gapRow.appendChild(ui.el("span", { class: "tsv-bar-label" }, ["Gap (visual)"]));
+      var gapTrack = ui.el("div", { class: "tsv-bar-track tsv-bar-track--gap" });
+      gapTrack.appendChild(
+        ui.el("div", {
+          class: "tsv-bar-gap " + varianceColorClass(netBar),
+          style: "margin-left:" + gapLeft.toFixed(2) + "%;width:" + gapWidth.toFixed(2) + "%",
+        })
+      );
+      gapRow.appendChild(gapTrack);
+      gapRow.appendChild(
+        ui.el("span", { class: "tsv-bar-val " + varianceColorClass(netBar) }, [fmtVar(netBar)])
+      );
+      barWrap.appendChild(gapRow);
       summaryHost.appendChild(barWrap);
     }
 

@@ -3509,6 +3509,26 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   border-radius: 4px;
 }
 .tsv-bar-fill--physical { background: #6aa84f; }
+.tsv-bar-track--gap {
+  position: relative;
+  height: 10px;
+  background: rgba(148, 163, 184, 0.12);
+}
+.tsv-bar-gap {
+  height: 100%;
+  min-width: 2px;
+  border-radius: 3px;
+  background: rgba(251, 191, 36, 0.85);
+}
+.truck-scale-variance-host .tsv-bar-gap.tsv-var--neg {
+  background: rgba(248, 113, 113, 0.9);
+}
+.truck-scale-variance-host .tsv-bar-gap.tsv-var--zero {
+  background: rgba(148, 163, 184, 0.35);
+}
+.tsv-bar-row--gap .tsv-bar-label {
+  font-weight: 600;
+}
 .truck-scale-variance-table-wrap {
   overflow-x: auto;
   margin-top: 10px;
