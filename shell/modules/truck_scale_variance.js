@@ -162,6 +162,91 @@
     return Math.max(0, Math.min(100, Math.round(((val - base) / range) * 100)));
   }
 
+  function windhoekTodayIso() {
+    try {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Windhoek" }).format(new Date());
+    } catch (e) {
+      return new Date().toISOString().slice(0, 10);
+    }
+  }
+
+  function windhoekYearMonth() {
+    try {
+      var parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Windhoek",
+        year: "numeric",
+        month: "numeric",
+      }).formatToParts(new Date());
+      var y = parts.find(function (p) {
+        return p.type === "year";
+      });
+      var m = parts.find(function (p) {
+        return p.type === "month";
+      });
+      return {
+        year: y ? y.value : String(new Date().getFullYear()),
+        month: m ? String(parseInt(m.value, 10)) : String(new Date().getMonth() + 1),
+      };
+    } catch (e) {
+      return { year: String(new Date().getFullYear()), month: String(new Date().getMonth() + 1) };
+    }
+  }
+
+  function renderZoomedRlfBarChart(ui, opts) {
+    opts = opts || {};
+    var totals = opts.totals || { digital_kg: 0, scan_kg: 0, net_vs_digital_kg: 0 };
+    var netBar = totals.net_vs_digital_kg;
+    var lo = Math.min(totals.digital_kg, totals.scan_kg);
+    var hi = Math.max(totals.digital_kg, totals.scan_kg);
+    var span = hi - lo;
+    var pad = Math.max(span * 0.2, 80);
+    var base = Math.max(0, lo - pad);
+    var top = hi + pad;
+    var range = top - base || 1;
+
+    var barWrap = ui.el("div", {
+      class: "tsv-bar-chart tsv-bar-chart--zoom " + (opts.chartClass || ""),
+    });
+    var head = ui.el("div", { class: "tsv-bar-head" });
+    head.appendChild(ui.el("h3", { class: "tsv-bar-title" }, [opts.title || "Digital vs scanned R/L+F"]));
+    head.appendChild(
+      ui.el("span", { class: "tsv-bar-variance " + varianceColorClass(netBar) }, [
+        "Net Vs digital: ",
+        fmtVar(netBar),
+      ])
+    );
+    barWrap.appendChild(head);
+    if (opts.extraHead) barWrap.appendChild(opts.extraHead);
+    if (opts.helpText) {
+      barWrap.appendChild(ui.el("p", { class: "muted tsv-bar-help" }, [opts.helpText]));
+    }
+    barWrap.appendChild(
+      ui.el("div", { class: "tsv-bar-axis" }, [fmtKg(base) + " … " + fmtKg(top)])
+    );
+    [
+      ["Digital R+L+F (pay)", totals.digital_kg, ""],
+      ["Scanned R+L+F (bags)", totals.scan_kg, " tsv-bar-fill--physical"],
+    ].forEach(function (pair) {
+      var rowEl = ui.el("div", { class: "tsv-bar-row" });
+      rowEl.appendChild(ui.el("span", { class: "tsv-bar-label" }, [pair[0]]));
+      var track = ui.el("div", { class: "tsv-bar-track tsv-bar-track--zoom" });
+      track.appendChild(
+        ui.el("div", {
+          class: "tsv-bar-fill" + pair[2],
+          style: "width:" + zoomedBarWidth(pair[1], base, range) + "%",
+        })
+      );
+      rowEl.appendChild(track);
+      rowEl.appendChild(ui.el("span", { class: "tsv-bar-val" }, [fmtKg(pair[1])]));
+      barWrap.appendChild(rowEl);
+    });
+    var deltaRow = ui.el("div", { class: "tsv-bar-delta " + varianceColorClass(netBar) });
+    deltaRow.appendChild(ui.el("span", { class: "tsv-bar-delta-label" }, ["Gap (scan − digital)"]));
+    deltaRow.appendChild(ui.el("strong", {}, [fmtVar(netBar)]));
+    barWrap.appendChild(deltaRow);
+    return barWrap;
+  }
+
   function fillBookingDateOptions(sel, dates, current) {
     sel.innerHTML = "";
     sel.appendChild(CIS.ui.el("option", { value: "" }, ["All booking dates"]));
@@ -280,6 +365,45 @@
       );
     }
 
+    function bookingDatesFromSelect() {
+      var out = [];
+      for (var i = 0; i < bookingDateSel.options.length; i++) {
+        var v = bookingDateSel.options[i].value;
+        if (v) out.push(String(v).slice(0, 10));
+      }
+      return out;
+    }
+
+    function pickDefaultBookingDate() {
+      var dates = bookingDatesFromSelect();
+      var cur = (bookingDateSel.value || "").slice(0, 10);
+      if (cur && dates.indexOf(cur) >= 0) return;
+      var today = windhoekTodayIso();
+      if (dates.indexOf(today) >= 0) bookingDateSel.value = today;
+      else if (dates.length) bookingDateSel.value = dates[0];
+    }
+
+    function renderDailyAccChart(ui, rows, bookingDate) {
+      if (!rows.length) return null;
+      var bd = (bookingDate || "").slice(0, 10);
+      var totals = sumDigitalAndScanRlf(rows);
+      var title = bd
+        ? "Digital vs scanned R/L+F — daily total (" + bd + ")"
+        : "Digital vs scanned R/L+F — total for filter";
+      var help =
+        "Accumulated pay weight vs bag scans for all trucks on this booking date (" +
+        rows.length +
+        " truck" +
+        (rows.length === 1 ? "" : "s") +
+        "). Bars use a zoomed scale so the day’s net gap is visible.";
+      return renderZoomedRlfBarChart(ui, {
+        title: title,
+        totals: totals,
+        helpText: help,
+        chartClass: "tsv-bar-chart--daily",
+      });
+    }
+
     function renderTruckCompareChart(ui, rows) {
       if (!rows.length) return ui.el("div");
       var pick =
@@ -288,29 +412,6 @@
         }) || rows[0];
       if (!pick) return ui.el("div");
       selectedTruckId = pick.intake_id || selectedTruckId;
-
-      var totals = rlfTotalsForRow(pick);
-      var netBar = totals.net_vs_digital_kg;
-      var lo = Math.min(totals.digital_kg, totals.scan_kg);
-      var hi = Math.max(totals.digital_kg, totals.scan_kg);
-      var span = hi - lo;
-      var pad = Math.max(span * 0.2, 80);
-      var base = Math.max(0, lo - pad);
-      var top = hi + pad;
-      var range = top - base || 1;
-
-      var barWrap = ui.el("div", { class: "tsv-bar-chart tsv-bar-chart--truck" });
-      var head = ui.el("div", { class: "tsv-bar-head" });
-      head.appendChild(
-        ui.el("h3", { class: "tsv-bar-title" }, ["Digital vs scanned R/L/F — one truck"])
-      );
-      head.appendChild(
-        ui.el("span", { class: "tsv-bar-variance " + varianceColorClass(netBar) }, [
-          "Net Vs digital: ",
-          fmtVar(netBar),
-        ])
-      );
-      barWrap.appendChild(head);
 
       var pickRow = ui.el("div", { class: "tsv-bar-pick" });
       pickRow.appendChild(ui.el("label", { for: "tsv-truck-pick" }, ["Truck"]));
@@ -330,45 +431,15 @@
         renderSummary(lastSummaryData);
       });
       pickRow.appendChild(truckSel);
-      barWrap.appendChild(pickRow);
 
-      barWrap.appendChild(
-        ui.el("p", { class: "muted tsv-bar-help" }, [
-          "Bars use a ",
-          ui.el("strong", {}, ["zoomed"]),
-          " scale around this truck’s digital and scan totals so a ",
-          fmtVar(netBar),
-          " gap is visible (fleet-wide totals hide small % gaps).",
-        ])
-      );
-
-      var axis = ui.el("div", { class: "tsv-bar-axis" }, [
-        fmtKg(base) + " … " + fmtKg(top),
-      ]);
-      barWrap.appendChild(axis);
-
-      [
-        ["Digital R+L+F (pay)", totals.digital_kg, ""],
-        ["Scanned R+L+F (bags)", totals.scan_kg, " tsv-bar-fill--physical"],
-      ].forEach(function (pair) {
-        var rowEl = ui.el("div", { class: "tsv-bar-row" });
-        rowEl.appendChild(ui.el("span", { class: "tsv-bar-label" }, [pair[0]]));
-        var track = ui.el("div", { class: "tsv-bar-track tsv-bar-track--zoom" });
-        var fill = ui.el("div", {
-          class: "tsv-bar-fill" + pair[2],
-          style: "width:" + zoomedBarWidth(pair[1], base, range) + "%",
-        });
-        track.appendChild(fill);
-        rowEl.appendChild(track);
-        rowEl.appendChild(ui.el("span", { class: "tsv-bar-val" }, [fmtKg(pair[1])]));
-        barWrap.appendChild(rowEl);
+      return renderZoomedRlfBarChart(ui, {
+        title: "Single truck (detail)",
+        totals: rlfTotalsForRow(pick),
+        extraHead: pickRow,
+        helpText:
+          "Same zoomed comparison for one truck — use after checking the daily total above.",
+        chartClass: "tsv-bar-chart--truck",
       });
-
-      var deltaRow = ui.el("div", { class: "tsv-bar-delta " + varianceColorClass(netBar) });
-      deltaRow.appendChild(ui.el("span", { class: "tsv-bar-delta-label" }, ["Gap (scan − digital)"]));
-      deltaRow.appendChild(ui.el("strong", {}, [fmtVar(netBar)]));
-      barWrap.appendChild(deltaRow);
-      return barWrap;
     }
 
     var lastSummaryData = null;
@@ -425,13 +496,16 @@
       cards.appendChild(rlfCard);
       summaryHost.appendChild(cards);
 
+      var daily = renderDailyAccChart(ui, rows, bookingDateSel.value);
+      if (daily) summaryHost.appendChild(daily);
+
       if (!selectedTruckId && rows.length) {
         var flagged = rows.find(function (r) {
           return r.flagged;
         });
         selectedTruckId = (flagged || rows[0]).intake_id || "";
       }
-      summaryHost.appendChild(renderTruckCompareChart(ui, rows));
+      if (rows.length) summaryHost.appendChild(renderTruckCompareChart(ui, rows));
     }
 
     function renderTable(rows) {
@@ -596,13 +670,19 @@
       bookingDateSel.value = "";
       supplierSel.value = "";
       selectedTruckId = "";
-      void loadFilters().then(loadData);
+      void loadFilters().then(function () {
+        pickDefaultBookingDate();
+        return loadData();
+      });
     });
     monthSel.addEventListener("change", function () {
       bookingDateSel.value = "";
       supplierSel.value = "";
       selectedTruckId = "";
-      void loadFilters().then(loadData);
+      void loadFilters().then(function () {
+        pickDefaultBookingDate();
+        return loadData();
+      });
     });
     bookingDateSel.addEventListener("change", function () {
       selectedTruckId = "";
@@ -617,9 +697,11 @@
       void downloadCsv();
     });
 
-    yearSel.value = "all";
-    monthSel.value = "all";
+    var ym = windhoekYearMonth();
+    yearSel.value = ym.year;
+    monthSel.value = ym.month;
     await loadFilters();
+    pickDefaultBookingDate();
     await loadData();
   }
 

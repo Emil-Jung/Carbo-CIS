@@ -3502,7 +3502,12 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   border-radius: 4px;
 }
 .tsv-bar-fill--physical { background: #6aa84f; }
-.tsv-bar-chart--truck { margin-top: 12px; }
+.tsv-bar-chart--daily { margin-top: 12px; }
+.tsv-bar-chart--truck {
+  margin-top: 12px;
+  opacity: 0.95;
+  border-style: dashed;
+}
 .tsv-bar-pick {
   display: flex;
   flex-wrap: wrap;
