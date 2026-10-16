@@ -8,6 +8,7 @@
   var DISPLAY_TZ = "Africa/Windhoek";
   var FALLBACK_STATUS_OPTIONS = [
     { value: "all", label: "All movement scans" },
+    { value: "master_storage_revert", label: "God mode — status revert" },
     { value: "packaging", label: "Packaging — in, consumed, pallet wrapped" },
     { value: "storage_walvisbay", label: "Into storage — Walvis Bay" },
   ];
@@ -87,7 +88,10 @@
         ui.el("p", { class: "bs-dash-lead" }, [
           "Every bag movement scan for one Windhoek day (sieve Charcoal Intake is excluded). ",
           "Newest on top — use packaging filters to compare bulk bag consumed vs pallets wrapped (wastage). ",
-          "Gap column = time since the previous scan; long gaps often mark a new truck batch.",
+          "Gap column = time since the previous scan; long gaps often mark a new truck batch. ",
+          "God mode status reverts are shown in ",
+          ui.el("span", { class: "wdsl-movement--master-revert" }, ["violet text"]),
+          " in the Movement column (or use the God mode filter).",
         ]),
       ])
     );
@@ -247,10 +251,15 @@
         var tbody = ui.el("tbody", {});
         rows.forEach(function (row, i) {
           var tr = ui.el("tr", {});
-          if (row.gap_highlight) tr.className = "wdsl-row--gap";
+          var rowCls = [];
+          if (row.gap_highlight) rowCls.push("wdsl-row--gap");
+          if (row.master_storage_override) rowCls.push("wdsl-row--master-revert");
+          if (rowCls.length) tr.className = rowCls.join(" ");
+          var movementCls = "wdsl-movement";
+          if (row.master_storage_override) movementCls += " wdsl-movement--master-revert";
           tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [String(i + 1)]));
           tr.appendChild(ui.el("td", {}, [row.serial || "—"]));
-          tr.appendChild(ui.el("td", { class: "wdsl-movement" }, [row.movement_summary || "—"]));
+          tr.appendChild(ui.el("td", { class: movementCls }, [row.movement_summary || "—"]));
           tr.appendChild(ui.el("td", {}, [row.movement_product_code || row.product_code || "—"]));
           tr.appendChild(ui.el("td", {}, [row.producer_name || "—"]));
           tr.appendChild(ui.el("td", {}, [streamLabel(row)]));

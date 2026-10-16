@@ -479,6 +479,13 @@ body {
   line-height: 1.35;
   color: #334155;
 }
+.module-content.bs-dashboard-host .wdsl-movement--master-revert {
+  color: #7C3AED;
+  font-weight: 600;
+}
+.module-content.bs-dashboard-host tr.wdsl-row--master-revert td.wdsl-movement--master-revert {
+  color: #6D28D9;
+}
 .module-content.bs-dashboard-host .wdsl-balance-panel {
   margin-bottom: 16px;
 }
