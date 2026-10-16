@@ -211,9 +211,22 @@
       var gapMin = parseInt(gapInput.value, 10) || 20;
       body.innerHTML = "";
       balanceEl.innerHTML = "";
-      summaryEl.textContent = "Loading…";
+      summaryEl.textContent = "Checking Traceability API…";
       refreshBtn.disabled = true;
       try {
+        if (CIS.traceabilityHealth) {
+          var health = await CIS.traceabilityHealth();
+          if (!health.ok) {
+            var healthMsg =
+              health.status === 502 || (health.detail && /\b502\b/.test(String(health.detail)))
+                ? CIS.traceabilityApiErrorMessage(new Error("HTTP 502"))
+                : "Traceability API is not reachable (" + (health.detail || "health check failed") + ").";
+            summaryEl.textContent = "";
+            body.appendChild(ui.error(healthMsg));
+            return;
+          }
+        }
+        summaryEl.textContent = "Loading…";
         var q =
           "/reports/bag-movements-by-day?day=" +
           encodeURIComponent(day) +
@@ -280,7 +293,11 @@
         body.appendChild(wrap);
       } catch (e) {
         summaryEl.textContent = "";
-        body.appendChild(ui.error("Could not load scan log: " + (e.message || e)));
+        var errText =
+          CIS.traceabilityApiErrorMessage && CIS.traceabilityApiErrorMessage(e)
+            ? CIS.traceabilityApiErrorMessage(e)
+            : e.message || e;
+        body.appendChild(ui.error("Could not load scan log: " + errText));
       } finally {
         refreshBtn.disabled = false;
       }

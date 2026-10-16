@@ -271,6 +271,52 @@
 
 
 
+  function traceabilityPublicRoot() {
+    var base = (state.config && state.config.traceabilityApiBase) || "/traceability/api/v1";
+    return base.replace(/\/api\/v1\/?$/, "") || "/traceability";
+  }
+
+  /** Unauthenticated probe — use before Traceability reports to avoid opaque 502 in the UI. */
+  CIS.traceabilityHealth = async function () {
+    try {
+      var res = await fetch(traceabilityPublicRoot() + "/health", {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        return { ok: false, status: res.status, detail: "HTTP " + res.status };
+      }
+      var data = null;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        return { ok: false, detail: "Invalid health JSON" };
+      }
+      if (data && data.status === "ok") return { ok: true };
+      return { ok: false, detail: "Unexpected health response" };
+    } catch (e) {
+      return { ok: false, detail: e.message || "Network error" };
+    }
+  };
+
+  CIS.traceabilityApiErrorMessage = function (err) {
+    var msg = (err && err.message) || String(err || "Unknown error");
+    if (/\b502\b/.test(msg) || /bad gateway/i.test(msg)) {
+      return (
+        "Traceability API is unavailable (502). The charcoal-traceability service on bkweb3 is not " +
+        "responding — ops should run deploy on the server or start the API on port 8005, then refresh."
+      );
+    }
+    if (/\b503\b/.test(msg)) {
+      return msg + " The API may be restarting; wait a minute and try Refresh.";
+    }
+    if (/\b504\b/.test(msg) || /gateway timeout/i.test(msg)) {
+      return msg + " The report took too long — try a narrower filter or ask ops to check server load.";
+    }
+    return msg;
+  };
+
   CIS.api = {
 
     identity: (path, opts) => apiFetch(state.config.identityApiBase, path, opts),
