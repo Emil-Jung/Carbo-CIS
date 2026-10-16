@@ -271,15 +271,16 @@
 
 
 
-  function traceabilityPublicRoot() {
+  /** Nginx proxies /traceability/api/health → uvicorn /health (not /traceability/health). */
+  function traceabilityHealthUrl() {
     var base = (state.config && state.config.traceabilityApiBase) || "/traceability/api/v1";
-    return base.replace(/\/api\/v1\/?$/, "") || "/traceability";
+    return base.replace(/\/v1\/?$/, "/health");
   }
 
   /** Unauthenticated probe — use before Traceability reports to avoid opaque 502 in the UI. */
   CIS.traceabilityHealth = async function () {
     try {
-      var res = await fetch(traceabilityPublicRoot() + "/health", {
+      var res = await fetch(traceabilityHealthUrl(), {
         method: "GET",
         headers: { Accept: "application/json" },
         cache: "no-store",
@@ -302,6 +303,12 @@
 
   CIS.traceabilityApiErrorMessage = function (err) {
     var msg = (err && err.message) || String(err || "Unknown error");
+    if (/\b404\b/.test(msg) && /health/i.test(msg)) {
+      return (
+        "Traceability health check returned 404 — CIS may be on an old shell cache. Hard-refresh (Ctrl+F5) " +
+        "or ask ops to redeploy Carbo-CIS."
+      );
+    }
     if (/\b502\b/.test(msg) || /bad gateway/i.test(msg)) {
       return (
         "Traceability API is unavailable (502). The charcoal-traceability service on bkweb3 is not " +
