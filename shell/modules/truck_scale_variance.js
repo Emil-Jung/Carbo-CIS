@@ -158,7 +158,7 @@
     sel.innerHTML = "";
     sel.appendChild(
       CIS.ui.el("option", { value: BOOKING_SAMPLE_VALUE }, [
-        "Last " + SIEVE_SAMPLE_DAYS + " sieving days",
+        "Last " + SIEVE_SAMPLE_DAYS + " sieving days (all trucks on those dates)",
       ])
     );
     sel.appendChild(CIS.ui.el("option", { value: "all" }, ["All dates in filter"]));
@@ -232,7 +232,15 @@
       ui.el("strong", {}, ["Charcoal deliveries"]),
       ". |Vs digital| over ",
       ui.el("strong", {}, ["5 kg"]),
-      " flags the row.",
+      " flags the row. Default ",
+      ui.el("strong", {}, ["Sample"]),
+      " = last ",
+      String(SIEVE_SAMPLE_DAYS),
+      " distinct ",
+      ui.el("strong", {}, ["sieving days"]),
+      " (booking dates) — ",
+      ui.el("strong", {}, ["every truck"]),
+      " on those days in the sheet below, not “5 trucks”.",
     ]));
 
     var toolbar = ui.el("div", { class: "toolbar deliveries-register-toolbar truck-scale-variance-toolbar" });
@@ -501,7 +509,21 @@
         var sd = data.sample_booking_dates || [];
         var sampleHint =
           sd.length > 0
-            ? sd[sd.length - 1] + " → " + sd[0] + " (" + sd.length + " day" + (sd.length === 1 ? "" : "s") + ")"
+            ? sd[sd.length - 1] +
+              " → " +
+              sd[0] +
+              " · " +
+              sd.length +
+              " sieving day" +
+              (sd.length === 1 ? "" : "s") +
+              (sd.length < SIEVE_SAMPLE_DAYS
+                ? " (only " + sd.length + " in system so far — not a full " + SIEVE_SAMPLE_DAYS + "-day window yet)"
+                : "") +
+              " · " +
+              (sampleSnap.count || 0) +
+              " truck" +
+              (sampleSnap.count === 1 ? "" : "s") +
+              " in sheet"
             : "";
         grid.appendChild(
           renderPeriodPanel(
@@ -524,6 +546,18 @@
         );
         compareWrap.appendChild(renderCompareTable(sampleSnap, allSnap));
         summaryHost.appendChild(compareWrap);
+        if (
+          allSnap.count === sampleSnap.count &&
+          allSnap.net_vs_digital_kg === sampleSnap.net_vs_digital_kg
+        ) {
+          summaryHost.appendChild(
+            ui.el("p", { class: "muted tsv-dual-summary-lead" }, [
+              "Both panels match because every PJ-complete truck in this filter already falls inside the sample window (common while the report history is still short). The sheet below lists those ",
+              String(sampleSnap.count || 0),
+              " trucks.",
+            ])
+          );
+        }
         return;
       }
 
@@ -670,11 +704,19 @@
           );
           fillSupplierOptions(supplierSel, data.filters.suppliers, supplierSel.value);
         }
+        var isSampleView = bookingDateSel.value === BOOKING_SAMPLE_VALUE;
+        var sdStatus = data.sample_booking_dates || [];
         status.textContent =
           (data.count != null ? data.count + " trucks" : "") +
           (data.flagged_count ? " · " + data.flagged_count + " flagged" : "") +
-          (data.sample_booking_dates && data.sample_booking_dates.length
-            ? " · sample: " + data.sample_booking_dates.join(", ")
+          (isSampleView && sdStatus.length
+            ? " · " +
+              sdStatus.length +
+              " sieving day" +
+              (sdStatus.length === 1 ? "" : "s") +
+              " (" +
+              sdStatus.join(", ") +
+              ")"
             : data.date_min && data.date_max
               ? " · " + data.date_min + " → " + data.date_max
               : "") +
@@ -682,22 +724,15 @@
             ? " · " + data.eligible_truck_count + " eligible before flagged filter"
             : "");
         renderSummary(data);
-        var hideLineTable = bookingDateSel.value === BOOKING_SAMPLE_VALUE;
-        tableSectionTitle.style.display = hideLineTable ? "none" : "";
-        if (hideLineTable) {
-          tableHost.innerHTML = "";
-          tableHost.appendChild(
-            ui.el("p", { class: "muted truck-scale-variance-table-note" }, [
-              "Line-by-line trucks are hidden for the ",
-              String(SIEVE_SAMPLE_DAYS),
-              "-day sample. Choose ",
-              ui.el("strong", {}, ["All dates in filter"]),
-              " or a single booking date to open the truck table, or use Download CSV.",
-            ])
-          );
-        } else {
-          renderTable(data.rows || []);
-        }
+        tableSectionTitle.style.display = "";
+        tableSectionTitle.textContent = isSampleView
+          ? "Line by line — trucks on last " +
+            SIEVE_SAMPLE_DAYS +
+            " sieving days (" +
+            (data.count != null ? data.count : (data.rows || []).length) +
+            " rows)"
+          : "Line by line — one row per truck";
+        renderTable(data.rows || []);
       } catch (e) {
         status.textContent = "";
         tableHost.appendChild(ui.error(String(e.message || e)));
