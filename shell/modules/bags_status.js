@@ -12,7 +12,13 @@
 
   var BS_AUTO_REFRESH_MS = 60000;
 
-
+  /** Drill-down requests — smaller API payload (`drill=1` on Traceability). */
+  function bagsStatusDrillPath(statusKey, streamKey) {
+    var q = ["drill=1"];
+    if (statusKey) q.push("status=" + encodeURIComponent(statusKey));
+    if (streamKey) q.push("stream=" + encodeURIComponent(streamKey));
+    return "/reports/bags-status?" + q.join("&");
+  }
 
   /** Scanner Create pallet button (bags-lookup). */
   var PALLET_MAGENTA = "#c2185b";
@@ -2547,6 +2553,7 @@
 
     var wxDrill = null;
     var wxDrillToken = 0;
+    var drillFetchToken = 0;
     var walvisStorageReport = null;
 
 
@@ -2697,15 +2704,26 @@
       }
     }
 
-    function showWxDrillLoading(sel, opts) {
-      opts = opts || {};
+    function showDrillLoadingPanel(title) {
+      status.style.display = "none";
       body.innerHTML = "";
-      body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [sel.label || "Bags"]));
-      body.appendChild(renderDrillLoading(sel.label, ui));
+      body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [title || "Bags"]));
+      body.appendChild(renderDrillLoading(title, ui));
       if (container && typeof container.scrollTop === "number") {
         container.scrollTop = 0;
       }
       syncFloatingNav();
+    }
+
+    function beginDrillFetch(title) {
+      drillFetchToken += 1;
+      var token = drillFetchToken;
+      showDrillLoadingPanel(title);
+      return token;
+    }
+
+    function drillFetchCancelled(token) {
+      return token !== drillFetchToken;
     }
 
     async function openWxDrill(sel, opts) {
@@ -2717,8 +2735,7 @@
         selected = null;
         selectedEvent = null;
       }
-      status.style.display = "none";
-      showWxDrillLoading(sel, opts);
+      showDrillLoadingPanel(sel.label || "Bags");
 
       try {
         var data = await ctx.api.traceability(buildWxDrillQuery(sel));
@@ -3196,9 +3213,7 @@
 
       if (!row || !row.serial) return;
 
-      status.textContent = "Loading pallet lineage…";
-
-      status.style.display = "";
+      var token = beginDrillFetch("Pallet lineage — " + row.serial);
 
       try {
 
@@ -3207,6 +3222,8 @@
           "/reports/pallet-detail?serial=" + encodeURIComponent(row.serial)
 
         );
+
+        if (drillFetchCancelled(token)) return;
 
         if (!selected) {
 
@@ -3220,17 +3237,17 @@
 
         if (!selected.label) selected.label = "Pallet";
 
-        status.style.display = "none";
-
         paint();
 
       } catch (e) {
 
-        status.style.display = "none";
+        if (drillFetchCancelled(token)) return;
 
         body.innerHTML = "";
 
         body.appendChild(ui.error("Could not load pallet: " + (e.message || e)));
+
+        syncFloatingNav();
 
       }
 
@@ -3240,25 +3257,23 @@
 
     async function openPalletBucket(bucket, statusKey) {
 
-      status.textContent = "Loading " + bucket.label + "…";
-
-      status.style.display = "";
+      var token = beginDrillFetch(bucket.label || "Pallets");
 
       try {
 
         var data = await ctx.api.traceability(
 
-          "/reports/bags-status?status=" + encodeURIComponent(statusKey) + "&stream=pallet"
+          bagsStatusDrillPath(statusKey, "pallet")
 
         );
+
+        if (drillFetchCancelled(token)) return;
 
         selectedEvent = null;
 
         wxDrill = null;
 
         var parent = selected || {};
-
-        status.style.display = "none";
 
         var locRows = flattenPalletSectionRows(data.event_sections || []);
 
@@ -3328,11 +3343,13 @@
 
       } catch (e) {
 
-        status.style.display = "none";
+        if (drillFetchCancelled(token)) return;
 
         body.innerHTML = "";
 
         body.appendChild(ui.error("Could not load pallets: " + (e.message || e)));
+
+        syncFloatingNav();
 
       }
 
@@ -3480,27 +3497,25 @@
 
       }
 
-      status.textContent = "Loading " + (st.label || "Pallets") + "…";
-
-      status.style.display = "";
+      var token = beginDrillFetch(st.label || "Pallets");
 
       try {
 
-        var palletData = await ctx.api.traceability("/reports/bags-status?stream=pallet");
+        var palletData = await ctx.api.traceability(bagsStatusDrillPath(null, "pallet"));
 
-        if (!container.isConnected) return;
-
-        status.style.display = "none";
+        if (!container.isConnected || drillFetchCancelled(token)) return;
 
         showPhysicalPalletByProduct(st, palletData, count);
 
       } catch (e) {
 
-        status.style.display = "none";
+        if (drillFetchCancelled(token)) return;
 
         body.innerHTML = "";
 
         body.appendChild(ui.error("Could not load pallets: " + (e.message || e)));
+
+        syncFloatingNav();
 
       }
 
@@ -3540,12 +3555,10 @@
     }
 
     async function openWalvisBulkDrill() {
-      status.textContent = "Loading bulk bags…";
-      status.style.display = "";
+      var token = beginDrillFetch("Bulk bags — Walvis Bay");
       try {
-        var data = await ctx.api.traceability(
-          "/reports/bags-status?status=" + encodeURIComponent(WALVIS_STORAGE_STATUS)
-        );
+        var data = await ctx.api.traceability(bagsStatusDrillPath(WALVIS_STORAGE_STATUS));
+        if (drillFetchCancelled(token)) return;
         var rows = flattenEventRows(data.event_sections || []).filter(function (r) {
           return (r.product_stream || "").toLowerCase() !== "pallet";
         });
@@ -3556,12 +3569,12 @@
           rows: rows,
           backTo: "main",
         };
-        status.style.display = "none";
         paint();
       } catch (e) {
-        status.style.display = "none";
+        if (drillFetchCancelled(token)) return;
         body.innerHTML = "";
         body.appendChild(ui.error("Could not load Walvis bags: " + (e.message || e)));
+        syncFloatingNav();
       }
     }
 
@@ -3570,18 +3583,10 @@
       wxDrill = null;
       var bucket = palletWalvisStorageBucket(summary.pallet_summary);
       if (!(bucket.bags || 0)) {
-        status.textContent = "Loading pallets…";
-        status.style.display = "";
-        try {
-          await openPalletBucket(
-            { key: WALVIS_STORAGE_STATUS, label: bucket.label, bags: 0, kg: 0 },
-            WALVIS_STORAGE_STATUS
-          );
-          status.style.display = "none";
-        } catch (e) {
-          status.style.display = "none";
-          body.appendChild(ui.error("Could not load pallets: " + (e.message || e)));
-        }
+        await openPalletBucket(
+          { key: WALVIS_STORAGE_STATUS, label: bucket.label, bags: 0, kg: 0 },
+          WALVIS_STORAGE_STATUS
+        );
         return;
       }
       selected = {
@@ -3742,13 +3747,13 @@
 
       }
 
-      status.textContent = "Loading " + st.label + "…";
-
-      status.style.display = "";
+      var token = beginDrillFetch(st.label || "Bags");
 
       try {
 
-        var data = await ctx.api.traceability("/reports/bags-status?status=" + encodeURIComponent(st.key));
+        var data = await ctx.api.traceability(bagsStatusDrillPath(st.key));
+
+        if (drillFetchCancelled(token)) return;
 
         selectedEvent = null;
 
@@ -3782,17 +3787,17 @@
 
         };
 
-        status.style.display = "none";
-
         paint();
 
       } catch (e) {
 
-        status.style.display = "none";
+        if (drillFetchCancelled(token)) return;
 
         body.innerHTML = "";
 
         body.appendChild(ui.error("Could not load bags: " + (e.message || e)));
+
+        syncFloatingNav();
 
       }
 

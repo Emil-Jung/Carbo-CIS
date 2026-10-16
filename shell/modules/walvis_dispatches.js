@@ -312,7 +312,7 @@
     try {
       var report = await apiGet(
         ctx,
-        "/reports/bags-status?status=" + encodeURIComponent("storage_walvisbay")
+        "/reports/bags-status?drill=1&status=" + encodeURIComponent("storage_walvisbay")
       );
       var manifestIds = {};
       (detail.bags || []).forEach(function (b) {
