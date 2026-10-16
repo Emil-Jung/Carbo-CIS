@@ -3480,6 +3480,49 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   border-bottom: 1px solid var(--border);
   text-align: left;
 }
+/* Side-by-side totals — Rest / Lump / Fines stream colours (~20% fill). */
+.truck-scale-variance-compare-table .tsv-compare-section td {
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  padding-top: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+}
+.truck-scale-variance-compare-table tbody tr.tsv-compare-section:first-child td {
+  padding-top: 8px;
+}
+.truck-scale-variance-compare-table .tsv-compare-grp--overall.tsv-compare-section td {
+  background: rgba(148, 163, 184, 0.22);
+  color: var(--text, #e2e8f0);
+}
+.truck-scale-variance-compare-table tr.tsv-compare-grp--restaurant td {
+  background: rgba(229, 115, 115, 0.2);
+}
+.truck-scale-variance-compare-table tr.tsv-compare-grp--restaurant.tsv-compare-section td {
+  border-top: 3px solid rgba(229, 115, 115, 0.85);
+  color: #e57373;
+}
+.truck-scale-variance-compare-table tr.tsv-compare-grp--lumpwood td {
+  background: rgba(129, 199, 132, 0.2);
+}
+.truck-scale-variance-compare-table tr.tsv-compare-grp--lumpwood.tsv-compare-section td {
+  border-top: 3px solid rgba(129, 199, 132, 0.85);
+  color: #81c784;
+}
+.truck-scale-variance-compare-table tr.tsv-compare-grp--fines td {
+  background: rgba(255, 183, 77, 0.2);
+}
+.truck-scale-variance-compare-table tr.tsv-compare-grp--fines.tsv-compare-section td {
+  border-top: 3px solid rgba(255, 183, 77, 0.85);
+  color: #ffb74d;
+}
+.truck-scale-variance-compare-table .tsv-compare-measure {
+  padding-left: 14px;
+}
+.truck-scale-variance-compare-table tr.tsv-compare-data td {
+  border-bottom-color: rgba(15, 23, 42, 0.25);
+}
 .truck-scale-variance-table-note { margin: 8px 0 16px; max-width: 60ch; }
 .truck-scale-variance-cards {
   display: grid;
@@ -3638,15 +3681,24 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .truck-scale-variance-table .tsv-grp--r th,
 .truck-scale-variance-table .tsv-grp--r td {
-  background: rgba(74, 134, 199, 0.07);
+  background: rgba(229, 115, 115, 0.2);
 }
 .truck-scale-variance-table .tsv-grp--l th,
 .truck-scale-variance-table .tsv-grp--l td {
-  background: rgba(106, 168, 79, 0.08);
+  background: rgba(129, 199, 132, 0.2);
 }
 .truck-scale-variance-table .tsv-grp--f th,
 .truck-scale-variance-table .tsv-grp--f td {
-  background: rgba(180, 140, 90, 0.1);
+  background: rgba(255, 183, 77, 0.2);
+}
+.truck-scale-variance-table .tsv-group-head-row .tsv-grp--r {
+  color: #e57373;
+}
+.truck-scale-variance-table .tsv-group-head-row .tsv-grp--l {
+  color: #81c784;
+}
+.truck-scale-variance-table .tsv-group-head-row .tsv-grp--f {
+  color: #ffb74d;
 }
 .truck-scale-variance-table .tsv-grp--waste th,
 .truck-scale-variance-table .tsv-grp--waste td {

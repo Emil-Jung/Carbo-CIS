@@ -448,8 +448,17 @@
       return panel;
     }
 
+    var TSV_COMPARE_STREAM = {
+      overall: { rowClass: "tsv-compare-grp--overall", title: "Overall (R + L + F combined)" },
+      restaurant_kg: { rowClass: "tsv-compare-grp--restaurant", title: "Restaurant (R)" },
+      lumpwood_kg: { rowClass: "tsv-compare-grp--lumpwood", title: "Lumpwood (L)" },
+      fines_kg: { rowClass: "tsv-compare-grp--fines", title: "Fines (F)" },
+    };
+
     function renderCompareTable(sampleSnap, allSnap) {
-      var table = ui.el("table", { class: "tsv-compare-table delivery-conf-tracker-table" });
+      var table = ui.el("table", {
+        class: "tsv-compare-table delivery-conf-tracker-table truck-scale-variance-compare-table",
+      });
       var thead = ui.el("thead");
       var hr = ui.el("tr");
       ["Measure", "Last " + SIEVE_SAMPLE_DAYS + " sieving days", "All complete loads (filter)"].forEach(function (h) {
@@ -458,34 +467,44 @@
       thead.appendChild(hr);
       table.appendChild(thead);
       var tbody = ui.el("tbody");
-      function addRow(label, a, b, isVar) {
-        var tr = ui.el("tr");
-        tr.appendChild(ui.el("td", {}, [label]));
+      function addSectionHeader(streamKey) {
+        var meta = TSV_COMPARE_STREAM[streamKey] || TSV_COMPARE_STREAM.overall;
+        var tr = ui.el("tr", { class: "tsv-compare-section " + meta.rowClass });
+        tr.appendChild(ui.el("td", { colspan: "3" }, [meta.title]));
+        tbody.appendChild(tr);
+      }
+      function addRow(label, a, b, isVar, streamKey) {
+        var meta = TSV_COMPARE_STREAM[streamKey] || TSV_COMPARE_STREAM.overall;
+        var tr = ui.el("tr", { class: "tsv-compare-data " + meta.rowClass });
+        tr.appendChild(ui.el("td", { class: "tsv-compare-measure" }, [label]));
         var cls = isVar ? " tsv-td--var " + varianceColorClass(a) : "";
         tr.appendChild(ui.el("td", { class: "tsv-td--num" + cls }, [isVar ? fmtVar(a) : String(a)]));
         cls = isVar ? " tsv-td--var " + varianceColorClass(b) : "";
         tr.appendChild(ui.el("td", { class: "tsv-td--num" + cls }, [isVar ? fmtVar(b) : String(b)]));
         tbody.appendChild(tr);
       }
-      addRow("Trucks", sampleSnap.count, allSnap.count, false);
-      addRow("Digital R+L+F total", fmtKg(sampleSnap.digital_rlf_kg), fmtKg(allSnap.digital_rlf_kg), false);
-      addRow("Scanned R+L+F total", fmtKg(sampleSnap.scan_rlf_kg), fmtKg(allSnap.scan_rlf_kg), false);
-      addRow("Net vs digital (R+L+F)", sampleSnap.net_vs_digital_kg, allSnap.net_vs_digital_kg, true);
-      addRow("Σ |Vs digital| (streams)", fmtKg(sampleSnap.abs_stream_variance_kg), fmtKg(allSnap.abs_stream_variance_kg), false);
+      addSectionHeader("overall");
+      addRow("Trucks", sampleSnap.count, allSnap.count, false, "overall");
+      addRow("Digital R+L+F total", fmtKg(sampleSnap.digital_rlf_kg), fmtKg(allSnap.digital_rlf_kg), false, "overall");
+      addRow("Scanned R+L+F total", fmtKg(sampleSnap.scan_rlf_kg), fmtKg(allSnap.scan_rlf_kg), false, "overall");
+      addRow("Net vs digital", sampleSnap.net_vs_digital_kg, allSnap.net_vs_digital_kg, true, "overall");
+      addRow("Σ |Vs digital| (all streams)", fmtKg(sampleSnap.abs_stream_variance_kg), fmtKg(allSnap.abs_stream_variance_kg), false, "overall");
       var catKeys = ["restaurant_kg", "lumpwood_kg", "fines_kg"];
       var sa = sampleSnap.category_analysis;
       var aa = allSnap.category_analysis;
       if (sa && sa.categories && aa && aa.categories) {
         catKeys.forEach(function (key) {
+          addSectionHeader(key);
           var sc = sa.categories[key] || {};
           var ac = aa.categories[key] || {};
-          addRow((sc.label || key) + " — net", sc.net_kg, ac.net_kg, true);
-          addRow((sc.label || key) + " — Σ |Vs digital|", fmtKg(sc.abs_sum_kg), fmtKg(ac.abs_sum_kg), false);
+          addRow("Net vs digital", sc.net_kg, ac.net_kg, true, key);
+          addRow("Σ |Vs digital|", fmtKg(sc.abs_sum_kg), fmtKg(ac.abs_sum_kg), false, key);
           addRow(
-            (sc.label || key) + " — % trucks off (>5 kg)",
-            (sc.trucks_off_pct != null ? sc.trucks_off_pct + "%" : "—"),
-            (ac.trucks_off_pct != null ? ac.trucks_off_pct + "%" : "—"),
-            false
+            "% trucks off (>5 kg)",
+            sc.trucks_off_pct != null ? sc.trucks_off_pct + "%" : "—",
+            ac.trucks_off_pct != null ? ac.trucks_off_pct + "%" : "—",
+            false,
+            key
           );
         });
       }
