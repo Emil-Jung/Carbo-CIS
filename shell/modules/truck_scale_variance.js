@@ -470,10 +470,121 @@
       addRow("Trucks", sampleSnap.count, allSnap.count, false);
       addRow("Digital R+L+F total", fmtKg(sampleSnap.digital_rlf_kg), fmtKg(allSnap.digital_rlf_kg), false);
       addRow("Scanned R+L+F total", fmtKg(sampleSnap.scan_rlf_kg), fmtKg(allSnap.scan_rlf_kg), false);
-      addRow("Net vs digital", sampleSnap.net_vs_digital_kg, allSnap.net_vs_digital_kg, true);
+      addRow("Net vs digital (R+L+F)", sampleSnap.net_vs_digital_kg, allSnap.net_vs_digital_kg, true);
       addRow("Σ |Vs digital| (streams)", fmtKg(sampleSnap.abs_stream_variance_kg), fmtKg(allSnap.abs_stream_variance_kg), false);
+      var catKeys = ["restaurant_kg", "lumpwood_kg", "fines_kg"];
+      var sa = sampleSnap.category_analysis;
+      var aa = allSnap.category_analysis;
+      if (sa && sa.categories && aa && aa.categories) {
+        catKeys.forEach(function (key) {
+          var sc = sa.categories[key] || {};
+          var ac = aa.categories[key] || {};
+          addRow((sc.label || key) + " — net", sc.net_kg, ac.net_kg, true);
+          addRow((sc.label || key) + " — Σ |Vs digital|", fmtKg(sc.abs_sum_kg), fmtKg(ac.abs_sum_kg), false);
+          addRow(
+            (sc.label || key) + " — % trucks off (>5 kg)",
+            (sc.trucks_off_pct != null ? sc.trucks_off_pct + "%" : "—"),
+            (ac.trucks_off_pct != null ? ac.trucks_off_pct + "%" : "—"),
+            false
+          );
+        });
+      }
       table.appendChild(tbody);
       return table;
+    }
+
+    function categoryBiasText(bias) {
+      if (bias === "heavier_at_scan") return "usually heavier at scan (+ kg)";
+      if (bias === "lighter_at_scan") return "usually lighter at scan (− kg)";
+      return "mixed +/− when off";
+    }
+
+    function renderCategoryInsights(analysis, scopeTitle) {
+      if (!analysis || !analysis.categories) return ui.el("div");
+      var box = ui.el("div", { class: "tsv-cat-insight" });
+      box.appendChild(ui.el("h4", { class: "tsv-cat-insight-title" }, [scopeTitle]));
+      var la = analysis.largest_abs_gap || {};
+      var mo = analysis.most_often_off || {};
+      var ul = ui.el("ul", { class: "tsv-cat-insight-list" });
+      if (la.label) {
+        ul.appendChild(
+          ui.el("li", {}, [
+            ui.el("strong", {}, ["Largest total gap: "]),
+            la.label,
+            " — Σ|Vs digital| ",
+            fmtKg(la.abs_sum_kg),
+            ", net ",
+            fmtVar(la.net_kg),
+          ])
+        );
+      }
+      if (mo.label && analysis.truck_count) {
+        ul.appendChild(
+          ui.el("li", {}, [
+            ui.el("strong", {}, ["Most often off (>5 kg): "]),
+            mo.label,
+            " on ",
+            String(mo.trucks_off_count || 0),
+            " / ",
+            String(analysis.truck_count),
+            " trucks (",
+            String(mo.trucks_off_pct != null ? mo.trucks_off_pct : 0),
+            "% — ",
+            mo.consistency || "sometimes",
+            "). When off: ",
+            categoryBiasText(mo.when_off_bias),
+            ".",
+          ])
+        );
+      }
+      ["restaurant_kg", "lumpwood_kg", "fines_kg"].forEach(function (key) {
+        var c = analysis.categories[key];
+        if (!c) return;
+        ul.appendChild(
+          ui.el("li", {}, [
+            ui.el("strong", {}, [c.label + ": "]),
+            "net ",
+            fmtVar(c.net_kg),
+            ", Σ|Vs| ",
+            fmtKg(c.abs_sum_kg),
+            ", ",
+            String(c.trucks_off_pct != null ? c.trucks_off_pct : 0),
+            "% trucks off",
+            c.trucks_off_count ? " (" + categoryBiasText(c.when_off_bias) + ")" : "",
+            ".",
+          ])
+        );
+      });
+      box.appendChild(ul);
+      return box;
+    }
+
+    function renderCategoryAnalysisBlock(sampleSnap, allSnap) {
+      if (!sampleSnap.category_analysis && !(allSnap && allSnap.category_analysis)) {
+        return ui.el("div");
+      }
+      var wrap = ui.el("div", { class: "tsv-cat-analysis-wrap" });
+      wrap.appendChild(
+        ui.el("h3", { class: "deliveries-register-totals-title" }, ["Category analysis"])
+      );
+      wrap.appendChild(
+        ui.el("p", { class: "muted tsv-cat-analysis-lead" }, [
+          "Restaurant, lumpwood, and fines compared separately. Use ",
+          ui.el("strong", {}, ["All complete loads"]),
+          " to see what is ",
+          ui.el("strong", {}, ["mostly or always"]),
+          " wrong; use the sample column for recent behaviour.",
+        ])
+      );
+      var grid = ui.el("div", { class: "tsv-cat-insight-grid" });
+      grid.appendChild(
+        renderCategoryInsights(sampleSnap.category_analysis, "Last " + SIEVE_SAMPLE_DAYS + " sieving days")
+      );
+      if (allSnap && allSnap.category_analysis) {
+        grid.appendChild(renderCategoryInsights(allSnap.category_analysis, "All complete loads in filter"));
+      }
+      wrap.appendChild(grid);
+      return wrap;
     }
 
     function filterScopeLabel(data) {
@@ -546,6 +657,7 @@
         );
         compareWrap.appendChild(renderCompareTable(sampleSnap, allSnap));
         summaryHost.appendChild(compareWrap);
+        summaryHost.appendChild(renderCategoryAnalysisBlock(sampleSnap, allSnap));
         if (
           allSnap.count === sampleSnap.count &&
           allSnap.net_vs_digital_kg === sampleSnap.net_vs_digital_kg
@@ -581,6 +693,9 @@
         hint = bookingDateSel.value;
       }
       summaryHost.appendChild(renderPeriodPanel(sampleSnap, singleTitle, hint));
+      if (sampleSnap.category_analysis) {
+        summaryHost.appendChild(renderCategoryAnalysisBlock(sampleSnap, null));
+      }
     }
 
     function renderTable(rows) {
