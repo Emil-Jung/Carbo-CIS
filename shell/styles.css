@@ -1091,6 +1091,16 @@ body {
   border-color: #c2185b;
 }
 
+.bs-dash-status-card--ch10-historical {
+  --card-accent: #111827;
+  background: #fff;
+  border: 2px solid #111;
+}
+
+.bs-dash-status-card--ch10-historical:hover {
+  border-color: #000;
+}
+
 .bs-dash-factory-storage-split {
   display: grid;
   grid-template-columns: 1fr 1fr;

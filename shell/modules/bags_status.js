@@ -1536,6 +1536,10 @@
         cls += " bs-dash-status-card--pallet bs-dash-status-card--pallet-magenta";
       }
 
+      if (st.key === "sold_ch10_historical") {
+        cls += " bs-dash-status-card--ch10-historical";
+      }
+
       var card = ui.el("button", { class: cls, type: "button", onclick: function () { onSelect(st); } });
 
       card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [st.label]));
