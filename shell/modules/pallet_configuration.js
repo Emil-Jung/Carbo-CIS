@@ -38,7 +38,7 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Pallet Configuration"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Retail pallet SKUs used at the packaging plant (CH05W, CH10, LF4, LF2.5, …). ",
+      "Retail pallet SKUs used at the packing plant (CH05W, CH10, LF4, LF2.5, …). ",
       "Changes apply to new pallet builds only — completed pallets and build sessions already ",
       "in progress keep the targets recorded when they were opened.",
     ]));
@@ -138,7 +138,7 @@
         field(
           "Source bags (FSC)",
           fscSel,
-          "Which bulk bags may be scanned into this SKU at the packaging plant. LF lines are typically FSC only."
+          "Which bulk bags may be scanned into this SKU at the packing plant. LF lines are typically FSC only."
         )
       );
       el.appendChild(field("Active", activeInput, "Inactive products are hidden from scanners but history is kept."));

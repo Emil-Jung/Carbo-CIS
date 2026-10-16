@@ -8,7 +8,7 @@
     { value: "sold", label: "Sold to a client", needs: "client" },
     { value: "on_truck_walvisbay", label: "In transit — truck to Walvis Bay", needs: null },
     { value: "at_briquette_plant", label: "Out to Briquette Plant", needs: null },
-    { value: "at_packaging_plant", label: "Out to Packaging Plant", needs: null },
+    { value: "at_packaging_plant", label: "Out to Packing Plant", needs: null },
     { value: "in_container", label: "Into container", needs: "container" },
   ];
 
