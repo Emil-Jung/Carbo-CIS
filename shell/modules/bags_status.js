@@ -987,6 +987,8 @@
 
     dispatched: "#64748B",
 
+    shipped: "#059669",
+
   };
 
 
@@ -1081,6 +1083,8 @@
     in_container: "in_container",
 
     dispatched: "dispatched",
+
+    shipped: "shipped",
 
   };
 
