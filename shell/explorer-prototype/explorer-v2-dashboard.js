@@ -176,7 +176,7 @@
     { key: "lumpwood", label: "Lumpwood" },
   ];
 
-  var FACTORY_PALLET_YARD_STATUSES = ["in_storage", "in_storage_weathering", "in_storage_released_early"];
+  var FACTORY_PALLET_YARD_STATUSES = ["in_storage", "in_storage_weathering"];
 
   function streamBagsInStatus(st, streamKey) {
     return (st && st.streams && st.streams[streamKey]) || 0;

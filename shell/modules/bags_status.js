@@ -1556,7 +1556,7 @@
     bagsCol.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Bags in storage"]));
     bagsCol.appendChild(
       ui.el("p", { class: "bs-dash-location__note bs-dash-location__note--compact muted" }, [
-        "Weathering, released early, and weathered — intake bags only (not pallets).",
+        "Weathering and weathered — intake bags only (not pallets).",
       ])
     );
     var bagCards = (storageStatuses || []).map(statusForBagsOnlyDisplay);
@@ -2483,9 +2483,7 @@
 
       });
 
-      var dayLabel = section.date_kind === "early_release"
-        ? "Early release · " + fmtDayHeading(section.date)
-        : fmtDayHeading(section.date);
+      var dayLabel = fmtDayHeading(section.date);
       card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [dayLabel]));
 
       card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(section.bags)]));
@@ -3995,7 +3993,7 @@
 
     icon: "bags",
 
-    description: "Where bags are — and weathering clock and release timing",
+    description: "Where bags are — and the 21-day weathering clock",
 
     requires: "traceability.bags_status",
 
