@@ -176,16 +176,26 @@
     nav.setAttribute("aria-hidden", "true");
     clearFloatNavScrollRoom();
 
-    if (onDashboard) return;
+    var hasAny = false;
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "cis-float-back-btn";
-    btn.textContent = floatBackStepLabel();
-    btn.title = "Back one step";
-    btn.setAttribute("aria-label", floatBackStepLabel());
-    btn.addEventListener("click", goBack);
-    nav.appendChild(btn);
+    if (state.user && CIS.operationsSummary && CIS.operationsSummary.mountFloatNav) {
+      CIS.operationsSummary.mountFloatNav(nav);
+      hasAny = nav.childElementCount > 0;
+    }
+
+    if (!onDashboard) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cis-float-back-btn";
+      btn.textContent = floatBackStepLabel();
+      btn.title = "Back one step";
+      btn.setAttribute("aria-label", floatBackStepLabel());
+      btn.addEventListener("click", goBack);
+      nav.appendChild(btn);
+      hasAny = true;
+    }
+
+    if (!hasAny) return;
 
     nav.classList.remove("hidden");
     nav.setAttribute("aria-hidden", "false");
@@ -193,6 +203,8 @@
       el.classList.add("has-float-nav");
     });
   }
+
+  CIS.renderFloatNav = renderFloatNav;
 
   function setFloatingBack(opts) {
     if (opts && typeof opts.onClick === "function") {
@@ -551,10 +563,10 @@
 
     if (!openStartupModuleIfAny()) showDashboard();
 
-    var opsBtn = document.getElementById("cis-ops-summary-btn");
-    if (opsBtn) opsBtn.classList.remove("hidden");
     if (CIS.operationsSummary && CIS.operationsSummary.sync) {
       CIS.operationsSummary.sync({ api: CIS.api });
+    } else {
+      renderFloatNav();
     }
 
   }

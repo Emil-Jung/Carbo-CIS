@@ -1,4 +1,4 @@
-/* Core CIS V1 shell — read-only “today’s operations”. Session only; no Identity permission key. */
+/* Core CIS V1 — floating “today’s shift” (packing only). Session only; no permission key. */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -13,24 +13,11 @@
     error: null,
     ctx: null,
     onVisHandler: null,
-    btnBound: false,
+    floatToggleEl: null,
   };
 
   function panelEl() {
     return document.getElementById("cis-ops-summary");
-  }
-
-  function btnEl() {
-    return document.getElementById("cis-ops-summary-btn");
-  }
-
-  function activeCount(data) {
-    if (!data) return 0;
-    var n = 0;
-    if (data.charcoal_intake) n += 1;
-    if (data.packaging_shifts && data.packaging_shifts.length) n += 1;
-    if (data.walvis_dispatch) n += 1;
-    return n;
   }
 
   function fmtShort(iso) {
@@ -53,129 +40,105 @@
     return d.innerHTML;
   }
 
+  function activeShift(data) {
+    if (!data || !data.packaging_shift) return null;
+    return data.packaging_shift;
+  }
+
+  function floatButtonLabel() {
+    if (state.open) return "Hide shift";
+    var sh = activeShift(state.last);
+    if (sh && sh.product_codes && sh.product_codes.length) {
+      return "Shift: " + sh.product_codes.join(", ");
+    }
+    if (sh) return "Active shift";
+    return "Today\u2019s shift";
+  }
+
   function setOpen(open) {
     state.open = !!open;
     try {
       sessionStorage.setItem(STORAGE_OPEN, state.open ? "1" : "0");
     } catch (e) {}
-    render();
+    renderPanel();
+    updateFloatToggle();
   }
 
-  function bindTopbarButton() {
-    if (state.btnBound) return;
-    var btn = btnEl();
-    if (!btn) return;
-    state.btnBound = true;
-    btn.addEventListener("click", function () {
-      setOpen(!state.open);
-    });
+  function toggle() {
+    setOpen(!state.open);
   }
 
-  function render() {
-    bindTopbarButton();
-    var btn = btnEl();
+  function updateFloatToggle() {
+    if (!state.floatToggleEl) return;
+    state.floatToggleEl.textContent = floatButtonLabel();
+    state.floatToggleEl.setAttribute("aria-expanded", state.open ? "true" : "false");
+    state.floatToggleEl.classList.toggle("cis-float-ops-btn--idle", !activeShift(state.last) && !state.error);
+  }
+
+  function renderPanel() {
     var panel = panelEl();
-    if (!btn || !panel) return;
+    if (!panel) return;
 
-    var data = state.last;
-    var count = activeCount(data);
-    var open = state.open;
-
-    panel.classList.toggle("cis-ops-summary--open", open);
-    panel.classList.toggle("cis-ops-summary--idle", count === 0 && !state.error);
-
-    var toggleLabel = open ? "Hide ops" : "Today\u2019s ops";
-    if (!open && count > 0) toggleLabel += " (" + count + ")";
-    btn.textContent = toggleLabel;
-    btn.setAttribute("aria-expanded", open ? "true" : "false");
-    btn.setAttribute("aria-controls", "cis-ops-summary-panel");
-
-    if (open) {
-      var inner = "";
-      if (state.error) {
-        inner += '<p class="cis-ops-summary__muted">' + esc(state.error) + "</p>";
-      } else if (!data) {
-        inner += '<p class="cis-ops-summary__muted">Loading…</p>";
-      } else {
-        inner += sectionIntake(data.charcoal_intake);
-        inner += sectionPackaging(data.packaging_shifts);
-        inner += sectionWalvis(data.walvis_dispatch);
-        if (count === 0) {
-          inner += '<p class="cis-ops-summary__muted">Nothing active right now.</p>';
-        }
-        if (data.updated_at) {
-          inner +=
-            '<p class="cis-ops-summary__foot">Updated ' + esc(fmtShort(data.updated_at)) + "</p>";
-        }
-      }
-      panel.innerHTML =
-        '<div id="cis-ops-summary-panel" class="cis-ops-summary__panel" role="region" aria-label="Today\u2019s operations">' +
-        inner +
-        "</div>";
-      panel.classList.remove("hidden");
-    } else {
+    if (!state.open) {
       panel.innerHTML = "";
       panel.classList.add("hidden");
+      return;
     }
-  }
 
-  function section(title, bodyHtml, active) {
-    return (
-      '<section class="cis-ops-summary__block' +
-      (active ? " cis-ops-summary__block--active" : "") +
-      '">' +
-      "<h4>" +
-      esc(title) +
-      "</h4>" +
-      bodyHtml +
-      "</section>"
-    );
-  }
-
-  function sectionIntake(intake) {
-    if (!intake) {
-      return section("Charcoal intake", '<p class="cis-ops-summary__muted">No active truck</p>', false);
-    }
-    var lines = ["<p><strong>" + esc(intake.display_label) + "</strong></p>"];
-    if (intake.truck_registration) {
-      lines.push("<p>Truck " + esc(intake.truck_registration) + "</p>");
-    }
-    if (intake.opened_at) {
-      lines.push('<p class="cis-ops-summary__muted">Since ' + esc(fmtShort(intake.opened_at)) + "</p>");
-    }
-    return section("Charcoal intake", lines.join(""), true);
-  }
-
-  function sectionPackaging(shifts) {
-    if (!shifts || !shifts.length) {
-      return section("Packing", '<p class="cis-ops-summary__muted">No active shift</p>', false);
-    }
-    var parts = shifts.map(function (sh) {
-      var skus =
-        sh.product_codes && sh.product_codes.length ? sh.product_codes.join(", ") : "—";
-      var line = "<p><strong>" + esc(skus) + "</strong></p>";
-      if (sh.started_at) {
-        line += '<p class="cis-ops-summary__muted">Started ' + esc(fmtShort(sh.started_at)) + "</p>";
+    var inner = "";
+    if (state.error) {
+      inner += '<p class="cis-ops-summary__muted">' + esc(state.error) + "</p>";
+    } else if (!state.last) {
+      inner += '<p class="cis-ops-summary__muted">Loading…</p>';
+    } else {
+      var sh = activeShift(state.last);
+      if (!sh) {
+        inner += '<p class="cis-ops-summary__muted">No active packing shift today.</p>';
+      } else {
+        var skus =
+          sh.product_codes && sh.product_codes.length ? sh.product_codes.join(", ") : "—";
+        inner += "<p><strong>" + esc(skus) + "</strong></p>";
+        if (sh.status) {
+          inner += "<p>Status: " + esc(sh.status) + "</p>";
+        }
+        if (sh.started_at) {
+          inner +=
+            '<p class="cis-ops-summary__muted">Started ' + esc(fmtShort(sh.started_at)) + "</p>";
+        }
+        if (sh.notes) {
+          inner += "<p>" + esc(sh.notes) + "</p>";
+        }
       }
-      return line;
-    });
-    return section("Packing", parts.join(""), true);
+      if (state.last.updated_at) {
+        inner +=
+          '<p class="cis-ops-summary__foot">Updated ' + esc(fmtShort(state.last.updated_at)) + "</p>";
+      }
+    }
+
+    panel.innerHTML =
+      '<div id="cis-ops-summary-panel" class="cis-ops-summary__panel" role="region" aria-label="Active packing shift">' +
+      inner +
+      "</div>";
+    panel.classList.remove("hidden");
   }
 
-  function sectionWalvis(dispatch) {
-    if (!dispatch) {
-      return section("Walvis dispatch", '<p class="cis-ops-summary__muted">No open dispatch</p>', false);
-    }
-    var lines = ["<p><strong>" + esc(dispatch.display_label) + "</strong></p>"];
-    var truck = [dispatch.truck_registration, dispatch.transporter].filter(Boolean).join(" · ");
-    if (truck) lines.push("<p>" + esc(truck) + "</p>");
-    lines.push(
-      "<p>Loaded bags: " + esc(String(dispatch.loaded_bags != null ? dispatch.loaded_bags : 0)) + "</p>"
-    );
-    if (dispatch.opened_at) {
-      lines.push('<p class="cis-ops-summary__muted">Opened ' + esc(fmtShort(dispatch.opened_at)) + "</p>");
-    }
-    return section("Walvis dispatch", lines.join(""), true);
+  function mountFloatNav(nav) {
+    if (!nav) return;
+    var toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "cis-float-back-btn cis-float-ops-btn";
+    toggle.setAttribute("aria-controls", "cis-ops-summary-panel");
+    toggle.setAttribute("aria-expanded", state.open ? "true" : "false");
+    toggle.title = "Today\u2019s active packing shift";
+    toggle.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggle();
+    });
+    nav.appendChild(toggle);
+    state.floatToggleEl = toggle;
+    updateFloatToggle();
+    renderPanel();
   }
 
   async function refresh(ctx) {
@@ -186,9 +149,10 @@
     } catch (e) {
       state.error = CIS.traceabilityApiErrorMessage
         ? CIS.traceabilityApiErrorMessage(e)
-        : (e && e.message) || "Could not load operations summary";
+        : (e && e.message) || "Could not load shift summary";
     }
-    render();
+    updateFloatToggle();
+    renderPanel();
   }
 
   function stop() {
@@ -204,17 +168,20 @@
     state.last = null;
     state.error = null;
     state.open = false;
-    var btn = btnEl();
-    if (btn) btn.classList.add("hidden");
+    state.floatToggleEl = null;
     var panel = panelEl();
     if (panel) {
       panel.classList.add("hidden");
       panel.innerHTML = "";
     }
+    if (CIS.renderFloatNav) CIS.renderFloatNav();
   }
 
   function sync(ctx) {
-    stop();
+    if (state.timer) {
+      clearInterval(state.timer);
+      state.timer = null;
+    }
     state.ctx = ctx;
 
     try {
@@ -223,9 +190,7 @@
       state.open = false;
     }
 
-    var btn = btnEl();
-    if (btn) btn.classList.remove("hidden");
-    render();
+    if (CIS.renderFloatNav) CIS.renderFloatNav();
     refresh(ctx);
 
     state.timer = setInterval(function () {
@@ -240,5 +205,11 @@
     document.addEventListener("visibilitychange", state.onVisHandler);
   }
 
-  CIS.operationsSummary = { sync: sync, stop: stop, refresh: refresh };
+  CIS.operationsSummary = {
+    sync: sync,
+    stop: stop,
+    refresh: refresh,
+    toggle: toggle,
+    mountFloatNav: mountFloatNav,
+  };
 })();

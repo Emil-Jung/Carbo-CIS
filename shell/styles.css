@@ -210,25 +210,20 @@ body {
   scroll-padding-bottom: var(--cis-float-nav-clearance);
 }
 /* Floating ops summary — top-right under topbar; collapsed by default so main content stays clear. */
-.cis-ops-topbar-btn {
-  color: var(--gold-bright) !important;
-  border-color: var(--gold-dim) !important;
-  font-weight: 700;
-  font-size: 12px;
-  white-space: nowrap;
-  flex-shrink: 0;
+.cis-float-ops-btn {
+  max-width: min(92vw, 18rem);
+  text-align: left;
+  font-size: 0.8rem;
 }
-.cis-ops-topbar-btn:hover {
-  border-color: var(--gold-bright) !important;
-  background: var(--panel-2);
+.cis-float-ops-btn--idle {
+  opacity: 0.92;
+  filter: saturate(0.85);
 }
 .cis-ops-summary {
   position: fixed;
-  top: calc(76px + 6px);
-  right: max(14px, env(safe-area-inset-right, 0px));
-  bottom: auto;
-  z-index: 950;
-  display: block;
+  left: 14px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px + 3.75rem + 44px);
+  z-index: 899;
   width: min(320px, calc(100vw - 28px));
   pointer-events: none;
 }
@@ -237,6 +232,9 @@ body {
 }
 .cis-ops-summary__panel {
   pointer-events: auto;
+}
+.app-view:has(#cis-float-nav:not(.hidden)) .cis-ops-summary:not(.hidden) {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px + 7.5rem + 52px);
 }
 .cis-ops-summary__panel {
   width: 100%;
