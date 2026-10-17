@@ -3480,48 +3480,105 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   border-bottom: 1px solid var(--border);
   text-align: left;
 }
-/* Side-by-side totals — Rest / Lump / Fines stream colours (~20% fill). */
+/* Side-by-side totals — light sheet with stream shading (readable on dark CIS chrome). */
+.truck-scale-variance-compare-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  background: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
+}
+.truck-scale-variance-compare-table th {
+  background: linear-gradient(180deg, #5b9bd5 0%, #4a86c7 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-style: italic;
+  padding: 10px 12px;
+  border: 1px solid #3a6fa8;
+  text-align: left;
+}
+.truck-scale-variance-compare-table td {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+  background: #ffffff;
+  vertical-align: middle;
+}
 .truck-scale-variance-compare-table .tsv-compare-section td {
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.02em;
-  padding-top: 14px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  padding-top: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.45);
 }
 .truck-scale-variance-compare-table tbody tr.tsv-compare-section:first-child td {
-  padding-top: 8px;
+  padding-top: 10px;
 }
 .truck-scale-variance-compare-table .tsv-compare-grp--overall.tsv-compare-section td {
-  background: rgba(148, 163, 184, 0.22);
-  color: var(--text, #e2e8f0);
+  background: linear-gradient(180deg, #e8edf2 0%, #d8e0e8 100%);
+  color: #334155;
 }
-.truck-scale-variance-compare-table tr.tsv-compare-grp--restaurant td {
-  background: rgba(229, 115, 115, 0.2);
+.truck-scale-variance-compare-table tr.tsv-compare-grp--overall.tsv-compare-data td {
+  background: linear-gradient(180deg, #fafbfc 0%, #f1f5f9 100%);
 }
 .truck-scale-variance-compare-table tr.tsv-compare-grp--restaurant.tsv-compare-section td {
-  border-top: 3px solid rgba(229, 115, 115, 0.85);
-  color: #e57373;
+  background: linear-gradient(180deg, #f5d0d0 0%, #e8a8a8 100%);
+  color: #7f1d1d;
+  border-top: 3px solid #c62828;
 }
-.truck-scale-variance-compare-table tr.tsv-compare-grp--lumpwood td {
-  background: rgba(129, 199, 132, 0.2);
+.truck-scale-variance-compare-table tr.tsv-compare-grp--restaurant.tsv-compare-data td {
+  background: linear-gradient(180deg, #fff5f5 0%, #ffe8e8 100%);
+}
+.truck-scale-variance-compare-table tr.tsv-compare-grp--restaurant.tsv-compare-data td.tsv-compare-measure {
+  background: linear-gradient(90deg, #ffcdd2 0%, #fff5f5 55%);
+  border-left: 4px solid #e57373;
 }
 .truck-scale-variance-compare-table tr.tsv-compare-grp--lumpwood.tsv-compare-section td {
-  border-top: 3px solid rgba(129, 199, 132, 0.85);
-  color: #81c784;
+  background: linear-gradient(180deg, #d4edda 0%, #a5d6a7 100%);
+  color: #1b5e20;
+  border-top: 3px solid #2e7d32;
 }
-.truck-scale-variance-compare-table tr.tsv-compare-grp--fines td {
-  background: rgba(255, 183, 77, 0.2);
+.truck-scale-variance-compare-table tr.tsv-compare-grp--lumpwood.tsv-compare-data td {
+  background: linear-gradient(180deg, #f1fbf3 0%, #e2f5e6 100%);
+}
+.truck-scale-variance-compare-table tr.tsv-compare-grp--lumpwood.tsv-compare-data td.tsv-compare-measure {
+  background: linear-gradient(90deg, #c8e6c9 0%, #f1fbf3 55%);
+  border-left: 4px solid #81c784;
 }
 .truck-scale-variance-compare-table tr.tsv-compare-grp--fines.tsv-compare-section td {
-  border-top: 3px solid rgba(255, 183, 77, 0.85);
-  color: #ffb74d;
+  background: linear-gradient(180deg, #ffe8c7 0%, #ffcc80 100%);
+  color: #7c4a03;
+  border-top: 3px solid #ef6c00;
+}
+.truck-scale-variance-compare-table tr.tsv-compare-grp--fines.tsv-compare-data td {
+  background: linear-gradient(180deg, #fffaf3 0%, #fff3e0 100%);
+}
+.truck-scale-variance-compare-table tr.tsv-compare-grp--fines.tsv-compare-data td.tsv-compare-measure {
+  background: linear-gradient(90deg, #ffe0b2 0%, #fffaf3 55%);
+  border-left: 4px solid #ffb74d;
 }
 .truck-scale-variance-compare-table .tsv-compare-measure {
   padding-left: 14px;
+  font-weight: 500;
 }
-.truck-scale-variance-compare-table tr.tsv-compare-data td {
-  border-bottom-color: rgba(15, 23, 42, 0.25);
+.truck-scale-variance-compare-table .tsv-td--num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.truck-scale-variance-host .truck-scale-variance-compare-table td.tsv-var--neg {
+  color: #dc2626 !important;
+  font-weight: 700;
+}
+.truck-scale-variance-host .truck-scale-variance-compare-table td.tsv-var--pos {
+  color: #15803c !important;
+  font-weight: 700;
+}
+.truck-scale-variance-host .truck-scale-variance-compare-table td.tsv-var--zero {
+  color: #64748b !important;
 }
 .truck-scale-variance-table-note { margin: 8px 0 16px; max-width: 60ch; }
 .truck-scale-variance-cards {

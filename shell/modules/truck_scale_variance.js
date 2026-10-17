@@ -457,7 +457,7 @@
 
     function renderCompareTable(sampleSnap, allSnap) {
       var table = ui.el("table", {
-        class: "tsv-compare-table delivery-conf-tracker-table truck-scale-variance-compare-table",
+        class: "tsv-compare-table truck-scale-variance-compare-table",
       });
       var thead = ui.el("thead");
       var hr = ui.el("tr");
