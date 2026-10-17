@@ -1,24 +1,18 @@
-/* Core CIS V1 — floating “today’s shift” (packing only). Session only; no permission key. */
+/* Core CIS V1 — floating read-only today’s packing shift (not clickable). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
 
   var POLL_MS = 60000;
-  var STORAGE_OPEN = "cis_ops_summary_open";
 
   var state = {
     timer: null,
-    open: false,
     last: null,
     error: null,
     ctx: null,
     onVisHandler: null,
-    floatToggleEl: null,
+    floatEl: null,
   };
-
-  function panelEl() {
-    return document.getElementById("cis-ops-summary");
-  }
 
   function fmtShort(iso) {
     if (!iso) return "";
@@ -45,100 +39,63 @@
     return data.packaging_shift;
   }
 
-  function floatButtonLabel() {
-    if (state.open) return "Hide shift";
-    var sh = activeShift(state.last);
-    if (sh && sh.product_codes && sh.product_codes.length) {
-      return "Shift: " + sh.product_codes.join(", ");
-    }
-    if (sh) return "Active shift";
-    return "Today\u2019s shift";
-  }
+  function renderFloatContent() {
+    if (!state.floatEl) return;
 
-  function setOpen(open) {
-    state.open = !!open;
-    try {
-      sessionStorage.setItem(STORAGE_OPEN, state.open ? "1" : "0");
-    } catch (e) {}
-    renderPanel();
-    updateFloatToggle();
-  }
-
-  function toggle() {
-    setOpen(!state.open);
-  }
-
-  function updateFloatToggle() {
-    if (!state.floatToggleEl) return;
-    state.floatToggleEl.textContent = floatButtonLabel();
-    state.floatToggleEl.setAttribute("aria-expanded", state.open ? "true" : "false");
-    state.floatToggleEl.classList.toggle("cis-float-ops-btn--idle", !activeShift(state.last) && !state.error);
-  }
-
-  function renderPanel() {
-    var panel = panelEl();
-    if (!panel) return;
-
-    if (!state.open) {
-      panel.innerHTML = "";
-      panel.classList.add("hidden");
+    if (state.error) {
+      state.floatEl.innerHTML =
+        '<div class="cis-float-ops-card cis-float-ops-card--error">' +
+        '<div class="cis-float-ops-card__title">Today\u2019s shift</div>' +
+        '<p class="cis-float-ops-card__body">' +
+        esc(state.error) +
+        "</p></div>";
       return;
     }
 
-    var inner = "";
-    if (state.error) {
-      inner += '<p class="cis-ops-summary__muted">' + esc(state.error) + "</p>";
-    } else if (!state.last) {
-      inner += '<p class="cis-ops-summary__muted">Loading…</p>';
-    } else {
-      var sh = activeShift(state.last);
-      if (!sh) {
-        inner += '<p class="cis-ops-summary__muted">No active packing shift today.</p>';
-      } else {
-        var skus =
-          sh.product_codes && sh.product_codes.length ? sh.product_codes.join(", ") : "—";
-        inner += "<p><strong>" + esc(skus) + "</strong></p>";
-        if (sh.status) {
-          inner += "<p>Status: " + esc(sh.status) + "</p>";
-        }
-        if (sh.started_at) {
-          inner +=
-            '<p class="cis-ops-summary__muted">Started ' + esc(fmtShort(sh.started_at)) + "</p>";
-        }
-        if (sh.notes) {
-          inner += "<p>" + esc(sh.notes) + "</p>";
-        }
-      }
-      if (state.last.updated_at) {
-        inner +=
-          '<p class="cis-ops-summary__foot">Updated ' + esc(fmtShort(state.last.updated_at)) + "</p>";
-      }
+    if (!state.last) {
+      state.floatEl.innerHTML =
+        '<div class="cis-float-ops-card cis-float-ops-card--idle">' +
+        '<div class="cis-float-ops-card__title">Today\u2019s shift</div>' +
+        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">Loading…</p></div>';
+      return;
     }
 
-    panel.innerHTML =
-      '<div id="cis-ops-summary-panel" class="cis-ops-summary__panel" role="region" aria-label="Active packing shift">' +
-      inner +
+    var sh = activeShift(state.last);
+    if (!sh) {
+      state.floatEl.innerHTML =
+        '<div class="cis-float-ops-card cis-float-ops-card--idle">' +
+        '<div class="cis-float-ops-card__title">Today\u2019s shift</div>' +
+        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active packing shift today.</p></div>';
+      return;
+    }
+
+    var skus = sh.product_codes && sh.product_codes.length ? sh.product_codes.join(", ") : "—";
+    var lines = ['<p class="cis-float-ops-card__skus">' + esc(skus) + "</p>"];
+    if (sh.started_at) {
+      lines.push(
+        '<p class="cis-float-ops-card__meta">Started ' + esc(fmtShort(sh.started_at)) + "</p>"
+      );
+    }
+    if (sh.notes) {
+      lines.push('<p class="cis-float-ops-card__meta">' + esc(sh.notes) + "</p>");
+    }
+
+    state.floatEl.innerHTML =
+      '<div class="cis-float-ops-card cis-float-ops-card--active">' +
+      '<div class="cis-float-ops-card__title">Active packing shift</div>' +
+      lines.join("") +
       "</div>";
-    panel.classList.remove("hidden");
   }
 
   function mountFloatNav(nav) {
     if (!nav) return;
-    var toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "cis-float-back-btn cis-float-ops-btn";
-    toggle.setAttribute("aria-controls", "cis-ops-summary-panel");
-    toggle.setAttribute("aria-expanded", state.open ? "true" : "false");
-    toggle.title = "Today\u2019s active packing shift";
-    toggle.addEventListener("click", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      toggle();
-    });
-    nav.appendChild(toggle);
-    state.floatToggleEl = toggle;
-    updateFloatToggle();
-    renderPanel();
+    var wrap = document.createElement("div");
+    wrap.className = "cis-float-ops-host";
+    wrap.setAttribute("aria-live", "polite");
+    wrap.setAttribute("aria-label", "Today\u2019s active packing shift");
+    nav.appendChild(wrap);
+    state.floatEl = wrap;
+    renderFloatContent();
   }
 
   async function refresh(ctx) {
@@ -149,10 +106,9 @@
     } catch (e) {
       state.error = CIS.traceabilityApiErrorMessage
         ? CIS.traceabilityApiErrorMessage(e)
-        : (e && e.message) || "Could not load shift summary";
+        : (e && e.message) || "Could not load shift";
     }
-    updateFloatToggle();
-    renderPanel();
+    renderFloatContent();
   }
 
   function stop() {
@@ -167,9 +123,8 @@
     state.ctx = null;
     state.last = null;
     state.error = null;
-    state.open = false;
-    state.floatToggleEl = null;
-    var panel = panelEl();
+    state.floatEl = null;
+    var panel = document.getElementById("cis-ops-summary");
     if (panel) {
       panel.classList.add("hidden");
       panel.innerHTML = "";
@@ -183,13 +138,6 @@
       state.timer = null;
     }
     state.ctx = ctx;
-
-    try {
-      state.open = sessionStorage.getItem(STORAGE_OPEN) === "1";
-    } catch (e) {
-      state.open = false;
-    }
-
     if (CIS.renderFloatNav) CIS.renderFloatNav();
     refresh(ctx);
 
@@ -205,11 +153,5 @@
     document.addEventListener("visibilitychange", state.onVisHandler);
   }
 
-  CIS.operationsSummary = {
-    sync: sync,
-    stop: stop,
-    refresh: refresh,
-    toggle: toggle,
-    mountFloatNav: mountFloatNav,
-  };
+  CIS.operationsSummary = { sync: sync, stop: stop, refresh: refresh, mountFloatNav: mountFloatNav };
 })();
