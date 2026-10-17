@@ -302,7 +302,7 @@
       class: "bm-label-tag",
       title: "Printed labels ready vs labels already on bags",
     });
-    tag.appendChild(ui.el("span", { class: "bm-label-tag__badge" }, ["Bag labels"]));
+    tag.appendChild(ui.el("span", { class: "bm-label-tag__badge" }, ["Printed labels"]));
 
     var line = ui.el("span", { class: "bm-label-tag__line" });
     function addItem(value, suffix, tone) {
@@ -315,7 +315,16 @@
       line.appendChild(ui.el("span", { class: "bm-label-tag__sep" }, ["·"]));
     }
 
-    addItem(inv.available != null ? inv.available : inv.available_to_use, "ready", "ready");
+    if (inv.by_format && inv.by_format.length >= 2) {
+      inv.by_format.forEach(function (block, idx) {
+        if (idx > 0) addSep();
+        var suffix = block.format === "a4_pallet" ? "A4 ready" : "bag ready";
+        var tone = block.format === "a4_pallet" ? "a4" : "ready";
+        addItem(block.available, suffix, tone);
+      });
+    } else {
+      addItem(inv.available != null ? inv.available : inv.available_to_use, "ready", "ready");
+    }
     if ((inv.parked || 0) > 0) {
       addSep();
       addItem(inv.parked, "parked", "parked");

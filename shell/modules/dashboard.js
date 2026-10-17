@@ -12,7 +12,7 @@
 
   var LAYOUT = {
 
-    administration: ["identity_admin", "device_keys"],
+    administration: ["identity_admin", "device_keys", "label_print_warning_admin"],
 
     applications: ["producers_office", "traceability", "quality_capture", "maintenance_manager"],
 
@@ -26,7 +26,7 @@
       "truck_scale_variance",
     ],
 
-    reportsRow3: ["bags_movement_report", "bags_status_report", "supplier_contacts"],
+    reportsRow3: ["bags_movement_report", "bags_status_report", "label_inventory_report", "supplier_contacts"],
 
   };
 

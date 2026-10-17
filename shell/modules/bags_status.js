@@ -957,7 +957,7 @@
 
     var chip = ui.el("div", { class: "bs-dash-label-chip" });
 
-    chip.appendChild(ui.el("span", { class: "bs-dash-label-chip__title" }, ["Bag labels"]));
+    chip.appendChild(ui.el("span", { class: "bs-dash-label-chip__title" }, ["Printed labels"]));
 
     var line = ui.el("div", { class: "bs-dash-label-chip__line" });
 
@@ -973,7 +973,18 @@
 
     }
 
-    addPart(inv.available != null ? inv.available : inv.available_to_use, "ready", "ready");
+    if (inv.by_format && inv.by_format.length >= 2) {
+      inv.by_format.forEach(function (block, idx) {
+        if (idx > 0) {
+          line.appendChild(ui.el("span", { class: "bs-dash-label-chip__sep" }, [" · "]));
+        }
+        var short =
+          block.format === "a4_pallet" ? "A4 ready" : block.format === "zebra_bag" ? "Bag ready" : "ready";
+        addPart(block.available, short, block.format === "a4_pallet" ? "a4" : "ready");
+      });
+    } else {
+      addPart(inv.available != null ? inv.available : inv.available_to_use, "ready", "ready");
+    }
 
     if ((inv.parked || 0) > 0) addPart(inv.parked, "parked", "parked");
 

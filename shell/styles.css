@@ -1788,6 +1788,42 @@ body {
   font-size: 14px;
   font-weight: 700;
 }
+.bm-label-tag__item--a4 strong,
+.bs-dash-label-chip__part--a4 strong {
+  color: #c084fc;
+}
+
+.label-inv-card {
+  margin: 1rem 0 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border-muted, #333);
+  border-radius: 8px;
+  background: var(--surface-elevated, rgba(255, 255, 255, 0.04));
+}
+
+.label-inv-dl {
+  display: grid;
+  grid-template-columns: 12rem 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0.75rem 0 0;
+}
+
+.label-inv-dl dt {
+  opacity: 0.85;
+}
+
+.label-sms-recipients {
+  list-style: none;
+  padding: 0;
+}
+
+.label-sms-recipients li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.35rem 0;
+}
+
 .bm-label-tag__item--ready strong {
   color: #8fd99a;
 }

@@ -1235,6 +1235,7 @@
       try {
         var body = {
           quantity: parsed.value,
+          label_format: labelFormat === "a4_pallet" ? "a4_pallet" : "zebra_bag",
           printer_name: labelFormat === "a4_pallet"
             ? (resolvedA4Printer() || null)
             : (zebraUsesNetwork() ? zebraNetworkEndpoint() : (resolvedZebraPrinter() || null)),
