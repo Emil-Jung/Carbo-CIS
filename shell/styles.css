@@ -4100,6 +4100,14 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   color: var(--gold-bright, var(--gold));
 }
 .walvis-dispatch-status-line { font-size: 0.88rem; margin: 0 0 0.5rem; line-height: 1.35; }
+.walvis-dispatch-close-load {
+  margin-bottom: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(134, 239, 172, 0.35);
+  border-radius: 8px;
+  background: rgba(22, 40, 28, 0.55);
+}
+.walvis-dispatch-close-load-btn { margin-top: 0.35rem; }
 .walvis-dispatch-list-hint { font-size: 0.82rem; margin: 0 0 0.65rem; line-height: 1.35; }
 .walvis-dispatch-toolbar {
   display: flex;

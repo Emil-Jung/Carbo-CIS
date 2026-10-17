@@ -581,6 +581,23 @@
     leftPanel.appendChild(
       ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Plan & actions"])
     );
+    if (detail.status === "open") {
+      var closeLoadBox = ui.el("div", { class: "walvis-dispatch-close-load" });
+      closeLoadBox.appendChild(
+        ui.el("p", { class: "walvis-dispatch-status-line" }, [
+          "Released — loading at Grootfontein. When this truck is finished, close the load so scanners cannot add more bags until you create and release the next plan.",
+        ])
+      );
+      var closeLoadBtn = ui.el("button", {
+        type: "button",
+        class: "settings-action-btn walvis-dispatch-close-load-btn",
+      }, ["Close truck load (finished loading)"]);
+      closeLoadBtn.addEventListener("click", function () {
+        managerCloseOpen(container, ctx, detail);
+      });
+      closeLoadBox.appendChild(closeLoadBtn);
+      leftPanel.appendChild(closeLoadBox);
+    }
     rightPanel.appendChild(
       ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Manifest"])
     );
