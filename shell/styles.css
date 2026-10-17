@@ -4062,3 +4062,120 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .packaging-shift-busy-title { font-weight: 700; font-size: 1.05rem; margin: 0 0 0.35rem; }
 .packaging-shift-busy-detail { margin: 0; color: var(--muted, #94a3b8); font-size: 0.95rem; }
+
+/* Walvis Bay Dispatch — two-column office layout */
+.walvis-dispatch-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) minmax(280px, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 0.75rem;
+}
+@media (max-width: 920px) {
+  .walvis-dispatch-workspace { grid-template-columns: 1fr; }
+}
+.walvis-dispatch-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  min-width: 0;
+}
+.walvis-dispatch-panel-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  color: var(--gold-bright, var(--gold));
+}
+.walvis-dispatch-status-line { font-size: 0.88rem; margin: 0 0 0.5rem; line-height: 1.35; }
+.walvis-dispatch-list-hint { font-size: 0.82rem; margin: 0 0 0.65rem; line-height: 1.35; }
+.walvis-dispatch-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.65rem;
+}
+.walvis-dispatch-form-intro { font-size: 0.85rem; margin: 0 0 0.75rem; line-height: 1.35; }
+.walvis-dispatch-form .ct-field { margin-bottom: 0.6rem; }
+.walvis-dispatch-form .wd-field-input,
+.walvis-dispatch-form .wd-field-select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.walvis-dispatch-form .wd-field-narrow { max-width: 11.5rem; }
+.walvis-dispatch-form .wd-field-qty { text-align: center; padding-left: 4px; padding-right: 4px; }
+.walvis-plan-lines { margin: 0.35rem 0 0.75rem; }
+.walvis-plan-line-row {
+  display: grid;
+  grid-template-columns: 1fr 4.25rem;
+  gap: 0.45rem;
+  margin-bottom: 0.35rem;
+  align-items: center;
+}
+.walvis-dispatch-save-btn { margin-top: 0.25rem; }
+.walvis-dispatch-list-col {
+  max-height: min(72vh, 680px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-right: 2px;
+}
+.walvis-dispatch-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+.walvis-dispatch-card:hover {
+  border-color: var(--gold-dim, rgba(201, 162, 39, 0.55));
+  background: rgba(201, 162, 39, 0.08);
+}
+.walvis-dispatch-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+.walvis-dispatch-card-title { font-weight: 600; font-size: 0.92rem; }
+.walvis-dispatch-card-chip {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.walvis-dispatch-card-chip--planned { color: #fcd34d; border-color: rgba(252, 211, 77, 0.45); }
+.walvis-dispatch-card-chip--open { color: #86efac; border-color: rgba(134, 239, 172, 0.45); }
+.walvis-dispatch-card-chip--closed { color: var(--muted); }
+.walvis-dispatch-card-meta { font-size: 0.78rem; color: var(--muted); line-height: 1.35; }
+.walvis-dispatch-admin-tools {
+  margin-top: 1.25rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.walvis-dispatch-admin-tools summary {
+  cursor: pointer;
+  color: var(--muted);
+  user-select: none;
+}
+.walvis-dispatch-admin-tools .walvis-dispatch-actions { margin-top: 0.75rem; }

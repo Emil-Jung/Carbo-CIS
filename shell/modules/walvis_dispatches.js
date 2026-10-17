@@ -1105,75 +1105,105 @@
     }
   }
 
-  async function renderCreateDispatchPlan(host, ctx, ui, openDispatch, plannedDispatch) {
+  function dispatchStatusChip(d) {
+    if (!d) return "";
+    if (d.status === "planned") {
+      var ld = d.loading_date || "";
+      var today = windhoekTodayInputValue();
+      if (ld && today && ld > today) return "Scheduled";
+      return "Planned";
+    }
+    if (d.status === "open") return "Loading";
+    return "Closed";
+  }
+
+  function sortDispatchesForPanel(rows) {
+    var planned = [];
+    var open = [];
+    var closed = [];
+    (rows || []).forEach(function (d) {
+      if (d.status === "planned") planned.push(d);
+      else if (d.status === "open") open.push(d);
+      else closed.push(d);
+    });
+    planned.sort(function (a, b) {
+      var da = a.loading_date || a.opened_at || "";
+      var db = b.loading_date || b.opened_at || "";
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+    closed.sort(function (a, b) {
+      var da = a.opened_at || "";
+      var db = b.opened_at || "";
+      return da < db ? 1 : da > db ? -1 : 0;
+    });
+    return planned.concat(open).concat(closed);
+  }
+
+  function fillDispatchListColumn(listHost, rows, container, ctx, ui) {
+    listHost.innerHTML = "";
+    var sorted = sortDispatchesForPanel(rows);
+    if (!sorted.length) {
+      listHost.appendChild(
+        ui.el("p", { class: "muted" }, [
+          "No dispatches yet — create one on the left (you can schedule future loading days).",
+        ])
+      );
+      return;
+    }
+    sorted.forEach(function (d) {
+      var chip = dispatchStatusChip(d);
+      var card = ui.el("button", {
+        type: "button",
+        class: "walvis-dispatch-card",
+        onclick: function () {
+          openDetail(container, ctx, d.id);
+        },
+      });
+      var head = ui.el("div", { class: "walvis-dispatch-card-head" });
+      head.appendChild(ui.el("span", { class: "walvis-dispatch-card-title" }, [dispatchDisplayLabel(d)]));
+      head.appendChild(
+        ui.el("span", { class: "walvis-dispatch-card-chip walvis-dispatch-card-chip--" + d.status }, [
+          chip,
+        ])
+      );
+      card.appendChild(head);
+      var meta =
+        (d.truck_registration ? d.truck_registration + " · " : "") +
+        (d.plan_total ? d.plan_total + " planned · " : "") +
+        fmt(d.loaded_bags) +
+        " loaded · " +
+        fmt(d.received_bags) +
+        " Walvis";
+      if (d.loading_date) {
+        meta = "Load " + d.loading_date + " · " + meta;
+      }
+      card.appendChild(ui.el("span", { class: "walvis-dispatch-card-meta" }, [meta]));
+      listHost.appendChild(card);
+    });
+  }
+
+  async function renderCreateDispatchPlan(host, ctx, ui, openDispatch) {
     host.innerHTML = "";
-    host.appendChild(
-      ui.el("h3", { class: "module-title", style: "font-size: 1.05rem; margin: 0 0 0.5rem;" }, [
-        "Create dispatch (office)",
-      ])
-    );
-    host.appendChild(
-      ui.el("p", { class: "muted", style: "font-size:0.88rem;line-height:1.35;margin:0 0 0.75rem;" }, [
-        "Pick the loading day — the name is ",
-        ui.el("strong", {}, ["Dispatch [day] [date] #[N]"]),
-        " for that Windhoek date. Add up to 8 product lines, then ",
-        ui.el("strong", {}, ["Release for loading"]),
-        " (like a packaging shift). Truck registration can wait.",
-      ])
-    );
+    host.className = "walvis-dispatch-form";
 
     if (openDispatch) {
       host.appendChild(
         ui.el("p", { class: "error-box" }, [
           "Loading in progress: ",
           dispatchDisplayLabel(openDispatch),
-          ". Close or switch truck before creating a new plan.",
+          ". Close this truck load before creating another plan.",
         ])
       );
       return;
     }
 
-    if (plannedDispatch) {
-      var planBox = ui.el("div", { style: "margin-bottom:1rem;padding:0.75rem;border:1px solid var(--gold-dim);border-radius:8px;" });
-      planBox.appendChild(ui.el("p", { style: "margin:0 0 0.5rem;font-weight:700;" }, [
-        "Planned: " + dispatchDisplayLabel(plannedDispatch),
-      ]));
-      (plannedDispatch.plan_lines || []).forEach(function (ln) {
-        planBox.appendChild(
-          ui.el("p", { class: "muted", style: "margin:0.15rem 0;font-size:0.85rem;" }, [
-            ln.product_key + " × " + ln.quantity,
-          ])
-        );
-      });
-      var planActions = ui.el("div", { style: "display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem;" });
-      planActions.appendChild(
-        ui.el("button", {
-          type: "button",
-          class: "settings-action-btn",
-          onclick: function () {
-            openDetail(host.closest(".module-content") || host, ctx, plannedDispatch.id);
-          },
-        }, ["Review / release"])
-      );
-      planActions.appendChild(
-        ui.el("button", {
-          type: "button",
-          class: "btn-ghost",
-          onclick: async function () {
-            if (!window.confirm("Cancel this planned dispatch?")) return;
-            try {
-              await apiPost(ctx, "/walvis-dispatches/" + encodeURIComponent(plannedDispatch.id) + "/cancel-plan", {});
-              await renderList(host.closest(".module-content"), ctx);
-            } catch (e) {
-              window.alert(e.message || String(e));
-            }
-          },
-        }, ["Cancel plan"])
-      );
-      planBox.appendChild(planActions);
-      host.appendChild(planBox);
-      return;
-    }
+    host.appendChild(
+      ui.el("p", { class: "muted walvis-dispatch-form-intro" }, [
+        "Loading day → ",
+        ui.el("strong", {}, ["Dispatch [day] [date] #[N]"]),
+        ". Release when Shorty is ready to scan (or schedule ahead for Monday, etc.).",
+      ])
+    );
 
     var options = { bulk: [], pallets: [] };
     try {
@@ -1183,24 +1213,47 @@
       return;
     }
     var allOpts = (options.bulk || []).concat(options.pallets || []);
-    var dateInp = ui.el("input", { type: "date", id: "wd_plan_date", value: windhoekTodayInputValue() });
-    host.appendChild(ui.el("label", { for: "wd_plan_date" }, ["Loading day (Windhoek)"]));
-    host.appendChild(dateInp);
-    host.appendChild(ui.el("label", { for: "wd_plan_truck" }, ["Truck registration (optional)"]));
-    var truckInp = ui.el("input", { type: "text", id: "wd_plan_truck", placeholder: "Add later if unknown" });
-    host.appendChild(truckInp);
 
-    var linesHost = ui.el("div", { style: "margin:0.75rem 0;display:flex;flex-direction:column;gap:0.5rem;" });
+    var dateField = ui.el("div", { class: "ct-field" });
+    var dateInp = ui.el("input", {
+      type: "date",
+      id: "wd_plan_date",
+      class: "wd-field-input wd-field-narrow",
+      value: windhoekTodayInputValue(),
+    });
+    dateField.appendChild(ui.el("span", { class: "ct-field-label" }, ["Loading day (Windhoek)"]));
+    dateField.appendChild(dateInp);
+    host.appendChild(dateField);
+
+    var truckField = ui.el("div", { class: "ct-field" });
+    var truckInp = ui.el("input", {
+      type: "text",
+      id: "wd_plan_truck",
+      class: "wd-field-input",
+      placeholder: "Optional — add later",
+    });
+    truckField.appendChild(ui.el("span", { class: "ct-field-label" }, ["Truck registration"]));
+    truckField.appendChild(truckInp);
+    host.appendChild(truckField);
+
+    host.appendChild(ui.el("span", { class: "ct-field-label" }, ["Load plan (up to 8 lines)"]));
+    var linesHost = ui.el("div", { class: "walvis-plan-lines" });
     var lineRows = [];
     for (var i = 0; i < 8; i++) {
       (function (idx) {
-        var row = ui.el("div", { style: "display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;" });
-        var sel = ui.el("select", { style: "flex:1;min-width:12rem;" });
+        var row = ui.el("div", { class: "walvis-plan-line-row" });
+        var sel = ui.el("select", { class: "wd-field-select" });
         sel.appendChild(ui.el("option", { value: "" }, ["— line " + (idx + 1) + " —"]));
         allOpts.forEach(function (o) {
           sel.appendChild(ui.el("option", { value: o.key }, [o.label]));
         });
-        var qty = ui.el("input", { type: "number", min: "1", max: "9999", placeholder: "Qty", style: "width:5rem;" });
+        var qty = ui.el("input", {
+          type: "number",
+          min: "1",
+          max: "9999",
+          placeholder: "Qty",
+          class: "wd-field-input wd-field-qty",
+        });
         row.appendChild(sel);
         row.appendChild(qty);
         linesHost.appendChild(row);
@@ -1212,7 +1265,7 @@
     host.appendChild(
       ui.el("button", {
         type: "button",
-        class: "settings-action-btn",
+        class: "settings-action-btn walvis-dispatch-save-btn",
         onclick: async function () {
           var lines = [];
           lineRows.forEach(function (r) {
@@ -1252,21 +1305,45 @@
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Walvis Bay Dispatch"]));
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
-        "Office builds the truck load plan, releases it for Grootfontein scanners, then reconciles received bags at Walvis Bay.",
+        "Plan truck loads, schedule ahead, release for Grootfontein scanners, reconcile at Walvis Bay.",
       ])
     );
 
-    var managerHost = ui.el("div", {
-      class: "walvis-dispatch-manager",
-      style: "margin-bottom: 1.25rem; padding: 1rem; border: 1px solid var(--border, #ccc); border-radius: 8px;",
-    });
-    var activeLine = ui.el("p", { class: "muted", id: "walvis-active-dispatch-line" }, ["Checking…"]);
-    managerHost.appendChild(activeLine);
-    var managerBtns = ui.el("div", { style: "display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.75rem;" });
-    managerHost.appendChild(managerBtns);
-    container.appendChild(managerHost);
+    var workspace = ui.el("div", { class: "walvis-dispatch-workspace" });
 
-    var actions = ui.el("div", { class: "walvis-dispatch-actions", style: "margin-bottom: 1rem;" });
+    var leftPanel = ui.el("section", { class: "walvis-dispatch-panel walvis-dispatch-panel--create" });
+    leftPanel.appendChild(
+      ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Create dispatch"])
+    );
+    var activeLine = ui.el("p", { class: "muted walvis-dispatch-status-line", id: "walvis-active-dispatch-line" }, [
+      "Checking…",
+    ]);
+    leftPanel.appendChild(activeLine);
+    var managerBtns = ui.el("div", { class: "walvis-dispatch-toolbar" });
+    leftPanel.appendChild(managerBtns);
+    var planFormHost = ui.el("div", { class: "walvis-dispatch-form-host" });
+    leftPanel.appendChild(planFormHost);
+
+    var rightPanel = ui.el("section", { class: "walvis-dispatch-panel walvis-dispatch-panel--list" });
+    rightPanel.appendChild(
+      ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Scheduled & dispatches"])
+    );
+    rightPanel.appendChild(
+      ui.el("p", { class: "muted walvis-dispatch-list-hint" }, [
+        "Planned and future loading days appear first. Open a row to release or edit.",
+      ])
+    );
+    var listHost = ui.el("div", { class: "walvis-dispatch-list-col walvis-dispatch-list" });
+    listHost.textContent = "Loading…";
+    rightPanel.appendChild(listHost);
+
+    workspace.appendChild(leftPanel);
+    workspace.appendChild(rightPanel);
+    container.appendChild(workspace);
+
+    var actions = ui.el("details", { class: "walvis-dispatch-admin-tools" });
+    actions.appendChild(ui.el("summary", {}, ["Admin & reconcile tools"]));
+    var actionsInner = ui.el("div", { class: "walvis-dispatch-actions" });
 
     var resetBtn = ui.el("button", {
       type: "button",
@@ -1276,14 +1353,12 @@
     resetBtn.addEventListener("click", function () {
       runResetAndFenceFirst(container, ctx);
     });
-    actions.appendChild(resetBtn);
 
     var roadCatchupLine = ui.el("p", {
       class: "muted",
       id: "walvis-road-catchup-line",
       style: "font-size:0.88rem;margin:0.5rem 0 0;line-height:1.35;",
     }, ["Checking in-transit manifest gap…"]);
-    actions.appendChild(roadCatchupLine);
 
     var roadCatchupBtn = ui.el("button", {
       type: "button",
@@ -1333,7 +1408,6 @@
         roadCatchupBtn.disabled = false;
       }
     });
-    actions.appendChild(roadCatchupBtn);
 
     var fenceBtn = ui.el("button", {
       type: "button",
@@ -1368,28 +1442,29 @@
         fenceBtn.disabled = false;
       }
     });
-    actions.appendChild(fenceBtn);
+    actionsInner.appendChild(resetBtn);
+    actionsInner.appendChild(roadCatchupLine);
+    actionsInner.appendChild(roadCatchupBtn);
+    actionsInner.appendChild(fenceBtn);
+    actions.appendChild(actionsInner);
     container.appendChild(actions);
 
-    var listHost = ui.el("div", { class: "walvis-dispatch-list" });
-    container.appendChild(listHost);
-    listHost.textContent = "Loading…";
-
     var openDispatch = null;
-    var plannedDispatch = null;
+    var plannedCount = 0;
     try {
       var activeResp = await apiGet(ctx, "/walvis-dispatches/active");
       openDispatch = activeResp.dispatch || null;
-      plannedDispatch = activeResp.planned || null;
+      var plannedList = activeResp.planned_dispatches || (activeResp.planned ? [activeResp.planned] : []);
+      plannedCount = plannedList.length;
     } catch (e) {
       openDispatch = null;
-      plannedDispatch = null;
+      plannedCount = 0;
     }
     activeLine.textContent = openDispatch
       ? "Released for loading: " + dispatchOpenLabel(openDispatch)
-      : plannedDispatch
-        ? "Planned (not released yet): " + dispatchDisplayLabel(plannedDispatch)
-        : "No active load — create a dispatch plan below, then release for Grootfontein scanners.";
+      : plannedCount
+        ? plannedCount + " dispatch plan(s) waiting — release from the list when loading starts."
+        : "No truck released — create a plan (left), then release from the list.";
     managerBtns.innerHTML = "";
     if (openDispatch) {
       managerBtns.appendChild(
@@ -1419,21 +1494,9 @@
           },
         }, ["View manifest"])
       );
-    } else if (plannedDispatch) {
-      managerBtns.appendChild(
-        ui.el("button", {
-          type: "button",
-          class: "settings-action-btn",
-          onclick: function () {
-            openDetail(container, ctx, plannedDispatch.id);
-          },
-        }, ["Review plan / release"])
-      );
     }
 
-    var planFormHost = ui.el("div", { style: "margin-top:1rem;" });
-    managerHost.appendChild(planFormHost);
-    await renderCreateDispatchPlan(planFormHost, ctx, ui, openDispatch, plannedDispatch);
+    await renderCreateDispatchPlan(planFormHost, ctx, ui, openDispatch);
 
     try {
       var roadPreview = await apiGet(ctx, "/walvis-dispatches/preview-road-catchup");
@@ -1450,43 +1513,7 @@
     try {
       var data = await apiGet(ctx, "/walvis-dispatches?limit=50&include_closed=true");
       var rows = data.dispatches || [];
-      listHost.innerHTML = "";
-      if (!rows.length) {
-        listHost.appendChild(
-          ui.el("p", { class: "muted" }, [
-            "No dispatch records. Use Reset & fence Dispatch #1 if Walvis already has stock on the ground.",
-          ])
-        );
-        return;
-      }
-      rows.forEach(function (d) {
-        var card = ui.el("button", {
-          type: "button",
-          class: "dashboard-tile walvis-dispatch-tile",
-          onclick: function () {
-            openDetail(container, ctx, d.id);
-          },
-        });
-        var label =
-          dispatchDisplayLabel(d) +
-          (d.truck_registration ? " · " + d.truck_registration : "") +
-          (d.status === "open"
-            ? " (loading)"
-            : d.status === "planned"
-              ? " (planned)"
-              : " (closed)");
-        card.appendChild(ui.el("span", { class: "dashboard-tile-title" }, [label]));
-        card.appendChild(
-          ui.el("span", { class: "dashboard-tile-desc" }, [
-            fmt(d.loaded_bags) +
-              " loaded · " +
-              fmt(d.received_bags) +
-              " received Walvis · opened " +
-              fmtDate(d.opened_at),
-          ])
-        );
-        listHost.appendChild(card);
-      });
+      fillDispatchListColumn(listHost, rows, container, ctx, ui);
     } catch (e) {
       listHost.innerHTML = "";
       listHost.appendChild(ui.el("p", { class: "error-box" }, [e.message || String(e)]));
