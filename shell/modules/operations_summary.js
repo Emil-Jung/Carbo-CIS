@@ -3,7 +3,15 @@
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
 
-  var PERM = "traceability.access";
+  var PERMS_ANY = [
+    "traceability.access",
+    "traceability.control_room",
+    "traceability.packaging_shift",
+    "traceability.bags_status",
+    "traceability.bags_movement",
+    "traceability.movement_jobs",
+    "traceability.stock.view",
+  ];
   var POLL_MS = 60000;
   var STORAGE_OPEN = "cis_ops_summary_open";
 
@@ -18,6 +26,12 @@
 
   function rootEl() {
     return document.getElementById("cis-ops-summary");
+  }
+
+  function canSeeSummary() {
+    return PERMS_ANY.some(function (p) {
+      return CIS.hasPermission(p);
+    });
   }
 
   function activeCount(data) {
@@ -168,7 +182,7 @@
   }
 
   async function refresh(ctx) {
-    if (!ctx || !ctx.api || !CIS.hasPermission(PERM)) return;
+    if (!ctx || !ctx.api || !canSeeSummary()) return;
     try {
       state.error = null;
       state.last = await ctx.api.traceability("/reports/operations-summary");
@@ -201,7 +215,7 @@
 
   function sync(ctx) {
     stop();
-    if (!CIS.hasPermission(PERM)) return;
+    if (!canSeeSummary()) return;
 
     state.ctx = ctx;
 
@@ -213,6 +227,7 @@
 
     var root = rootEl();
     if (root) root.classList.remove("hidden");
+    render();
 
     refresh(ctx);
     state.timer = setInterval(function () {

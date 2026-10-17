@@ -480,6 +480,11 @@
 
     state.permissions = me.permissions || [];
 
+    var appEl = document.getElementById("app-view");
+    if (appEl && !appEl.classList.contains("hidden") && CIS.operationsSummary && CIS.operationsSummary.sync) {
+      CIS.operationsSummary.sync({ api: CIS.api });
+    }
+
   }
 
   CIS.refreshSession = loadSession;
