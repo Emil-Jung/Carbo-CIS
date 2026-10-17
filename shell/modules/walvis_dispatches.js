@@ -470,7 +470,13 @@
         row.appendChild(cb);
         var meta =
           b.bag_identifier +
-          (b.product_code ? " · " + b.product_code : b.product_stream ? " · " + b.product_stream : "");
+          (b.product_label
+            ? " · " + b.product_label
+            : b.product_code
+              ? " · " + b.product_code
+              : b.product_stream
+                ? " · " + b.product_stream
+                : "");
         if (b.manifest_status === "on_other_dispatch" && b.other_dispatch_label) {
           meta += " · " + b.other_dispatch_label;
         } else if (b.manifest_status === "unmanifested") {
@@ -552,6 +558,171 @@
     });
     box.appendChild(attachBtn);
     host.appendChild(box);
+  }
+
+  async function appendGroundPlanPicker(recon, container, ctx, ui, detail) {
+    if (!detail.plan_lines || !detail.plan_lines.length) return;
+    var preview;
+    try {
+      preview = await apiGet(
+        ctx,
+        "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/preview-ground-link"
+      );
+    } catch (e) {
+      return;
+    }
+    var planLines = preview.plan_lines || [];
+    var anyBags = planLines.some(function (ln) {
+      return (ln.bags || []).length > 0;
+    });
+    if (!anyBags && !(preview.unclassified_count > 0)) return;
+
+    var box = ui.el("div", { class: "walvis-ground-plan-picker" });
+    box.appendChild(
+      ui.el("h4", { class: "walvis-dispatch-panel-title", style: "font-size:0.95rem;margin:0.75rem 0 0.35rem;" }, [
+        "Add from Walvis ground by load plan",
+      ])
+    );
+    box.appendChild(
+      ui.el("p", { class: "muted walvis-in-transit-link-hint" }, [
+        "Bags are grouped by plan line (e.g. Restaurant FSC vs Non-FSC). Tick serials, then add — ",
+        "same product keys as your load plan, not just bag numbers.",
+      ])
+    );
+
+    var checkboxes = [];
+
+    planLines.forEach(function (ln) {
+      var bags = ln.bags || [];
+      if (!bags.length && ln.remaining_on_plan <= 0) return;
+
+      var dayHeader = ui.el("div", { class: "walvis-in-transit-day walvis-ground-plan-line" });
+      var lineCheck = ui.el("input", { type: "checkbox", class: "walvis-ground-plan-line-cb" });
+      dayHeader.appendChild(lineCheck);
+      dayHeader.appendChild(
+        ui.el("span", { class: "walvis-in-transit-day-label" }, [
+          (ln.label || ln.product_key) +
+            " · Plan " +
+            ln.planned +
+            " · On manifest " +
+            ln.on_manifest +
+            " · At Walvis " +
+            ln.at_walvis_count +
+            (ln.remaining_on_plan > 0 ? " · Pick up to " + ln.remaining_on_plan : ""),
+        ])
+      );
+      box.appendChild(dayHeader);
+
+      if (!bags.length) {
+        box.appendChild(
+          ui.el("p", { class: "muted", style: "font-size:0.82rem;margin:0 0 0.5rem 1.5rem;" }, [
+            "No Walvis ground bags match this plan line.",
+          ])
+        );
+        return;
+      }
+
+      var bagList = ui.el("div", { class: "walvis-in-transit-bag-list" });
+      bags.forEach(function (b) {
+        var row = ui.el("label", { class: "walvis-in-transit-bag-row" });
+        var cb = ui.el("input", { type: "checkbox", value: b.bag_identifier });
+        cb.dataset.productKey = ln.product_key || "";
+        checkboxes.push(cb);
+        row.appendChild(cb);
+        row.appendChild(
+          ui.el("span", {}, [
+            b.bag_identifier +
+              (b.product_label && b.product_label !== ln.label ? " · " + b.product_label : "") +
+              (b.other_dispatch_label ? " · " + b.other_dispatch_label : ""),
+          ])
+        );
+        bagList.appendChild(row);
+      });
+      box.appendChild(bagList);
+
+      var capBtn = ui.el("button", { type: "button", class: "btn-ghost" }, ["Select up to plan limit"]);
+      capBtn.addEventListener("click", function () {
+        var n = ln.remaining_on_plan > 0 ? ln.remaining_on_plan : bags.length;
+        var picked = 0;
+        checkboxes.forEach(function (cb) {
+          if (cb.dataset.productKey !== (ln.product_key || "")) return;
+          cb.checked = false;
+        });
+        checkboxes.forEach(function (cb) {
+          if (cb.dataset.productKey !== (ln.product_key || "")) return;
+          if (picked >= n) return;
+          cb.checked = true;
+          picked += 1;
+        });
+      });
+      box.appendChild(capBtn);
+
+      lineCheck.addEventListener("change", function () {
+        bagList.querySelectorAll("input[type=checkbox]").forEach(function (c) {
+          c.checked = lineCheck.checked;
+        });
+      });
+    });
+
+    if (preview.unclassified_count > 0) {
+      box.appendChild(
+        ui.el("p", { class: "muted", style: "font-size:0.82rem;margin:0.5rem 0 0;" }, [
+          preview.unclassified_count +
+            " bag(s) at Walvis could not be matched to a plan product key — use Add bag or check product stream/FSC on the bag.",
+        ])
+      );
+    }
+
+    var actions = ui.el("div", { class: "walvis-in-transit-picker-actions" });
+    actions.appendChild(
+      ui.el("button", {
+        type: "button",
+        class: "btn-ghost",
+        onclick: function () {
+          checkboxes.forEach(function (c) { c.checked = false; });
+        },
+      }, ["Clear"])
+    );
+    box.appendChild(actions);
+
+    var attachBtn = ui.el("button", {
+      type: "button",
+      class: "walvis-gold-btn walvis-gold-btn--release",
+    }, ["Add selected to manifest (received at Walvis)"]);
+    attachBtn.addEventListener("click", async function () {
+      var selected = checkboxes.filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+      if (!selected.length) {
+        window.alert("Select at least one bag.");
+        return;
+      }
+      if (
+        !window.confirm(
+          "Add " +
+            selected.length +
+            " bag(s) to " +
+            dispatchDisplayLabel(detail) +
+            " and mark received at Walvis?"
+        )
+      ) {
+        return;
+      }
+      attachBtn.disabled = true;
+      try {
+        var updated = await apiPost(
+          ctx,
+          "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/attach-ground",
+          { bag_identifiers: selected, mark_received: true, reassign_from_other: true }
+        );
+        updated = await enrichDetailWithGroundReconcile(ctx, updated);
+        await renderDetail(container, ctx, updated);
+      } catch (e) {
+        window.alert(e.message || String(e));
+      } finally {
+        attachBtn.disabled = false;
+      }
+    });
+    box.appendChild(attachBtn);
+    recon.appendChild(box);
   }
 
   async function renderDetail(container, ctx, detail) {
@@ -895,6 +1066,8 @@
     }
     recon.appendChild(reconActions);
 
+    await appendGroundPlanPicker(recon, container, ctx, ui, detail);
+
     if (groundAll.length) {
       var allPre = ui.el("details", { style: "margin:0.5rem 0;" });
       allPre.appendChild(
@@ -911,7 +1084,8 @@
             groundAll
               .map(function (b) {
                 var mark = b.on_this_manifest ? "✓ manifest" : "— not on manifest";
-                return b.bag_identifier + "  " + mark;
+                var kind = b.product_label || b.product_stream || "";
+                return b.bag_identifier + (kind ? "  " + kind : "") + "  " + mark;
               })
               .join("\n"),
           ]
@@ -973,6 +1147,13 @@
           style: "display:flex;flex-wrap:wrap;align-items:center;gap:0.35rem;margin:0.35rem 0;",
         });
         row.appendChild(ui.el("code", {}, [b.bag_identifier]));
+        if (b.product_label || b.product_stream) {
+          row.appendChild(
+            ui.el("span", { class: "muted", style: "font-size:12px;" }, [
+              b.product_label || b.product_stream,
+            ])
+          );
+        }
         if (b.other_dispatch_label) {
           row.appendChild(
             ui.el("span", { class: "muted", style: "font-size:12px;" }, [

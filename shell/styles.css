@@ -4426,6 +4426,14 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .walvis-dispatch-meta-panel .walvis-gold-btn {
   margin-top: 0.15rem;
 }
+.walvis-ground-plan-picker {
+  margin: 0.65rem 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--gold-dim, rgba(201, 162, 39, 0.45));
+  border-radius: 8px;
+  background: rgba(201, 162, 39, 0.05);
+}
+.walvis-ground-plan-line { margin-top: 0.35rem; }
 .walvis-in-transit-link { margin-top: 0.5rem; }
 .walvis-in-transit-link-hint { font-size: 0.82rem; line-height: 1.35; margin: 0 0 0.5rem; }
 .walvis-in-transit-picker {
