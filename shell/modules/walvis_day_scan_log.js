@@ -43,6 +43,39 @@
     return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   }
 
+  function fmtDateTime(iso, timeHm) {
+    if (!iso) return "—";
+    var datePart = fmtDate(iso);
+    if (timeHm) return datePart + " · " + timeHm;
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return datePart;
+      return (
+        datePart +
+        " · " +
+        d.toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        })
+      );
+    } catch (e) {
+      return datePart;
+    }
+  }
+
+  /** Current storage status clock (live bag), same as Bags Status drill. */
+  function fmtStatusSince(row) {
+    if (!row) return "—";
+    if (row.bag_status_since_at) {
+      return fmtDateTime(row.bag_status_since_at, row.bag_status_since_time);
+    }
+    if (row.recorded_at) {
+      return fmtDateTime(row.recorded_at, row.recorded_time);
+    }
+    return "—";
+  }
+
   function fmtMovedAt(row) {
     if (!row) return "—";
     var iso = row.status_changed_at || row.recorded_at;
@@ -256,7 +289,7 @@
         var table = ui.el("table", { class: "bs-dash-table wdsl-table" });
         var thead = ui.el("thead", {});
         var hr = ui.el("tr", {});
-        ["#", "Bag", "Movement", "SKU", "Producer", "Stream", "kg", "Moved at", "Gap"].forEach(function (h) {
+        ["#", "Bag", "Movement", "SKU", "Producer", "Stream", "kg", "Status since", "Moved at", "Gap"].forEach(function (h) {
           hr.appendChild(ui.el("th", {}, [h]));
         });
         thead.appendChild(hr);
@@ -277,6 +310,7 @@
           tr.appendChild(ui.el("td", {}, [row.producer_name || "—"]));
           tr.appendChild(ui.el("td", {}, [streamLabel(row)]));
           tr.appendChild(ui.el("td", {}, [fmtMass(row.net_weight_kg)]));
+          tr.appendChild(ui.el("td", { class: "wdsl-status-since" }, [fmtStatusSince(row)]));
           tr.appendChild(ui.el("td", { class: "wdsl-moved-at" }, [fmtMovedAt(row)]));
           var gapTd = ui.el("td", {});
           if (row.gap_to_previous_label) {
