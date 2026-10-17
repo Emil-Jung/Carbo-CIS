@@ -178,11 +178,6 @@
 
     var hasAny = false;
 
-    if (state.user && CIS.operationsSummary && CIS.operationsSummary.mountFloatNav) {
-      CIS.operationsSummary.mountFloatNav(nav);
-      hasAny = nav.childElementCount > 0;
-    }
-
     if (!onDashboard) {
       const homeBtn = document.createElement("button");
       homeBtn.type = "button";

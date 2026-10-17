@@ -141,15 +141,25 @@
       "</div>";
   }
 
-  function mountFloatNav(nav) {
-    if (!nav) return;
-    var wrap = document.createElement("div");
-    wrap.className = "cis-float-ops-host";
-    wrap.setAttribute("aria-live", "polite");
-    wrap.setAttribute("aria-label", "Active factory operations");
-    nav.appendChild(wrap);
-    state.floatEl = wrap;
+  function mountOpsPanel() {
+    var panel = document.getElementById("cis-float-ops");
+    if (!panel) return;
+    panel.classList.remove("hidden");
+    panel.setAttribute("aria-hidden", "false");
+    if (!state.floatEl || state.floatEl.parentNode !== panel) {
+      panel.innerHTML = "";
+      var wrap = document.createElement("div");
+      wrap.className = "cis-float-ops-host";
+      wrap.setAttribute("aria-live", "polite");
+      panel.appendChild(wrap);
+      state.floatEl = wrap;
+    }
     renderFloatContent();
+  }
+
+  /** @deprecated ops panel uses #cis-float-ops (bottom-right), not float nav */
+  function mountFloatNav(nav) {
+    mountOpsPanel();
   }
 
   async function refresh(ctx) {
@@ -178,10 +188,16 @@
     state.last = null;
     state.error = null;
     state.floatEl = null;
-    var panel = document.getElementById("cis-ops-summary");
-    if (panel) {
-      panel.classList.add("hidden");
-      panel.innerHTML = "";
+    var opsPanel = document.getElementById("cis-float-ops");
+    if (opsPanel) {
+      opsPanel.classList.add("hidden");
+      opsPanel.setAttribute("aria-hidden", "true");
+      opsPanel.innerHTML = "";
+    }
+    var legacy = document.getElementById("cis-ops-summary");
+    if (legacy) {
+      legacy.classList.add("hidden");
+      legacy.innerHTML = "";
     }
     if (CIS.renderFloatNav) CIS.renderFloatNav();
   }
@@ -192,6 +208,7 @@
       state.timer = null;
     }
     state.ctx = ctx;
+    mountOpsPanel();
     if (CIS.renderFloatNav) CIS.renderFloatNav();
     refresh(ctx);
 
@@ -207,7 +224,13 @@
     document.addEventListener("visibilitychange", state.onVisHandler);
   }
 
-  CIS.operationsSummary = { sync: sync, stop: stop, refresh: refresh, mountFloatNav: mountFloatNav };
+  CIS.operationsSummary = {
+    sync: sync,
+    stop: stop,
+    refresh: refresh,
+    mountOpsPanel: mountOpsPanel,
+    mountFloatNav: mountFloatNav,
+  };
 
   CIS.refreshOperationsSummary = function () {
     if (state.ctx) refresh(state.ctx);

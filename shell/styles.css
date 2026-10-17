@@ -216,10 +216,21 @@ body {
   padding-bottom: var(--cis-float-nav-clearance);
   scroll-padding-bottom: var(--cis-float-nav-clearance);
 }
-/* Floating ops summary — top-right under topbar; collapsed by default so main content stays clear. */
-.cis-float-ops-host {
-  max-width: min(92vw, 18rem);
+/* Floating ops summary — bottom-right (nav buttons stay bottom-left). */
+.cis-float-ops-panel {
+  position: fixed;
+  right: 14px;
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  z-index: 900;
+  max-width: min(92vw, 20rem);
   pointer-events: none;
+}
+.cis-float-ops-panel.hidden {
+  display: none;
+}
+.cis-float-ops-host {
+  max-width: min(92vw, 20rem);
+  pointer-events: auto;
   user-select: text;
 }
 .cis-float-ops-card {
