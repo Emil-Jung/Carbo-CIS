@@ -498,6 +498,8 @@
     navStack.length = 0;
     navStack.push("dashboard");
 
+    if (CIS.operationsSummary && CIS.operationsSummary.stop) CIS.operationsSummary.stop();
+
     showLogin();
 
   }
@@ -507,6 +509,7 @@
   // ---- Views -----------------------------------------------------------
 
   function showLogin() {
+    if (CIS.operationsSummary && CIS.operationsSummary.stop) CIS.operationsSummary.stop();
     if (CIS.authUi) {
       CIS.authUi.showLoginView();
       return;
@@ -542,6 +545,10 @@
     setupUpdateButton();
 
     if (!openStartupModuleIfAny()) showDashboard();
+
+    if (CIS.operationsSummary && CIS.operationsSummary.sync) {
+      CIS.operationsSummary.sync({ api: CIS.api });
+    }
 
   }
   CIS._showApp = showApp;
