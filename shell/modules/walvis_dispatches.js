@@ -462,11 +462,13 @@
 
       var bagList = ui.el("div", { class: "walvis-in-transit-bag-list" });
       dayBags.forEach(function (b) {
-        var row = ui.el("label", { class: "walvis-in-transit-bag-row" });
+        var onOther = b.manifest_status === "on_other_dispatch";
+        var row = ui.el("label", { class: "walvis-in-transit-bag-row" + (onOther ? " walvis-in-transit-bag-row--blocked" : "") });
         var cb = ui.el("input", { type: "checkbox", value: b.bag_identifier });
-        cb.checked = defaultDayOn;
+        cb.checked = defaultDayOn && !onOther;
+        cb.disabled = onOther;
         cb.dataset.bag = b.bag_identifier;
-        checkboxes.push(cb);
+        if (!onOther) checkboxes.push(cb);
         row.appendChild(cb);
         var meta =
           b.bag_identifier +
@@ -477,8 +479,8 @@
               : b.product_stream
                 ? " · " + b.product_stream
                 : "");
-        if (b.manifest_status === "on_other_dispatch" && b.other_dispatch_label) {
-          meta += " · " + b.other_dispatch_label;
+        if (onOther && b.other_dispatch_label) {
+          meta += " · locked on " + b.other_dispatch_label;
         } else if (b.manifest_status === "unmanifested") {
           meta += " · no manifest";
         }
@@ -525,18 +527,13 @@
         window.alert("Select at least one in-transit bag.");
         return;
       }
-      var needsMove = selected.some(function (serial) {
-        var bag = bags.find(function (b) { return b.bag_identifier === serial; });
-        return bag && bag.manifest_status === "on_other_dispatch";
-      });
       if (
         !window.confirm(
           "Link " +
             selected.length +
             " bag(s) to " +
             dispatchDisplayLabel(detail) +
-            "?\n\nBag status stays in transit." +
-            (needsMove ? "\n\nSome selections will move off another manifest." : "")
+            "?\n\nBag status stays in transit.\nBags on another manifest cannot be selected."
         )
       ) {
         return;
@@ -546,7 +543,7 @@
         var updated = await apiPost(
           ctx,
           "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/attach-in-transit",
-          { bag_identifiers: selected, reassign_from_other: true }
+          { bag_identifiers: selected, reassign_from_other: false }
         );
         updated = await enrichDetailWithGroundReconcile(ctx, updated);
         await renderDetail(container, ctx, updated);
@@ -632,8 +629,7 @@
         row.appendChild(
           ui.el("span", {}, [
             b.bag_identifier +
-              (b.product_label && b.product_label !== ln.label ? " · " + b.product_label : "") +
-              (b.other_dispatch_label ? " · " + b.other_dispatch_label : ""),
+              (b.product_label && b.product_label !== ln.label ? " · " + b.product_label : ""),
           ])
         );
         bagList.appendChild(row);
@@ -669,6 +665,16 @@
         ui.el("p", { class: "muted", style: "font-size:0.82rem;margin:0.5rem 0 0;" }, [
           preview.unclassified_count +
             " bag(s) at Walvis could not be matched to a plan product key — use Add bag or check product stream/FSC on the bag.",
+        ])
+      );
+    }
+    if (preview.blocked_on_other_dispatch_count > 0) {
+      box.appendChild(
+        ui.el("p", { class: "walvis-dispatch-missing", style: "font-size:0.82rem;margin:0.5rem 0 0;" }, [
+          String(preview.blocked_on_other_dispatch_count),
+          " bag(s) at Walvis are ",
+          ui.el("strong", {}, ["already on another truck manifest"]),
+          " — they are hidden from auto-pick here. Detach or transfer on the correct dispatch if you truly need to move them.",
         ])
       );
     }
@@ -711,7 +717,7 @@
         var updated = await apiPost(
           ctx,
           "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/attach-ground",
-          { bag_identifiers: selected, mark_received: true, reassign_from_other: true }
+          { bag_identifiers: selected, mark_received: true, reassign_from_other: false }
         );
         updated = await enrichDetailWithGroundReconcile(ctx, updated);
         await renderDetail(container, ctx, updated);
