@@ -975,23 +975,117 @@
       );
     }
 
+    var manifestBags = detail.bags || [];
+    var manifestCheckboxes = [];
+
+    if (manifestBags.length) {
+      var manifestTools = ui.el("div", { class: "walvis-manifest-tools" });
+      manifestTools.appendChild(
+        ui.el("p", { class: "muted walvis-manifest-tools-hint" }, [
+          "Tick bags to remove from this manifest only. Bag status (in transit / Walvis) stays unchanged.",
+        ])
+      );
+      var manifestToolActions = ui.el("div", { class: "walvis-in-transit-picker-actions" });
+      manifestToolActions.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn-ghost",
+          onclick: function () {
+            manifestCheckboxes.forEach(function (c) { c.checked = true; });
+          },
+        }, ["Select all"])
+      );
+      manifestToolActions.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn-ghost",
+          onclick: function () {
+            manifestCheckboxes.forEach(function (c) { c.checked = false; });
+          },
+        }, ["Clear"])
+      );
+      var loadDay = detail.loading_date || windhoekTodayInputValue();
+      manifestToolActions.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn-ghost",
+          onclick: function () {
+            manifestCheckboxes.forEach(function (c) {
+              var bag = manifestBags.find(function (b) { return b.bag_identifier === c.value; });
+              var day = bag && bag.loaded_at ? windhoekDayFromIso(bag.loaded_at) : "";
+              c.checked = day === loadDay;
+            });
+          },
+        }, ["Select load day only"])
+      );
+      manifestTools.appendChild(manifestToolActions);
+
+      var removeManifestBtn = ui.el("button", {
+        type: "button",
+        class: "btn-ghost walvis-manifest-remove-btn",
+      }, ["Remove selected from manifest"]);
+      removeManifestBtn.addEventListener("click", async function () {
+        var selected = manifestCheckboxes.filter(function (c) { return c.checked; }).map(function (c) {
+          return c.value;
+        });
+        if (!selected.length) {
+          window.alert("Select at least one bag on the manifest.");
+          return;
+        }
+        if (
+          !window.confirm(
+            "Remove " +
+              selected.length +
+              " bag(s) from " +
+              dispatchDisplayLabel(detail) +
+              "?\n\nThey stay in their current bag status; only the manifest link is removed."
+          )
+        ) {
+          return;
+        }
+        removeManifestBtn.disabled = true;
+        try {
+          var updated = await apiPost(
+            ctx,
+            "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/detach-manifest",
+            { bag_identifiers: selected }
+          );
+          updated = await enrichDetailWithGroundReconcile(ctx, updated);
+          await renderDetail(container, ctx, updated);
+        } catch (e) {
+          window.alert(e.message || String(e));
+        } finally {
+          removeManifestBtn.disabled = false;
+        }
+      });
+      manifestTools.appendChild(removeManifestBtn);
+      rightPanel.appendChild(manifestTools);
+    }
+
     var tableWrap = ui.el("div", { class: "walvis-dispatch-list-col walvis-dispatch-table-wrap" });
     var table = ui.el("table", { class: "data-table walvis-dispatch-table" });
     var thead = ui.el("thead");
+    var selectAllCb = ui.el("input", { type: "checkbox", title: "Select all on manifest" });
+    selectAllCb.addEventListener("change", function () {
+      manifestCheckboxes.forEach(function (c) {
+        c.checked = selectAllCb.checked;
+      });
+    });
     thead.appendChild(
       ui.el("tr", {}, [
+        ui.el("th", { class: "walvis-manifest-col-select" }, [manifestBags.length ? selectAllCb : ""]),
         ui.el("th", {}, ["Bag"]),
         ui.el("th", {}, ["Stream"]),
         ui.el("th", {}, ["kg"]),
         ui.el("th", {}, ["Loaded"]),
         ui.el("th", {}, ["Received Walvis"]),
-        ui.el("th", {}, ["On manifest"]),
+        ui.el("th", {}, ["Source"]),
         ui.el("th", {}, ["Status now"]),
       ])
     );
     table.appendChild(thead);
     var tbody = ui.el("tbody");
-    (detail.bags || []).forEach(function (b) {
+    manifestBags.forEach(function (b) {
       var src = b.load_source || (b.manifest_addendum ? "cis_addendum" : "gf_scan");
       var srcLabel =
         src === "cis_addendum"
@@ -999,8 +1093,11 @@
           : src === "fence_bulk"
             ? "Fenced bulk"
             : "GF scan";
+      var rowCb = ui.el("input", { type: "checkbox", value: b.bag_identifier });
+      manifestCheckboxes.push(rowCb);
       tbody.appendChild(
         ui.el("tr", {}, [
+          ui.el("td", { class: "walvis-manifest-col-select" }, [rowCb]),
           ui.el("td", {}, [b.bag_identifier]),
           ui.el("td", {}, [b.product_stream || "—"]),
           ui.el("td", {}, [CIS.formatMassFromKg(b.net_weight_kg, { forceKg: true })]),
@@ -1112,6 +1209,29 @@
       await renderList(container, ctx);
     } catch (e) {
       window.alert(e.message || String(e));
+    }
+  }
+
+  function windhoekDayFromIso(iso) {
+    if (!iso) return "";
+    try {
+      var parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Africa/Windhoek",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(new Date(iso));
+      var y = "";
+      var m = "";
+      var d = "";
+      parts.forEach(function (p) {
+        if (p.type === "year") y = p.value;
+        if (p.type === "month") m = p.value;
+        if (p.type === "day") d = p.value;
+      });
+      return y && m && d ? y + "-" + m + "-" + d : "";
+    } catch (e) {
+      return "";
     }
   }
 

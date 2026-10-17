@@ -4286,5 +4286,11 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .walvis-dispatch-manifest-summary { font-size: 0.9rem; margin-bottom: 0.5rem; }
 .walvis-dispatch-table-wrap { max-height: min(65vh, 560px); }
+.walvis-manifest-tools { margin: 0.5rem 0 0.75rem; }
+.walvis-manifest-tools-hint { font-size: 0.82rem; margin: 0 0 0.5rem; line-height: 1.35; }
+.walvis-manifest-remove-btn { margin-top: 0.35rem; color: #fca5a5; border-color: rgba(252, 165, 165, 0.45); }
+.walvis-manifest-remove-btn:hover { color: #fecaca; border-color: #fca5a5; }
+.walvis-manifest-col-select { width: 2rem; text-align: center; vertical-align: middle; }
+.walvis-manifest-col-select input { margin: 0; }
 .walvis-dispatch-reconcile-panel { padding: 0.5rem 0; font-size: 0.88rem; }
 .walvis-dispatch-reconcile-wrap { margin-top: 1rem; }
