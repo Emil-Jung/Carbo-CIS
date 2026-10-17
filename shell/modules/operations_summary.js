@@ -3,16 +3,6 @@
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
 
-  var PERMS_ANY = [
-    "traceability.access",
-    "traceability.control_room",
-    "traceability.packaging_shift",
-    "traceability.walvis_dispatch",
-    "traceability.bags_status",
-    "traceability.bags_movement",
-    "traceability.movement_jobs",
-    "traceability.stock.view",
-  ];
   var POLL_MS = 60000;
   var STORAGE_OPEN = "cis_ops_summary_open";
 
@@ -30,9 +20,7 @@
   }
 
   function canSeeSummary() {
-    return PERMS_ANY.some(function (p) {
-      return CIS.hasPermission(p);
-    });
+    return !!(CIS.getToken && CIS.getToken() && CIS.currentUser && CIS.currentUser());
   }
 
   function activeCount(data) {

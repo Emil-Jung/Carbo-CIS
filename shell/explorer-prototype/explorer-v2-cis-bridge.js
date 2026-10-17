@@ -454,6 +454,7 @@
     if (pw) pw.value = "";
     var loginId = document.getElementById("login-id");
     if (loginId) loginId.value = "";
+    stopOperationsSummary();
     if (CIS.authUi && CIS.authUi.showLoginView) CIS.authUi.showLoginView();
     else if (window.CIS_V2 && CIS_V2.showV2Shell) CIS_V2.showV2Shell(false);
   }
@@ -466,6 +467,10 @@
     var me = await CIS.api.identity("/auth/me");
     state.user = { user_id: me.user_id, login_id: me.login_id, display_name: me.display_name };
     state.permissions = me.permissions || [];
+    var v2 = document.getElementById("explorer-app-view");
+    if (v2 && !v2.classList.contains("hidden") && !v2.hidden) {
+      syncOperationsSummary();
+    }
   }
 
   CIS.refreshSession = loadSession;
@@ -509,6 +514,7 @@
     if (!CIS.authUi) return;
     var origSetup = CIS.authUi.showSetupView;
     CIS.authUi.showLoginView = function () {
+      stopOperationsSummary();
       document.getElementById("setup-view").classList.add("hidden");
       document.getElementById("login-view").classList.remove("hidden");
       if (window.CIS_V2 && CIS_V2.showV2Shell) CIS_V2.showV2Shell(false);
@@ -531,6 +537,16 @@
     };
   }
 
+  function syncOperationsSummary() {
+    if (CIS.operationsSummary && CIS.operationsSummary.sync) {
+      CIS.operationsSummary.sync({ api: CIS.api });
+    }
+  }
+
+  function stopOperationsSummary() {
+    if (CIS.operationsSummary && CIS.operationsSummary.stop) CIS.operationsSummary.stop();
+  }
+
   function enterV2SignedInApp() {
     if (window.CIS_V2 && CIS_V2.showV2Shell) CIS_V2.showV2Shell(true);
     sessionStorage.removeItem("cis_v2_guest_shell");
@@ -538,6 +554,7 @@
     if (window.CIS_V2 && CIS_V2.showPrototypeDashboard) {
       CIS_V2.showPrototypeDashboard({ skipStackPush: true });
     }
+    syncOperationsSummary();
   }
 
   CIS._showApp = function () {
