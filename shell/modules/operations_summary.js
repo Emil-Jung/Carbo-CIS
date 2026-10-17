@@ -1,4 +1,5 @@
-/* Global read-only “today’s operations” strip — visible on every CIS screen when signed in. */
+/* Core CIS V1 shell — read-only “today’s operations” on every module after sign-in.
+   No Identity permission key; session only. Revisit gating when V2 cutover. */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -19,7 +20,7 @@
     return document.getElementById("cis-ops-summary");
   }
 
-  function canSeeSummary() {
+  function isSignedIn() {
     return !!(CIS.getToken && CIS.getToken() && CIS.currentUser && CIS.currentUser());
   }
 
@@ -171,7 +172,7 @@
   }
 
   async function refresh(ctx) {
-    if (!ctx || !ctx.api || !canSeeSummary()) return;
+    if (!ctx || !ctx.api || !isSignedIn()) return;
     try {
       state.error = null;
       state.last = await ctx.api.traceability("/reports/operations-summary");
@@ -204,7 +205,7 @@
 
   function sync(ctx) {
     stop();
-    if (!canSeeSummary()) return;
+    if (!isSignedIn()) return;
 
     state.ctx = ctx;
 

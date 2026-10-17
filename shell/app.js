@@ -551,6 +551,7 @@
 
     if (!openStartupModuleIfAny()) showDashboard();
 
+    /* Built-in ops summary — not permission-gated (V1 shell). */
     if (CIS.operationsSummary && CIS.operationsSummary.sync) {
       CIS.operationsSummary.sync({ api: CIS.api });
     }
