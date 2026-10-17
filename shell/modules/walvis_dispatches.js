@@ -1416,7 +1416,8 @@
     }
     var allOpts = (options.bulk || []).concat(options.pallets || []);
 
-    var dateField = ui.el("div", { class: "ct-field" });
+    var loadDayRow = ui.el("div", { class: "walvis-plan-load-day-row" });
+    var dateField = ui.el("div", { class: "ct-field walvis-plan-load-day-field" });
     var dateInp = ui.el("input", {
       type: "date",
       id: "wd_plan_date",
@@ -1425,7 +1426,14 @@
     });
     dateField.appendChild(ui.el("span", { class: "ct-field-label" }, ["Loading day (Windhoek)"]));
     dateField.appendChild(dateInp);
-    host.appendChild(dateField);
+    loadDayRow.appendChild(dateField);
+
+    var totalBox = ui.el("div", { class: "walvis-plan-bag-total-box" });
+    totalBox.appendChild(ui.el("span", { class: "walvis-plan-bag-total-label" }, ["Bags planned"]));
+    var totalCounter = ui.el("span", { class: "walvis-plan-bag-total-value" }, ["0"]);
+    totalBox.appendChild(totalCounter);
+    loadDayRow.appendChild(totalBox);
+    host.appendChild(loadDayRow);
 
     var truckField = ui.el("div", { class: "ct-field" });
     var truckInp = ui.el("input", {
@@ -1439,8 +1447,23 @@
     host.appendChild(truckField);
 
     host.appendChild(ui.el("span", { class: "ct-field-label" }, ["Load plan (up to 8 lines)"]));
+    var linesHeader = ui.el("div", { class: "walvis-plan-lines-header" });
+    linesHeader.appendChild(ui.el("span", { class: "walvis-plan-lines-header-product" }, ["Product"]));
+    linesHeader.appendChild(ui.el("span", { class: "walvis-plan-lines-header-qty" }, ["QTY"]));
+    host.appendChild(linesHeader);
+
     var linesHost = ui.el("div", { class: "walvis-plan-lines" });
     var lineRows = [];
+
+    function updatePlanBagTotal() {
+      var total = 0;
+      lineRows.forEach(function (r) {
+        var q = parseInt(r.qty.value, 10);
+        if (!isNaN(q) && q > 0) total += q;
+      });
+      totalCounter.textContent = String(total);
+    }
+
     for (var i = 0; i < 8; i++) {
       (function (idx) {
         var row = ui.el("div", { class: "walvis-plan-line-row" });
@@ -1453,9 +1476,12 @@
           type: "number",
           min: "1",
           max: "9999",
-          placeholder: "Qty",
+          placeholder: "0",
           class: "wd-field-input wd-field-qty",
+          "aria-label": "Quantity line " + (idx + 1),
         });
+        qty.addEventListener("input", updatePlanBagTotal);
+        qty.addEventListener("change", updatePlanBagTotal);
         row.appendChild(sel);
         row.appendChild(qty);
         linesHost.appendChild(row);
