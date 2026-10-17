@@ -876,8 +876,8 @@
 
       ui.el("p", { class: "bs-dash-card__sub" }, [
 
-        "Bulk intake bags only (not physical pallets). Yard KPIs align with Factory → In storage tiles. ",
-        "Pallets weathering are separate magenta tiles.",
+        "Bulk intake bags only — the 21-day clock. Physical pallets do not weather; packing blocks unweathered bulk.",
+        " Yard KPIs match Factory → In storage tiles below.",
 
       ]),
 
@@ -896,7 +896,7 @@
       "Stream mix — factory yard, still on clock",
     ]));
 
-    DASHBOARD_STREAM_ORDER.forEach(function (key) {
+    DASHBOARD_STREAM_ORDER.filter(function (key) { return key !== "pallet"; }).forEach(function (key) {
       var n = (still.streams || {})[key] || 0;
       var kg = (still.stream_kg || {})[key] || 0;
       var line = ui.el("div", {
