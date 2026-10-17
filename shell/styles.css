@@ -1793,6 +1793,11 @@ body {
   color: #c084fc;
 }
 
+.bm-label-tag--degraded,
+.bs-dash-label-chip--degraded {
+  outline: 1px solid #f59e0b;
+}
+
 .label-inv-card {
   margin: 1rem 0 1.5rem;
   padding: 1rem 1.25rem;

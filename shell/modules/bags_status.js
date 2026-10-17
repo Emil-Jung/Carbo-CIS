@@ -973,6 +973,10 @@
 
     }
 
+    if (inv.by_format_ok === false) {
+      chip.title = inv.by_format_error || "Zebra vs A4 split unavailable";
+      chip.classList.add("bs-dash-label-chip--degraded");
+    }
     if (inv.by_format && inv.by_format.length >= 2) {
       inv.by_format.forEach(function (block, idx) {
         if (idx > 0) {

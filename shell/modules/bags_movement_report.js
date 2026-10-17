@@ -315,6 +315,10 @@
       line.appendChild(ui.el("span", { class: "bm-label-tag__sep" }, ["·"]));
     }
 
+    if (inv.by_format_ok === false && inv.by_format_error) {
+      tag.title = inv.by_format_error;
+      tag.classList.add("bm-label-tag--degraded");
+    }
     if (inv.by_format && inv.by_format.length >= 2) {
       inv.by_format.forEach(function (block, idx) {
         if (idx > 0) addSep();
