@@ -706,14 +706,42 @@
       }
       leftPanel.appendChild(planBox);
     }
-    if (detail.notes) {
-      leftPanel.appendChild(ui.el("p", { class: "muted", style: "font-size:0.85rem;" }, ["Notes: ", detail.notes]));
-    }
+
+    var metaBox = ui.el("section", { class: "walvis-dispatch-meta-panel" });
+    metaBox.appendChild(
+      ui.el("h4", { class: "walvis-dispatch-meta-panel-title" }, ["Truck & dispatch details"])
+    );
+    var labelDay = detail.loading_date || windhoekLabelDateYmd(detail.opened_at) || "—";
+    metaBox.appendChild(
+      ui.el("dl", { class: "walvis-dispatch-meta-dl" }, [
+        ui.el("div", { class: "walvis-dispatch-meta-row" }, [
+          ui.el("dt", {}, ["Truck registration"]),
+          ui.el("dd", {}, [detail.truck_registration || ui.el("span", { class: "muted" }, ["Not set"])]),
+        ]),
+        ui.el("div", { class: "walvis-dispatch-meta-row" }, [
+          ui.el("dt", {}, ["Transporter"]),
+          ui.el("dd", {}, [detail.transporter || ui.el("span", { class: "muted" }, ["Not set"])]),
+        ]),
+        ui.el("div", { class: "walvis-dispatch-meta-row" }, [
+          ui.el("dt", {}, ["Dispatch label day"]),
+          ui.el("dd", {}, [labelDay]),
+        ]),
+        ui.el("div", { class: "walvis-dispatch-meta-row walvis-dispatch-meta-row--notes" }, [
+          ui.el("dt", {}, ["Notes"]),
+          ui.el("dd", {}, [detail.notes || ui.el("span", { class: "muted" }, ["None"])]),
+        ]),
+      ])
+    );
+    metaBox.appendChild(
+      ui.el("p", { class: "walvis-dispatch-meta-hint muted" }, [
+        "You can update these after the truck load is closed — for paperwork and the dispatch name.",
+      ])
+    );
 
     var editMetaBtn = ui.el("button", {
       type: "button",
-      class: "btn-ghost walvis-dispatch-detail-edit",
-    }, ["Edit truck, label date, transporter, notes (any time)"]);
+      class: "walvis-dispatch-meta-edit-btn",
+    }, ["Edit truck, label date, transporter & notes"]);
     editMetaBtn.addEventListener("click", async function () {
       var form = await showFormModal(ui, {
         title: "Edit dispatch details",
@@ -754,7 +782,8 @@
         editMetaBtn.disabled = false;
       }
     });
-    leftPanel.appendChild(editMetaBtn);
+    metaBox.appendChild(editMetaBtn);
+    leftPanel.appendChild(metaBox);
     await appendInTransitLinkBlock(leftPanel, container, ctx, ui, detail);
 
     function copyText(text) {

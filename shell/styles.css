@@ -4242,7 +4242,79 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.walvis-dispatch-detail-edit { margin-top: 0.35rem; font-size: 0.88rem; }
+.walvis-dispatch-meta-panel {
+  border: 1px solid var(--gold-dim, rgba(201, 162, 39, 0.45));
+  padding: 0.65rem 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: 8px;
+  background: rgba(201, 162, 39, 0.06);
+}
+.walvis-dispatch-meta-panel-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--gold-bright);
+}
+.walvis-dispatch-meta-dl {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+.walvis-dispatch-meta-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 42%) 1fr;
+  gap: 0.35rem 0.65rem;
+  margin-bottom: 0.35rem;
+}
+.walvis-dispatch-meta-row dt {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+.walvis-dispatch-meta-row dd {
+  margin: 0;
+  color: var(--text);
+  word-break: break-word;
+}
+.walvis-dispatch-meta-row--notes dd {
+  white-space: pre-wrap;
+}
+.walvis-dispatch-meta-hint {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.walvis-dispatch-meta-edit-btn {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  text-align: center;
+  color: #1a1200;
+  cursor: pointer;
+  background: linear-gradient(180deg, #f0d878 0%, var(--gold-bright) 45%, var(--gold) 100%);
+  border: 2px solid #fff4c4;
+  outline: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px var(--gold-dim),
+    0 4px 14px rgba(0, 0, 0, 0.45),
+    0 0 12px rgba(228, 192, 74, 0.35);
+}
+.walvis-dispatch-meta-edit-btn:hover {
+  filter: brightness(1.08);
+  border-color: #fff8dc;
+}
+.walvis-dispatch-meta-edit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
 .walvis-in-transit-link { margin-top: 0.5rem; }
 .walvis-in-transit-link-hint { font-size: 0.82rem; line-height: 1.35; margin: 0 0 0.5rem; }
 .walvis-in-transit-picker {
