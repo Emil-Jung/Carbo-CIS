@@ -16,6 +16,7 @@
   --danger: #dc2626;
   /* Fixed gold Back button (left) — keep last lines of module lists readable */
   --cis-float-nav-clearance: calc(env(safe-area-inset-bottom, 0px) + 14px + 8.5rem + 32px);
+  --cis-float-nav-clearance-stacked: calc(env(safe-area-inset-bottom, 0px) + 14px + 11.5rem + 32px);
 }
 
 * { box-sizing: border-box; }
@@ -203,6 +204,12 @@ body {
   padding-bottom: var(--cis-float-nav-clearance);
   scroll-padding-bottom: var(--cis-float-nav-clearance);
 }
+.module-content.has-float-nav--stacked,
+.workspace-module.has-float-nav--stacked,
+.app-view:has(#cis-float-nav:not(.hidden)) #module-content.has-float-nav--stacked {
+  padding-bottom: var(--cis-float-nav-clearance-stacked);
+  scroll-padding-bottom: var(--cis-float-nav-clearance-stacked);
+}
 
 /* Production /cis/ shell: modules set container.className and wipe has-float-nav */
 .app-view:has(#cis-float-nav:not(.hidden)) #module-content {
@@ -308,6 +315,12 @@ body {
   color: var(--gold-bright);
   background: rgba(18, 14, 8, 0.92);
   border-color: var(--gold-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.cis-float-back-btn--home:hover {
+  filter: brightness(1.12);
+  border-color: var(--gold-bright);
 }
 .module-content.module-quality-host,
 .module-content.module-iframe-host,

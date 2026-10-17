@@ -184,6 +184,18 @@
     }
 
     if (!onDashboard) {
+      const homeBtn = document.createElement("button");
+      homeBtn.type = "button";
+      homeBtn.className = "cis-float-back-btn cis-float-back-btn--home";
+      homeBtn.textContent = "Main dashboard";
+      homeBtn.title = "Return to the main CIS dashboard";
+      homeBtn.setAttribute("aria-label", "Main dashboard");
+      homeBtn.addEventListener("click", function () {
+        floatNavState.secondary = null;
+        goHome();
+      });
+      nav.appendChild(homeBtn);
+
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "cis-float-back-btn";
@@ -201,6 +213,7 @@
     nav.setAttribute("aria-hidden", "false");
     floatNavScrollTargets().forEach(function (el) {
       el.classList.add("has-float-nav");
+      if (!onDashboard) el.classList.add("has-float-nav--stacked");
     });
   }
 

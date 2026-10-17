@@ -329,6 +329,16 @@
     nav.setAttribute("aria-hidden", "true");
     clearFloatNavScrollRoom();
     if (!state.activeModuleId || state.activeModuleId === "dashboard") return;
+    var homeBtn = document.createElement("button");
+    homeBtn.type = "button";
+    homeBtn.className = "cis-float-back-btn cis-float-back-btn--home";
+    homeBtn.textContent = "Main dashboard";
+    homeBtn.title = "Return to the main CIS dashboard";
+    homeBtn.addEventListener("click", function () {
+      floatNavState.secondary = null;
+      CIS.goHome();
+    });
+    nav.appendChild(homeBtn);
     var btn = document.createElement("button");
     btn.type = "button";
     btn.className = "cis-float-back-btn";
@@ -339,6 +349,7 @@
     nav.setAttribute("aria-hidden", "false");
     floatNavScrollTargets().forEach(function (el) {
       el.classList.add("has-float-nav");
+      el.classList.add("has-float-nav--stacked");
     });
   }
 
