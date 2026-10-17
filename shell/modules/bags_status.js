@@ -1867,10 +1867,6 @@
       var wrapped = group.physical_pallet_count != null ? group.physical_pallet_count : 0;
       headCountText =
         equiv + " pallet-equiv in basket · " + wrapped + " wrapped · " + fmtMass(group.pallet_basket_kg != null ? group.pallet_basket_kg : group.kg);
-      if (!group.note) {
-        group.note =
-          "Consume scans move bulk bags into Pallet basket (headline above). The Pallets tile only increases after Create pallet at wrapping.";
-      }
     }
     block.appendChild(ui.el("div", { class: "bs-dash-location__head" }, [
 
@@ -2833,8 +2829,8 @@
         if (selected.key === "packed_into_pallet") {
 
           body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-            "These are source bulk bags consumed at packaging — end of life. "
-              + "They are not physical pallets. See Packaging — pallet production below.",
+            "These are source bulk bags consumed at packing — end of life. "
+              + "They are not physical pallets. See Packing — pallet production below.",
           ]));
 
         }
@@ -2911,7 +2907,7 @@
 
           body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label]));
 
-          body.appendChild(renderPalletBasketDrill(selected.detail || summary.pallet_basket, ui));
+          body.appendChild(renderPalletBasketDrill(summary.pallet_basket || selected.detail, ui));
 
           syncFloatingNav();
           return;
@@ -3964,17 +3960,17 @@
 
         lastReportUpdatedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
+        if (selected && selected.mode === "pallet_basket" && summary.pallet_basket) {
+          selected.detail = summary.pallet_basket;
+        }
+
         if (!opts.silent) {
 
           status.style.display = "none";
 
         }
 
-        if (!opts.silent || (!selected && !selectedEvent && !wxDrill)) {
-
-          paint();
-
-        }
+        paint();
 
         resetCountdown();
 

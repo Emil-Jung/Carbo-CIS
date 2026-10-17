@@ -37,7 +37,7 @@
     },
     {
       id: "packaging_shift",
-      title: "Packaging Shifts",
+      title: "Packing Shifts",
       description: "Limit packaging scanners to chosen pallet SKUs while a shift is active.",
       requires: "traceability.packaging_shift",
       icon: "schedule",

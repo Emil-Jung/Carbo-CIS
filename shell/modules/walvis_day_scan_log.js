@@ -9,7 +9,7 @@
   var FALLBACK_STATUS_OPTIONS = [
     { value: "all", label: "All movement scans" },
     { value: "master_storage_revert", label: "God mode — status revert" },
-    { value: "packaging", label: "Packaging — in, consumed, pallet wrapped" },
+    { value: "packaging", label: "Packing — in, consumed, pallet wrapped" },
     { value: "storage_walvisbay", label: "Into storage — Walvis Bay" },
   ];
   var STREAM_OPTIONS = [
@@ -204,7 +204,7 @@
       if (!keys.length) return;
       var panel = ui.el("div", { class: "wdsl-balance-panel" });
       panel.appendChild(
-        ui.el("h3", { class: "wdsl-balance-title" }, ["Packaging balance by SKU (this day)"])
+        ui.el("h3", { class: "wdsl-balance-title" }, ["Packing balance by SKU (this day)"])
       );
       panel.appendChild(
         ui.el("p", { class: "bs-dash-drill-note" }, [

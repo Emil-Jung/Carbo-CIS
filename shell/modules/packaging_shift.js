@@ -1,4 +1,4 @@
-/* Packaging Shifts — supervisor control of packaging scanner SKUs (CIS). */
+/* Packing Shifts — supervisor control of packing scanner SKUs (CIS). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -35,7 +35,7 @@
     container.innerHTML = "";
     container.className = "module-content packaging-shift-host";
 
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Packaging Shifts"]));
+    container.appendChild(ui.el("h2", { class: "module-title" }, ["Packing Shifts"]));
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
         "Supervisors choose which pallet SKUs packaging scanners may use. ",
@@ -572,7 +572,7 @@
 
   CIS.modules.push({
     id: "packaging_shift",
-    title: "Packaging Shifts",
+    title: "Packing Shifts",
     section: "Applications",
     parent: "traceability",
     requires: "traceability.packaging_shift",
