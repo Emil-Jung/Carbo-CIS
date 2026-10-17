@@ -1858,12 +1858,22 @@
 
     var block = ui.el("section", { class: "bs-dash-location bs-dash-location--" + tone });
 
+    var headCountText = bagsKgText(group.bags, group.kg);
+    if (group.key === "packaging_outputs") {
+      var equiv =
+        group.pallet_basket_equivalent != null
+          ? Number(group.pallet_basket_equivalent).toFixed(2)
+          : "0.00";
+      var wrapped = group.physical_pallet_count != null ? group.physical_pallet_count : 0;
+      headCountText =
+        equiv + " pallet-equiv in basket · " + wrapped + " wrapped · " + fmtMass(group.pallet_basket_kg != null ? group.pallet_basket_kg : group.kg);
+    }
     block.appendChild(ui.el("div", { class: "bs-dash-location__head" }, [
 
       ui.el("h3", {}, [group.label]),
 
       ui.el("span", { class: "bs-dash-location__count" }, [
-        bagsKgText(group.bags, group.kg),
+        headCountText,
       ]),
 
     ]));
