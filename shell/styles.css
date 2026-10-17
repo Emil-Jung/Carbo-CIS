@@ -342,9 +342,15 @@ body {
     0 4px 14px rgba(0, 0, 0, 0.45),
     0 0 12px rgba(228, 192, 74, 0.35);
 }
-.cis-float-back-btn:hover {
+.cis-float-back-btn:hover:not(:disabled) {
   filter: brightness(1.08);
   border-color: #fff8dc;
+}
+.cis-float-back-btn:disabled {
+  cursor: wait;
+  opacity: 0.55;
+  filter: none;
+  pointer-events: none;
 }
 .cis-float-back-btn--secondary {
   background: linear-gradient(180deg, rgba(228, 192, 74, 0.95), rgba(201, 162, 39, 0.92));

@@ -2675,6 +2675,7 @@
       } else {
         ctx.setFloatingBack(null);
       }
+      if (ctx.releaseFloatBackCooldown) ctx.releaseFloatBackCooldown();
     }
 
     function showDrillLoadingPanel(title) {

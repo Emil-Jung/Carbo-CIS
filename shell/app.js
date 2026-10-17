@@ -21,8 +21,26 @@
   const state = { config: null, token: null, user: null, permissions: [], activeModuleId: null };
   CIS._state = state;
 
-  const floatNavState = { secondary: null };
+  const floatNavState = { secondary: null, backCooldown: false };
+  const FLOAT_BACK_MIN_MS = 450;
+  const FLOAT_BACK_MAX_MS = 1200;
+  let floatBackCooldownTimer = null;
+  let floatBackCooldownStartedAt = 0;
   const navStack = ["dashboard"];
+
+  function scheduleFloatBackCooldownClear(delayMs) {
+    clearTimeout(floatBackCooldownTimer);
+    floatBackCooldownTimer = setTimeout(function () {
+      floatNavState.backCooldown = false;
+      renderFloatNav();
+    }, delayMs);
+  }
+
+  function releaseFloatBackCooldown() {
+    if (!floatNavState.backCooldown) return;
+    var remaining = FLOAT_BACK_MIN_MS - (Date.now() - floatBackCooldownStartedAt);
+    scheduleFloatBackCooldownClear(Math.max(80, remaining));
+  }
 
   /** Parent hub for hierarchical back (module.parentModule overrides). */
   const MODULE_PARENTS = {
@@ -117,8 +135,17 @@
   }
 
   function goBack() {
+    if (floatNavState.backCooldown) return;
     if (floatNavState.secondary && typeof floatNavState.secondary.onClick === "function") {
-      floatNavState.secondary.onClick();
+      floatBackCooldownStartedAt = Date.now();
+      floatNavState.backCooldown = true;
+      renderFloatNav();
+      try {
+        floatNavState.secondary.onClick();
+      } catch (e) {
+        console.error("goBack secondary handler failed", e);
+      }
+      scheduleFloatBackCooldownClear(FLOAT_BACK_MAX_MS);
       return;
     }
     popNavigation();
@@ -197,6 +224,8 @@
       btn.textContent = floatBackStepLabel();
       btn.title = "Back one step";
       btn.setAttribute("aria-label", floatBackStepLabel());
+      btn.disabled = !!floatNavState.backCooldown;
+      if (btn.disabled) btn.setAttribute("aria-disabled", "true");
       btn.addEventListener("click", goBack);
       nav.appendChild(btn);
       hasAny = true;
@@ -224,6 +253,7 @@
   }
 
   CIS.setFloatingBack = setFloatingBack;
+  CIS.releaseFloatBackCooldown = releaseFloatBackCooldown;
 
 
 
@@ -738,6 +768,7 @@
           config: state.config,
 
           setFloatingBack: setFloatingBack,
+          releaseFloatBackCooldown: releaseFloatBackCooldown,
 
         });
 
