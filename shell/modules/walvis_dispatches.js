@@ -5,8 +5,6 @@
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
-  var RESET_CONFIRM = "WALVIS_RESET";
-
   function fmt(n) {
     if (n == null || isNaN(n)) return "—";
     return Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 });
@@ -869,138 +867,6 @@
     }
   }
 
-  async function buildResetPreview(ctx) {
-    try {
-      return await apiGet(ctx, "/walvis-dispatches/preview-reset");
-    } catch (e) {
-      /* Fallback when API is stale (preview route not loaded) — list + closed only. */
-      var data = await apiGet(ctx, "/walvis-dispatches?limit=50&include_closed=true");
-      var rows = data.dispatches || [];
-      return {
-        dispatch_rows: rows.length,
-        dispatches: rows.map(function (d) {
-          return {
-            dispatch_number: d.dispatch_number,
-            status: d.status,
-            bag_count: d.loaded_bags,
-          };
-        }),
-        walvis_storage_bags: null,
-        unassigned_walvis_storage_bags: null,
-        preview_fallback: true,
-        preview_error: e.message || String(e),
-      };
-    }
-  }
-
-  async function runResetAndFenceFirst(container, ctx) {
-    var ui = CIS.ui;
-    if (
-      !window.confirm(
-        "Open the Walvis reset wizard?\n\nThis is for fixing history (e.g. Dispatch #1). Cancel = stop here."
-      )
-    ) {
-      return;
-    }
-    var preview;
-    try {
-      preview = await buildResetPreview(ctx);
-    } catch (e) {
-      window.alert("Could not load dispatch summary: " + (e.message || e));
-      return;
-    }
-    var detailLines = [
-      "This DELETES all Walvis dispatch records and restarts numbering at Dispatch #1.",
-      "",
-      "Current dispatch rows: " + preview.dispatch_rows,
-      preview.walvis_storage_bags != null
-        ? "Bags in Walvis storage now: " + preview.walvis_storage_bags
-        : "Bags in Walvis storage: count from live DB at create time",
-      "",
-    ];
-    (preview.dispatches || []).forEach(function (d) {
-      detailLines.push(
-        "  · #" + d.dispatch_number + " (" + d.status + ") — " + d.bag_count + " bag(s)"
-      );
-    });
-    detailLines.push("");
-    detailLines.push("A new CLOSED Dispatch #1 will include every Walvis storage bag.");
-
-    var step1 = await showFormModal(ui, {
-      title: "Reset — type to continue",
-      message: "Type " + RESET_CONFIRM + " exactly, or Cancel to abort.",
-      detail: detailLines.join("\n"),
-      fields: [
-        {
-          key: "confirm",
-          label: "Confirmation",
-          placeholder: RESET_CONFIRM,
-          required: true,
-        },
-      ],
-      cancelLabel: "Cancel",
-      primaryLabel: "Next",
-      validate: function (out) {
-        if (String(out.confirm || "").trim() !== RESET_CONFIRM) {
-          return "Type " + RESET_CONFIRM + " exactly, or click Cancel.";
-        }
-        return null;
-      },
-    });
-    if (!step1) return;
-
-    var step2 = await showFormModal(ui, {
-      title: "Dispatch #1 details",
-      message: "Optional now — you can edit later on the dispatch screen. Cancel = abort (nothing created).",
-      fields: [
-        { key: "truck_registration", label: "Truck registration", placeholder: "Optional" },
-        { key: "transporter", label: "Transporter / contractor", placeholder: "Optional" },
-        {
-          key: "notes",
-          label: "Notes",
-          value: "Dispatch #1 — first Walvis offload",
-          placeholder: "Optional",
-        },
-        {
-          key: "extra_bags",
-          label: "Extra bag serial(s)",
-          placeholder: "Comma-separated, optional",
-        },
-      ],
-      cancelLabel: "Cancel",
-      primaryLabel: "Review",
-    });
-    if (!step2) return;
-
-    var extraList = (step2.extra_bags || "")
-      .split(/[,;\s]+/)
-      .map(function (s) {
-        return s.trim();
-      })
-      .filter(Boolean);
-
-    var summary =
-      "Create closed Dispatch #1 with all Walvis storage bags" +
-      (extraList.length ? " plus " + extraList.length + " extra serial(s)" : "") +
-      ".\n\nThis deletes " +
-      preview.dispatch_rows +
-      " existing dispatch row(s).\n\nProceed?";
-    if (!window.confirm(summary)) return;
-
-    try {
-      var created = await apiPost(ctx, "/walvis-dispatches/admin/reset-and-fence-first", {
-        confirm: RESET_CONFIRM,
-        truck_registration: step2.truck_registration.trim() || null,
-        transporter: step2.transporter.trim() || null,
-        notes: step2.notes.trim() || null,
-        extra_bag_identifiers: extraList,
-      });
-      renderDetail(container, ctx, created);
-    } catch (e) {
-      window.alert(e.message || String(e));
-    }
-  }
-
   async function managerOpenDispatch(container, ctx, ui) {
     if (
       !window.confirm(
@@ -1345,15 +1211,6 @@
     actions.appendChild(ui.el("summary", {}, ["Admin & reconcile tools"]));
     var actionsInner = ui.el("div", { class: "walvis-dispatch-actions" });
 
-    var resetBtn = ui.el("button", {
-      type: "button",
-      class: "settings-action-btn",
-      style: "max-width: 32rem; margin-bottom: 0.5rem; display: block;",
-    }, ["Reset all dispatches & fence Dispatch #1 (Walvis storage)"]);
-    resetBtn.addEventListener("click", function () {
-      runResetAndFenceFirst(container, ctx);
-    });
-
     var roadCatchupLine = ui.el("p", {
       class: "muted",
       id: "walvis-road-catchup-line",
@@ -1442,7 +1299,6 @@
         fenceBtn.disabled = false;
       }
     });
-    actionsInner.appendChild(resetBtn);
     actionsInner.appendChild(roadCatchupLine);
     actionsInner.appendChild(roadCatchupBtn);
     actionsInner.appendChild(fenceBtn);
