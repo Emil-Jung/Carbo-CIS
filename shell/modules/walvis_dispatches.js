@@ -403,16 +403,104 @@
     });
   }
 
-  function renderDetail(container, ctx, detail) {
+  async function appendInTransitLinkBlock(host, container, ctx, ui, detail) {
+    var preview;
+    try {
+      preview = await apiGet(
+        ctx,
+        "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/preview-in-transit-link"
+      );
+    } catch (e) {
+      return;
+    }
+    var n = preview.unmanifested_in_transit_bags || 0;
+    var other = preview.on_other_dispatch_bags || 0;
+    if (!n && !other) return;
+
+    var box = ui.el("div", { class: "walvis-in-transit-link" });
+    box.appendChild(
+      ui.el("h4", { class: "walvis-dispatch-panel-title", style: "font-size:0.95rem;margin-top:0.75rem;" }, [
+        "Bags already in transit",
+      ])
+    );
+    box.appendChild(
+      ui.el("p", { class: "muted", style: "font-size:0.85rem;line-height:1.35;margin:0.35rem 0 0.5rem;" }, [
+        n ? String(n) + " with no dispatch manifest" : "",
+        n && other ? " · " : "",
+        other ? String(other) + " on another dispatch manifest" : "",
+        ". Status stays in transit — this only updates the paper manifest.",
+      ])
+    );
+    var attachBtn = ui.el("button", { type: "button", class: "settings-action-btn" }, [
+      "Link in-transit bags to this dispatch",
+    ]);
+    attachBtn.addEventListener("click", async function () {
+      var reassign = false;
+      if (other > 0) {
+        reassign = window.confirm(
+          "Also move " +
+            other +
+            " bag(s) off other dispatch manifests onto this one?\n\nOK = move · Cancel = only bags with no manifest"
+        );
+      }
+      if (
+        !window.confirm(
+          "Link in-transit bags to " +
+            dispatchDisplayLabel(detail) +
+            "?\n\nNo bag status changes."
+        )
+      ) {
+        return;
+      }
+      attachBtn.disabled = true;
+      try {
+        var updated = await apiPost(
+          ctx,
+          "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/attach-in-transit",
+          { reassign_from_other: reassign }
+        );
+        updated = await enrichDetailWithGroundReconcile(ctx, updated);
+        await renderDetail(container, ctx, updated);
+      } catch (e) {
+        window.alert(e.message || String(e));
+      } finally {
+        attachBtn.disabled = false;
+      }
+    });
+    box.appendChild(attachBtn);
+    host.appendChild(box);
+  }
+
+  async function renderDetail(container, ctx, detail) {
     var ui = CIS.ui;
     container.innerHTML = "";
-    container.className = "module-content walvis-dispatch-host";
+    container.className = "module-content walvis-dispatch-host walvis-dispatch-detail";
     setWalvisDetailFloatingBack(container, ctx);
+
+    container.appendChild(
+      ui.el("button", {
+        type: "button",
+        class: "btn-ghost walvis-dispatch-detail-back",
+        onclick: function () {
+          renderList(container, ctx);
+        },
+      }, ["← Back to list"])
+    );
 
     var title =
       dispatchDisplayLabel(detail) +
       (detail.truck_registration ? " · " + detail.truck_registration : "");
     container.appendChild(ui.el("h2", { class: "module-title" }, [title]));
+
+    var workspace = ui.el("div", { class: "walvis-dispatch-workspace walvis-dispatch-detail-workspace" });
+    var leftPanel = ui.el("section", { class: "walvis-dispatch-panel" });
+    var rightPanel = ui.el("section", { class: "walvis-dispatch-panel walvis-dispatch-panel--detail-manifest" });
+    leftPanel.appendChild(
+      ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Plan & actions"])
+    );
+    rightPanel.appendChild(
+      ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Manifest"])
+    );
     var statusText =
       detail.status === "planned"
         ? "Planned — release when the truck is ready at Grootfontein."
@@ -431,10 +519,7 @@
     );
 
     if (detail.plan_lines && detail.plan_lines.length) {
-      var planBox = ui.el("div", {
-        style:
-          "border:1px solid var(--gold-dim,#b8860b);padding:0.75rem;margin:0.75rem 0;border-radius:8px;",
-      });
+      var planBox = ui.el("div", { class: "walvis-dispatch-plan-panel" });
       planBox.appendChild(ui.el("h4", { style: "margin:0 0 0.5rem;" }, ["Load plan"]));
       var planTotal = detail.plan_total != null ? detail.plan_total : 0;
       planBox.appendChild(
@@ -489,7 +574,7 @@
             );
             var next = resp.dispatch || resp;
             next = await enrichDetailWithGroundReconcile(ctx, next);
-            renderDetail(container, ctx, next);
+            await renderDetail(container, ctx, next);
           } catch (e) {
             window.alert(e.message || String(e));
           } finally {
@@ -517,16 +602,15 @@
         });
         planBox.appendChild(cancelPlanBtn);
       }
-      container.appendChild(planBox);
+      leftPanel.appendChild(planBox);
     }
     if (detail.notes) {
-      container.appendChild(ui.el("p", { class: "muted" }, ["Notes: ", detail.notes]));
+      leftPanel.appendChild(ui.el("p", { class: "muted", style: "font-size:0.85rem;" }, ["Notes: ", detail.notes]));
     }
 
     var editMetaBtn = ui.el("button", {
       type: "button",
-      class: "btn-ghost",
-      style: "margin-bottom: 0.75rem;",
+      class: "btn-ghost walvis-dispatch-detail-edit",
     }, ["Edit truck, label date, transporter, notes"]);
     editMetaBtn.addEventListener("click", async function () {
       var form = await showFormModal(ui, {
@@ -561,14 +645,15 @@
           transporter: form.transporter.trim(),
           notes: form.notes.trim(),
         });
-        renderDetail(container, ctx, updated);
+        await renderDetail(container, ctx, updated);
       } catch (e) {
         window.alert(e.message || String(e));
       } finally {
         editMetaBtn.disabled = false;
       }
     });
-    container.appendChild(editMetaBtn);
+    leftPanel.appendChild(editMetaBtn);
+    await appendInTransitLinkBlock(leftPanel, container, ctx, ui, detail);
 
     function copyText(text) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -593,10 +678,7 @@
             return b.on_this_manifest;
           }).length;
 
-    var recon = ui.el("div", {
-      class: "walvis-dispatch-summary",
-      style: "border:1px solid var(--border-subtle,#444);padding:0.75rem;margin:0.75rem 0;",
-    });
+    var recon = ui.el("div", { class: "walvis-dispatch-reconcile-panel" });
     recon.appendChild(ui.el("h4", { style: "margin:0 0 0.5rem 0;" }, [
       "Walvis Bay ground stock vs this manifest",
     ]));
@@ -757,9 +839,11 @@
         ])
       );
     }
-    container.appendChild(recon);
+    var reconWrap = ui.el("details", { class: "walvis-dispatch-admin-tools walvis-dispatch-reconcile-wrap" });
+    reconWrap.appendChild(ui.el("summary", {}, ["Walvis Bay ground stock reconcile"]));
+    reconWrap.appendChild(recon);
 
-    var summary = ui.el("div", { class: "walvis-dispatch-summary" });
+    var summary = ui.el("div", { class: "walvis-dispatch-summary walvis-dispatch-manifest-summary" });
     summary.appendChild(
       ui.el("p", {}, [
         ui.el("strong", {}, ["Manifest: "]),
@@ -795,7 +879,7 @@
         ])
       );
     }
-    container.appendChild(summary);
+    rightPanel.appendChild(summary);
 
     if (detail.streams && Object.keys(detail.streams).length) {
       var streamLine = Object.keys(detail.streams)
@@ -803,9 +887,12 @@
           return k + ": " + detail.streams[k];
         })
         .join(" · ");
-      container.appendChild(ui.el("p", { class: "muted" }, ["Mix on manifest: ", streamLine]));
+      rightPanel.appendChild(
+        ui.el("p", { class: "muted", style: "font-size:0.85rem;" }, ["Mix: ", streamLine])
+      );
     }
 
+    var tableWrap = ui.el("div", { class: "walvis-dispatch-list-col walvis-dispatch-table-wrap" });
     var table = ui.el("table", { class: "data-table walvis-dispatch-table" });
     var thead = ui.el("thead");
     thead.appendChild(
@@ -842,17 +929,13 @@
       );
     });
     table.appendChild(tbody);
-    container.appendChild(table);
+    tableWrap.appendChild(table);
+    rightPanel.appendChild(tableWrap);
 
-    container.appendChild(
-      ui.el("button", {
-        type: "button",
-        class: "btn-ghost",
-        onclick: function () {
-          renderList(container, ctx);
-        },
-      }, ["← Back to dispatch list"])
-    );
+    workspace.appendChild(leftPanel);
+    workspace.appendChild(rightPanel);
+    container.appendChild(workspace);
+    container.appendChild(reconWrap);
   }
 
   async function openDetail(container, ctx, id) {
@@ -860,7 +943,7 @@
     try {
       var detail = await apiGet(ctx, "/walvis-dispatches/" + encodeURIComponent(id));
       detail = await enrichDetailWithGroundReconcile(ctx, detail);
-      renderDetail(container, ctx, detail);
+      await renderDetail(container, ctx, detail);
     } catch (e) {
       container.innerHTML = "";
       container.appendChild(CIS.ui.error("Could not load dispatch: " + (e.message || e)));
@@ -1258,7 +1341,8 @@
           truck_registration: form.truck_registration.trim() || null,
           notes: form.notes ? form.notes.trim() : null,
         });
-        renderDetail(container, ctx, detail);
+        detail = await enrichDetailWithGroundReconcile(ctx, detail);
+        await renderDetail(container, ctx, detail);
       } catch (e) {
         window.alert(e.message || String(e));
       } finally {
@@ -1292,7 +1376,8 @@
         var detail = await apiPost(ctx, "/walvis-dispatches/fence-unassigned-storage", {
           truck_registration: form.truck_registration.trim() || null,
         });
-        renderDetail(container, ctx, detail);
+        detail = await enrichDetailWithGroundReconcile(ctx, detail);
+        await renderDetail(container, ctx, detail);
       } catch (e) {
         window.alert(e.message || String(e));
       } finally {

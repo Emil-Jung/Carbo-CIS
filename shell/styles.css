@@ -4179,3 +4179,21 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   user-select: none;
 }
 .walvis-dispatch-admin-tools .walvis-dispatch-actions { margin-top: 0.75rem; }
+
+.walvis-dispatch-detail .module-title { margin-bottom: 0.35rem; }
+.walvis-dispatch-detail-back { margin-bottom: 0.5rem; }
+.walvis-dispatch-detail-workspace { margin-top: 0.5rem; }
+.walvis-dispatch-plan-panel {
+  border: 1px solid var(--gold-dim, rgba(201, 162, 39, 0.45));
+  padding: 0.65rem 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: 8px;
+  background: rgba(201, 162, 39, 0.06);
+}
+.walvis-dispatch-plan-panel .data-table { font-size: 0.85rem; }
+.walvis-dispatch-detail-edit { margin-top: 0.35rem; font-size: 0.88rem; }
+.walvis-in-transit-link { margin-top: 0.5rem; }
+.walvis-dispatch-manifest-summary { font-size: 0.9rem; margin-bottom: 0.5rem; }
+.walvis-dispatch-table-wrap { max-height: min(65vh, 560px); }
+.walvis-dispatch-reconcile-panel { padding: 0.5rem 0; font-size: 0.88rem; }
+.walvis-dispatch-reconcile-wrap { margin-top: 1rem; }
