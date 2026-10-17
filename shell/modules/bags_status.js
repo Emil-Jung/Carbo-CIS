@@ -307,7 +307,6 @@
 
     var parts = [];
 
-    if (row.released_early) parts.push("Released early");
 
     var days = row.days_remaining;
 
@@ -1055,7 +1054,6 @@
 
   var FACTORY_STORAGE_STATUS_KEYS = {
     in_storage_weathering: true,
-    in_storage_released_early: true,
     in_storage: true,
   };
 
@@ -1133,7 +1131,7 @@
 
     at_packaging: "at_packaging_plant",
 
-    in_storage: "in_storage,in_storage_weathering,in_storage_released_early",
+    in_storage: "in_storage,in_storage_weathering",
 
     in_transit: "on_truck_walvisbay",
 
