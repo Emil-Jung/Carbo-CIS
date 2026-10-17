@@ -7,6 +7,7 @@
     "traceability.access",
     "traceability.control_room",
     "traceability.packaging_shift",
+    "traceability.walvis_dispatch",
     "traceability.bags_status",
     "traceability.bags_movement",
     "traceability.movement_jobs",

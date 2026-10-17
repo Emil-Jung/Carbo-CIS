@@ -46,11 +46,7 @@
       id: "walvis_dispatches",
       title: "Walvis dispatches",
       description: "Truck manifest at Grootfontein vs bags received at Walvis Bay.",
-      requiresAny: [
-        "traceability.bags_status",
-        "traceability.bags_movement",
-        "traceability.movement_jobs",
-      ],
+      requires: "traceability.walvis_dispatch",
       icon: "schedule",
     },
     {

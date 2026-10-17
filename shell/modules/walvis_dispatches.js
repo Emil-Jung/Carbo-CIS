@@ -1251,12 +1251,7 @@
     kind: "app",
     icon: "traceability",
     description: "Truck loads GF → Walvis — manifest vs received",
-    requiresAny: [
-      "traceability.bags_status",
-      "traceability.bags_movement",
-      "traceability.movement_jobs",
-      "traceability.stock.view",
-    ],
+    requires: "traceability.walvis_dispatch",
     render: render,
   });
 })();
