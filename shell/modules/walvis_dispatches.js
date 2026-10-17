@@ -413,41 +413,124 @@
     } catch (e) {
       return;
     }
-    var n = preview.unmanifested_in_transit_bags || 0;
-    var other = preview.on_other_dispatch_bags || 0;
-    if (!n && !other) return;
+    var bags = preview.bags || [];
+    if (!bags.length) return;
+
+    var loadDay = preview.loading_date || detail.loading_date || windhoekTodayInputValue();
+    var checkboxes = [];
 
     var box = ui.el("div", { class: "walvis-in-transit-link" });
     box.appendChild(
       ui.el("h4", { class: "walvis-dispatch-panel-title", style: "font-size:0.95rem;margin-top:0.75rem;" }, [
-        "Bags already in transit",
+        "Link in-transit bags (select)",
       ])
     );
     box.appendChild(
-      ui.el("p", { class: "muted", style: "font-size:0.85rem;line-height:1.35;margin:0.35rem 0 0.5rem;" }, [
-        n ? String(n) + " with no dispatch manifest" : "",
-        n && other ? " · " : "",
-        other ? String(other) + " on another dispatch manifest" : "",
-        ". Status stays in transit — this only updates the paper manifest.",
+      ui.el("p", { class: "muted walvis-in-transit-link-hint" }, [
+        "Grouped by Windhoek day they went in transit. Select only this load — older in-transit stock can stay unlinked for now.",
       ])
     );
-    var attachBtn = ui.el("button", { type: "button", class: "settings-action-btn" }, [
-      "Link in-transit bags to this dispatch",
-    ]);
-    attachBtn.addEventListener("click", async function () {
-      var reassign = false;
-      if (other > 0) {
-        reassign = window.confirm(
-          "Also move " +
-            other +
-            " bag(s) off other dispatch manifests onto this one?\n\nOK = move · Cancel = only bags with no manifest"
-        );
+
+    var dayGroups = preview.by_transit_day || [];
+    if (!dayGroups.length) {
+      dayGroups = [{ day: "unknown", bag_identifiers: bags.map(function (b) { return b.bag_identifier; }) }];
+    }
+
+    var listHost = ui.el("div", { class: "walvis-in-transit-picker" });
+
+    dayGroups.forEach(function (grp) {
+      var day = grp.day || "unknown";
+      var dayBags = bags.filter(function (b) {
+        return (b.in_transit_day_windhoek || "unknown") === day;
+      });
+      if (!dayBags.length) return;
+
+      var dayHeader = ui.el("div", { class: "walvis-in-transit-day" });
+      var dayCheck = ui.el("input", { type: "checkbox", class: "walvis-in-transit-day-cb" });
+      var defaultDayOn = day === loadDay;
+      dayCheck.checked = defaultDayOn;
+      dayHeader.appendChild(dayCheck);
+      dayHeader.appendChild(
+        ui.el("span", { class: "walvis-in-transit-day-label" }, [
+          "In transit " + (day === "unknown" ? "(date unknown)" : day) + " · " + dayBags.length + " bag(s)",
+        ])
+      );
+      if (day === loadDay) {
+        dayHeader.appendChild(ui.el("span", { class: "walvis-in-transit-day-tag" }, ["matches load day"]));
       }
+      listHost.appendChild(dayHeader);
+
+      var bagList = ui.el("div", { class: "walvis-in-transit-bag-list" });
+      dayBags.forEach(function (b) {
+        var row = ui.el("label", { class: "walvis-in-transit-bag-row" });
+        var cb = ui.el("input", { type: "checkbox", value: b.bag_identifier });
+        cb.checked = defaultDayOn;
+        cb.dataset.bag = b.bag_identifier;
+        checkboxes.push(cb);
+        row.appendChild(cb);
+        var meta =
+          b.bag_identifier +
+          (b.product_code ? " · " + b.product_code : b.product_stream ? " · " + b.product_stream : "");
+        if (b.manifest_status === "on_other_dispatch" && b.other_dispatch_label) {
+          meta += " · " + b.other_dispatch_label;
+        } else if (b.manifest_status === "unmanifested") {
+          meta += " · no manifest";
+        }
+        row.appendChild(ui.el("span", {}, [meta]));
+        bagList.appendChild(row);
+        dayCheck.addEventListener("change", function () {
+          bagList.querySelectorAll("input[type=checkbox]").forEach(function (c) {
+            c.checked = dayCheck.checked;
+          });
+        });
+      });
+      listHost.appendChild(bagList);
+    });
+
+    box.appendChild(listHost);
+
+    var actions = ui.el("div", { class: "walvis-in-transit-picker-actions" });
+    var selectLoadBtn = ui.el("button", { type: "button", class: "btn-ghost" }, ["Select load day only"]);
+    selectLoadBtn.addEventListener("click", function () {
+      checkboxes.forEach(function (cb) {
+        var bag = bags.find(function (b) { return b.bag_identifier === cb.value; });
+        cb.checked = bag && (bag.in_transit_day_windhoek || "") === loadDay;
+      });
+    });
+    actions.appendChild(selectLoadBtn);
+    actions.appendChild(
+      ui.el("button", {
+        type: "button",
+        class: "btn-ghost",
+        onclick: function () {
+          checkboxes.forEach(function (cb) { cb.checked = false; });
+        },
+      }, ["Clear"])
+    );
+    box.appendChild(actions);
+
+    var attachBtn = ui.el("button", {
+      type: "button",
+      class: "settings-action-btn walvis-in-transit-link-btn",
+    }, ["Link selected bags"]);
+    attachBtn.addEventListener("click", async function () {
+      var selected = checkboxes.filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+      if (!selected.length) {
+        window.alert("Select at least one in-transit bag.");
+        return;
+      }
+      var needsMove = selected.some(function (serial) {
+        var bag = bags.find(function (b) { return b.bag_identifier === serial; });
+        return bag && bag.manifest_status === "on_other_dispatch";
+      });
       if (
         !window.confirm(
-          "Link in-transit bags to " +
+          "Link " +
+            selected.length +
+            " bag(s) to " +
             dispatchDisplayLabel(detail) +
-            "?\n\nNo bag status changes."
+            "?\n\nBag status stays in transit." +
+            (needsMove ? "\n\nSome selections will move off another manifest." : "")
         )
       ) {
         return;
@@ -457,7 +540,7 @@
         var updated = await apiPost(
           ctx,
           "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/attach-in-transit",
-          { reassign_from_other: reassign }
+          { bag_identifiers: selected, reassign_from_other: true }
         );
         updated = await enrichDetailWithGroundReconcile(ctx, updated);
         await renderDetail(container, ctx, updated);

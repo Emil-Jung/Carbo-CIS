@@ -4193,6 +4193,49 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .walvis-dispatch-plan-panel .data-table { font-size: 0.85rem; }
 .walvis-dispatch-detail-edit { margin-top: 0.35rem; font-size: 0.88rem; }
 .walvis-in-transit-link { margin-top: 0.5rem; }
+.walvis-in-transit-link-hint { font-size: 0.82rem; line-height: 1.35; margin: 0 0 0.5rem; }
+.walvis-in-transit-picker {
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  background: var(--panel-2);
+  margin: 0.35rem 0 0.5rem;
+}
+.walvis-in-transit-day {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.walvis-in-transit-day-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--gold-bright, var(--gold));
+}
+.walvis-in-transit-bag-list { margin: 0 0 0.5rem 0.75rem; }
+.walvis-in-transit-bag-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0.2rem 0;
+  cursor: pointer;
+}
+.walvis-in-transit-bag-row input { margin-top: 0.15rem; flex-shrink: 0; }
+.walvis-in-transit-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+.walvis-in-transit-link-btn { width: 100%; max-width: 100%; }
 .walvis-dispatch-manifest-summary { font-size: 0.9rem; margin-bottom: 0.5rem; }
 .walvis-dispatch-table-wrap { max-height: min(65vh, 560px); }
 .walvis-dispatch-reconcile-panel { padding: 0.5rem 0; font-size: 0.88rem; }
