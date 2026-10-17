@@ -59,8 +59,8 @@
 
     var sieving = data.sieving_truck;
     if (sieving) {
-      var sievMain = sieving.title || sieving.label || "Active truck";
-      if (sieving.subtitle) sievMain += " · " + sieving.subtitle;
+      var sievMain =
+        sieving.farm_name || sieving.label || sieving.title || "Active truck";
       items.push({
         sort: 1,
         html: renderItem("Sieving", sievMain, startedLine(sieving.started_at)),
