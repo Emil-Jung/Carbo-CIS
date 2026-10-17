@@ -9,7 +9,7 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.6.9";
+  var PL_UI_VERSION = "1.7.0";
   CIS.printLabelsUiVersion = PL_UI_VERSION;
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
@@ -666,6 +666,15 @@
       labelFormat = readSaved().labelFormat;
     }
 
+    /** Server value — always read from the Label format dropdown at prepare time. */
+    function apiLabelFormat() {
+      return formatEl.value === "a4_pallet" ? "a4_pallet" : "zebra_bag";
+    }
+
+    function formatDisplayName(fmt) {
+      return fmt === "a4_pallet" ? "A4 pallet sheet" : "Zebra 54×25 mm";
+    }
+
     function resolvedZebraPrinter(s) {
       s = s || readSaved();
       return (s.zebraPrinterName || "").trim();
@@ -1015,7 +1024,7 @@
       var table = ui.el("table", { class: "print-labels-history" });
       var thead = ui.el("thead");
       var hr = ui.el("tr");
-      ["Run", "When", "User", "Qty", "First ID", "Last ID", "Printer", "Status"].forEach(function (h) {
+      ["Run", "Format", "When", "User", "Qty", "First ID", "Last ID", "Printer", "Status"].forEach(function (h) {
         hr.appendChild(ui.el("th", {}, [h]));
       });
       thead.appendChild(hr);
@@ -1024,6 +1033,11 @@
       (runs || []).forEach(function (run) {
         var tr = ui.el("tr");
         tr.appendChild(ui.el("td", {}, ["#" + run.print_run_id + (run.run_type === "reprint" ? " R" : "")]));
+        tr.appendChild(ui.el("td", {}, [
+          run.run_type === "reprint"
+            ? "—"
+            : formatDisplayName(run.label_format || "zebra_bag"),
+        ]));
         tr.appendChild(ui.el("td", {}, [run.created_at ? run.created_at.replace("T", " ").replace("Z", "") : ""]));
         tr.appendChild(ui.el("td", {}, [run.operator_login || ""]));
         tr.appendChild(ui.el("td", {}, [String(run.quantity)]));
@@ -1092,8 +1106,10 @@
           "<p>Printer:<br><strong>" + printer + "</strong></p>"
         );
       }
+      var fmtName = formatDisplayName(run.label_format || apiLabelFormat());
       return (
         "<p><strong>You are about to print:</strong><br>" + qty + " label" + (qty === 1 ? "" : "s") + "</p>" +
+        "<p>Label format:<br><strong>" + fmtName + "</strong></p>" +
         "<p>Bag IDs:<br><code>" + run.first_serial + "</code><br>to<br><code>" + run.last_serial + "</code></p>" +
         "<p>Printer:<br><strong>" + printer + "</strong></p>"
       );
@@ -1221,6 +1237,7 @@
     }
 
     async function prepareBatch() {
+      syncLabelFormat();
       persistForm();
       var parsed = parseQuantity(qtyEl.value);
       if (parsed.error) {
@@ -1233,13 +1250,14 @@
       }
       setBusy(true);
       try {
+        var fmt = apiLabelFormat();
         var body = {
           quantity: parsed.value,
-          label_format: labelFormat === "a4_pallet" ? "a4_pallet" : "zebra_bag",
-          printer_name: labelFormat === "a4_pallet"
+          label_format: fmt,
+          printer_name: fmt === "a4_pallet"
             ? (resolvedA4Printer() || null)
             : (zebraUsesNetwork() ? zebraNetworkEndpoint() : (resolvedZebraPrinter() || null)),
-          printer_connection: labelFormat === "a4_pallet" ? "windows" : zebraPrinterConnection(),
+          printer_connection: fmt === "a4_pallet" ? "windows" : zebraPrinterConnection(),
         };
         var note = noteEl.value.trim();
         if (note) body.note = note;
