@@ -38,6 +38,23 @@
     }
   }
 
+  function fmtShipDate(isoDate) {
+    if (!isoDate) return "—";
+    try {
+      var parts = String(isoDate).split("-");
+      if (parts.length !== 3) return isoDate;
+      var d = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
+      return d.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+    } catch (e) {
+      return isoDate;
+    }
+  }
+
   function progressText(c) {
     return fmt(c.loaded_bags) + " / " + fmt(c.target_bag_count);
   }
@@ -50,7 +67,11 @@
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Containers"]));
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
-        "Preload containers from the booking. The yard scanner offers only containers that are still taking bags, and stops offering one once it reaches its bag count.",
+        "Preload containers from the booking (ship date and bag target). ",
+        ui.el("strong", {}, ["Release for loading"]),
+        " activates the yard assignment — Wynand’s scanner only offers ",
+        ui.el("strong", {}, ["Into container"]),
+        " when a released booking exists at that yard (same idea as packaging shift and Walvis dispatch).",
       ])
     );
 
@@ -73,6 +94,7 @@
       locationSelect.appendChild(ui.el("option", { value: loc.value }, [loc.label]));
     });
     var bookingInput = ui.el("input", { type: "text", placeholder: "Booking ref (optional)", autocomplete: "off" });
+    var shipDateInput = ui.el("input", { type: "date", autocomplete: "off" });
 
     function labelled(text, control) {
       return ui.el("label", { class: "ct-field" }, [
@@ -84,6 +106,7 @@
     form.appendChild(labelled("Container number", numberInput));
     form.appendChild(labelled("Bags when full", countInput));
     form.appendChild(labelled("Yard", locationSelect));
+    form.appendChild(labelled("Expected ship date", shipDateInput));
     form.appendChild(labelled("Booking ref", bookingInput));
     form.appendChild(ui.el("button", { class: "btn", type: "submit" }, ["Add container"]));
     container.appendChild(form);
@@ -109,13 +132,17 @@
       status.className = isError ? "error-box" : "muted";
     }
 
-    async function act(containerId, payload, describe) {
+    async function act(containerId, path, payload, describe) {
       if (!window.confirm(describe + "?")) return;
       try {
-        await ctx.api.traceability("/containers/" + encodeURIComponent(containerId), {
-          method: "PATCH",
-          body: payload,
-        });
+        if (path) {
+          await ctx.api.traceability(path, { method: "POST", body: payload || {} });
+        } else {
+          await ctx.api.traceability("/containers/" + encodeURIComponent(containerId), {
+            method: "PATCH",
+            body: payload,
+          });
+        }
         await load();
       } catch (e) {
         setStatus("Could not update: " + (e.message || e), true);
@@ -126,8 +153,8 @@
       var table = ui.el("table", { class: "data" });
       table.innerHTML =
         "<thead><tr>" +
-        "<th>Container</th><th>Yard</th><th>Booking</th>" +
-        "<th>Loaded</th><th>Status</th><th>Created</th><th></th>" +
+        "<th>Container</th><th>Yard</th><th>Ship date</th><th>Booking</th>" +
+        "<th>Loaded</th><th>Status</th><th>Released</th><th></th>" +
         "</tr></thead>";
       var tbody = ui.el("tbody");
 
@@ -136,19 +163,38 @@
         tr.innerHTML =
           "<td><strong>" + ui.escape(c.container_number) + "</strong></td>" +
           "<td>" + ui.escape(c.location_display) + "</td>" +
+          "<td>" + ui.escape(fmtShipDate(c.expected_ship_date)) + "</td>" +
           "<td>" + ui.escape(c.booking_ref || "—") + "</td>" +
           "<td>" + ui.escape(progressText(c)) + "</td>" +
           "<td>" + ui.escape(STATUS_LABEL[c.status] || c.status) + "</td>" +
-          "<td>" + ui.escape(fmtDate(c.created_at)) + "</td>";
+          "<td>" +
+          ui.escape(c.released_for_loading ? fmtDate(c.released_for_loading_at) : "Not released") +
+          "</td>";
 
         var actions = ui.el("td", {});
+        if ((c.status === "booked" || c.status === "loading") && !c.released_for_loading) {
+          actions.appendChild(
+            ui.el("button", {
+              class: "btn btn-sm",
+              type: "button",
+              onclick: function () {
+                act(
+                  c.id,
+                  "/containers/" + encodeURIComponent(c.id) + "/release-for-loading",
+                  {},
+                  "Release " + c.container_number + " for yard loading"
+                );
+              },
+            }, ["Release for loading"])
+          );
+        }
         if (c.status === "full" || c.status === "loading") {
           actions.appendChild(
             ui.el("button", {
               class: "btn btn-sm",
               type: "button",
               onclick: function () {
-                act(c.id, { status: "dispatched" }, "Mark " + c.container_number + " dispatched");
+                act(c.id, null, { status: "dispatched" }, "Mark " + c.container_number + " dispatched");
               },
             }, ["Dispatched"])
           );
@@ -159,7 +205,7 @@
               class: "btn btn-sm",
               type: "button",
               onclick: function () {
-                act(c.id, { status: "cancelled" }, "Cancel the booking for " + c.container_number);
+                act(c.id, null, { status: "cancelled" }, "Cancel the booking for " + c.container_number);
               },
             }, ["Cancel"])
           );
@@ -210,18 +256,23 @@
       }
       setStatus("Saving…");
       try {
+        var bodyPayload = {
+          container_number: number,
+          target_bag_count: count,
+          location: locationSelect.value,
+          booking_ref: bookingInput.value.trim() || null,
+        };
+        if (shipDateInput.value) {
+          bodyPayload.expected_ship_date = shipDateInput.value;
+        }
         await ctx.api.traceability("/containers", {
           method: "POST",
-          body: {
-            container_number: number,
-            target_bag_count: count,
-            location: locationSelect.value,
-            booking_ref: bookingInput.value.trim() || null,
-          },
+          body: bodyPayload,
         });
         numberInput.value = "";
         countInput.value = "";
         bookingInput.value = "";
+        shipDateInput.value = "";
         await load();
       } catch (e) {
         setStatus("Could not add container: " + (e.message || e), true);
@@ -238,7 +289,7 @@
     kind: "lookup",
     order: 17,
     icon: "bags",
-    description: "Preload booked containers for the Walvis Bay yard scanner",
+    description: "Preload and release containers for Walvis / AGL Into container scans",
     requires: "traceability.containers",
     render: render,
   });
