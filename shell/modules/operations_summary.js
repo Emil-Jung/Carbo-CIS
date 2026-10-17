@@ -1,5 +1,4 @@
-/* Core CIS V1 shell — read-only “today’s operations” on every module after sign-in.
-   No Identity permission key; session only. Revisit gating when V2 cutover. */
+/* Core CIS V1 shell — read-only “today’s operations”. Session only; no Identity permission key. */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -14,14 +13,15 @@
     error: null,
     ctx: null,
     onVisHandler: null,
+    btnBound: false,
   };
 
-  function rootEl() {
+  function panelEl() {
     return document.getElementById("cis-ops-summary");
   }
 
-  function isSignedIn() {
-    return !!(CIS.getToken && CIS.getToken() && CIS.currentUser && CIS.currentUser());
+  function btnEl() {
+    return document.getElementById("cis-ops-summary-btn");
   }
 
   function activeCount(data) {
@@ -61,54 +61,61 @@
     render();
   }
 
+  function bindTopbarButton() {
+    if (state.btnBound) return;
+    var btn = btnEl();
+    if (!btn) return;
+    state.btnBound = true;
+    btn.addEventListener("click", function () {
+      setOpen(!state.open);
+    });
+  }
+
   function render() {
-    var root = rootEl();
-    if (!root) return;
+    bindTopbarButton();
+    var btn = btnEl();
+    var panel = panelEl();
+    if (!btn || !panel) return;
 
     var data = state.last;
     var count = activeCount(data);
     var open = state.open;
 
-    root.classList.toggle("cis-ops-summary--open", open);
-    root.classList.toggle("cis-ops-summary--idle", count === 0 && !state.error);
+    panel.classList.toggle("cis-ops-summary--open", open);
+    panel.classList.toggle("cis-ops-summary--idle", count === 0 && !state.error);
 
-    var toggleLabel = open ? "Hide operations" : "Today\u2019s operations";
-    if (!open && count > 0) toggleLabel += " (" + count + " active)";
-
-    var html =
-      '<button type="button" class="cis-ops-summary__toggle" aria-expanded="' +
-      (open ? "true" : "false") +
-      '" aria-controls="cis-ops-summary-panel">' +
-      esc(toggleLabel) +
-      "</button>";
+    var toggleLabel = open ? "Hide ops" : "Today\u2019s ops";
+    if (!open && count > 0) toggleLabel += " (" + count + ")";
+    btn.textContent = toggleLabel;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    btn.setAttribute("aria-controls", "cis-ops-summary-panel");
 
     if (open) {
-      html += '<div id="cis-ops-summary-panel" class="cis-ops-summary__panel" role="region" aria-label="Today\u2019s operations">';
+      var inner = "";
       if (state.error) {
-        html += '<p class="cis-ops-summary__muted">' + esc(state.error) + "</p>";
+        inner += '<p class="cis-ops-summary__muted">' + esc(state.error) + "</p>";
       } else if (!data) {
-        html += '<p class="cis-ops-summary__muted">Loading…</p>";
+        inner += '<p class="cis-ops-summary__muted">Loading…</p>";
       } else {
-        html += sectionIntake(data.charcoal_intake);
-        html += sectionPackaging(data.packaging_shifts);
-        html += sectionWalvis(data.walvis_dispatch);
+        inner += sectionIntake(data.charcoal_intake);
+        inner += sectionPackaging(data.packaging_shifts);
+        inner += sectionWalvis(data.walvis_dispatch);
         if (count === 0) {
-          html += '<p class="cis-ops-summary__muted">Nothing active right now.</p>';
+          inner += '<p class="cis-ops-summary__muted">Nothing active right now.</p>';
         }
         if (data.updated_at) {
-          html +=
+          inner +=
             '<p class="cis-ops-summary__foot">Updated ' + esc(fmtShort(data.updated_at)) + "</p>";
         }
       }
-      html += "</div>";
-    }
-
-    root.innerHTML = html;
-    var btn = root.querySelector(".cis-ops-summary__toggle");
-    if (btn) {
-      btn.addEventListener("click", function () {
-        setOpen(!state.open);
-      });
+      panel.innerHTML =
+        '<div id="cis-ops-summary-panel" class="cis-ops-summary__panel" role="region" aria-label="Today\u2019s operations">' +
+        inner +
+        "</div>";
+      panel.classList.remove("hidden");
+    } else {
+      panel.innerHTML = "";
+      panel.classList.add("hidden");
     }
   }
 
@@ -145,9 +152,7 @@
     }
     var parts = shifts.map(function (sh) {
       var skus =
-        sh.product_codes && sh.product_codes.length
-          ? sh.product_codes.join(", ")
-          : "—";
+        sh.product_codes && sh.product_codes.length ? sh.product_codes.join(", ") : "—";
       var line = "<p><strong>" + esc(skus) + "</strong></p>";
       if (sh.started_at) {
         line += '<p class="cis-ops-summary__muted">Started ' + esc(fmtShort(sh.started_at)) + "</p>";
@@ -164,7 +169,9 @@
     var lines = ["<p><strong>" + esc(dispatch.display_label) + "</strong></p>"];
     var truck = [dispatch.truck_registration, dispatch.transporter].filter(Boolean).join(" · ");
     if (truck) lines.push("<p>" + esc(truck) + "</p>");
-    lines.push("<p>Loaded bags: " + esc(String(dispatch.loaded_bags != null ? dispatch.loaded_bags : 0)) + "</p>");
+    lines.push(
+      "<p>Loaded bags: " + esc(String(dispatch.loaded_bags != null ? dispatch.loaded_bags : 0)) + "</p>"
+    );
     if (dispatch.opened_at) {
       lines.push('<p class="cis-ops-summary__muted">Opened ' + esc(fmtShort(dispatch.opened_at)) + "</p>");
     }
@@ -172,7 +179,7 @@
   }
 
   async function refresh(ctx) {
-    if (!ctx || !ctx.api || !isSignedIn()) return;
+    if (!ctx || !ctx.api) return;
     try {
       state.error = null;
       state.last = await ctx.api.traceability("/reports/operations-summary");
@@ -196,17 +203,18 @@
     state.ctx = null;
     state.last = null;
     state.error = null;
-    var root = rootEl();
-    if (root) {
-      root.classList.add("hidden");
-      root.innerHTML = "";
+    state.open = false;
+    var btn = btnEl();
+    if (btn) btn.classList.add("hidden");
+    var panel = panelEl();
+    if (panel) {
+      panel.classList.add("hidden");
+      panel.innerHTML = "";
     }
   }
 
   function sync(ctx) {
     stop();
-    if (!isSignedIn()) return;
-
     state.ctx = ctx;
 
     try {
@@ -215,11 +223,11 @@
       state.open = false;
     }
 
-    var root = rootEl();
-    if (root) root.classList.remove("hidden");
+    var btn = btnEl();
+    if (btn) btn.classList.remove("hidden");
     render();
-
     refresh(ctx);
+
     state.timer = setInterval(function () {
       if (state.ctx) refresh(state.ctx);
     }, POLL_MS);

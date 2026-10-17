@@ -551,7 +551,8 @@
 
     if (!openStartupModuleIfAny()) showDashboard();
 
-    /* Built-in ops summary — not permission-gated (V1 shell). */
+    var opsBtn = document.getElementById("cis-ops-summary-btn");
+    if (opsBtn) opsBtn.classList.remove("hidden");
     if (CIS.operationsSummary && CIS.operationsSummary.sync) {
       CIS.operationsSummary.sync({ api: CIS.api });
     }
