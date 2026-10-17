@@ -4379,15 +4379,16 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   font-size: 0.78rem;
   line-height: 1.35;
 }
-.walvis-dispatch-meta-edit-btn {
-  display: block;
-  width: 100%;
+.walvis-gold-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   box-sizing: border-box;
   margin: 0;
-  padding: 12px 16px;
-  font-size: 0.92rem;
+  padding: 8px 14px;
+  font-size: 0.85rem;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
   letter-spacing: 0.02em;
   text-align: center;
   color: #1a1200;
@@ -4401,14 +4402,29 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
     0 4px 14px rgba(0, 0, 0, 0.45),
     0 0 12px rgba(228, 192, 74, 0.35);
 }
-.walvis-dispatch-meta-edit-btn:hover {
+.walvis-gold-btn:hover {
   filter: brightness(1.08);
   border-color: #fff8dc;
 }
-.walvis-dispatch-meta-edit-btn:disabled {
+.walvis-gold-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   filter: none;
+}
+.walvis-gold-btn--release {
+  padding: 10px 16px;
+  font-size: 0.92rem;
+}
+.walvis-plan-actions,
+.walvis-plan-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.walvis-dispatch-meta-panel .walvis-gold-btn {
+  margin-top: 0.15rem;
 }
 .walvis-in-transit-link { margin-top: 0.5rem; }
 .walvis-in-transit-link-hint { font-size: 0.82rem; line-height: 1.35; margin: 0 0 0.5rem; }

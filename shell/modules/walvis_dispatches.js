@@ -654,10 +654,10 @@
       planTable.appendChild(pBody);
       planBox.appendChild(planTable);
       if (detail.status === "planned") {
+        var planActions = ui.el("div", { class: "walvis-plan-actions" });
         var releaseBtn = ui.el("button", {
           type: "button",
-          class: "settings-action-btn",
-          style: "margin-top:0.75rem;",
+          class: "walvis-gold-btn walvis-gold-btn--release",
         }, ["Release for loading"]);
         releaseBtn.addEventListener("click", async function () {
           if (
@@ -684,11 +684,37 @@
             releaseBtn.disabled = false;
           }
         });
-        planBox.appendChild(releaseBtn);
+        var editPlanBtn = ui.el("button", {
+          type: "button",
+          class: "walvis-gold-btn",
+        }, ["Edit load plan"]);
+        editPlanBtn.addEventListener("click", async function () {
+          var savedDetail = detail;
+          planBox.innerHTML = "";
+          planBox.appendChild(ui.el("h4", { style: "margin:0 0 0.35rem;" }, ["Edit load plan"]));
+          planBox.appendChild(
+            ui.el("p", { class: "muted", style: "font-size:0.85rem;margin:0 0 0.65rem;" }, [
+              "Adjust lines and loading day until you release for loading — then the plan is locked.",
+            ])
+          );
+          var editorHost = ui.el("div", { class: "walvis-plan-edit-host" });
+          planBox.appendChild(editorHost);
+          await mountWalvisPlanForm(editorHost, ctx, ui, {
+            dispatchId: detail.id,
+            initial: detail,
+            showIntro: false,
+            moduleContainer: container,
+            onCancel: function () {
+              renderDetail(container, ctx, savedDetail);
+            },
+            onSaved: function (updated) {
+              renderDetail(container, ctx, updated);
+            },
+          });
+        });
         var cancelPlanBtn = ui.el("button", {
           type: "button",
           class: "btn-ghost",
-          style: "margin-left:0.5rem;margin-top:0.75rem;",
         }, ["Cancel plan"]);
         cancelPlanBtn.addEventListener("click", async function () {
           if (!window.confirm("Discard this planned dispatch?")) return;
@@ -703,7 +729,10 @@
             window.alert(e.message || String(e));
           }
         });
-        planBox.appendChild(cancelPlanBtn);
+        planActions.appendChild(releaseBtn);
+        planActions.appendChild(editPlanBtn);
+        planActions.appendChild(cancelPlanBtn);
+        planBox.appendChild(planActions);
       }
       leftPanel.appendChild(planBox);
     }
@@ -741,7 +770,7 @@
 
     var editMetaBtn = ui.el("button", {
       type: "button",
-      class: "walvis-dispatch-meta-edit-btn",
+      class: "walvis-gold-btn",
     }, ["Edit truck, label date, transporter & notes"]);
     editMetaBtn.addEventListener("click", async function () {
       var form = await showFormModal(ui, {
@@ -1384,28 +1413,23 @@
     });
   }
 
-  async function renderCreateDispatchPlan(host, ctx, ui, openDispatch) {
+  async function mountWalvisPlanForm(host, ctx, ui, opts) {
+    opts = opts || {};
     host.innerHTML = "";
     host.className = "walvis-dispatch-form";
 
-    if (openDispatch) {
+    var isEdit = !!opts.dispatchId;
+    var initial = opts.initial || null;
+
+    if (opts.showIntro !== false && !isEdit) {
       host.appendChild(
-        ui.el("p", { class: "error-box" }, [
-          "Loading in progress: ",
-          dispatchDisplayLabel(openDispatch),
-          ". Close this truck load before creating another plan.",
+        ui.el("p", { class: "muted walvis-dispatch-form-intro" }, [
+          "Loading day → ",
+          ui.el("strong", {}, ["Dispatch [day] [date] #[N]"]),
+          ". Release when Shorty is ready to scan (or schedule ahead for Monday, etc.).",
         ])
       );
-      return;
     }
-
-    host.appendChild(
-      ui.el("p", { class: "muted walvis-dispatch-form-intro" }, [
-        "Loading day → ",
-        ui.el("strong", {}, ["Dispatch [day] [date] #[N]"]),
-        ". Release when Shorty is ready to scan (or schedule ahead for Monday, etc.).",
-      ])
-    );
 
     var options = { bulk: [], pallets: [] };
     try {
@@ -1416,13 +1440,17 @@
     }
     var allOpts = (options.bulk || []).concat(options.pallets || []);
 
+    var initialDate =
+      (initial && initial.loading_date) ||
+      (initial && windhoekLabelDateYmd(initial.opened_at)) ||
+      windhoekTodayInputValue();
+
     var loadDayRow = ui.el("div", { class: "walvis-plan-load-day-row" });
     var dateField = ui.el("div", { class: "ct-field walvis-plan-load-day-field" });
     var dateInp = ui.el("input", {
       type: "date",
-      id: "wd_plan_date",
       class: "wd-field-input wd-field-narrow",
-      value: windhoekTodayInputValue(),
+      value: initialDate,
     });
     dateField.appendChild(ui.el("span", { class: "ct-field-label" }, ["Loading day (Windhoek)"]));
     dateField.appendChild(dateInp);
@@ -1438,9 +1466,9 @@
     var truckField = ui.el("div", { class: "ct-field" });
     var truckInp = ui.el("input", {
       type: "text",
-      id: "wd_plan_truck",
       class: "wd-field-input",
       placeholder: "Optional — add later",
+      value: (initial && initial.truck_registration) || "",
     });
     truckField.appendChild(ui.el("span", { class: "ct-field-label" }, ["Truck registration"]));
     truckField.appendChild(truckInp);
@@ -1454,6 +1482,7 @@
 
     var linesHost = ui.el("div", { class: "walvis-plan-lines" });
     var lineRows = [];
+    var initialLines = (initial && initial.plan_lines) || [];
 
     function updatePlanBagTotal() {
       var total = 0;
@@ -1466,12 +1495,14 @@
 
     for (var i = 0; i < 8; i++) {
       (function (idx) {
+        var pref = initialLines[idx] || null;
         var row = ui.el("div", { class: "walvis-plan-line-row" });
         var sel = ui.el("select", { class: "wd-field-select" });
         sel.appendChild(ui.el("option", { value: "" }, ["— line " + (idx + 1) + " —"]));
         allOpts.forEach(function (o) {
           sel.appendChild(ui.el("option", { value: o.key }, [o.label]));
         });
+        if (pref && pref.product_key) sel.value = pref.product_key;
         var qty = ui.el("input", {
           type: "number",
           min: "1",
@@ -1479,6 +1510,7 @@
           placeholder: "0",
           class: "wd-field-input wd-field-qty",
           "aria-label": "Quantity line " + (idx + 1),
+          value: pref && pref.quantity ? String(pref.quantity) : "",
         });
         qty.addEventListener("input", updatePlanBagTotal);
         qty.addEventListener("change", updatePlanBagTotal);
@@ -1489,39 +1521,87 @@
       })(i);
     }
     host.appendChild(linesHost);
+    updatePlanBagTotal();
 
-    host.appendChild(
-      ui.el("button", {
-        type: "button",
-        class: "settings-action-btn walvis-dispatch-save-btn",
-        onclick: async function () {
-          var lines = [];
-          lineRows.forEach(function (r) {
-            var key = r.sel.value;
-            var q = parseInt(r.qty.value, 10);
-            if (key && q > 0) lines.push({ product_key: key, quantity: q });
-          });
-          if (!lines.length) {
-            window.alert("Add at least one product line with quantity.");
-            return;
-          }
-          try {
-            var resp = await apiPost(ctx, "/walvis-dispatches/create-plan", {
-              loading_date: dateInp.value,
-              truck_registration: truckInp.value.trim() || null,
-              lines: lines,
-            });
-            if (resp.dispatch && resp.dispatch.id) {
-              openDetail(host.closest(".module-content"), ctx, resp.dispatch.id);
-            } else {
-              await renderList(host.closest(".module-content"), ctx);
-            }
-          } catch (e) {
-            window.alert(e.message || String(e));
-          }
-        },
-      }, ["Save dispatch plan"])
-    );
+    var btnRow = ui.el("div", { class: "walvis-plan-form-actions" });
+    var saveBtn = ui.el("button", {
+      type: "button",
+      class: "walvis-gold-btn walvis-gold-btn--release",
+    }, [isEdit ? "Save plan changes" : "Save dispatch plan"]);
+    saveBtn.addEventListener("click", async function () {
+      var lines = [];
+      lineRows.forEach(function (r) {
+        var key = r.sel.value;
+        var q = parseInt(r.qty.value, 10);
+        if (key && q > 0) lines.push({ product_key: key, quantity: q });
+      });
+      if (!lines.length) {
+        window.alert("Add at least one product line with quantity.");
+        return;
+      }
+      saveBtn.disabled = true;
+      try {
+        var body = {
+          loading_date: dateInp.value,
+          truck_registration: truckInp.value.trim() || null,
+          transporter: (initial && initial.transporter) || null,
+          notes: (initial && initial.notes) || null,
+          lines: lines,
+        };
+        var resp;
+        if (isEdit) {
+          resp = await apiPost(
+            ctx,
+            "/walvis-dispatches/" + encodeURIComponent(opts.dispatchId) + "/update-plan",
+            body
+          );
+        } else {
+          resp = await apiPost(ctx, "/walvis-dispatches/create-plan", body);
+        }
+        var dispatch = resp.dispatch || resp;
+        if (opts.onSaved && dispatch) {
+          opts.onSaved(dispatch);
+          return;
+        }
+        var mod = opts.moduleContainer || host.closest(".module-content");
+        if (dispatch && dispatch.id) {
+          openDetail(mod, ctx, dispatch.id);
+        } else if (mod) {
+          await renderList(mod, ctx);
+        }
+      } catch (e) {
+        window.alert(e.message || String(e));
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+    btnRow.appendChild(saveBtn);
+    if (opts.onCancel) {
+      var cancelEditBtn = ui.el("button", { type: "button", class: "btn-ghost" }, ["Cancel"]);
+      cancelEditBtn.addEventListener("click", function () {
+        opts.onCancel();
+      });
+      btnRow.appendChild(cancelEditBtn);
+    }
+    host.appendChild(btnRow);
+  }
+
+  async function renderCreateDispatchPlan(host, ctx, ui, openDispatch) {
+    host.innerHTML = "";
+    host.className = "walvis-dispatch-form";
+
+    if (openDispatch) {
+      host.appendChild(
+        ui.el("p", { class: "error-box" }, [
+          "Loading in progress: ",
+          dispatchDisplayLabel(openDispatch),
+          ". Close this truck load before creating another plan.",
+        ])
+      );
+      return;
+    }
+
+    await mountWalvisPlanForm(host, ctx, ui, { showIntro: true });
   }
 
   async function renderList(container, ctx) {
