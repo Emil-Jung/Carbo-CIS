@@ -1141,7 +1141,8 @@
       recon.appendChild(
         ui.el("p", { class: "walvis-dispatch-missing", style: "margin:0.5rem 0 0.25rem 0;" }, [
           ui.el("strong", {}, [
-            String(groundGap.length) + " missing from this manifest — add each (Add next to serial):",
+            String(groundGap.length) +
+              " at Walvis not on this manifest — add unassigned serials only (locked bags stay on their dispatch):",
           ]),
         ])
       );
@@ -1160,23 +1161,26 @@
             ])
           );
         }
-        if (b.other_dispatch_label) {
+        var onOther = !!b.other_dispatch_label;
+        if (onOther) {
           row.appendChild(
-            ui.el("span", { class: "muted", style: "font-size:12px;" }, [
-              "(" + b.other_dispatch_label + ")",
+            ui.el("span", { class: "walvis-dispatch-missing", style: "font-size:12px;" }, [
+              "Locked on " + b.other_dispatch_label + " — detach or transfer there first.",
             ])
           );
         }
-        var addOne = ui.el("button", { type: "button", class: "btn-ghost", style: "padding:0.2rem 0.5rem;" }, [
-          "Add",
-        ]);
-        addOne.addEventListener("click", function () {
-          addOne.disabled = true;
-          promptAndAddBagToDispatch(container, ctx, detail, b.bag_identifier).finally(function () {
-            addOne.disabled = false;
+        if (!onOther) {
+          var addOne = ui.el("button", { type: "button", class: "btn-ghost", style: "padding:0.2rem 0.5rem;" }, [
+            "Add",
+          ]);
+          addOne.addEventListener("click", function () {
+            addOne.disabled = true;
+            promptAndAddBagToDispatch(container, ctx, detail, b.bag_identifier).finally(function () {
+              addOne.disabled = false;
+            });
           });
-        });
-        row.appendChild(addOne);
+          row.appendChild(addOne);
+        }
         gapList.appendChild(row);
       });
       recon.appendChild(gapList);
