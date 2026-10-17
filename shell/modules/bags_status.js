@@ -107,6 +107,18 @@
 
 
 
+  function fmtReportGenerated(iso) {
+    if (!iso) return "";
+    try {
+      return new Date(iso).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+    } catch (e) {
+      return String(iso);
+    }
+  }
+
   function fmtMass(kg, forceKg) {
     return CIS.formatMassFromKg(kg, forceKg ? { forceKg: true } : {});
   }
@@ -1549,7 +1561,10 @@
         card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [equiv]));
 
         card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [
-          fmtMass(st.kg) + " · material for palletisation",
+          fmtMass(st.kg)
+            + " · "
+            + String(st.bags != null ? st.bags : 0)
+            + " source bags consumed",
         ]));
 
         if ((st.by_product || []).length === 1) {
@@ -1570,7 +1585,7 @@
         card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags || 0)]));
 
         card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [
-          fmtMass(st.kg) + " · physical pallet BAG IDs",
+          fmtMass(st.kg) + " · in stock after A4 QR label scan at wrap",
         ]));
 
       } else if (st.kind === "factory_pallets_in_storage") {
@@ -1884,6 +1899,19 @@
 
     }
 
+    if (group.key === "packaging_outputs" && dashboardSummary && dashboardSummary.packing_activity_today) {
+      var actToday = dashboardSummary.packing_activity_today;
+      block.appendChild(
+        ui.el("p", { class: "bs-dash-location__note bs-dash-location__note--compact" }, [
+          "Today (Windhoek): ",
+          ui.el("strong", {}, [String(actToday.consumes != null ? actToday.consumes : 0)]),
+          " bulk consume scans · ",
+          ui.el("strong", {}, [String(actToday.wraps != null ? actToday.wraps : 0)]),
+          " A4 wrap scans (physical pallet BAG IDs). Consume adds to basket; wrap moves basket → Pallets.",
+        ])
+      );
+    }
+
     if (group.sections && group.sections.length) {
 
       var row = ui.el("div", { class: "bs-dash-location__inline-row" });
@@ -1938,8 +1966,8 @@
     var wrap = ui.el("div", { class: "bs-dash-basket-drill" });
 
     wrap.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-      "Material already converted at packaging — waiting for a pallet label scan at wrapping. "
-        + "Not physical pallets yet.",
+      "Bulk bags consumed at packing — kg waiting for an A4 pallet QR label scan at wrapping. "
+        + "Not a physical pallet BAG ID until Create pallet.",
     ]));
 
     var dl = ui.el("dl", { class: "bs-dash-basket-dl" });
@@ -3958,7 +3986,7 @@
 
         weathering = results[1];
 
-        lastReportUpdatedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        lastReportUpdatedAt = fmtReportGenerated(summary.generated_at);
 
         if (selected && selected.mode === "pallet_basket" && summary.pallet_basket) {
           selected.detail = summary.pallet_basket;
