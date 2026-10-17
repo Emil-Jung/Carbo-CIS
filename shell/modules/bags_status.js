@@ -689,120 +689,6 @@
 
 
 
-  function renderPipelineChart(pipeline, ui) {
-
-    var card = ui.el("div", { class: "bs-dash-card bs-dash-card--side" });
-
-    card.appendChild(ui.el("div", { class: "bs-dash-card__head" }, [
-
-      ui.el("h3", {}, ["Pipeline by location"]),
-
-      ui.el("p", { class: "bs-dash-card__sub" }, ["On the clock vs ready — by area"]),
-
-    ]));
-
-    var rows = pipeline || [];
-
-    if (!rows.length) {
-
-      card.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No pipeline data."]));
-
-      return card;
-
-    }
-
-    var maxKg = wxMaxKg(rows.map(function (loc) {
-
-      return {
-
-        kg: (loc.still_weathering && loc.still_weathering.kg || 0)
-
-          + (loc.ready && loc.ready.kg || 0),
-
-      };
-
-    }));
-
-    var body = ui.el("div", { class: "bs-dash-pipeline" });
-
-    rows.forEach(function (loc) {
-
-      var still = loc.still_weathering || {};
-
-      var ready = loc.ready || {};
-
-      var totalKg = (still.kg || 0) + (ready.kg || 0);
-
-      if (!totalKg) return;
-
-      var row = ui.el("div", { class: "bs-dash-pipeline-row" });
-
-      row.appendChild(ui.el("span", { class: "bs-dash-pipeline-label" }, [loc.label]));
-
-      var trackWrap = ui.el("div", { class: "bs-dash-pipeline-track-wrap" });
-
-      var track = ui.el("div", { class: "bs-dash-pipeline-track" });
-
-      track.style.width = Math.max((totalKg / maxKg) * 100, 8) + "%";
-
-      if (still.kg) {
-
-        track.appendChild(ui.el("div", {
-
-          class: "bs-dash-pipeline-seg bs-dash-pipeline-seg--clock",
-
-          style: { width: (still.kg / totalKg * 100) + "%" },
-
-          title: "Still weathering: " + bagsKgText(still.bags, still.kg),
-
-        }));
-
-      }
-
-      if (ready.kg) {
-
-        track.appendChild(ui.el("div", {
-
-          class: "bs-dash-pipeline-seg bs-dash-pipeline-seg--ready",
-
-          style: { width: (ready.kg / totalKg * 100) + "%" },
-
-          title: "Ready: " + bagsKgText(ready.bags, ready.kg),
-
-        }));
-
-      }
-
-      trackWrap.appendChild(track);
-
-      row.appendChild(trackWrap);
-
-      row.appendChild(ui.el("span", { class: "bs-dash-pipeline-meta" }, [
-
-        bagsKgText(still.bags, still.kg) + " clock · " + bagsKgText(ready.bags, ready.kg) + " ready",
-
-      ]));
-
-      body.appendChild(row);
-
-    });
-
-    card.appendChild(body);
-
-    card.appendChild(ui.el("div", { class: "bs-dash-pipeline-legend" }, [
-
-      ui.el("span", { class: "bs-dash-pipeline-key bs-dash-pipeline-key--clock" }, ["Still weathering"]),
-
-      ui.el("span", { class: "bs-dash-pipeline-key bs-dash-pipeline-key--ready" }, ["Ready now"]),
-
-    ]));
-
-    return card;
-
-  }
-
-
-
   function pipelineYardBucket(wx, clock) {
     var pipe = (wx && wx.pipeline) || [];
     for (var i = 0; i < pipe.length; i++) {
@@ -3271,8 +3157,6 @@
 
         side.appendChild(renderWeekChart(weathering.end_weeks, ui, openWxDrill));
 
-        side.appendChild(renderPipelineChart(weathering.pipeline, ui));
-
         grid.appendChild(side);
 
         body.appendChild(grid);
@@ -4106,7 +3990,7 @@
 
     icon: "bags",
 
-    description: "Where bags are — and weathering clock, release timing, pipeline",
+    description: "Where bags are — and weathering clock and release timing",
 
     requires: "traceability.bags_status",
 
