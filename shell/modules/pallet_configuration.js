@@ -43,17 +43,32 @@
       "in progress keep the targets recorded when they were opened.",
     ]));
 
-    var status = ui.el("p", { class: "muted" }, [""]);
+    var status = ui.el("p", { class: "muted pallet-config-status" }, [""]);
     container.appendChild(status);
 
-    var listHost = ui.el("div", { class: "pallet-config-list" });
-    container.appendChild(listHost);
+    var workspace = ui.el("div", { class: "walvis-dispatch-workspace pallet-config-workspace" });
+    var formPanel = ui.el("section", { class: "walvis-dispatch-panel pallet-config-panel" });
+    var listPanel = ui.el("section", { class: "walvis-dispatch-panel walvis-dispatch-panel--list pallet-config-list-panel" });
+    listPanel.appendChild(
+      ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Products"])
+    );
+    listPanel.appendChild(
+      ui.el("p", { class: "muted walvis-dispatch-list-hint" }, [
+        "Active SKUs appear on packing-plant scanners. Edit to change targets for new builds only.",
+      ])
+    );
+    var listHost = ui.el("div", { class: "walvis-dispatch-list-col pallet-config-list" });
+    listPanel.appendChild(listHost);
 
-    var formPanel = ui.el("section", { class: "pallet-config-panel ct-form" });
-    formPanel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["Add product"]));
+    formPanel.appendChild(
+      ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Add product"])
+    );
     var form = buildForm(ui, null);
     formPanel.appendChild(form.el);
-    container.appendChild(formPanel);
+
+    workspace.appendChild(formPanel);
+    workspace.appendChild(listPanel);
+    container.appendChild(workspace);
 
     function setStatus(text, isError) {
       status.textContent = text || "";
@@ -62,10 +77,10 @@
 
     function buildForm(ui, product) {
       var isEdit = !!product;
-      var el = ui.el("form", { class: "pallet-config-form" });
+      var el = ui.el("form", { class: "walvis-dispatch-form pallet-config-form" });
 
       var codeInput = ui.el("input", {
-        class: "input",
+        class: "wd-field-input",
         type: "text",
         placeholder: "e.g. CH10",
         autocomplete: "off",
@@ -77,16 +92,44 @@
         codeInput.disabled = true;
       }
 
-      var nameInput = ui.el("input", { class: "input", type: "text", required: "required" });
-      var clientInput = ui.el("input", { class: "input", type: "text", autocomplete: "off" });
-      var retailInput = ui.el("input", { class: "input", type: "number", min: "0.001", step: "0.001", required: "required" });
-      var bagsInput = ui.el("input", { class: "input", type: "number", min: "1", step: "1", required: "required" });
-      var prodPalletInput = ui.el("input", { class: "input", type: "number", min: "0.001", step: "0.001", required: "required" });
-      var commercialInput = ui.el("input", { class: "input", type: "number", min: "0.001", step: "0.001" });
-      var prodPackInput = ui.el("input", { class: "input", type: "number", min: "0.001", step: "0.001" });
-      var activeInput = ui.el("input", { type: "checkbox" });
+      var nameInput = ui.el("input", { class: "wd-field-input", type: "text", required: "required" });
+      var clientInput = ui.el("input", { class: "wd-field-input", type: "text", autocomplete: "off" });
+      var retailInput = ui.el("input", {
+        class: "wd-field-input wd-field-narrow",
+        type: "number",
+        min: "0.001",
+        step: "0.001",
+        required: "required",
+      });
+      var bagsInput = ui.el("input", {
+        class: "wd-field-input wd-field-narrow",
+        type: "number",
+        min: "1",
+        step: "1",
+        required: "required",
+      });
+      var prodPalletInput = ui.el("input", {
+        class: "wd-field-input wd-field-narrow",
+        type: "number",
+        min: "0.001",
+        step: "0.001",
+        required: "required",
+      });
+      var commercialInput = ui.el("input", {
+        class: "wd-field-input wd-field-narrow",
+        type: "number",
+        min: "0.001",
+        step: "0.001",
+      });
+      var prodPackInput = ui.el("input", {
+        class: "wd-field-input wd-field-narrow",
+        type: "number",
+        min: "0.001",
+        step: "0.001",
+      });
+      var activeInput = ui.el("input", { type: "checkbox", class: "pallet-config-active-cb" });
       activeInput.checked = true;
-      var fscSel = ui.el("select", { class: "input", required: "required" });
+      var fscSel = ui.el("select", { class: "wd-field-select", required: "required" });
       fscSel.appendChild(ui.el("option", { value: "" }, ["— Select source-bag policy —"]));
       FSC_BAG_POLICIES.forEach(function (opt) {
         fscSel.appendChild(ui.el("option", { value: opt.value }, [opt.label]));
@@ -144,7 +187,10 @@
       el.appendChild(field("Active", activeInput, "Inactive products are hidden from scanners but history is kept."));
 
       var actions = ui.el("div", { class: "pallet-config-form-actions" });
-      var submit = ui.el("button", { class: "btn", type: "submit" }, [isEdit ? "Save changes" : "Add product"]);
+      var submit = ui.el("button", {
+        class: "settings-action-btn pallet-config-save-btn",
+        type: "submit",
+      }, [isEdit ? "Save changes" : "Add product"]);
       actions.appendChild(submit);
       if (isEdit) {
         actions.appendChild(ui.el("button", {
@@ -199,7 +245,7 @@
 
     function paintForm() {
       formPanel.innerHTML = "";
-      formPanel.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, [
+      formPanel.appendChild(ui.el("h3", { class: "walvis-dispatch-panel-title" }, [
         editing ? "Edit " + editing.product_code : "Add product",
       ]));
       formWrap = buildForm(ui, editing);
@@ -212,7 +258,7 @@
         listHost.appendChild(ui.el("p", { class: "muted" }, ["No products configured yet."]));
         return;
       }
-      var table = ui.el("table", { class: "data pallet-config-table" });
+      var table = ui.el("table", { class: "data-table pallet-config-table" });
       table.innerHTML =
         "<thead><tr>" +
         "<th>Code</th><th>Name</th><th>Client</th>" +
@@ -233,8 +279,9 @@
           "<td>" + (p.active === false ? "Inactive" : "Active") + "</td>";
         var actions = ui.el("td", {});
         actions.appendChild(ui.el("button", {
-          class: "btn btn-sm",
+          class: "btn-ghost",
           type: "button",
+          style: "padding:0.2rem 0.5rem;font-size:0.85rem;",
           onclick: function () {
             editing = p;
             paintForm();

@@ -4236,6 +4236,41 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   margin-bottom: 0.5rem;
 }
 .walvis-in-transit-link-btn { width: 100%; max-width: 100%; }
+
+/* Pallet Configuration — same office layout as Walvis Bay Dispatch */
+.pallet-config-host .pallet-config-status { margin-bottom: 0.5rem; font-size: 0.88rem; }
+.pallet-config-workspace {
+  grid-template-columns: minmax(260px, 400px) minmax(300px, 1fr);
+}
+.pallet-config-form .ct-field { margin-bottom: 0.55rem; }
+.pallet-config-form .pallet-config-hint {
+  display: block;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  margin-top: 0.2rem;
+}
+.pallet-config-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+.pallet-config-save-btn { margin-top: 0.15rem; }
+.pallet-config-active-cb { margin-right: 0.35rem; vertical-align: middle; }
+.pallet-config-list-panel .pallet-config-table {
+  font-size: 0.82rem;
+  width: 100%;
+}
+.pallet-config-list-panel .pallet-config-table th,
+.pallet-config-list-panel .pallet-config-table td {
+  padding: 0.35rem 0.45rem;
+  vertical-align: top;
+}
+.pallet-config-row-inactive { opacity: 0.65; }
+.pallet-config-host .walvis-dispatch-form input[type="checkbox"] {
+  width: auto;
+  max-width: none;
+}
 .walvis-dispatch-manifest-summary { font-size: 0.9rem; margin-bottom: 0.5rem; }
 .walvis-dispatch-table-wrap { max-height: min(65vh, 560px); }
 .walvis-dispatch-reconcile-panel { padding: 0.5rem 0; font-size: 0.88rem; }
