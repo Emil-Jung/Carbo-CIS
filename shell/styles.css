@@ -4212,6 +4212,36 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   background: rgba(201, 162, 39, 0.06);
 }
 .walvis-dispatch-plan-panel .data-table { font-size: 0.85rem; }
+.walvis-dispatch-plan-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.walvis-dispatch-plan-table th,
+.walvis-dispatch-plan-table td {
+  padding: 0.4rem 0.55rem;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(228, 192, 74, 0.12);
+}
+.walvis-dispatch-plan-table thead th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  border-bottom: 1px solid rgba(228, 192, 74, 0.22);
+}
+.walvis-dispatch-plan-table .walvis-plan-col-product {
+  width: 52%;
+  text-align: left;
+  word-break: break-word;
+  padding-right: 0.75rem;
+}
+.walvis-dispatch-plan-table .walvis-plan-col-num {
+  width: 16%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .walvis-dispatch-detail-edit { margin-top: 0.35rem; font-size: 0.88rem; }
 .walvis-in-transit-link { margin-top: 0.5rem; }
 .walvis-in-transit-link-hint { font-size: 0.82rem; line-height: 1.35; margin: 0 0 0.5rem; }

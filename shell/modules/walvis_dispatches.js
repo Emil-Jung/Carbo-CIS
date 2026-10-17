@@ -627,14 +627,14 @@
           planTotal + " bag(s) planned · " + fmt(detail.plan_loaded || 0) + " loaded so far",
         ])
       );
-      var planTable = ui.el("table", { class: "data-table", style: "font-size:0.9rem;" });
+      var planTable = ui.el("table", { class: "data-table walvis-dispatch-plan-table" });
       var pHead = ui.el("thead");
       pHead.appendChild(
         ui.el("tr", {}, [
-          ui.el("th", {}, ["Product"]),
-          ui.el("th", {}, ["Planned"]),
-          ui.el("th", {}, ["Loaded"]),
-          ui.el("th", {}, ["Left"]),
+          ui.el("th", { class: "walvis-plan-col-product" }, ["Product"]),
+          ui.el("th", { class: "walvis-plan-col-num" }, ["Planned"]),
+          ui.el("th", { class: "walvis-plan-col-num" }, ["Loaded"]),
+          ui.el("th", { class: "walvis-plan-col-num" }, ["Left"]),
         ])
       );
       planTable.appendChild(pHead);
@@ -642,10 +642,12 @@
       detail.plan_lines.forEach(function (ln) {
         pBody.appendChild(
           ui.el("tr", {}, [
-            ui.el("td", {}, [ln.product_key]),
-            ui.el("td", {}, [String(ln.quantity)]),
-            ui.el("td", {}, [String(ln.loaded != null ? ln.loaded : 0)]),
-            ui.el("td", {}, [String(ln.remaining != null ? ln.remaining : ln.quantity)]),
+            ui.el("td", { class: "walvis-plan-col-product" }, [ln.product_key]),
+            ui.el("td", { class: "walvis-plan-col-num" }, [String(ln.quantity)]),
+            ui.el("td", { class: "walvis-plan-col-num" }, [String(ln.loaded != null ? ln.loaded : 0)]),
+            ui.el("td", { class: "walvis-plan-col-num" }, [
+              String(ln.remaining != null ? ln.remaining : ln.quantity),
+            ]),
           ])
         );
       });
@@ -711,7 +713,7 @@
     var editMetaBtn = ui.el("button", {
       type: "button",
       class: "btn-ghost walvis-dispatch-detail-edit",
-    }, ["Edit truck, label date, transporter, notes"]);
+    }, ["Edit truck, label date, transporter, notes (any time)"]);
     editMetaBtn.addEventListener("click", async function () {
       var form = await showFormModal(ui, {
         title: "Edit dispatch details",
