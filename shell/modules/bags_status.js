@@ -1867,6 +1867,10 @@
       var wrapped = group.physical_pallet_count != null ? group.physical_pallet_count : 0;
       headCountText =
         equiv + " pallet-equiv in basket · " + wrapped + " wrapped · " + fmtMass(group.pallet_basket_kg != null ? group.pallet_basket_kg : group.kg);
+      if (!group.note) {
+        group.note =
+          "Consume scans move bulk bags into Pallet basket (headline above). The Pallets tile only increases after Create pallet at wrapping.";
+      }
     }
     block.appendChild(ui.el("div", { class: "bs-dash-location__head" }, [
 
@@ -3823,6 +3827,8 @@
 
     var countdownSec = Math.round(BS_AUTO_REFRESH_MS / 1000);
 
+    var lastReportUpdatedAt = null;
+
 
 
     function updateCountdownText() {
@@ -3831,7 +3837,8 @@
 
       refreshNote.hidden = false;
 
-      refreshNote.textContent = "Next update in " + countdownSec + " seconds";
+      var tail = lastReportUpdatedAt ? " · Last updated " + lastReportUpdatedAt : "";
+      refreshNote.textContent = "Next update in " + countdownSec + " seconds" + tail;
 
     }
 
@@ -3955,6 +3962,8 @@
 
         weathering = results[1];
 
+        lastReportUpdatedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
         if (!opts.silent) {
 
           status.style.display = "none";
@@ -3973,6 +3982,19 @@
 
       } catch (e) {
 
+        var errMsg = (e && e.message) || String(e || "");
+
+        if (opts.silent && /\b401\b|unauthorized/i.test(errMsg)) {
+
+          refreshNote.hidden = false;
+
+          refreshNote.textContent =
+            "Live refresh stopped (sign-in expired). Sign out and sign in, or press F5 — numbers below may be stale.";
+
+          return;
+
+        }
+
         if (opts.silent) return;
 
         status.textContent = "";
@@ -3981,7 +4003,7 @@
 
         body.innerHTML = "";
 
-        body.appendChild(ui.error("Could not load report: " + (e.message || e)));
+        body.appendChild(ui.error("Could not load report: " + (CIS.traceabilityApiErrorMessage ? CIS.traceabilityApiErrorMessage(e) : errMsg)));
 
       }
 
