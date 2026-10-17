@@ -529,6 +529,7 @@
         paintProductChecks();
         paintBoard();
         setStatus("");
+        if (CIS.refreshOperationsSummary) CIS.refreshOperationsSummary();
       } catch (e) {
         setStatus("Could not load: " + (e.message || e), true);
       }

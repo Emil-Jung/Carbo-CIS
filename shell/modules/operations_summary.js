@@ -1,9 +1,9 @@
-/* Core CIS V1 — floating read-only today’s packing shift (not clickable). */
+/* Core CIS V1 — floating read-only active operations (sieving, packaging, Walvis dispatch). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
 
-  var POLL_MS = 60000;
+  var POLL_MS = 30000;
 
   var state = {
     timer: null,
@@ -34,9 +34,72 @@
     return d.innerHTML;
   }
 
-  function activeShift(data) {
-    if (!data || !data.packaging_shift) return null;
-    return data.packaging_shift;
+  function startedLine(iso) {
+    if (!iso) return "";
+    return '<p class="cis-float-ops-card__meta">Started ' + esc(fmtShort(iso)) + "</p>";
+  }
+
+  function renderItem(kind, mainLine, metaHtml) {
+    return (
+      '<div class="cis-float-ops-item">' +
+      '<div class="cis-float-ops-item__kind">' +
+      esc(kind) +
+      "</div>" +
+      '<p class="cis-float-ops-item__main">' +
+      esc(mainLine) +
+      "</p>" +
+      (metaHtml || "") +
+      "</div>"
+    );
+  }
+
+  function collectItems(data) {
+    var items = [];
+    if (!data) return items;
+
+    var sieving = data.sieving_truck;
+    if (sieving) {
+      var sievMain = sieving.title || sieving.label || "Active truck";
+      if (sieving.subtitle) sievMain += " · " + sieving.subtitle;
+      items.push({
+        sort: 1,
+        html: renderItem("Sieving", sievMain, startedLine(sieving.started_at)),
+      });
+    }
+
+    var shifts = data.packaging_shifts && data.packaging_shifts.length
+      ? data.packaging_shifts
+      : data.packaging_shift
+        ? [data.packaging_shift]
+        : [];
+    shifts.forEach(function (sh) {
+      var skus =
+        sh.product_codes && sh.product_codes.length ? sh.product_codes.join(", ") : "—";
+      var meta = startedLine(sh.started_at);
+      if (sh.notes) {
+        meta += '<p class="cis-float-ops-card__meta">' + esc(sh.notes) + "</p>";
+      }
+      items.push({
+        sort: 2,
+        html: renderItem("Packaging", skus, meta),
+      });
+    });
+
+    var wd = data.walvis_dispatch;
+    if (wd) {
+      var wMain = wd.display_label || wd.title || "Walvis dispatch";
+      if (wd.product_summary) wMain += " · " + wd.product_summary;
+      if (wd.truck_registration) wMain += " · " + wd.truck_registration;
+      items.push({
+        sort: 3,
+        html: renderItem("Walvis dispatch", wMain, startedLine(wd.started_at)),
+      });
+    }
+
+    items.sort(function (a, b) {
+      return a.sort - b.sort;
+    });
+    return items;
   }
 
   function renderFloatContent() {
@@ -45,7 +108,7 @@
     if (state.error) {
       state.floatEl.innerHTML =
         '<div class="cis-float-ops-card cis-float-ops-card--error">' +
-        '<div class="cis-float-ops-card__title">Today\u2019s shift</div>' +
+        '<div class="cis-float-ops-card__title">Active operations</div>' +
         '<p class="cis-float-ops-card__body">' +
         esc(state.error) +
         "</p></div>";
@@ -55,35 +118,26 @@
     if (!state.last) {
       state.floatEl.innerHTML =
         '<div class="cis-float-ops-card cis-float-ops-card--idle">' +
-        '<div class="cis-float-ops-card__title">Today\u2019s shift</div>' +
+        '<div class="cis-float-ops-card__title">Active operations</div>' +
         '<p class="cis-float-ops-card__body cis-float-ops-card__muted">Loading…</p></div>';
       return;
     }
 
-    var sh = activeShift(state.last);
-    if (!sh) {
+    var items = collectItems(state.last);
+    if (!items.length) {
       state.floatEl.innerHTML =
         '<div class="cis-float-ops-card cis-float-ops-card--idle">' +
-        '<div class="cis-float-ops-card__title">Today\u2019s shift</div>' +
-        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active packing shift.</p></div>';
+        '<div class="cis-float-ops-card__title">Active operations</div>' +
+        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active sieving, packaging, or Walvis load.</p></div>';
       return;
-    }
-
-    var skus = sh.product_codes && sh.product_codes.length ? sh.product_codes.join(", ") : "—";
-    var lines = ['<p class="cis-float-ops-card__skus">' + esc(skus) + "</p>"];
-    if (sh.started_at) {
-      lines.push(
-        '<p class="cis-float-ops-card__meta">Started ' + esc(fmtShort(sh.started_at)) + "</p>"
-      );
-    }
-    if (sh.notes) {
-      lines.push('<p class="cis-float-ops-card__meta">' + esc(sh.notes) + "</p>");
     }
 
     state.floatEl.innerHTML =
       '<div class="cis-float-ops-card cis-float-ops-card--active">' +
-      '<div class="cis-float-ops-card__title">Active packing shift</div>' +
-      lines.join("") +
+      '<div class="cis-float-ops-card__title">Active operations</div>' +
+      items.map(function (it) {
+        return it.html;
+      }).join("") +
       "</div>";
   }
 
@@ -92,7 +146,7 @@
     var wrap = document.createElement("div");
     wrap.className = "cis-float-ops-host";
     wrap.setAttribute("aria-live", "polite");
-    wrap.setAttribute("aria-label", "Today\u2019s active packing shift");
+    wrap.setAttribute("aria-label", "Active factory operations");
     nav.appendChild(wrap);
     state.floatEl = wrap;
     renderFloatContent();
@@ -106,7 +160,7 @@
     } catch (e) {
       state.error = CIS.traceabilityApiErrorMessage
         ? CIS.traceabilityApiErrorMessage(e)
-        : (e && e.message) || "Could not load shift";
+        : (e && e.message) || "Could not load operations";
     }
     renderFloatContent();
   }
@@ -154,4 +208,8 @@
   }
 
   CIS.operationsSummary = { sync: sync, stop: stop, refresh: refresh, mountFloatNav: mountFloatNav };
+
+  CIS.refreshOperationsSummary = function () {
+    if (state.ctx) refresh(state.ctx);
+  };
 })();

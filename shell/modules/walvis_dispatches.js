@@ -677,6 +677,7 @@
             var next = resp.dispatch || resp;
             next = await enrichDetailWithGroundReconcile(ctx, next);
             await renderDetail(container, ctx, next);
+            if (CIS.refreshOperationsSummary) CIS.refreshOperationsSummary();
           } catch (e) {
             window.alert(e.message || String(e));
           } finally {
@@ -1255,6 +1256,7 @@
     try {
       await apiPost(ctx, "/walvis-dispatches/close-open", {});
       await renderList(container, ctx);
+      if (CIS.refreshOperationsSummary) CIS.refreshOperationsSummary();
     } catch (e) {
       window.alert(e.message || String(e));
     }
