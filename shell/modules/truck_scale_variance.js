@@ -34,8 +34,7 @@
   }
 
   /**
-   * Vs digital (storage scan vs pay weight): + kg = bags heavier than digital;
-   * − kg = bags lighter. Computed as scan − digital (flip of digital − scan).
+   * Gap = physical (bag scans) − digital-scale pay weight; + = heavier at scanner.
    */
   function vsDigitalKg(scanKg, digitalKg) {
     return Number(scanKg || 0) - Number(digitalKg || 0);
@@ -71,17 +70,17 @@
     {
       key: "r",
       label: "Restaurant (R)",
-      columns: ["Digital R", "Scan R", "Vs digital"],
+      columns: ["Digital-scale R", "Physical bags R", "Gap (kg)"],
     },
     {
       key: "l",
       label: "Lumpwood (L)",
-      columns: ["Digital L", "Scan L", "Vs digital"],
+      columns: ["Digital-scale L", "Physical bags L", "Gap (kg)"],
     },
     {
       key: "f",
       label: "Fines (F)",
-      columns: ["Digital F", "Scan F", "Vs digital"],
+      columns: ["Digital-scale F", "Physical bags F", "Gap (kg)"],
     },
   ];
 
@@ -217,20 +216,31 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Scale vs intake variance"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      ui.el("strong", {}, ["Digital"]),
-      " is PJ ",
-      ui.el("strong", {}, ["Complete"]),
-      " Delivery Confirmation pay weight (shotoff kg). Pending loads are excluded. ",
-      ui.el("strong", {}, ["Vs digital"]),
-      ": ",
+      "Compares ",
+      ui.el("strong", {}, ["digital-scale pay weight"]),
+      " to ",
+      ui.el("strong", {}, ["physical bag weights"]),
+      " for each complete load (not bag-for-bag). ",
+      ui.el("strong", {}, ["Digital scale"]),
+      " = restaurant / lumpwood / fines kg captured at Control Room and stored on the ",
+      ui.el("strong", {}, ["completed"]),
+      " delivery confirmation (same figures used for pay). Pending loads are excluded. ",
+      ui.el("strong", {}, ["Physical"]),
+      " = the same streams summed from net weights scanned at the ",
+      ui.el("strong", {}, ["weighing-station scanner"]),
+      " (Charcoal intake). ",
+      ui.el("strong", {}, ["Gap"]),
+      " = physical − digital scale: ",
       ui.el("strong", {}, ["− kg"]),
       " in ",
       ui.el("strong", {}, ["red"]),
-      " = scans lighter than digital (stream/category errors). ",
+      " = bags lighter than the digital-scale reading; ",
       ui.el("strong", {}, ["+ kg"]),
-      " in normal text = heavier at scan. Net total can look small while R/L/F still disagree. Filters match ",
+      " = heavier at the scanner. A small ",
+      ui.el("strong", {}, ["net"]),
+      " total can still hide R/L/F disagreements. Filters match ",
       ui.el("strong", {}, ["Charcoal deliveries"]),
-      ". |Vs digital| over ",
+      ". Any stream gap over ",
       ui.el("strong", {}, ["5 kg"]),
       " flags the row. Default ",
       ui.el("strong", {}, ["Sample"]),
@@ -238,7 +248,7 @@
       String(SIEVE_SAMPLE_DAYS),
       " distinct ",
       ui.el("strong", {}, ["sieving days"]),
-      " (booking dates) — ",
+      " — ",
       ui.el("strong", {}, ["every truck"]),
       " on those days in the sheet below, not “5 trucks”.",
     ]));
@@ -355,7 +365,7 @@
         ui.el("strong", { class: "tsv-card-value" }, [String(snapshot.flagged_count || 0)]),
       ]));
       cards.appendChild(ui.el("div", { class: "tsv-card" }, [
-        ui.el("span", { class: "tsv-card-label" }, ["Σ net Vs digital (R+L+F)"]),
+        ui.el("span", { class: "tsv-card-label" }, ["Net gap (physical − digital scale, R+L+F)"]),
         ui.el(
           "strong",
           { class: "tsv-card-value " + varianceColorClass(netAll) },
@@ -363,12 +373,12 @@
         ),
       ]));
       cards.appendChild(ui.el("div", { class: "tsv-card" }, [
-        ui.el("span", { class: "tsv-card-label" }, ["Σ |Vs digital| (R+L+F)"]),
+        ui.el("span", { class: "tsv-card-label" }, ["Total |gap| (R+L+F, gaps do not cancel)"]),
         ui.el("strong", { class: "tsv-card-value" }, [fmtKg(absStream)]),
       ]));
       var rlfCard = ui.el("div", { class: "tsv-card tsv-card--rlf" });
       rlfCard.appendChild(
-        ui.el("span", { class: "tsv-card-label" }, ["Σ Vs digital by stream"])
+        ui.el("span", { class: "tsv-card-label" }, ["Net gap by stream (R / L / F)"])
       );
       var rlfVals = ui.el("div", { class: "tsv-card-rlf-lines" });
       [
@@ -401,7 +411,9 @@
       var netBar = netAll;
       var barWrap = ui.el("div", { class: "tsv-bar-chart" });
       var titleRow = ui.el("div", { class: "tsv-bar-head" });
-      titleRow.appendChild(ui.el("h4", { class: "tsv-bar-title" }, ["Digital vs scanned R+L+F totals"]));
+      titleRow.appendChild(
+        ui.el("h4", { class: "tsv-bar-title" }, ["Digital-scale vs physical (bag) R+L+F totals"])
+      );
       titleRow.appendChild(
         ui.el("span", { class: "tsv-bar-variance " + varianceColorClass(netBar) }, [
           "Net: ",
@@ -412,8 +424,8 @@
       var digitalPct = compareBarWidthPct(digitalKg, digitalKg, scanKg);
       var scanPct = compareBarWidthPct(scanKg, digitalKg, scanKg);
       [
-        ["Digital R+L+F (pay)", digitalKg, digitalPct, ""],
-        ["Scanned R+L+F (bags)", scanKg, scanPct, " tsv-bar-fill--physical"],
+        ["Digital-scale R+L+F (capture / confirmation)", digitalKg, digitalPct, ""],
+        ["Physical R+L+F (weighing-station bag scans)", scanKg, scanPct, " tsv-bar-fill--physical"],
       ].forEach(function (pair) {
         var row = ui.el("div", { class: "tsv-bar-row tsv-bar-row--compact" });
         row.appendChild(ui.el("span", { class: "tsv-bar-label" }, [pair[0]]));
@@ -485,10 +497,34 @@
       }
       addSectionHeader("overall");
       addRow("Trucks", sampleSnap.count, allSnap.count, false, "overall");
-      addRow("Digital R+L+F total", fmtKg(sampleSnap.digital_rlf_kg), fmtKg(allSnap.digital_rlf_kg), false, "overall");
-      addRow("Scanned R+L+F total", fmtKg(sampleSnap.scan_rlf_kg), fmtKg(allSnap.scan_rlf_kg), false, "overall");
-      addRow("Net vs digital", sampleSnap.net_vs_digital_kg, allSnap.net_vs_digital_kg, true, "overall");
-      addRow("Σ |Vs digital| (all streams)", fmtKg(sampleSnap.abs_stream_variance_kg), fmtKg(allSnap.abs_stream_variance_kg), false, "overall");
+      addRow(
+        "Digital-scale R+L+F total",
+        fmtKg(sampleSnap.digital_rlf_kg),
+        fmtKg(allSnap.digital_rlf_kg),
+        false,
+        "overall"
+      );
+      addRow(
+        "Physical R+L+F total (bag scans)",
+        fmtKg(sampleSnap.scan_rlf_kg),
+        fmtKg(allSnap.scan_rlf_kg),
+        false,
+        "overall"
+      );
+      addRow(
+        "Net gap (physical − digital scale)",
+        sampleSnap.net_vs_digital_kg,
+        allSnap.net_vs_digital_kg,
+        true,
+        "overall"
+      );
+      addRow(
+        "Total |gap| (all streams — no cancelling)",
+        fmtKg(sampleSnap.abs_stream_variance_kg),
+        fmtKg(allSnap.abs_stream_variance_kg),
+        false,
+        "overall"
+      );
       var catKeys = ["restaurant_kg", "lumpwood_kg", "fines_kg"];
       var sa = sampleSnap.category_analysis;
       var aa = allSnap.category_analysis;
@@ -497,10 +533,10 @@
           addSectionHeader(key);
           var sc = sa.categories[key] || {};
           var ac = aa.categories[key] || {};
-          addRow("Net vs digital", sc.net_kg, ac.net_kg, true, key);
-          addRow("Σ |Vs digital|", fmtKg(sc.abs_sum_kg), fmtKg(ac.abs_sum_kg), false, key);
+          addRow("Net gap (physical − digital scale)", sc.net_kg, ac.net_kg, true, key);
+          addRow("Total |gap| on this stream", fmtKg(sc.abs_sum_kg), fmtKg(ac.abs_sum_kg), false, key);
           addRow(
-            "% trucks off (>5 kg)",
+            "% loads off on this stream (>5 kg gap)",
             sc.trucks_off_pct != null ? sc.trucks_off_pct + "%" : "—",
             ac.trucks_off_pct != null ? ac.trucks_off_pct + "%" : "—",
             false,
@@ -530,7 +566,7 @@
           ui.el("li", {}, [
             ui.el("strong", {}, ["Largest total gap: "]),
             la.label,
-            " — Σ|Vs digital| ",
+            " — total |gap| ",
             fmtKg(la.abs_sum_kg),
             ", net ",
             fmtVar(la.net_kg),
@@ -630,7 +666,7 @@
             String(SIEVE_SAMPLE_DAYS),
             " sieving days to ",
             ui.el("strong", {}, ["every"]),
-            " PJ-complete truck in the filter (",
+            " complete-load truck in the filter (digital-scale confirmation + bag scans; ",
             filterScopeLabel(data),
             "). Rising net or |stream| variance on the right with a small net on the left often means category mis-tags; both growing together may point to scale or unit issues.",
           ])
@@ -674,6 +710,20 @@
         compareWrap.appendChild(
           ui.el("h3", { class: "deliveries-register-totals-title" }, ["Side-by-side totals"])
         );
+        compareWrap.appendChild(
+          ui.el("p", { class: "muted tsv-compare-glossary" }, [
+            ui.el("strong", {}, ["Net gap"]),
+            " — overall, are physical bag totals heavy or light vs the digital-scale reading? ",
+            ui.el("strong", {}, ["Total |gap|"]),
+            " — how much mismatch piled up (plus and minus do ",
+            ui.el("strong", {}, ["not"]),
+            " cancel out). ",
+            ui.el("strong", {}, ["% loads off"]),
+            " — share of loads where ",
+            ui.el("strong", {}, ["that stream alone"]),
+            " disagreed with the digital scale by more than 5 kg.",
+          ])
+        );
         compareWrap.appendChild(renderCompareTable(sampleSnap, allSnap));
         summaryHost.appendChild(compareWrap);
         summaryHost.appendChild(renderCategoryAnalysisBlock(sampleSnap, allSnap));
@@ -683,7 +733,7 @@
         ) {
           summaryHost.appendChild(
             ui.el("p", { class: "muted tsv-dual-summary-lead" }, [
-              "Both panels match because every PJ-complete truck in this filter already falls inside the sample window (common while the report history is still short). The sheet below lists those ",
+              "Both panels match because every complete load in this filter already falls inside the sample window (common while the report history is still short). The sheet below lists those ",
               String(sampleSnap.count || 0),
               " trucks.",
             ])
@@ -722,7 +772,7 @@
       if (!rows.length) {
         tableHost.appendChild(
           ui.el("p", { class: "muted" }, [
-            "No trucks for this filter. Each row needs PJ Complete on Delivery Confirmations plus Charcoal intake scans.",
+            "No trucks for this filter. Each row needs a completed delivery confirmation (digital-scale pay weight) plus weighing-station bag scans.",
           ])
         );
         return;
@@ -930,7 +980,7 @@
     kind: "lookup",
     order: 15,
     icon: "quality",
-    description: "Digital scale vs scanned intake — flagged truck variances",
+    description: "Digital-scale capture vs physical bag scans — flagged load gaps",
     requires: "production.truck_scale_variance",
     render: render,
   });
