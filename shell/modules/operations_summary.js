@@ -65,7 +65,7 @@
       state.floatEl.innerHTML =
         '<div class="cis-float-ops-card cis-float-ops-card--idle">' +
         '<div class="cis-float-ops-card__title">Today\u2019s shift</div>' +
-        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active packing shift today.</p></div>';
+        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active packing shift.</p></div>';
       return;
     }
 

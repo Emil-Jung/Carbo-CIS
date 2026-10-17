@@ -803,38 +803,63 @@
 
 
 
-  function renderWxKpis(kpis, ui) {
+  function pipelineYardBucket(wx, clock) {
+    var pipe = (wx && wx.pipeline) || [];
+    for (var i = 0; i < pipe.length; i++) {
+      if (pipe[i].location === "in_storage") {
+        return (pipe[i][clock] || {});
+      }
+    }
+    return {};
+  }
 
+  function renderWxKpis(wx, ui) {
+    var kpis = (wx && wx.kpis) || {};
+    var yardReady = pipelineYardBucket(wx, "ready");
+    var yardStill = pipelineYardBucket(wx, "still_weathering");
     var row = ui.el("div", { class: "bs-dash-wx-kpis" });
 
     [
-
-      { key: "ready_now", label: "Ready now", tone: "green" },
-
-      { key: "freeing_this_week", label: "Freeing this week", tone: "amber" },
-
-      { key: "still_weathering", label: "Still weathering", tone: "blue" },
-
-      { key: "at_packaging", label: "At packaging", tone: "purple" },
-
+      {
+        bags: yardReady.bags,
+        kg: yardReady.kg,
+        label: "Factory yard — clock complete",
+        hint: "Matches “In Storage” bulk bags below",
+        tone: "green",
+      },
+      {
+        bags: yardStill.bags,
+        kg: yardStill.kg,
+        label: "Factory yard — on clock",
+        hint: "Matches “In Storage — weathering” below",
+        tone: "blue",
+      },
+      {
+        bags: (kpis.freeing_this_week || {}).bags,
+        kg: (kpis.freeing_this_week || {}).kg,
+        label: "Yard — freeing this week",
+        hint: "End date in next 7 days",
+        tone: "amber",
+      },
+      {
+        bags: (kpis.at_packaging || {}).bags,
+        kg: (kpis.at_packaging || {}).kg,
+        label: "At packaging (on clock)",
+        hint: "Bulk bags at plant, not factory yard tiles",
+        tone: "purple",
+      },
     ].forEach(function (item) {
-
-      var k = (kpis || {})[item.key] || {};
-
       var card = ui.el("div", { class: "bs-dash-wx-kpi bs-dash-wx-kpi--" + item.tone });
-
       card.appendChild(ui.el("span", { class: "bs-dash-wx-kpi__label" }, [item.label]));
-
-      card.appendChild(ui.el("div", { class: "bs-dash-wx-kpi__value" }, [String(k.bags || 0)]));
-
-      card.appendChild(ui.el("div", { class: "bs-dash-wx-kpi__sub" }, [fmtMass(k.kg)]));
-
+      card.appendChild(ui.el("div", { class: "bs-dash-wx-kpi__value" }, [String(item.bags || 0)]));
+      card.appendChild(ui.el("div", { class: "bs-dash-wx-kpi__sub" }, [fmtMass(item.kg)]));
+      if (item.hint) {
+        card.appendChild(ui.el("div", { class: "bs-dash-wx-kpi__hint muted" }, [item.hint]));
+      }
       row.appendChild(card);
-
     });
 
     return row;
-
   }
 
 
@@ -851,13 +876,14 @@
 
       ui.el("p", { class: "bs-dash-card__sub" }, [
 
-        "Factory stock on the clock. Click a row to list bags.",
+        "Bulk intake bags only (not physical pallets). Yard KPIs align with Factory → In storage tiles. ",
+        "Pallets weathering are separate magenta tiles.",
 
       ]),
 
     ]));
 
-    card.appendChild(renderWxKpis(wx.kpis, ui));
+    card.appendChild(renderWxKpis(wx, ui));
 
 
 
@@ -867,7 +893,7 @@
     var still = (wx.kpis && wx.kpis.still_weathering) || {};
 
     mixText.appendChild(ui.el("strong", { class: "bs-dash-mix-text__title" }, [
-      "Stream mix (still weathering)",
+      "Stream mix — factory yard, still on clock",
     ]));
 
     DASHBOARD_STREAM_ORDER.forEach(function (key) {
@@ -1162,7 +1188,9 @@
 
     in_transit: "on_truck_walvisbay",
 
-    at_coast: "storage_walvisbay,storage_agl",
+    storage_walvisbay: "storage_walvisbay",
+
+    at_coast: "storage_agl",
 
     in_container: "in_container",
 
@@ -3644,17 +3672,7 @@
         );
         return;
       }
-      selected = {
-        key: st.key,
-        label: st.label || "Pallets — Walvis Bay",
-        mode: "physical_pallets",
-        view: "locations",
-        parentLabel: "In storage — Walvis Bay",
-        parentCount: bucket.bags || 0,
-        count: bucket.bags || 0,
-        locationBuckets: [bucket],
-      };
-      paint();
+      await openPalletBucket(bucket, WALVIS_STORAGE_STATUS);
     }
 
     async function openStatus(st) {

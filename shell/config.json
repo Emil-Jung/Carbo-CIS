@@ -24,5 +24,5 @@
   "printLabelsInstallerUrl": "/cis/app/CarboPrintLabels-Setup.exe",
   "zebraPrinterHost": "192.168.8.73",
   "zebraPrinterPort": 9100,
-  "shellRev": "20261017-float-readout"
+  "shellRev": "20261017-wx-pallet-shift"
 }

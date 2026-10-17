@@ -815,6 +815,12 @@ body {
   color: #64748B;
   margin-top: 1px;
 }
+.bs-dash-wx-kpi__hint {
+  font-size: 10px;
+  line-height: 1.25;
+  margin-top: 4px;
+  color: #64748B;
+}
 
 /* Stream mix + donut — compact box; room for a second panel beside it later */
 .bs-dash-mix-strip {
