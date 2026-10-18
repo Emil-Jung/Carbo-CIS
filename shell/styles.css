@@ -2615,6 +2615,23 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   max-width: 720px;
   margin-bottom: 22px;
 }
+.traceability-hub-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 960px;
+  margin-bottom: 22px;
+}
+.traceability-hub-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  .traceability-hub-row {
+    grid-template-columns: 1fr;
+  }
+}
 .hub-back { margin-top: 8px; }
 
 .print-labels-host { max-width: 1100px; }

@@ -348,7 +348,7 @@
   CIS.modules.push({
     id: "walvis_day_scan_log",
     title: "Day scan log",
-    section: "Traceability",
+    section: "Reports & lookups",
     kind: "lookup",
     order: 18,
     icon: "schedule",

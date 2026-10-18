@@ -26,7 +26,13 @@
       "truck_scale_variance",
     ],
 
-    reportsRow3: ["bags_movement_report", "bags_status_report", "label_inventory_report", "supplier_contacts"],
+    reportsRow3: [
+      "bags_movement_report",
+      "bags_status_report",
+      "walvis_day_scan_log",
+      "label_inventory_report",
+      "supplier_contacts",
+    ],
 
   };
 

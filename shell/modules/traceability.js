@@ -1,82 +1,75 @@
-/* Traceability hub — all traceability entry points live here (not top-level dashboard tiles).
-   Control Room (factory PC via CIS), Print Labels, etc. Scanner/kiosk uses device keys — not CIS. */
+/* Traceability hub — workflow-ordered entry points (scanner/kiosk uses device keys, not CIS). */
 
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
-  var OPTIONS = [
-    {
+  var OPTIONS = {
+    control_room: {
       id: "control_room",
       title: "Control Room",
       description: "Discharge hopper, capture sieve weights, POST to office.",
       requires: "traceability.control_room",
       icon: "control",
     },
-    {
+    delivery_confirmations: {
       id: "delivery_confirmations",
       title: "Delivery Confirmations",
       description: "PJ only — edit and mark complete (management uses Charcoal deliveries tile).",
       requires: "traceability.delivery_confirmations",
       icon: "delivery",
     },
-    {
-      id: "labels",
-      title: "Labels",
-      description: "Print bag labels and fence or park stock (testing abroad, pre-scanner, etc.).",
-      requiresAny: ["traceability.labels.print", "traceability.labels.deployment"],
-      icon: "labels",
-    },
-    {
-      id: "movement_schedule",
-      title: "Movement schedule",
-      description: "Schedule a load so the scanner confirms each bag with one tap.",
-      requires: "traceability.movement_jobs",
-      icon: "schedule",
-    },
-    {
-      id: "packaging_shift",
-      title: "Packing Shifts",
-      description: "Limit packaging scanners to chosen pallet SKUs while a shift is active.",
-      requires: "traceability.packaging_shift",
-      icon: "schedule",
-    },
-    {
-      id: "walvis_dispatches",
-      title: "Walvis Bay Dispatch",
-      description: "Truck manifest at Grootfontein vs bags received at Walvis Bay.",
-      requires: "traceability.walvis_dispatch",
-      icon: "schedule",
-    },
-    {
-      id: "walvis_day_scan_log",
-      title: "Day scan log",
-      description: "One day — all movement scans (not intake), packaging yield, truck gaps.",
-      requires: "traceability.bags_status",
-      icon: "schedule",
-    },
-    {
-      id: "containers",
-      title: "Containers",
-      description: "Preload container numbers and bookings for Walvis Bay.",
-      requires: "traceability.containers",
-      icon: "container",
-    },
-    {
+    pallet_configuration: {
       id: "pallet_configuration",
       title: "Pallet Configuration",
       description: "Manage packaging products — CH05W, CH10, LF4, pallet weights and bag counts.",
       requires: "traceability.pallet_configuration",
       icon: "config",
     },
-    {
+    packaging_shift: {
+      id: "packaging_shift",
+      title: "Packing Shifts",
+      description: "Limit packaging scanners to chosen pallet SKUs while a shift is active.",
+      requires: "traceability.packaging_shift",
+      icon: "schedule",
+    },
+    walvis_dispatches: {
+      id: "walvis_dispatches",
+      title: "Walvis Bay Dispatch",
+      description: "Truck manifest at Grootfontein vs bags received at Walvis Bay.",
+      requires: "traceability.walvis_dispatch",
+      icon: "schedule",
+    },
+    containers: {
+      id: "containers",
+      title: "Containers",
+      description: "Preload container numbers and bookings for Walvis Bay.",
+      requires: "traceability.containers",
+      icon: "container",
+    },
+    labels: {
+      id: "labels",
+      title: "Labels",
+      description: "Print bag labels and fence or park stock (testing abroad, pre-scanner, etc.).",
+      requiresAny: ["traceability.labels.print", "traceability.labels.deployment"],
+      icon: "labels",
+    },
+    manager_override: {
       id: "manager_override",
       title: "Manager Override",
       description: "Generate today's PIN for weathering early-release on yard scanners.",
       requires: "traceability.weathering.override",
       icon: "override",
     },
+  };
+
+  /** Workflow rows on the Traceability hub (max three tiles per row). */
+  var HUB_ROWS = [
+    ["control_room", "delivery_confirmations"],
+    ["pallet_configuration"],
+    ["packaging_shift", "walvis_dispatches", "containers"],
+    ["labels", "manager_override"],
   ];
 
   var ICONS = {
@@ -96,6 +89,41 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96a7.035 7.035 0 0 0-1.63-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.488.488 0 0 0-.59.22L2.74 8.87a.489.489 0 0 0 .12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.489.489 0 0 0-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>',
   };
 
+  function optionAllowed(opt) {
+    if (opt.requiresAny && opt.requiresAny.length) {
+      return opt.requiresAny.some(function (p) {
+        return CIS.hasPermission(p);
+      });
+    }
+    if (opt.requires) return CIS.hasPermission(opt.requires);
+    return true;
+  }
+
+  function appendHubTile(ui, rowEl, opt) {
+    if (!opt || !optionAllowed(opt)) return false;
+    var mod = (CIS.modules || []).find(function (m) {
+      return m.id === opt.id;
+    });
+    var inactive = !!(mod && mod.inactive);
+    var tileClass = "dashboard-tile hub-option-tile";
+    if (inactive) tileClass += " dashboard-tile-inactive";
+    var btn = ui.el("button", {
+      class: tileClass,
+      type: "button",
+      onclick: function () {
+        if (CIS.openModule) CIS.openModule(opt.id);
+      },
+    });
+    btn.appendChild(ui.el("div", { class: "dashboard-tile-icon", html: ICONS[opt.icon] || ICONS.labels }));
+    btn.appendChild(ui.el("span", { class: "dashboard-tile-title" }, [opt.title]));
+    btn.appendChild(ui.el("span", { class: "dashboard-tile-desc" }, [opt.description]));
+    if (inactive) {
+      btn.appendChild(ui.el("span", { class: "dashboard-tile-lock dashboard-tile-soon" }, ["Coming soon"]));
+    }
+    rowEl.appendChild(btn);
+    return true;
+  }
+
   function render(container, ctx) {
     var ui = CIS.ui;
     container.innerHTML = "";
@@ -110,33 +138,14 @@
       container.appendChild(ui.el("p", { class: "muted traceability-shell-rev" }, ["Shell " + shellRev]));
     }
 
-    var grid = ui.el("div", { class: "traceability-hub-grid" });
+    var rowsHost = ui.el("div", { class: "traceability-hub-rows" });
     var shown = 0;
-    OPTIONS.forEach(function (opt) {
-      if (opt.requiresAny && opt.requiresAny.length) {
-        if (!opt.requiresAny.some(function (p) { return CIS.hasPermission(p); })) return;
-      } else if (opt.requires && !CIS.hasPermission(opt.requires)) {
-        return;
-      }
-      shown += 1;
-      var mod = (CIS.modules || []).find(function (m) { return m.id === opt.id; });
-      var inactive = !!(mod && mod.inactive);
-      var tileClass = "dashboard-tile hub-option-tile";
-      if (inactive) tileClass += " dashboard-tile-inactive";
-      var btn = ui.el("button", {
-        class: tileClass,
-        type: "button",
-        onclick: function () {
-          if (CIS.openModule) CIS.openModule(opt.id);
-        },
+    HUB_ROWS.forEach(function (rowIds) {
+      var row = ui.el("div", { class: "traceability-hub-row" });
+      rowIds.forEach(function (id) {
+        if (appendHubTile(ui, row, OPTIONS[id])) shown += 1;
       });
-      btn.appendChild(ui.el("div", { class: "dashboard-tile-icon", html: ICONS[opt.icon] || ICONS.labels }));
-      btn.appendChild(ui.el("span", { class: "dashboard-tile-title" }, [opt.title]));
-      btn.appendChild(ui.el("span", { class: "dashboard-tile-desc" }, [opt.description]));
-      if (inactive) {
-        btn.appendChild(ui.el("span", { class: "dashboard-tile-lock dashboard-tile-soon" }, ["Coming soon"]));
-      }
-      grid.appendChild(btn);
+      if (row.childNodes.length) rowsHost.appendChild(row);
     });
 
     if (!shown) {
@@ -144,9 +153,8 @@
         "No Traceability options are assigned to your account. Ask an administrator to grant Control Room or Print Labels access.",
       ]));
     } else {
-      container.appendChild(grid);
+      container.appendChild(rowsHost);
     }
-
   }
 
   CIS.modules.push({
