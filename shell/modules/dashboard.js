@@ -247,7 +247,7 @@
 
     reportsBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, ["Reports & lookups"]));
 
-    var reportsHost = ui.el("div", { class: "traceability-hub-rows dashboard-reports-rows" });
+    var reportsHost = ui.el("div", { class: "dashboard-reports-rows" });
 
     [
       LAYOUT.reportsRow1,
@@ -257,11 +257,7 @@
       LAYOUT.reportsRow5,
     ].forEach(function (rowIds) {
 
-      var rowClass = "dashboard-row dashboard-row-reports traceability-hub-row";
-
-      if (rowIds.length === 4) rowClass += " dashboard-reports-row--cols4";
-
-      reportsHost.appendChild(renderRow(ui, mods, rowIds, rowClass));
+      reportsHost.appendChild(renderRow(ui, mods, rowIds, "dashboard-row-apps"));
 
     });
 
