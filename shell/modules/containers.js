@@ -75,10 +75,13 @@
       ])
     );
 
-    var form = ui.el("form", { class: "toolbar ct-form" });
+    var productOptions = [];
+    var dispatchOptions = [];
+
+    var form = ui.el("form", { class: "toolbar ct-form ct-form--container-booking" });
     var numberInput = ui.el("input", {
       type: "text",
-      placeholder: "Container number, e.g. ABCD1234567",
+      placeholder: "Container number, e.g. MSCU1234567",
       required: "required",
       autocomplete: "off",
     });
@@ -93,8 +96,18 @@
     LOCATIONS.forEach(function (loc) {
       locationSelect.appendChild(ui.el("option", { value: loc.value }, [loc.label]));
     });
+    var loadDateInput = ui.el("input", { type: "date", required: "required", autocomplete: "off" });
+    var productSelect = ui.el("select", { required: "required" });
+    productSelect.appendChild(ui.el("option", { value: "" }, ["Loading products…"]));
+    var shipToInput = ui.el("input", { type: "text", autocomplete: "off" });
+    var deliveryNoteInput = ui.el("input", { type: "text", autocomplete: "off" });
+    var tareInput = ui.el("input", { type: "number", min: "0", step: "1", autocomplete: "off" });
+    var tagInput = ui.el("input", { type: "text", autocomplete: "off" });
+    var transporterInput = ui.el("input", { type: "text", autocomplete: "off" });
     var bookingInput = ui.el("input", { type: "text", placeholder: "Booking ref (optional)", autocomplete: "off" });
     var shipDateInput = ui.el("input", { type: "date", autocomplete: "off" });
+    var dispatchSelect = ui.el("select", {});
+    dispatchSelect.appendChild(ui.el("option", { value: "" }, ["No dispatch link (yard storage only)"]));
 
     function labelled(text, control) {
       return ui.el("label", { class: "ct-field" }, [
@@ -104,10 +117,24 @@
     }
 
     form.appendChild(labelled("Container number", numberInput));
+    form.appendChild(labelled("Load date", loadDateInput));
+    form.appendChild(labelled("Product", productSelect));
     form.appendChild(labelled("Bags when full", countInput));
     form.appendChild(labelled("Yard", locationSelect));
+    form.appendChild(labelled("To", shipToInput));
+    form.appendChild(labelled("Delivery note", deliveryNoteInput));
+    form.appendChild(labelled("Tare (kg)", tareInput));
+    form.appendChild(labelled("Tag", tagInput));
+    form.appendChild(labelled("Transporter", transporterInput));
     form.appendChild(labelled("Expected ship date", shipDateInput));
     form.appendChild(labelled("Booking ref", bookingInput));
+    form.appendChild(labelled("Walvis dispatch (Option A)", dispatchSelect));
+    form.appendChild(
+      ui.el("p", { class: "muted ct-form-hint" }, [
+        "Link a dispatch to load bags from that truck manifest (in transit or Walvis/AGL storage). ",
+        "Leave unlinked for yard-only loading.",
+      ])
+    );
     form.appendChild(ui.el("button", { class: "btn", type: "submit" }, ["Add container"]));
     container.appendChild(form);
 
@@ -132,6 +159,57 @@
       status.className = isError ? "error-box" : "muted";
     }
 
+    async function printManifest(containerId, variant) {
+      try {
+        var data = await ctx.api.traceability(
+          "/containers/" + encodeURIComponent(containerId) + "/manifest"
+        );
+        if (CIS.printContainerManifest) {
+          CIS.printContainerManifest(data, variant);
+        } else {
+          setStatus("Print module not loaded.", true);
+        }
+      } catch (e) {
+        setStatus("Could not load manifest: " + (e.message || e), true);
+      }
+    }
+
+    function fillProductSelect() {
+      productSelect.innerHTML = "";
+      productSelect.appendChild(ui.el("option", { value: "" }, ["Choose product…"]));
+      productOptions.forEach(function (opt) {
+        var o = ui.el("option", { value: opt.key }, [opt.label || opt.key]);
+        o.dataset.label = opt.label || opt.key;
+        productSelect.appendChild(o);
+      });
+    }
+
+    function fillDispatchSelect() {
+      while (dispatchSelect.options.length > 1) dispatchSelect.remove(1);
+      dispatchOptions.forEach(function (d) {
+        dispatchSelect.appendChild(ui.el("option", { value: d.id }, [d.label || d.id]));
+      });
+    }
+
+    async function loadOptions() {
+      try {
+        var prod = await ctx.api.traceability("/containers/product-options");
+        productOptions = [];
+        (prod.bulk || []).forEach(function (o) {
+          productOptions.push(o);
+        });
+        (prod.pallets || []).forEach(function (o) {
+          productOptions.push(o);
+        });
+        fillProductSelect();
+        var disp = await ctx.api.traceability("/containers/dispatch-link-options");
+        dispatchOptions = disp.dispatches || [];
+        fillDispatchSelect();
+      } catch (e) {
+        setStatus("Could not load product/dispatch options: " + (e.message || e), true);
+      }
+    }
+
     async function act(containerId, path, payload, describe) {
       if (!window.confirm(describe + "?")) return;
       try {
@@ -153,7 +231,7 @@
       var table = ui.el("table", { class: "data" });
       table.innerHTML =
         "<thead><tr>" +
-        "<th>Container</th><th>Yard</th><th>Ship date</th><th>Booking</th>" +
+        "<th>Container</th><th>Product</th><th>Load date</th><th>Yard</th>" +
         "<th>Loaded</th><th>Status</th><th>Released</th><th></th>" +
         "</tr></thead>";
       var tbody = ui.el("tbody");
@@ -162,16 +240,34 @@
         var tr = ui.el("tr");
         tr.innerHTML =
           "<td><strong>" + ui.escape(c.container_number) + "</strong></td>" +
+          "<td>" + ui.escape(c.product_label || c.product_key || "—") + "</td>" +
+          "<td>" + ui.escape(fmtShipDate(c.load_date || c.expected_ship_date)) + "</td>" +
           "<td>" + ui.escape(c.location_display) + "</td>" +
-          "<td>" + ui.escape(fmtShipDate(c.expected_ship_date)) + "</td>" +
-          "<td>" + ui.escape(c.booking_ref || "—") + "</td>" +
           "<td>" + ui.escape(progressText(c)) + "</td>" +
           "<td>" + ui.escape(STATUS_LABEL[c.status] || c.status) + "</td>" +
           "<td>" +
           ui.escape(c.released_for_loading ? fmtDate(c.released_for_loading_at) : "Not released") +
           "</td>";
 
-        var actions = ui.el("td", {});
+        var actions = ui.el("td", { class: "ct-actions-cell" });
+        actions.appendChild(
+          ui.el("button", {
+            class: "btn btn-sm",
+            type: "button",
+            onclick: function () {
+              printManifest(c.id, "general");
+            },
+          }, ["Print manifest"])
+        );
+        actions.appendChild(
+          ui.el("button", {
+            class: "btn btn-sm",
+            type: "button",
+            onclick: function () {
+              printManifest(c.id, "eudr");
+            },
+          }, ["Print manifest (EUDR)"])
+        );
         if ((c.status === "booked" || c.status === "loading") && !c.released_for_loading) {
           actions.appendChild(
             ui.el("button", {
@@ -250,21 +346,30 @@
       ev.preventDefault();
       var number = numberInput.value.trim().toUpperCase();
       var count = parseInt(countInput.value, 10);
-      if (!number || !count || count < 1) {
-        setStatus("Enter a container number and the bag count that fills it.", true);
+      var productKey = productSelect.value;
+      if (!number || !count || count < 1 || !loadDateInput.value || !productKey) {
+        setStatus("Container number, load date, product, and bag target are required.", true);
         return;
       }
+      var selOpt = productSelect.options[productSelect.selectedIndex];
       setStatus("Saving…");
       try {
         var bodyPayload = {
           container_number: number,
           target_bag_count: count,
           location: locationSelect.value,
+          load_date: loadDateInput.value,
+          product_key: productKey,
+          product_label: (selOpt && (selOpt.dataset.label || selOpt.textContent)) || productKey,
           booking_ref: bookingInput.value.trim() || null,
+          ship_to: shipToInput.value.trim() || null,
+          delivery_note: deliveryNoteInput.value.trim() || null,
+          tag_ref: tagInput.value.trim() || null,
+          transporter: transporterInput.value.trim() || null,
         };
-        if (shipDateInput.value) {
-          bodyPayload.expected_ship_date = shipDateInput.value;
-        }
+        if (tareInput.value !== "") bodyPayload.tare_kg = Number(tareInput.value);
+        if (shipDateInput.value) bodyPayload.expected_ship_date = shipDateInput.value;
+        if (dispatchSelect.value) bodyPayload.walvis_dispatch_id = dispatchSelect.value;
         await ctx.api.traceability("/containers", {
           method: "POST",
           body: bodyPayload,
@@ -273,12 +378,28 @@
         countInput.value = "";
         bookingInput.value = "";
         shipDateInput.value = "";
+        loadDateInput.value = "";
+        shipToInput.value = "";
+        deliveryNoteInput.value = "";
+        tareInput.value = "";
+        tagInput.value = "";
+        transporterInput.value = "";
+        productSelect.value = "";
+        dispatchSelect.value = "";
         await load();
       } catch (e) {
         setStatus("Could not add container: " + (e.message || e), true);
       }
     });
 
+    var today = new Date();
+    loadDateInput.value =
+      today.getFullYear() +
+      "-" +
+      String(today.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(today.getDate()).padStart(2, "0");
+    await loadOptions();
     await load();
   }
 
