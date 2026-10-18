@@ -1539,26 +1539,24 @@
     return "Closed";
   }
 
+  function dispatchListSortKey(d) {
+    if (!d) return "";
+    if (d.loading_date) return String(d.loading_date).slice(0, 10);
+    var iso = d.opened_at || d.closed_at || d.released_at || "";
+    return iso ? String(iso).slice(0, 10) : "";
+  }
+
   function sortDispatchesForPanel(rows) {
-    var planned = [];
-    var open = [];
-    var closed = [];
-    (rows || []).forEach(function (d) {
-      if (d.status === "planned") planned.push(d);
-      else if (d.status === "open") open.push(d);
-      else closed.push(d);
+    var copy = (rows || []).slice();
+    copy.sort(function (a, b) {
+      var da = dispatchListSortKey(a);
+      var db = dispatchListSortKey(b);
+      if (da !== db) return db < da ? -1 : 1;
+      var na = a.dispatch_number != null ? Number(a.dispatch_number) : 0;
+      var nb = b.dispatch_number != null ? Number(b.dispatch_number) : 0;
+      return nb - na;
     });
-    planned.sort(function (a, b) {
-      var da = a.loading_date || a.opened_at || "";
-      var db = b.loading_date || b.opened_at || "";
-      return da < db ? -1 : da > db ? 1 : 0;
-    });
-    closed.sort(function (a, b) {
-      var da = a.opened_at || "";
-      var db = b.opened_at || "";
-      return da < db ? 1 : da > db ? -1 : 0;
-    });
-    return planned.concat(open).concat(closed);
+    return copy;
   }
 
   function fillDispatchListColumn(listHost, rows, container, ctx, ui) {
