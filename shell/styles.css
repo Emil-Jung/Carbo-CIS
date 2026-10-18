@@ -387,17 +387,17 @@ body {
 
 /* ---- Dashboard ---- */
 .dashboard-host {
-  /* Four-across home grid — uniform tile boxes (narrower so four fit comfortably). */
-  --dash-tile-w: 264px;
   --dash-tile-h: 118px;
-  --dash-tile-gap: 12px;
+  --dash-tile-gap: 10px;
   --dash-grid-cols: 4;
-  max-width: calc(
-    var(--dash-grid-cols) * var(--dash-tile-w) +
-      (var(--dash-grid-cols) - 1) * var(--dash-tile-gap)
-  );
-  margin: 0 auto;
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  margin: 0;
+  overflow-x: hidden;
+}
+.app-view:has(#cis-float-ops:not(.hidden)) .module-content.dashboard-host {
+  padding-right: calc(28px + min(17rem, 28vw));
 }
 .dashboard-welcome { margin-bottom: 28px; }
 .dashboard-title {
@@ -426,12 +426,12 @@ body {
 }
 .dashboard-tile-grid {
   display: grid;
-  grid-template-columns: repeat(var(--dash-grid-cols), var(--dash-tile-w));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--dash-tile-gap);
-  justify-content: start;
-  align-items: start;
-  width: fit-content;
+  align-items: stretch;
+  width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
 }
 .dashboard-reports-rows {
   display: flex;
@@ -441,15 +441,13 @@ body {
   margin-bottom: 0;
 }
 .dashboard-host .dashboard-tile {
-  width: var(--dash-tile-w);
-  min-width: var(--dash-tile-w);
-  max-width: var(--dash-tile-w);
+  width: 100%;
+  min-width: 0;
   height: var(--dash-tile-h);
   min-height: var(--dash-tile-h);
   max-height: var(--dash-tile-h);
   box-sizing: border-box;
   overflow: hidden;
-  justify-self: start;
 }
 .dashboard-host .dashboard-tile-title {
   display: -webkit-box;
@@ -464,16 +462,9 @@ body {
   overflow: hidden;
   margin-top: auto;
 }
-@media (max-width: 1320px) {
-  .dashboard-host {
-    --dash-tile-w: min(264px, calc((100vw - 56px - 3 * var(--dash-tile-gap)) / 4));
-    max-width: 100%;
-  }
-}
 @media (max-width: 720px) {
-  .dashboard-host {
-    --dash-grid-cols: 2;
-    --dash-tile-w: min(264px, calc((100vw - 40px - var(--dash-tile-gap)) / 2));
+  .dashboard-tile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 .report-chart-wrap {
@@ -2333,10 +2324,6 @@ body {
   line-height: 1.25;
 }
 .dashboard-tile-desc { font-size: 11px; line-height: 1.35; color: var(--muted); }
-/* Home dashboard — fixed grid wins over legacy row breakpoints below */
-.dashboard-host .dashboard-tile-grid {
-  grid-template-columns: repeat(var(--dash-grid-cols), var(--dash-tile-w));
-}
 .dashboard-tile-locked {
   opacity: 0.72;
   border-style: dashed;
