@@ -39,21 +39,18 @@
 
     bags_movement_report: {
       title: "Charcoal intake",
-      description: "By day and producer",
     },
 
     deliveries_register: {
-      description: "Deliveries tracker · Excel",
+      title: "Deliveries",
     },
 
     truck_scale_variance: {
       title: "Scale vs intake",
-      description: "Scale vs bag scans",
     },
 
     walvis_day_scan_log: {
       title: "Daily scan log",
-      description: "Movement scans for one day",
     },
 
   };
@@ -134,13 +131,17 @@
 
 
 
-  function renderTile(ui, mod) {
+  function renderTile(ui, mod, opts) {
 
     var inactive = !!mod.inactive;
 
     var allowed = inactive || (CIS.canAccessModule ? CIS.canAccessModule(mod) : true);
 
+    var compact = !!(opts && opts.compact);
+
     var tileClass = "dashboard-tile";
+
+    if (compact) tileClass += " dashboard-tile--compact";
 
     if (inactive) tileClass += " dashboard-tile-inactive";
 
@@ -178,7 +179,7 @@
 
     tile.appendChild(ui.el("span", { class: "dashboard-tile-title" }, [tileTitle]));
 
-    if (tileDesc) {
+    if (tileDesc && !compact) {
 
       tile.appendChild(ui.el("span", { class: "dashboard-tile-desc" }, [tileDesc]));
 
@@ -200,7 +201,7 @@
 
 
 
-  function renderRow(ui, mods, ids, rowClass) {
+  function renderRow(ui, mods, ids, rowClass, rowOpts) {
 
     var row = ui.el("div", { class: "dashboard-row " + (rowClass || "") });
 
@@ -208,7 +209,7 @@
 
       var mod = modById(mods, id);
 
-      if (mod) row.appendChild(renderTile(ui, mod));
+      if (mod) row.appendChild(renderTile(ui, mod, rowOpts));
 
     });
 
@@ -280,7 +281,7 @@
 
     reportsBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, ["Reports & lookups"]));
 
-    var reportsHost = ui.el("div", { class: "traceability-hub-rows dashboard-reports-rows" });
+    var reportsHost = ui.el("div", { class: "dashboard-reports-rows" });
 
     [
       LAYOUT.reportsRow1,
@@ -290,11 +291,13 @@
       LAYOUT.reportsRow5,
     ].forEach(function (rowIds) {
 
-      var rowClass = "dashboard-row dashboard-row-reports traceability-hub-row";
+      var rowClass = "dashboard-reports-row";
 
       if (rowIds.length === 4) rowClass += " dashboard-reports-row--cols4";
 
-      reportsHost.appendChild(renderRow(ui, mods, rowIds, rowClass));
+      var rowOpts = rowIds.length === 4 ? { compact: true } : null;
+
+      reportsHost.appendChild(renderRow(ui, mods, rowIds, rowClass, rowOpts));
 
     });
 
