@@ -33,6 +33,8 @@
 
   };
 
+
+
   function iconSvg(name) {
 
     var icons = {
@@ -167,7 +169,7 @@
 
   function renderRow(ui, mods, ids, rowClass) {
 
-    var row = ui.el("div", { class: "dashboard-row dashboard-tile-grid " + (rowClass || "") });
+    var row = ui.el("div", { class: "dashboard-row " + (rowClass || "") });
 
     ids.forEach(function (id) {
 
@@ -245,7 +247,7 @@
 
     reportsBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, ["Reports & lookups"]));
 
-    var reportsHost = ui.el("div", { class: "dashboard-reports-rows" });
+    var reportsHost = ui.el("div", { class: "traceability-hub-rows dashboard-reports-rows" });
 
     [
       LAYOUT.reportsRow1,
@@ -255,7 +257,11 @@
       LAYOUT.reportsRow5,
     ].forEach(function (rowIds) {
 
-      reportsHost.appendChild(renderRow(ui, mods, rowIds, "dashboard-reports-row"));
+      var rowClass = "dashboard-row dashboard-row-reports traceability-hub-row";
+
+      if (rowIds.length === 4) rowClass += " dashboard-reports-row--cols4";
+
+      reportsHost.appendChild(renderRow(ui, mods, rowIds, rowClass));
 
     });
 
