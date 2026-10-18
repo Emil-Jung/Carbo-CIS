@@ -33,7 +33,9 @@
 
   };
 
-  /** Shorter dashboard copy so four tiles fit one row at Traceability tile width. */
+  var DASHBOARD_TILE_OPTS = { compact: true };
+
+  /** Shorter titles on the four-tile intake row. */
 
   var REPORTS_TILE_OVERRIDES = {
 
@@ -261,7 +263,9 @@
 
     adminBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, ["Administration"]));
 
-    adminBlock.appendChild(renderRow(ui, mods, LAYOUT.administration, "dashboard-row-admin"));
+    adminBlock.appendChild(
+      renderRow(ui, mods, LAYOUT.administration, "dashboard-row-admin", DASHBOARD_TILE_OPTS)
+    );
 
     container.appendChild(adminBlock);
 
@@ -271,7 +275,9 @@
 
     appsBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, ["Applications"]));
 
-    appsBlock.appendChild(renderRow(ui, mods, LAYOUT.applications, "dashboard-row-apps"));
+    appsBlock.appendChild(
+      renderRow(ui, mods, LAYOUT.applications, "dashboard-row-apps", DASHBOARD_TILE_OPTS)
+    );
 
     container.appendChild(appsBlock);
 
@@ -295,9 +301,7 @@
 
       if (rowIds.length === 4) rowClass += " dashboard-reports-row--cols4";
 
-      var rowOpts = rowIds.length === 4 ? { compact: true } : null;
-
-      reportsHost.appendChild(renderRow(ui, mods, rowIds, rowClass, rowOpts));
+      reportsHost.appendChild(renderRow(ui, mods, rowIds, rowClass, DASHBOARD_TILE_OPTS));
 
     });
 

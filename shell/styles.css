@@ -447,21 +447,20 @@ body {
 .dashboard-reports-row .dashboard-tile {
   width: 100%;
   min-width: 0;
-  min-height: 118px;
   max-width: none;
   box-sizing: border-box;
 }
-.dashboard-reports-row--cols4 .dashboard-tile--compact {
+.dashboard-host .dashboard-tile--compact {
   min-height: 88px;
   padding: 10px 10px 8px;
 }
-.dashboard-reports-row--cols4 .dashboard-tile--compact .dashboard-tile-icon {
+.dashboard-host .dashboard-tile--compact .dashboard-tile-icon {
   width: 28px;
   height: 28px;
   padding: 4px;
   margin-bottom: 6px;
 }
-.dashboard-reports-row--cols4 .dashboard-tile--compact .dashboard-tile-title {
+.dashboard-host .dashboard-tile--compact .dashboard-tile-title {
   font-size: 13px;
   line-height: 1.2;
   margin-bottom: 0;
