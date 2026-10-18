@@ -387,9 +387,9 @@ body {
 
 /* ---- Dashboard ---- */
 .dashboard-host {
-  /* Four tiles × 312px + gaps — same cell width as Traceability 3×960px hub. */
-  --dash-tile-w: 312px;
-  --dash-tile-h: 128px;
+  /* Four-across home grid — uniform tile boxes (narrower so four fit comfortably). */
+  --dash-tile-w: 276px;
+  --dash-tile-h: 118px;
   --dash-tile-gap: 12px;
   --dash-grid-cols: 4;
   max-width: calc(
@@ -461,14 +461,14 @@ body {
 }
 @media (max-width: 1320px) {
   .dashboard-host {
-    --dash-tile-w: min(312px, calc((100vw - 56px - 3 * var(--dash-tile-gap)) / 4));
+    --dash-tile-w: min(276px, calc((100vw - 56px - 3 * var(--dash-tile-gap)) / 4));
     max-width: 100%;
   }
 }
 @media (max-width: 720px) {
   .dashboard-host {
     --dash-grid-cols: 2;
-    --dash-tile-w: min(312px, calc((100vw - 40px - var(--dash-tile-gap)) / 2));
+    --dash-tile-w: min(276px, calc((100vw - 40px - var(--dash-tile-gap)) / 2));
   }
 }
 .report-chart-wrap {
@@ -2285,8 +2285,7 @@ body {
   }
 }
 @media (max-width: 640px) {
-  .dashboard-row-apps,
-  .dashboard-row-reports {
+  .dashboard-row:not(.dashboard-tile-grid) {
     grid-template-columns: 1fr;
     max-width: none;
   }
