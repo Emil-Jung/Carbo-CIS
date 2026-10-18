@@ -16,23 +16,20 @@
 
     applications: ["producers_office", "traceability", "quality_capture", "maintenance_manager"],
 
-    reportsRow1: ["producers_view", "permit_status", "quality_view"],
+    reportsRow1: ["producers_view", "permit_status", "supplier_contacts"],
 
     reportsRow2: [
-      "maintenance_ops",
-      "consumption",
-      "restaurant_report",
+      "bags_movement_report",
       "deliveries_register",
       "truck_scale_variance",
+      "walvis_day_scan_log",
     ],
 
-    reportsRow3: [
-      "bags_movement_report",
-      "bags_status_report",
-      "walvis_day_scan_log",
-      "label_inventory_report",
-      "supplier_contacts",
-    ],
+    reportsRow3: ["bags_status_report", "label_inventory_report"],
+
+    reportsRow4: ["quality_view", "restaurant_report"],
+
+    reportsRow5: ["maintenance_ops", "consumption"],
 
   };
 
@@ -250,11 +247,25 @@
 
     reportsBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, ["Reports & lookups"]));
 
-    reportsBlock.appendChild(renderRow(ui, mods, LAYOUT.reportsRow1, "dashboard-row-reports"));
+    var reportsHost = ui.el("div", { class: "traceability-hub-rows dashboard-reports-rows" });
 
-    reportsBlock.appendChild(renderRow(ui, mods, LAYOUT.reportsRow2, "dashboard-row-reports"));
+    [
+      LAYOUT.reportsRow1,
+      LAYOUT.reportsRow2,
+      LAYOUT.reportsRow3,
+      LAYOUT.reportsRow4,
+      LAYOUT.reportsRow5,
+    ].forEach(function (rowIds) {
 
-    reportsBlock.appendChild(renderRow(ui, mods, LAYOUT.reportsRow3, "dashboard-row-reports"));
+      var rowClass = "dashboard-row dashboard-row-reports traceability-hub-row";
+
+      if (rowIds.length === 4) rowClass += " dashboard-reports-row--cols4";
+
+      reportsHost.appendChild(renderRow(ui, mods, rowIds, rowClass));
+
+    });
+
+    reportsBlock.appendChild(reportsHost);
 
     container.appendChild(reportsBlock);
 

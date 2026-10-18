@@ -121,7 +121,7 @@
     container.innerHTML = "";
     container.classList.add("maintenance-ops-host");
 
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Supplier contacts"]));
+    container.appendChild(ui.el("h2", { class: "module-title" }, ["Producer contacts"]));
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
         "Charcoal suppliers who delivered in the selected year but have not brought a load in 90 days or more. " +
@@ -281,7 +281,7 @@
 
   CIS.modules.push({
     id: "supplier_contacts",
-    title: "Supplier contacts",
+    title: "Producer contacts",
     section: "Production",
     kind: "lookup",
     order: 16,
