@@ -33,6 +33,31 @@
 
   };
 
+  /** Shorter dashboard copy so four tiles fit one row at Traceability tile width. */
+
+  var REPORTS_TILE_OVERRIDES = {
+
+    bags_movement_report: {
+      title: "Charcoal intake",
+      description: "By day and producer",
+    },
+
+    deliveries_register: {
+      description: "Deliveries tracker · Excel",
+    },
+
+    truck_scale_variance: {
+      title: "Scale vs intake",
+      description: "Scale vs bag scans",
+    },
+
+    walvis_day_scan_log: {
+      title: "Daily scan log",
+      description: "Movement scans for one day",
+    },
+
+  };
+
 
 
   function iconSvg(name) {
@@ -143,11 +168,19 @@
 
     }));
 
-    tile.appendChild(ui.el("span", { class: "dashboard-tile-title" }, [mod.title]));
+    var ov = REPORTS_TILE_OVERRIDES[mod.id];
 
-    if (mod.description) {
+    var tileTitle = (ov && ov.title) || mod.title;
 
-      tile.appendChild(ui.el("span", { class: "dashboard-tile-desc" }, [mod.description]));
+    var tileDesc = ov && Object.prototype.hasOwnProperty.call(ov, "description")
+      ? ov.description
+      : mod.description;
+
+    tile.appendChild(ui.el("span", { class: "dashboard-tile-title" }, [tileTitle]));
+
+    if (tileDesc) {
+
+      tile.appendChild(ui.el("span", { class: "dashboard-tile-desc" }, [tileDesc]));
 
     }
 

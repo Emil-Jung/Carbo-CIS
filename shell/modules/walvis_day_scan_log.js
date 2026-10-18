@@ -117,7 +117,7 @@
     var dash = ui.el("div", { class: "bs-dashboard wdsl-dashboard" });
     dash.appendChild(
       ui.el("header", { class: "bs-dash-header" }, [
-        ui.el("h2", { class: "bs-dash-title" }, ["Day scan log"]),
+        ui.el("h2", { class: "bs-dash-title" }, ["Daily scan log"]),
         ui.el("p", { class: "bs-dash-lead" }, [
           "Every bag movement scan for one Windhoek day (sieve Charcoal Intake is excluded). ",
           "Newest on top — use packaging filters to compare bulk bag consumed vs pallets wrapped (wastage). ",
@@ -347,7 +347,7 @@
 
   CIS.modules.push({
     id: "walvis_day_scan_log",
-    title: "Day scan log",
+    title: "Daily scan log",
     section: "Reports & lookups",
     kind: "lookup",
     order: 18,
