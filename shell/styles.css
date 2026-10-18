@@ -388,7 +388,7 @@ body {
 /* ---- Dashboard ---- */
 .dashboard-host {
   /* Four-across home grid — uniform tile boxes (narrower so four fit comfortably). */
-  --dash-tile-w: 276px;
+  --dash-tile-w: 264px;
   --dash-tile-h: 118px;
   --dash-tile-gap: 12px;
   --dash-grid-cols: 4;
@@ -430,6 +430,8 @@ body {
   gap: var(--dash-tile-gap);
   justify-content: start;
   align-items: start;
+  width: fit-content;
+  max-width: 100%;
 }
 .dashboard-reports-rows {
   display: flex;
@@ -440,11 +442,14 @@ body {
 }
 .dashboard-host .dashboard-tile {
   width: var(--dash-tile-w);
+  min-width: var(--dash-tile-w);
+  max-width: var(--dash-tile-w);
   height: var(--dash-tile-h);
   min-height: var(--dash-tile-h);
   max-height: var(--dash-tile-h);
   box-sizing: border-box;
   overflow: hidden;
+  justify-self: start;
 }
 .dashboard-host .dashboard-tile-title {
   display: -webkit-box;
@@ -461,14 +466,14 @@ body {
 }
 @media (max-width: 1320px) {
   .dashboard-host {
-    --dash-tile-w: min(276px, calc((100vw - 56px - 3 * var(--dash-tile-gap)) / 4));
+    --dash-tile-w: min(264px, calc((100vw - 56px - 3 * var(--dash-tile-gap)) / 4));
     max-width: 100%;
   }
 }
 @media (max-width: 720px) {
   .dashboard-host {
     --dash-grid-cols: 2;
-    --dash-tile-w: min(276px, calc((100vw - 40px - var(--dash-tile-gap)) / 2));
+    --dash-tile-w: min(264px, calc((100vw - 40px - var(--dash-tile-gap)) / 2));
   }
 }
 .report-chart-wrap {
@@ -2279,11 +2284,6 @@ body {
   margin: 24px 0 12px;
   font-size: 1.05rem;
 }
-@media (max-width: 900px) {
-  .dashboard-row-apps {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 @media (max-width: 640px) {
   .dashboard-row:not(.dashboard-tile-grid) {
     grid-template-columns: 1fr;
@@ -2333,6 +2333,10 @@ body {
   line-height: 1.25;
 }
 .dashboard-tile-desc { font-size: 11px; line-height: 1.35; color: var(--muted); }
+/* Home dashboard — fixed grid wins over legacy row breakpoints below */
+.dashboard-host .dashboard-tile-grid {
+  grid-template-columns: repeat(var(--dash-grid-cols), var(--dash-tile-w));
+}
 .dashboard-tile-locked {
   opacity: 0.72;
   border-style: dashed;
