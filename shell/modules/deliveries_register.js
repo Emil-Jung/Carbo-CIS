@@ -380,7 +380,7 @@
     kind: "lookup",
     order: 14,
     icon: "quality",
-    description: "Load sheet — read-only Deliveries tracker + Excel download",
+    description: "Load sheet - Deliveries tracker + Excel download for Big-K Share Point",
     requires: "production.deliveries_register",
     render: render,
   });

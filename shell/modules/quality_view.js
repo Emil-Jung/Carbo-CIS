@@ -52,7 +52,7 @@
 
     icon: "quality",
 
-    description: "Read-only sieving sheets and producer summaries",
+    description: "Sieving sheets and producer summaries",
 
     requires: "quality.view",
 

@@ -137,7 +137,7 @@
     kind: "lookup",
     order: 11,
     icon: "register",
-    description: "FSC member harvesting permit expiry and suspension status (management report)",
+    description: "FSC member harvesting permit expiry and suspension status",
     requires: "producers.permit_status",
     render: render,
   });

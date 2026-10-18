@@ -352,7 +352,7 @@
     kind: "lookup",
     order: 18,
     icon: "schedule",
-    description: "One day, all movement scans — packaging yield and truck gaps",
+    description: "One day, all movement scans — packing yield and truck gaps",
     requires: "traceability.bags_status",
     render: render,
   });
