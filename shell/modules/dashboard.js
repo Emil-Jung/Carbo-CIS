@@ -33,32 +33,6 @@
 
   };
 
-  var DASHBOARD_TILE_OPTS = { compact: true };
-
-  /** Shorter titles on the four-tile intake row. */
-
-  var REPORTS_TILE_OVERRIDES = {
-
-    bags_movement_report: {
-      title: "Charcoal intake",
-    },
-
-    deliveries_register: {
-      title: "Deliveries",
-    },
-
-    truck_scale_variance: {
-      title: "Scale vs intake",
-    },
-
-    walvis_day_scan_log: {
-      title: "Daily scan log",
-    },
-
-  };
-
-
-
   function iconSvg(name) {
 
     var icons = {
@@ -133,17 +107,13 @@
 
 
 
-  function renderTile(ui, mod, opts) {
+  function renderTile(ui, mod) {
 
     var inactive = !!mod.inactive;
 
     var allowed = inactive || (CIS.canAccessModule ? CIS.canAccessModule(mod) : true);
 
-    var compact = !!(opts && opts.compact);
-
     var tileClass = "dashboard-tile";
-
-    if (compact) tileClass += " dashboard-tile--compact";
 
     if (inactive) tileClass += " dashboard-tile-inactive";
 
@@ -171,19 +141,11 @@
 
     }));
 
-    var ov = REPORTS_TILE_OVERRIDES[mod.id];
+    tile.appendChild(ui.el("span", { class: "dashboard-tile-title" }, [mod.title]));
 
-    var tileTitle = (ov && ov.title) || mod.title;
+    if (mod.description) {
 
-    var tileDesc = ov && Object.prototype.hasOwnProperty.call(ov, "description")
-      ? ov.description
-      : mod.description;
-
-    tile.appendChild(ui.el("span", { class: "dashboard-tile-title" }, [tileTitle]));
-
-    if (tileDesc && !compact) {
-
-      tile.appendChild(ui.el("span", { class: "dashboard-tile-desc" }, [tileDesc]));
+      tile.appendChild(ui.el("span", { class: "dashboard-tile-desc" }, [mod.description]));
 
     }
 
@@ -203,15 +165,15 @@
 
 
 
-  function renderRow(ui, mods, ids, rowClass, rowOpts) {
+  function renderRow(ui, mods, ids, rowClass) {
 
-    var row = ui.el("div", { class: "dashboard-row " + (rowClass || "") });
+    var row = ui.el("div", { class: "dashboard-row dashboard-tile-grid " + (rowClass || "") });
 
     ids.forEach(function (id) {
 
       var mod = modById(mods, id);
 
-      if (mod) row.appendChild(renderTile(ui, mod, rowOpts));
+      if (mod) row.appendChild(renderTile(ui, mod));
 
     });
 
@@ -263,9 +225,7 @@
 
     adminBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, ["Administration"]));
 
-    adminBlock.appendChild(
-      renderRow(ui, mods, LAYOUT.administration, "dashboard-row-admin", DASHBOARD_TILE_OPTS)
-    );
+    adminBlock.appendChild(renderRow(ui, mods, LAYOUT.administration, "dashboard-row-admin"));
 
     container.appendChild(adminBlock);
 
@@ -275,9 +235,7 @@
 
     appsBlock.appendChild(ui.el("h2", { class: "dashboard-section-title" }, ["Applications"]));
 
-    appsBlock.appendChild(
-      renderRow(ui, mods, LAYOUT.applications, "dashboard-row-apps", DASHBOARD_TILE_OPTS)
-    );
+    appsBlock.appendChild(renderRow(ui, mods, LAYOUT.applications, "dashboard-row-apps"));
 
     container.appendChild(appsBlock);
 
@@ -297,11 +255,7 @@
       LAYOUT.reportsRow5,
     ].forEach(function (rowIds) {
 
-      var rowClass = "dashboard-reports-row";
-
-      if (rowIds.length === 4) rowClass += " dashboard-reports-row--cols4";
-
-      reportsHost.appendChild(renderRow(ui, mods, rowIds, rowClass, DASHBOARD_TILE_OPTS));
+      reportsHost.appendChild(renderRow(ui, mods, rowIds, "dashboard-reports-row"));
 
     });
 
