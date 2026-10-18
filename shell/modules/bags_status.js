@@ -1529,6 +1529,16 @@
           fmtMass(st.kg) + " · drill down by location",
         ]));
 
+      } else if (st.kind === "walvis_dispatch_select") {
+
+        card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags || 0)]));
+
+        var walvisSub = st.receivedLabel || fmtMass(st.kg);
+        if (st.receivedLabel && st.kg) {
+          walvisSub = st.receivedLabel + " · " + fmtMass(st.kg);
+        }
+        card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [walvisSub]));
+
       } else {
 
         card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags)]));
@@ -1627,29 +1637,15 @@
     return "Dispatch #" + (d.dispatch_number != null ? d.dispatch_number : "?");
   }
 
-  function walvisDispatchCardLabel(d) {
-    var parts = [walvisDispatchDisplayLabel(d)];
-    if (d.manifest_audit_line) parts.push(d.manifest_audit_line);
-    else if (d.manifest_loaded_day_min || d.manifest_received_day_min) {
-      var audit = [];
-      if (d.manifest_loaded_day_min) audit.push("Loaded " + d.manifest_loaded_day_min);
-      if (d.manifest_received_day_min) {
-        audit.push(
-          "Received " +
-            (d.manifest_received_day_max &&
-            d.manifest_received_day_max !== d.manifest_received_day_min
-              ? d.manifest_received_day_min + " – " + d.manifest_received_day_max
-              : d.manifest_received_day_min)
-        );
-      }
-      if (audit.length) parts.push(audit.join(" · "));
+  function walvisDispatchReceivedLabel(d) {
+    if (!d || !d.manifest_received_day_min) return "";
+    if (
+      d.manifest_received_day_max &&
+      d.manifest_received_day_max !== d.manifest_received_day_min
+    ) {
+      return "Received " + d.manifest_received_day_min + " – " + d.manifest_received_day_max;
     }
-    if (d.truck_registration) parts.push(d.truck_registration);
-    if (d.status === "open") {
-      if ((d.bags_in_storage || 0) > 0) parts.push("(open — bags at Walvis)");
-      else parts.push("(loading at GF)");
-    } else if (d.status === "closed" && !d.manifest_audit_line) parts.push("(closed)");
-    return parts.join(" · ");
+    return "Received " + d.manifest_received_day_min;
   }
 
   function walvisDispatchTileBags(d) {
@@ -1664,17 +1660,7 @@
     report = report || { dispatches: [], unassigned: {}, pallets: {} };
     parent.appendChild(
       ui.el("p", { class: "bs-dash-drill-note" }, [
-        "Bulk bags on the ground are grouped by ",
-        ui.el("strong", {}, ["dispatch manifest"]),
-        " (one tile per truck run), then by category. Each tile shows ",
-        ui.el("strong", {}, ["Loaded / Received"]),
-        " days and ",
-        ui.el("strong", {}, ["GF scan vs CIS addendum"]),
-        " counts when the server has audit data. ",
-        ui.el("strong", {}, ["In transit — truck to Walvis Bay"]),
-        " is separate (still on the road). Retro fixes belong on the manifest as ",
-        ui.el("strong", {}, ["CIS addendum"]),
-        ", not a second dispatch tile.",
+        "One tile per truck dispatch — tap for categories and bag list. In transit is separate on the main dashboard.",
       ])
     );
 
@@ -1687,7 +1673,8 @@
           return {
             key: "walvis:dispatch:" + d.id,
             kind: "walvis_dispatch_select",
-            label: walvisDispatchCardLabel(d),
+            label: walvisDispatchDisplayLabel(d),
+            receivedLabel: walvisDispatchReceivedLabel(d),
             bags: walvisDispatchTileBags(d),
             kg: d.kg_in_storage || 0,
             streams: {},
@@ -1760,17 +1747,12 @@
   }
 
   function renderWalvisStorageDispatchCategories(parent, dispatch, ui, onSelect) {
-    var intro =
-      String(dispatch.bags_in_storage || 0) +
-      " bulk bag(s) in Walvis storage on this manifest.";
-    if (dispatch.manifest_audit_line) {
-      intro += " Audit: " + dispatch.manifest_audit_line + ".";
-    }
     parent.appendChild(
       ui.el("p", { class: "bs-dash-drill-note" }, [
-        walvisDispatchDisplayLabel(dispatch) + " — ",
-        intro,
-        " Tap a category for producers and bag list.",
+        walvisDispatchDisplayLabel(dispatch) +
+          " — " +
+          String(dispatch.bags_in_storage || 0) +
+          " bag(s) in Walvis storage. Tap a category for detail.",
       ])
     );
     var cats = dispatch.categories || [];
@@ -2823,7 +2805,7 @@
         if (selected.mode === "walvis_storage_dispatch") {
           body.appendChild(
             ui.el("h3", { class: "bs-dash-drill-title" }, [
-              selected.dispatch ? walvisDispatchCardLabel(selected.dispatch) : "Dispatch",
+              selected.dispatch ? walvisDispatchDisplayLabel(selected.dispatch) : "Dispatch",
             ])
           );
           renderWalvisStorageDispatchCategories(body, selected.dispatch || {}, ui, openStatus);
