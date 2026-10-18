@@ -396,6 +396,9 @@ body {
   margin: 0;
   overflow-x: hidden;
 }
+.module-content.dashboard-host {
+  overflow-x: hidden;
+}
 .app-view:has(#cis-float-ops:not(.hidden)) .module-content.dashboard-host {
   padding-right: calc(28px + min(17rem, 28vw));
 }
