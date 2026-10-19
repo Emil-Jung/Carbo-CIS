@@ -16,8 +16,8 @@
     symbol: "qr",
   };
 
-  /** +1 QR module size on 54×25 — alignment test batch (Sep 2026). */
-  var PRODUCTION_54_QR_BOOST_MAG = 2;
+  /** Larger QR modules = more heat per cell on dull 54×25 stock. */
+  var PRODUCTION_54_QR_BOOST_MAG = 4;
 
   /** Physically verified on ZT231 61×28 stock — use productionSpec6128() when that stock is loaded. */
   var STOCK_6128_QR_BOOST_MAG = 2;
@@ -146,10 +146,14 @@
   }
 
   function zplTextField(layout) {
+    var h = layout.fontH;
+    var w = Math.min(999, layout.fontW + 2);
+    var x = layout.textX;
+    var y = layout.textY;
+    var fb = "^FB" + layout.textAreaW + ",1,0,L,0^FD" + layout.serial + "^FS\n";
     return (
-      "^FO" + layout.textX + "," + layout.textY +
-      "^A0N," + layout.fontH + "," + layout.fontW +
-      "^FB" + layout.textAreaW + ",1,0,L,0^FD" + layout.serial + "^FS\n"
+      "^FO" + x + "," + y + "^A0N," + h + "," + w + fb +
+      "^FO" + (x + 1) + "," + y + "^A0N," + h + "," + w + fb
     );
   }
 
@@ -166,36 +170,33 @@
     return "~SD" + (sd < 10 ? "0" + sd : String(sd)) + "\n";
   }
 
-  /** Start of a multi-label job (USB RAW spooler doc or one LAN socket). */
+  /** Once per USB RAW job — avoid repeating ~SD on every label (ZT231 can print lighter). */
   function zplJobPreamble(spec) {
     var sd = parsedDarkness(spec);
     if (sd === null) return "";
-    return _sdCommand(sd);
-  }
-
-  function zplInLabelTuning(spec) {
-    var sd = parsedDarkness(spec);
     var printSp = parseInt(spec && spec.printSpeed, 10);
     var slewSp = parseInt(spec && spec.slewSpeed, 10);
     if (isNaN(printSp)) printSp = PRODUCTION_PRINT_SPEED;
     if (isNaN(slewSp)) slewSp = PRODUCTION_SLEW_SPEED;
     printSp = Math.max(1, Math.min(12, printSp));
     slewSp = Math.max(1, Math.min(12, slewSp));
-    var out = "^PR" + printSp + "," + slewSp + "\n";
-    if (sd !== null) {
-      out += _sdCommand(sd);
-      out += "^MD30\n";
-    }
-    return out;
+    return (
+      _sdCommand(sd) +
+      "^MD30\n" +
+      "^PR" + printSp + "," + slewSp + "\n"
+    );
+  }
+
+  function zplInLabelTuning(spec) {
+    var sd = parsedDarkness(spec);
+    if (sd === null) return "";
+    return "^MD30\n";
   }
 
   function zplOneLabelFormat(serial, spec) {
     var layout = layoutLabel(serial, spec);
     var d = layout.dots;
-    var sd = parsedDarkness(spec);
-    var beforeXa = sd !== null ? _sdCommand(sd) : "";
     return (
-      beforeXa +
       "^XA\n^CI28\n" +
       zplInLabelTuning(spec) +
       "^PW" + d.pw + "\n^LL" + d.ll + "\n^LH0,0\n" +
