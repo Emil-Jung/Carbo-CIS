@@ -1,28 +1,28 @@
-/* Bag label ZPL — 203 dpi ZT231, 61×28 mm. Symbol layer swappable (QR now, GS1 Data Matrix later). */
+/* Bag label ZPL — 203 dpi ZT231. productionSpec() = 54×25 mm (legacy stock); productionSpec6128() = 61×28. */
 (function (root) {
   "use strict";
 
   var DEFAULT_SPEC = {
     dpi: 203,
-    widthMm: 61,
-    heightMm: 28,
+    widthMm: 54,
+    heightMm: 25,
     marginMm: 2.5,
     gapMm: 1.5,
-    textReserveMm: 27,
+    textReserveMm: 22,
     qrMag: 0,
     qrBoostMag: 0,
     qrLeftInsetMm: 0,
+    layoutYOffsetDots: 0,
     symbol: "qr",
   };
 
-  /** Physically verified on ZT231 61×28 stock — do not change without a new physical test. */
-  var PRODUCTION_QR_BOOST_MAG = 2;
+  /** +1 QR module size on 54×25 — alignment test batch (Sep 2026). */
+  var PRODUCTION_54_QR_BOOST_MAG = 2;
 
-  /** Nudge entire layout down on 28 mm face (QR + text together). ~1.5 mm @ 203 dpi. */
-  var PRODUCTION_LAYOUT_Y_OFFSET_DOTS = 12;
-
-  /** Extra inset for QR from left label edge (beyond marginMm). Tolerates slight horizontal misfeed. */
-  var PRODUCTION_QR_LEFT_INSET_MM = 1.5;
+  /** Physically verified on ZT231 61×28 stock — use productionSpec6128() when that stock is loaded. */
+  var STOCK_6128_QR_BOOST_MAG = 2;
+  var STOCK_6128_LAYOUT_Y_OFFSET_DOTS = 12;
+  var STOCK_6128_QR_LEFT_INSET_MM = 1.5;
 
   /** Zebra ~SD darkness 00–30 (higher = darker). Tune with a test print; 22 is a solid default for ZT231. */
   var PRODUCTION_DARKNESS = 22;
@@ -104,9 +104,11 @@
     var qrY = d.margin + Math.round((usableH - qrSize) / 2);
     var textX = qrX + qrSize + d.gap;
     var textAreaW = Math.max(40, d.pw - d.margin - textX);
-    var fontH = Math.min(28, Math.max(20, Math.round(usableH * 0.18)));
+    var fontMax = s.heightMm <= 25 ? 26 : 28;
+    var fontMin = s.heightMm <= 25 ? 18 : 20;
+    var fontH = Math.min(fontMax, Math.max(fontMin, Math.round(usableH * 0.18)));
     var fontW = Math.round(fontH * 0.9);
-    while (fontH > 18 && estimateTextWidth(serial, fontW) > textAreaW) {
+    while (fontH > fontMin && estimateTextWidth(serial, fontW) > textAreaW) {
       fontH -= 1;
       fontW = Math.round(fontH * 0.9);
     }
@@ -174,7 +176,29 @@
     return (serials || []).map(function (s) { return zplOneLabel(s, spec); }).join("");
   }
 
+  /** Active production — 54×25 mm legacy stock (ZT231). */
   function productionSpec(overrides) {
+    return Object.assign(
+      {
+        dpi: 203,
+        widthMm: 54,
+        heightMm: 25,
+        marginMm: 2.5,
+        gapMm: 1.5,
+        textReserveMm: 22,
+        qrMag: 0,
+        qrBoostMag: PRODUCTION_54_QR_BOOST_MAG,
+        qrLeftInsetMm: 0,
+        layoutYOffsetDots: 0,
+        darkness: PRODUCTION_DARKNESS,
+        symbol: "qr",
+      },
+      overrides || {}
+    );
+  }
+
+  /** When 61×28 mm stock is loaded — switch print_labels.js to call this instead of productionSpec(). */
+  function productionSpec6128(overrides) {
     return Object.assign(
       {
         dpi: 203,
@@ -184,9 +208,9 @@
         gapMm: 1.5,
         textReserveMm: 27,
         qrMag: 0,
-        qrBoostMag: PRODUCTION_QR_BOOST_MAG,
-        qrLeftInsetMm: PRODUCTION_QR_LEFT_INSET_MM,
-        layoutYOffsetDots: PRODUCTION_LAYOUT_Y_OFFSET_DOTS,
+        qrBoostMag: STOCK_6128_QR_BOOST_MAG,
+        qrLeftInsetMm: STOCK_6128_QR_LEFT_INSET_MM,
+        layoutYOffsetDots: STOCK_6128_LAYOUT_Y_OFFSET_DOTS,
         darkness: PRODUCTION_DARKNESS,
         symbol: "qr",
       },
@@ -196,9 +220,7 @@
 
   root.CIS_LABEL_ZPL = {
     DEFAULT_SPEC: DEFAULT_SPEC,
-    PRODUCTION_QR_BOOST_MAG: PRODUCTION_QR_BOOST_MAG,
-    PRODUCTION_LAYOUT_Y_OFFSET_DOTS: PRODUCTION_LAYOUT_Y_OFFSET_DOTS,
-    PRODUCTION_QR_LEFT_INSET_MM: PRODUCTION_QR_LEFT_INSET_MM,
+    PRODUCTION_54_QR_BOOST_MAG: PRODUCTION_54_QR_BOOST_MAG,
     PRODUCTION_DARKNESS: PRODUCTION_DARKNESS,
     mmToDots: mmToDots,
     specToDots: specToDots,
@@ -207,5 +229,6 @@
     zplOneLabel: zplOneLabel,
     zplBatch: zplBatch,
     productionSpec: productionSpec,
+    productionSpec6128: productionSpec6128,
   };
 })(window);
