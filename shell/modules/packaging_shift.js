@@ -60,6 +60,17 @@
     ]);
     container.appendChild(busyOverlay);
 
+    var basketModal = ui.el("div", {
+      class: "packaging-shift-basket-modal",
+      hidden: true,
+      role: "dialog",
+      "aria-labelledby": "packaging-shift-basket-modal-title",
+      "aria-modal": "true",
+    });
+    var basketModalCard = ui.el("div", { class: "packaging-shift-basket-modal__card" });
+    basketModal.appendChild(basketModalCard);
+    container.appendChild(basketModal);
+
     var boardSection = ui.el("section", { class: "packaging-shift-section packaging-shift-board" });
     boardSection.appendChild(
       ui.el("h3", { class: "print-labels-panel-title" }, ["Current shifts"])
@@ -240,9 +251,163 @@
       return codes;
     }
 
-    async function act(shiftId, payload, describe, busyMsg) {
+    function fmtBasketKg(n) {
+      return (
+        Number(n || 0).toLocaleString(undefined, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 1,
+        }) + " kg"
+      );
+    }
+
+    function productOptions(excludeCode) {
+      return products.filter(function (p) {
+        return p.product_code && p.product_code !== excludeCode;
+      });
+    }
+
+    function defaultReassignTarget(fromCode, shift) {
+      var onShift = (shift.product_codes || []).filter(function (c) {
+        return c !== fromCode;
+      });
+      if (onShift.length === 1) return onShift[0];
+      var opts = productOptions(fromCode);
+      return opts.length ? opts[0].product_code : "";
+    }
+
+    function closeBasketModal() {
+      basketModal.hidden = true;
+      basketModalCard.innerHTML = "";
+    }
+
+    function openBasketCompleteModal(shift, remainders) {
+      basketModalCard.innerHTML = "";
+      basketModalCard.appendChild(
+        ui.el("h3", { id: "packaging-shift-basket-modal-title", class: "packaging-shift-basket-modal__title" }, [
+          "Move basket material before completing",
+        ])
+      );
+      basketModalCard.appendChild(
+        ui.el("p", { class: "muted packaging-shift-basket-modal__lead" }, [
+          "This shift still has charcoal in the pallet basket. Choose which ",
+          ui.el("strong", {}, ["active product"]),
+          " each pool moves to. Those source bags stay in the queue and are ",
+          ui.el("strong", {}, ["used first"]),
+          " when wrapping the new SKU (oldest material first).",
+        ])
+      );
+      var table = ui.el("table", { class: "data packaging-shift-basket-table" });
+      table.innerHTML =
+        "<thead><tr><th>From (shift SKU)</th><th>In basket</th><th>Move to product</th></tr></thead>";
+      var tbody = ui.el("tbody");
+      var selects = [];
+      remainders.forEach(function (row) {
+        var tr = ui.el("tr");
+        tr.appendChild(
+          ui.el("td", {}, [
+            ui.el("strong", {}, [row.product_code]),
+            row.name ? ui.el("span", { class: "muted" }, [" — " + row.name]) : null,
+          ])
+        );
+        tr.appendChild(
+          ui.el("td", {}, [
+            fmtBasketKg(row.available_kg),
+            row.source_bag_count
+              ? " · " + row.source_bag_count + " source bag(s)"
+              : "",
+          ])
+        );
+        var sel = ui.el("select", { class: "packaging-shift-basket-select" });
+        var opts = productOptions(row.product_code);
+        if (!opts.length) {
+          sel.appendChild(ui.el("option", { value: "" }, ["No other active products"]));
+          sel.disabled = true;
+        } else {
+          opts.forEach(function (p) {
+            var label = p.product_code + (p.name ? " — " + p.name : "");
+            sel.appendChild(ui.el("option", { value: p.product_code }, [label]));
+          });
+          sel.value = defaultReassignTarget(row.product_code, shift);
+        }
+        selects.push({ from: row.product_code, select: sel });
+        tr.appendChild(ui.el("td", {}, [sel]));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      basketModalCard.appendChild(table);
+      var err = ui.el("p", { class: "error-box packaging-shift-basket-modal__err", hidden: true }, [""]);
+      basketModalCard.appendChild(err);
+      var actions = ui.el("div", { class: "packaging-shift-basket-modal__actions" });
+      actions.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn btn-secondary",
+          onclick: closeBasketModal,
+        }, ["Cancel"])
+      );
+      actions.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn",
+          onclick: function () {
+            err.hidden = true;
+            var reassignments = [];
+            for (var i = 0; i < selects.length; i++) {
+              var item = selects[i];
+              var to = (item.select.value || "").trim();
+              if (!to) {
+                err.textContent = "Choose a target product for " + item.from + ".";
+                err.hidden = false;
+                return;
+              }
+              if (to === item.from) {
+                err.textContent = "Target must differ from " + item.from + ".";
+                err.hidden = false;
+                return;
+              }
+              reassignments.push({
+                from_product_code: item.from,
+                to_product_code: to,
+              });
+            }
+            closeBasketModal();
+            void act(
+              shift.id,
+              { status: "completed", basket_reassignments: reassignments },
+              "",
+              "Completing shift and moving basket material…",
+              true
+            );
+          },
+        }, ["Confirm move & complete shift"])
+      );
+      basketModalCard.appendChild(actions);
+      basketModal.hidden = false;
+    }
+
+    async function completeShift(shift) {
       if (busy) return;
-      if (!window.confirm(describe + "?")) return;
+      setBusy(true, "Checking pallet basket…");
+      try {
+        var remData = await ctx.api.traceability(
+          "/packaging-shifts/" + encodeURIComponent(shift.id) + "/basket-remainder"
+        );
+        var remainders = remData.remainders || [];
+        setBusy(false);
+        if (!remainders.length) {
+          await act(shift.id, { status: "completed" }, "Complete this shift", "Completing shift…");
+          return;
+        }
+        openBasketCompleteModal(shift, remainders);
+      } catch (e) {
+        setBusy(false);
+        setStatus("Could not check basket: " + (e.message || e), true);
+      }
+    }
+
+    async function act(shiftId, payload, describe, busyMsg, skipConfirm) {
+      if (busy) return;
+      if (!skipConfirm && describe && !window.confirm(describe + "?")) return;
       setBusy(true, busyMsg || "Updating shift…");
       try {
         await ctx.api.traceability("/packaging-shifts/" + encodeURIComponent(shiftId), {
@@ -363,7 +528,7 @@
             class: "btn btn-sm",
             type: "button",
             onclick: function () {
-              act(s.id, { status: "completed" }, "Complete this shift", "Completing shift…");
+              void completeShift(s);
             },
           }, ["Complete"])
         );

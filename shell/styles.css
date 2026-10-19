@@ -4264,6 +4264,44 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .packaging-shift-busy-title { font-weight: 700; font-size: 1.05rem; margin: 0 0 0.35rem; }
 .packaging-shift-busy-detail { margin: 0; color: var(--muted, #94a3b8); font-size: 0.95rem; }
+.packaging-shift-basket-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.78);
+}
+.packaging-shift-basket-modal[hidden] { display: none; }
+.packaging-shift-basket-modal__card {
+  width: min(640px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 1.25rem 1.35rem;
+  border-radius: 10px;
+  border: 1px solid var(--border, #475569);
+  background: var(--surface, #1e293b);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.packaging-shift-basket-modal__title { margin: 0 0 0.5rem; font-size: 1.15rem; }
+.packaging-shift-basket-modal__lead { margin: 0 0 1rem; font-size: 0.92rem; line-height: 1.45; }
+.packaging-shift-basket-table { width: 100%; margin-bottom: 0.75rem; }
+.packaging-shift-basket-select {
+  width: 100%;
+  max-width: 18rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.92rem;
+}
+.packaging-shift-basket-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+.packaging-shift-basket-modal__err { margin: 0.5rem 0 0; }
 
 /* Walvis Bay Dispatch — two-column office layout */
 .walvis-dispatch-workspace {
