@@ -2022,6 +2022,8 @@
 
       ["Status", p.storage_status || "—"],
 
+      ["FSC", p.fsc_status || p.fsc_bag_policy_label || "—"],
+
     ].forEach(function (pair) {
 
       dl.appendChild(ui.el("dt", {}, [pair[0]]));
@@ -2114,7 +2116,9 @@
 
       card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(bucket.bags)]));
 
-      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtMass(bucket.kg)]));
+      var subParts = [fmtMass(bucket.kg)];
+      if (bucket.fsc_bag_policy_label) subParts.push(bucket.fsc_bag_policy_label);
+      card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [subParts.join(" · ")]));
 
       grid.appendChild(card);
 
@@ -2149,6 +2153,8 @@
     "FSC Other": "other",
     "Non-FSC": "non",
     "Mixed FSC": "mixed",
+    "FSC only": "fsc",
+    "Non-FSC only": "non",
     FSC: "fsc",
   };
 
