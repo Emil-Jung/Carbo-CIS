@@ -1128,27 +1128,33 @@
 
     section.appendChild(dl);
 
-    if ((b.by_product || []).length > 1) {
+    var sub = ui.el("div", { class: "bs-dash-basket-products" });
 
-      var sub = ui.el("div", { class: "bs-dash-basket-products" });
+    (b.by_product || []).forEach(function (row) {
 
-      b.by_product.forEach(function (row) {
+      var line =
+        row.product_code + ": " + fmtMass(row.available_kg) + " · "
+          + (row.pallet_equivalent != null ? Number(row.pallet_equivalent).toFixed(2) : "—")
+          + " pallet equiv";
+      if (Number(row.available_kg) > 0.001) {
+        line += " · " + String(row.source_bag_count || 0) + " source bag(s)";
+      }
+      sub.appendChild(ui.el("p", { class: "bs-dash-basket-product muted" }, [line]));
 
-        sub.appendChild(ui.el("p", { class: "bs-dash-basket-product muted" }, [
+    });
 
-          row.product_code + ": " + fmtMass(row.available_kg) + " · "
+    if ((b.by_product_retired || []).length) {
 
-            + (row.pallet_equivalent != null ? Number(row.pallet_equivalent).toFixed(2) : "—")
-
-            + " pallet equiv · " + String(row.source_bag_count || 0) + " source bag(s)",
-
-        ]));
-
-      });
-
-      section.appendChild(sub);
+      sub.appendChild(ui.el("p", { class: "bs-dash-basket-product muted bs-dash-basket-product--retired" }, [
+        "Retired SKU pool: "
+          + b.by_product_retired.map(function (row) {
+            return row.product_code + " " + fmtMass(row.available_kg);
+          }).join(" · "),
+      ]));
 
     }
+
+    if (sub.childNodes.length) section.appendChild(sub);
 
     return section;
 
@@ -1500,17 +1506,22 @@
             + " source bags consumed",
         ]));
 
-        if ((st.by_product || []).length === 1) {
-
-          var only = st.by_product[0];
-
+        var withKg = (st.by_product || []).filter(function (row) {
+          return Number(row.available_kg) > 0.001;
+        });
+        var skuLine = withKg.length
+          ? withKg.map(function (row) { return row.product_code; }).join(", ")
+          : (st.by_product || []).map(function (row) { return row.product_code; }).join(", ");
+        if (skuLine) {
           card.appendChild(ui.el("span", { class: "bs-dash-status-card__streams" }, [
-            only.product_code
-              + (only.production_target_kg != null
-                ? " · " + Number(only.production_target_kg).toFixed(0) + " kg/pallet"
-                : ""),
+            "Active catalog: " + skuLine,
           ]));
-
+        }
+        if ((st.by_product_retired || []).length) {
+          card.appendChild(ui.el("span", { class: "bs-dash-status-card__streams muted" }, [
+            "Retired pool: "
+              + st.by_product_retired.map(function (row) { return row.product_code; }).join(", "),
+          ]));
         }
 
       } else if (st.kind === "physical_pallets") {
@@ -1909,7 +1920,9 @@
 
       var block = ui.el("div", { class: "bs-dash-basket-product-block" });
 
-      block.appendChild(ui.el("h4", {}, [row.product_code + (row.name ? " — " + row.name : "")]));
+      block.appendChild(ui.el("h4", {}, [
+        row.product_code + (row.name ? " — " + row.name : "") + " (active catalog)",
+      ]));
 
       var cfg = ui.el("dl", { class: "bs-dash-basket-dl bs-dash-basket-dl--compact" });
 
@@ -1941,7 +1954,39 @@
 
     });
 
-    if (!(b.by_product || []).length) {
+    (b.by_product_retired || []).forEach(function (row) {
+
+      var block = ui.el("div", { class: "bs-dash-basket-product-block bs-dash-basket-product-block--retired" });
+
+      block.appendChild(ui.el("h4", {}, [
+        row.product_code + (row.name ? " — " + row.name : "") + " (retired SKU — clear or re-wrap separately)",
+      ]));
+
+      var cfg = ui.el("dl", { class: "bs-dash-basket-dl bs-dash-basket-dl--compact" });
+
+      [
+
+        ["Available", fmtMass(row.available_kg)],
+
+        ["Pallet equivalent", row.pallet_equivalent != null ? Number(row.pallet_equivalent).toFixed(2) : "—"],
+
+        ["Source bags", String(row.source_bag_count || 0)],
+
+      ].forEach(function (pair) {
+
+        cfg.appendChild(ui.el("dt", {}, [pair[0]]));
+
+        cfg.appendChild(ui.el("dd", {}, [pair[1]]));
+
+      });
+
+      block.appendChild(cfg);
+
+      wrap.appendChild(block);
+
+    });
+
+    if (!(b.by_product || []).length && !(b.by_product_retired || []).length) {
 
       wrap.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, ["No material in the pallet basket."]));
 
