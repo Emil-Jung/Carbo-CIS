@@ -50,12 +50,12 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Packing & products"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "One place for pallet SKUs and what packaging scanners offer today. ",
-      ui.el("strong", {}, ["On scanners"]),
-      " is what operators can load and wrap; ",
-      ui.el("strong", {}, ["In basket"]),
-      " is charcoal already consumed and waiting for a pallet label. ",
-      "Edit a product to change weights or retire it from the catalog.",
+      "Manage pallet SKUs and packing-floor status here (CIS only — packaging scanner apps are unchanged). ",
+      "Use the table columns ",
+      ui.el("strong", {}, ["Packing scanner"]),
+      " and ",
+      ui.el("strong", {}, ["Pallet basket"]),
+      " to see what operators can pick vs charcoal already consumed at the plant.",
     ]));
 
     var scannerBanner = ui.el("p", {
@@ -74,11 +74,20 @@
       ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Products"])
     );
     listPanel.appendChild(
-      ui.el("p", { class: "muted walvis-dispatch-list-hint" }, [
-        "Tick ",
-        ui.el("strong", {}, ["On scanners"]),
-        " for each SKU the floor may use today — each product is independent (turn LF2.5 off without touching DOM04). ",
-        "Turning off with kg in the basket asks where to move that pool.",
+      ui.el("div", { class: "packing-floor-legend" }, [
+        ui.el("p", { class: "packing-floor-legend__title" }, ["Column guide"]),
+        ui.el("dl", { class: "packing-floor-legend__dl" }, [
+          ui.el("dt", {}, ["Packing scanner"]),
+          ui.el("dd", {}, [
+            "Yes = this SKU appears on the packing scanner product list for operators. ",
+            "No = hidden on scanners (does not delete catalog data).",
+          ]),
+          ui.el("dt", {}, ["Pallet basket"]),
+          ui.el("dd", {}, [
+            "Bulk charcoal already consumed at the plant and waiting for an A4 pallet wrap — ",
+            "not the same as “on scanner”. Empty = nothing in the pool for that SKU.",
+          ]),
+        ]),
       ])
     );
     var listHost = ui.el("div", { class: "walvis-dispatch-list-col pallet-config-list" });
@@ -282,12 +291,13 @@
         scannerBanner.hidden = false;
         scannerBanner.className = "packaging-floor-scanner-banner packaging-floor-scanner-banner--idle";
         scannerBanner.textContent =
-          "Nothing on scanners — tick On scanners for the SKU(s) the packing line is running today.";
+          "No SKUs on packing scanners — set Packing scanner to Yes for what the line runs today.";
         return;
       }
       scannerBanner.hidden = false;
       scannerBanner.className = "packaging-floor-scanner-banner";
-      scannerBanner.textContent = "On packaging scanners now: " + onScannersList.join(", ");
+      scannerBanner.textContent =
+        "Packing scanner menu (operators): " + onScannersList.join(", ");
     }
 
     function closeBasketModal() {
@@ -370,18 +380,92 @@
       }
     }
 
-    function renderProductTable(list, showScannerCols) {
-      var table = ui.el("table", { class: "data-table pallet-config-table" });
-      var head =
-        "<thead><tr>" +
-        "<th>Code</th><th>Name</th>";
-      if (showScannerCols) {
-        head += "<th>On scanners</th><th>In basket</th>";
+    function appendScannerCell(tr, p, onScan, basketKg) {
+      var scanTd = ui.el("td", { class: "packing-floor-col-scan" });
+      if (p.active === false) {
+        scanTd.appendChild(ui.el("span", { class: "packing-floor-muted-cell" }, ["— catalog inactive"]));
+      } else if (!canToggleScanners) {
+        scanTd.appendChild(
+          ui.el("span", {
+            class: "packing-floor-pill packing-floor-pill--" + (onScan ? "yes" : "no"),
+          }, [onScan ? "Yes" : "No"])
+        );
+      } else {
+        var row = ui.el("div", { class: "packing-floor-scan-control" });
+        var stateEl = ui.el("span", {
+          class: "packing-floor-pill packing-floor-pill--" + (onScan ? "yes" : "no"),
+        }, [onScan ? "Yes" : "No"]);
+        var cb = ui.el("input", {
+          type: "checkbox",
+          checked: onScan,
+          "aria-label": "Packing scanner menu for " + p.product_code,
+        });
+        cb.addEventListener("change", function () {
+          var want = cb.checked;
+          stateEl.textContent = want ? "Yes" : "No";
+          stateEl.className =
+            "packing-floor-pill packing-floor-pill--" + (want ? "yes" : "no");
+          if (!want && basketKg > 0.001) {
+            cb.checked = true;
+            stateEl.textContent = "Yes";
+            stateEl.className = "packing-floor-pill packing-floor-pill--yes";
+            openReassignModal(p.product_code, basketKg, function (to) {
+              void setOnScanners(p.product_code, false, to);
+            });
+            return;
+          }
+          cb.disabled = true;
+          void setOnScanners(p.product_code, want, null).finally(function () {
+            cb.disabled = false;
+          });
+        });
+        row.appendChild(stateEl);
+        row.appendChild(cb);
+        scanTd.appendChild(row);
       }
-      head +=
-        "<th>Source FSC</th><th>Retail</th><th>Bags</th><th>Production target</th><th></th>" +
-        "</tr></thead>";
-      table.innerHTML = head;
+      tr.appendChild(scanTd);
+    }
+
+    function appendBasketCell(tr, basketKg) {
+      var basketTd = ui.el("td", { class: "packing-floor-col-basket packing-floor-num" });
+      if (basketKg > 0.001) {
+        basketTd.appendChild(ui.el("div", { class: "packing-floor-basket-kg" }, [fmtKg(basketKg)]));
+        basketTd.appendChild(
+          ui.el("div", { class: "packing-floor-basket-sub" }, ["waiting to wrap"])
+        );
+      } else {
+        basketTd.appendChild(ui.el("span", { class: "packing-floor-muted-cell" }, ["Empty"]));
+      }
+      tr.appendChild(basketTd);
+    }
+
+    function renderProductTable(list, showScannerCols) {
+      var wrap = ui.el("div", { class: "packing-floor-table-wrap" });
+      var table = ui.el("table", { class: "packing-floor-table" });
+      var thead = ui.el("thead", {});
+      if (showScannerCols) {
+        var groupRow = ui.el("tr", { class: "packing-floor-head-group" });
+        groupRow.appendChild(ui.el("th", { colspan: "2", scope: "colgroup" }, ["Product"]));
+        groupRow.appendChild(ui.el("th", { colspan: "2", scope: "colgroup" }, ["Packing floor status"]));
+        groupRow.appendChild(ui.el("th", { colspan: "4", scope: "colgroup" }, ["Pallet specification"]));
+        groupRow.appendChild(ui.el("th", { class: "packing-floor-col-action", scope: "colgroup" }, [""]));
+        thead.appendChild(groupRow);
+      }
+      var hr = ui.el("tr", {});
+      hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-col-code" }, ["SKU"]));
+      hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-col-name" }, ["Name"]));
+      if (showScannerCols) {
+        hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-col-scan" }, ["Packing scanner"]));
+        hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-col-basket" }, ["Pallet basket"]));
+      }
+      hr.appendChild(ui.el("th", { scope: "col" }, ["Source FSC"]));
+      hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-num" }, ["Retail kg"]));
+      hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-num" }, ["Bags / pallet"]));
+      hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-num" }, ["Target kg"]));
+      hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-col-action" }, [""]));
+      thead.appendChild(hr);
+      table.appendChild(thead);
+
       var tbodyEl = ui.el("tbody");
       list.forEach(function (p) {
         var tr = ui.el("tr");
@@ -392,50 +476,19 @@
         if (showScannerCols && onScan) {
           tr.className = (tr.className ? tr.className + " " : "") + "pallet-config-row-on-scanner";
         }
-        tr.appendChild(ui.el("td", {}, [ui.el("strong", {}, [p.product_code])]));
-        tr.appendChild(ui.el("td", {}, [p.name || "—"]));
+        tr.appendChild(ui.el("td", { class: "packing-floor-col-code" }, [
+          ui.el("strong", {}, [p.product_code]),
+        ]));
+        tr.appendChild(ui.el("td", { class: "packing-floor-col-name" }, [p.name || "—"]));
         if (showScannerCols) {
-          var scanTd = ui.el("td", { class: "pallet-config-scan-cell" });
-          if (p.active === false) {
-            scanTd.appendChild(ui.el("span", { class: "muted" }, ["Catalog inactive"]));
-          } else if (!canToggleScanners) {
-            scanTd.appendChild(ui.el("span", { class: "muted" }, [onScan ? "Yes" : "No"]));
-          } else {
-            var cb = ui.el("input", {
-              type: "checkbox",
-              checked: onScan,
-              title: "Show on packaging scanners",
-            });
-            cb.addEventListener("change", function () {
-              var want = cb.checked;
-              if (!want && basketKg > 0.001) {
-                cb.checked = true;
-                openReassignModal(p.product_code, basketKg, function (to) {
-                  void setOnScanners(p.product_code, false, to);
-                });
-                return;
-              }
-              cb.disabled = true;
-              void setOnScanners(p.product_code, want, null).finally(function () {
-                cb.disabled = false;
-              });
-            });
-            scanTd.appendChild(cb);
-          }
-          tr.appendChild(scanTd);
-          var basketTd = ui.el("td", {});
-          if (basketKg > 0.001) {
-            basketTd.appendChild(ui.el("strong", {}, [fmtKg(basketKg)]));
-          } else {
-            basketTd.appendChild(ui.el("span", { class: "muted" }, ["—"]));
-          }
-          tr.appendChild(basketTd);
+          appendScannerCell(tr, p, onScan, basketKg);
+          appendBasketCell(tr, basketKg);
         }
         tr.appendChild(ui.el("td", {}, [p.fsc_bag_policy_label || fscPolicyLabel(p.fsc_bag_policy)]));
-        tr.appendChild(ui.el("td", {}, [fmtKg(p.retail_bag_weight_kg)]));
-        tr.appendChild(ui.el("td", {}, [fmtNum(p.bags_per_pallet)]));
-        tr.appendChild(ui.el("td", {}, [fmtKg(p.production_target_kg)]));
-        var actions = ui.el("td", {});
+        tr.appendChild(ui.el("td", { class: "packing-floor-num" }, [fmtKg(p.retail_bag_weight_kg)]));
+        tr.appendChild(ui.el("td", { class: "packing-floor-num" }, [fmtNum(p.bags_per_pallet)]));
+        tr.appendChild(ui.el("td", { class: "packing-floor-num" }, [fmtKg(p.production_target_kg)]));
+        var actions = ui.el("td", { class: "packing-floor-col-action" });
         actions.appendChild(ui.el("button", {
           class: "btn btn-sm",
           type: "button",
@@ -449,7 +502,8 @@
         tbodyEl.appendChild(tr);
       });
       table.appendChild(tbodyEl);
-      return table;
+      wrap.appendChild(table);
+      return wrap;
     }
 
     function appendProductBlock(title, list, emptyText, showScannerCols) {
@@ -516,8 +570,8 @@
         }).length;
         setStatus(
           onScannersList.length
-            ? "Scanners: " + onScannersList.join(", ") + " · " + nActive + " catalog active."
-            : nActive + " catalog active · nothing on scanners yet."
+            ? "Packing scanner: " + onScannersList.join(", ") + " · " + nActive + " in catalog."
+            : nActive + " in catalog · packing scanner menu empty."
         );
       } catch (e) {
         setStatus("Could not load: " + (e.message || e), true);
