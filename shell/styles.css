@@ -664,6 +664,45 @@ body {
   color: #64748B;
   max-width: 62ch;
 }
+.bs-dash-bag-search {
+  margin: 14px 0 4px;
+  max-width: 36rem;
+}
+.bs-dash-bag-search__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.bs-dash-bag-search__input {
+  flex: 1 1 12rem;
+  min-width: 10rem;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+.bs-dash-bag-search__btn {
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #0f172a;
+  background: #0f172a;
+  color: #fff;
+  cursor: pointer;
+}
+.bs-dash-bag-search__hint {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+}
+.bs-dash-bag-search__err {
+  margin-top: 8px;
+  font-size: 0.88rem;
+}
+.bs-dash-bag-search__drill {
+  margin: 0 0 12px;
+}
 .bs-dash-legend {
   display: flex;
   flex-wrap: wrap;

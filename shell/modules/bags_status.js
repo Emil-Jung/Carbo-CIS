@@ -119,6 +119,57 @@
     }
   }
 
+  function normalizeBagSearchSerial(raw) {
+    var s = String(raw || "").trim().toUpperCase();
+    if (!s) return "";
+    if (s.indexOf("BAG-") !== 0 && /^[0-9]{4}-[0-9]+$/.test(s)) {
+      s = "BAG-" + s;
+    }
+    return s;
+  }
+
+  function renderBagSearchBar(ui, bagSearch, onSubmit, onClear) {
+    var wrap = ui.el("div", { class: "bs-dash-bag-search" });
+    var form = ui.el("form", { class: "bs-dash-bag-search__form" });
+    var input = ui.el("input", {
+      class: "bs-dash-bag-search__input",
+      type: "search",
+      name: "bag_serial",
+      placeholder: "BAG-2026-004661",
+      autocomplete: "off",
+      spellcheck: "false",
+      "aria-label": "Search by BAG label code",
+    });
+    if (bagSearch && bagSearch.serial) input.value = bagSearch.serial;
+    form.appendChild(input);
+    form.appendChild(
+      ui.el("button", { class: "bs-dash-bag-search__btn", type: "submit" }, ["Search"])
+    );
+    if (bagSearch && bagSearch.active) {
+      form.appendChild(
+        ui.el("button", {
+          class: "bs-dash-bag-search__clear btn-ghost btn-sm",
+          type: "button",
+          onclick: onClear,
+        }, ["Clear"])
+      );
+    }
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      onSubmit(normalizeBagSearchSerial(input.value));
+    });
+    wrap.appendChild(form);
+    wrap.appendChild(
+      ui.el("p", { class: "bs-dash-bag-search__hint muted" }, [
+        "Find any recorded BAG ID. Physical pallets — open the row or button to see source bulk bags (contributors).",
+      ])
+    );
+    if (bagSearch && bagSearch.error) {
+      wrap.appendChild(ui.el("p", { class: "error-box bs-dash-bag-search__err" }, [bagSearch.error]));
+    }
+    return wrap;
+  }
+
   function fmtMass(kg, forceKg) {
     return CIS.formatMassFromKg(kg, forceKg ? { forceKg: true } : {});
   }
@@ -2750,11 +2801,13 @@
     var drillFetchToken = 0;
     var walvisStorageReport = null;
 
+    var bagSearch = null;
+
 
 
     var dash = ui.el("div", { class: "bs-dashboard" });
 
-    dash.appendChild(ui.el("header", { class: "bs-dash-header" }, [
+    var headerEl = ui.el("header", { class: "bs-dash-header" }, [
 
       ui.el("h2", { class: "bs-dash-title" }, ["Bags Status"]),
 
@@ -2766,7 +2819,13 @@
 
       renderStreamLegend(ui),
 
-    ]));
+    ]);
+
+    var bagSearchHost = ui.el("div", { class: "bs-dash-bag-search-host" });
+
+    headerEl.appendChild(bagSearchHost);
+
+    dash.appendChild(headerEl);
 
     container.appendChild(dash);
 
@@ -2836,6 +2895,66 @@
       paint();
     }
 
+    function repaintBagSearchBar() {
+      bagSearchHost.innerHTML = "";
+      bagSearchHost.appendChild(
+        renderBagSearchBar(
+          ui,
+          bagSearch,
+          function (serial) {
+            void runBagSearch(serial);
+          },
+          function () {
+            bagSearch = null;
+            selected = null;
+            wxDrill = null;
+            selectedEvent = null;
+            paint();
+          }
+        )
+      );
+    }
+
+    async function runBagSearch(serial) {
+      if (!serial) {
+        bagSearch = { active: false, error: "Enter a BAG serial." };
+        repaintBagSearchBar();
+        return;
+      }
+      if (!ctx.api || !ctx.api.traceability) {
+        bagSearch = { active: true, serial: serial, error: "Traceability API not configured." };
+        repaintBagSearchBar();
+        return;
+      }
+      bagSearch = { active: true, serial: serial, loading: true, error: null };
+      selected = null;
+      wxDrill = null;
+      selectedEvent = null;
+      repaintBagSearchBar();
+      paint();
+      try {
+        var data = await ctx.api.traceability(
+          "/reports/bags-status/lookup?serial=" + encodeURIComponent(serial)
+        );
+        bagSearch = {
+          active: true,
+          serial: serial,
+          loading: false,
+          data: data,
+          error: null,
+        };
+      } catch (e) {
+        bagSearch = {
+          active: true,
+          serial: serial,
+          loading: false,
+          error: e.message || String(e),
+        };
+      }
+      repaintBagSearchBar();
+      paint();
+    }
+
     function syncFloatingNav() {
       if (!ctx.setFloatingBack) return;
       if (wxDrill) {
@@ -2846,6 +2965,9 @@
             onClick: function () {
               selected.palletDetail = null;
               selected.serial = null;
+              if (selected.fromBagSearch) {
+                selected = null;
+              }
               paint();
             },
           });
@@ -2906,6 +3028,13 @@
             },
           });
         }
+      } else if (bagSearch && bagSearch.active) {
+        ctx.setFloatingBack({
+          onClick: function () {
+            bagSearch = null;
+            paint();
+          },
+        });
       } else {
         ctx.setFloatingBack(null);
       }
@@ -2976,6 +3105,8 @@
 
       body.innerHTML = "";
 
+      repaintBagSearchBar();
+
       if (!summary) return;
 
 
@@ -2993,6 +3124,53 @@
         syncFloatingNav();
         return;
 
+      }
+
+      if (bagSearch && bagSearch.active) {
+        body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
+          "Search — " + (bagSearch.serial || "BAG ID"),
+        ]));
+        if (bagSearch.loading) {
+          body.appendChild(renderDrillLoading("Looking up " + bagSearch.serial, ui));
+          syncFloatingNav();
+          return;
+        }
+        if (bagSearch.error && !bagSearch.data) {
+          syncFloatingNav();
+          return;
+        }
+        var hit = bagSearch.data;
+        if (hit && hit.kind === "label_only" && hit.label) {
+          body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+            "Label registered but no production/intake bag row yet — status: ",
+            hit.label.status || "—",
+            hit.label.note ? " · " + hit.label.note : "",
+          ]));
+          syncFloatingNav();
+          return;
+        }
+        if (hit && hit.row) {
+          if (hit.is_pallet) {
+            body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+              "Physical pallet — tap the row or ",
+              ui.el("strong", {}, ["View contributors"]),
+              " for source bulk bags and kg.",
+            ]));
+            var openBtn = ui.el("button", {
+              class: "bs-dash-bag-search__drill btn btn-sm",
+              type: "button",
+              onclick: function () {
+                openPalletDetail(hit.row);
+              },
+            }, ["View contributors"]);
+            body.appendChild(openBtn);
+          }
+          body.appendChild(renderDrillTable([hit.row], ui, openPalletDetail));
+        } else if (!bagSearch.error) {
+          body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No matching bag."]));
+        }
+        syncFloatingNav();
+        return;
       }
 
 
@@ -3448,6 +3626,11 @@
 
           selected = { label: "Pallet", mode: "pallet_detail", key: "pallet" };
 
+        }
+
+        if (bagSearch && bagSearch.active) {
+          selected.fromBagSearch = true;
+          selected.label = "Pallet search";
         }
 
         selected.palletDetail = data;
