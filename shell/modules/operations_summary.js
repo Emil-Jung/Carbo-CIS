@@ -96,6 +96,26 @@
       });
     }
 
+    var labelDeps = data.label_deployments || [];
+    labelDeps.forEach(function (dep) {
+      var kindLabel =
+        dep.kind === "quantity_park" ? "Labels parked" : "Label deployment";
+      var mainParts = [];
+      if (dep.category) mainParts.push(dep.category);
+      if (dep.note) mainParts.push(dep.note);
+      var main = mainParts.length ? mainParts.join(" — ") : "Active deployment";
+      if (dep.kind === "serial_range" && dep.first_serial && dep.last_serial) {
+        main += " · " + dep.first_serial + " … " + dep.last_serial;
+      } else if (dep.quantity != null) {
+        main += " · qty " + dep.quantity;
+      }
+      var meta = startedLine(dep.created_at);
+      items.push({
+        sort: 4,
+        html: renderItem(kindLabel, main, meta),
+      });
+    });
+
     items.sort(function (a, b) {
       return a.sort - b.sort;
     });
@@ -128,7 +148,7 @@
       state.floatEl.innerHTML =
         '<div class="cis-float-ops-card cis-float-ops-card--idle">' +
         '<div class="cis-float-ops-card__title">Active operations</div>' +
-        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active sieving, packaging, or Walvis load.</p></div>';
+        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active sieving, packaging, Walvis load, or label deployments.</p></div>';
       return;
     }
 
