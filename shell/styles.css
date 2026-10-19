@@ -4669,6 +4669,30 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 
 /* Pallet Configuration — same office layout as Walvis Bay Dispatch */
 .pallet-config-host .pallet-config-status { margin-bottom: 0.5rem; font-size: 0.88rem; }
+.pallet-config-host { position: relative; }
+.packaging-floor-scanner-banner {
+  margin: 0.5rem 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--gold, #c9a227);
+  background: rgba(201, 162, 39, 0.12);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.packaging-floor-scanner-banner--idle {
+  border-color: var(--border, #475569);
+  background: rgba(100, 116, 139, 0.15);
+  font-weight: 500;
+  color: var(--muted, #94a3b8);
+}
+.pallet-config-row-on-scanner td:first-child {
+  box-shadow: inset 3px 0 0 var(--gold, #c9a227);
+}
+.pallet-config-scan-cell input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+}
 .pallet-config-workspace {
   grid-template-columns: minmax(260px, 400px) minmax(300px, 1fr);
 }

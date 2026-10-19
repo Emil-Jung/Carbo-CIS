@@ -22,17 +22,18 @@
     },
     pallet_configuration: {
       id: "pallet_configuration",
-      title: "Pallet Configuration",
-      description: "Manage packaging products — CH05W, CH10, LF4, pallet weights and bag counts.",
+      title: "Packing & products",
+      description: "Pallet SKUs, what is on scanners today, and charcoal waiting in the basket.",
       requires: "traceability.pallet_configuration",
       icon: "config",
     },
     packaging_shift: {
       id: "packaging_shift",
-      title: "Packing Shifts",
-      description: "Limit packaging scanners to chosen pallet SKUs while a shift is active.",
+      title: "Packing Shifts (history)",
+      description: "Advanced — shift history. Day-to-day: use Packing & products instead.",
       requires: "traceability.packaging_shift",
       icon: "schedule",
+      hubHidden: true,
     },
     walvis_dispatches: {
       id: "walvis_dispatches",
@@ -67,8 +68,7 @@
   /** Workflow rows on the Traceability hub (max three tiles per row). */
   var HUB_ROWS = [
     ["control_room", "delivery_confirmations"],
-    ["pallet_configuration"],
-    ["packaging_shift", "walvis_dispatches", "containers"],
+    ["pallet_configuration", "walvis_dispatches", "containers"],
     ["labels", "manager_override"],
   ];
 
@@ -100,7 +100,7 @@
   }
 
   function appendHubTile(ui, rowEl, opt) {
-    if (!opt || !optionAllowed(opt)) return false;
+    if (!opt || opt.hubHidden || !optionAllowed(opt)) return false;
     var mod = (CIS.modules || []).find(function (m) {
       return m.id === opt.id;
     });
