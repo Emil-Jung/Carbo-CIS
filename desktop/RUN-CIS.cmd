@@ -1,6 +1,8 @@
 @echo off
-REM Run CIS from source — no Python console (uses pythonw).
+REM Run CIS desktop from source (WebView2 window, bundled repo shell — NOT the browser URL).
+REM For bkweb3 web shell inside the window: set CIS_REMOTE_SHELL=1 before running.
 cd /d "%~dp0"
+set "CIS_LOCAL_SHELL=1"
 
 set "PYW=%~dp0.venv\Scripts\pythonw.exe"
 if exist "%PYW%" goto :launch

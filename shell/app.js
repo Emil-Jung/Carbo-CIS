@@ -594,6 +594,9 @@
       var sr = state.config && state.config.shellRev;
       var vt = cv ? ("v" + cv) : "";
       if (vt && sr) vt += " · " + sr;
+      if (window.pywebview && window.pywebview.api) {
+        vt = (vt ? vt + " · " : "") + "Desktop";
+      }
       verEl.textContent = vt;
     }
 

@@ -13,6 +13,7 @@ import json
 import os
 import re
 import shutil
+import sys
 import tempfile
 import threading
 from functools import partial
@@ -40,8 +41,15 @@ def _use_local_shell_only() -> bool:
     return os.environ.get("CIS_LOCAL_SHELL", "").strip().lower() in ("1", "true", "yes")
 
 
+def _use_remote_shell() -> bool:
+    """Load bkweb3 /cis/ in the desktop window — opt-in only (browser parity testing)."""
+    if _use_local_shell_only():
+        return False
+    return os.environ.get("CIS_REMOTE_SHELL", "").strip().lower() in ("1", "true", "yes")
+
+
 def _remote_shell_available() -> bool:
-    """When online, desktop loads the same shell as web CIS (stays in sync)."""
+    """True when bkweb3 serves config.json (used only if CIS_REMOTE_SHELL=1)."""
     if _use_local_shell_only():
         return False
     try:
@@ -248,7 +256,7 @@ def _startup_update_check():
 
 def main():
     httpd = None
-    if _remote_shell_available():
+    if _use_remote_shell() and _remote_shell_available():
         url = REMOTE_SHELL_URL
     else:
         shell_dir = _prepare_shell_dir()
