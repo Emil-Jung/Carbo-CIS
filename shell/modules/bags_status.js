@@ -762,8 +762,8 @@
 
       ui.el("p", { class: "bs-dash-card__sub" }, [
 
-        "Bulk intake bags only — the 21-day clock. Physical pallets do not weather; packing blocks unweathered bulk.",
-        " Yard KPIs match Factory → In storage tiles below.",
+        "Bulk intake bags only — the 21-day clock at the factory yard. Physical pallets do not weather.",
+        " “Ready now” and day buckets below are yard only (not Walvis Bay or packaging).",
 
       ]),
 
@@ -776,7 +776,7 @@
     var mixStrip = ui.el("div", { class: "bs-dash-mix-strip" });
     var mixRow = ui.el("div", { class: "bs-dash-mix-row" });
     var mixText = ui.el("div", { class: "bs-dash-mix-text" });
-    var still = (wx.kpis && wx.kpis.still_weathering) || {};
+    var still = pipelineYardBucket(wx, "still_weathering");
 
     mixText.appendChild(ui.el("strong", { class: "bs-dash-mix-text__title" }, [
       "Stream mix — factory yard, still on clock",
@@ -807,13 +807,14 @@
 
 
 
-    var scale = wxMaxKg(wx.days_buckets);
+    var yardBuckets = yardDaysBuckets(wx);
+    var scale = wxMaxKg(yardBuckets);
 
     var bars = ui.el("div", { class: "bs-dash-buckets" });
 
     var any = false;
 
-    (wx.days_buckets || []).forEach(function (b) {
+    yardBuckets.forEach(function (b) {
 
       if (!(b.bags || 0)) return;
 
@@ -829,7 +830,13 @@
 
         style: { "--bucket-accent": accent },
 
-        onclick: function () { onDrill({ bucket: b.key, label: b.label }); },
+        onclick: function () {
+          onDrill({
+            bucket: b.key,
+            label: b.label + " (factory yard)",
+            pipeline_location: "in_storage",
+          });
+        },
 
       });
 
@@ -1002,8 +1009,15 @@
     return !!FACTORY_STORAGE_STATUS_KEYS[key];
   }
 
-  /** Weathering drill — restaurant / lumpwood / fines × FSC split (not briquettes or pallets). */
-  var WX_DRILL_GROUP_STREAMS = ["restaurant", "lumpwood", "fines"];
+  /** Weathering drill — intake streams × FSC split (not pallets). */
+  var WX_DRILL_GROUP_STREAMS = ["restaurant", "lumpwood", "fines", "briquettes"];
+
+  function yardDaysBuckets(wx) {
+    if (wx && wx.yard_days_buckets && wx.yard_days_buckets.length) {
+      return wx.yard_days_buckets;
+    }
+    return wx && wx.days_buckets ? wx.days_buckets : [];
+  }
 
   function factoryStoragePipelineDrillSel(st) {
     if (!st || !isFactoryStorageBagStatus(st.key)) return null;
@@ -1026,26 +1040,17 @@
 
   function factoryStorageWxDrillNote(statusKey, wx) {
     if (!isFactoryStorageBagStatus(statusKey) || !wx) return null;
-    var yardReady = (pipelineYardBucket(wx, "ready").bags || 0);
-    var yardStill = (pipelineYardBucket(wx, "still_weathering").bags || 0);
-    var globalReady = ((wx.kpis && wx.kpis.ready_now) || {}).bags || 0;
     if (statusKey === "in_storage") {
-      var parts = [
-        "Factory yard only — bulk bags with storage “In storage” and the 21-day clock complete.",
-        "Matches the weathering KPI “Factory yard — clock complete” and the “In Storage” tile (bulk only; pallets are separate).",
-      ];
-      if (globalReady > yardReady) {
-        parts.push(
-          "The weathering board “Ready now” row counts " + globalReady + " bags everywhere (packaging plant, Walvis Bay, etc.). "
-            + "That is why it can be higher than " + yardReady + " here."
-        );
-      }
-      return parts.join(" ");
+      return (
+        "At factory — bulk bags in yard storage with the 21-day clock complete. "
+        + "Matches “In Storage” and “Ready now” on the weathering board (bulk only; pallets are separate). "
+        + "Bags at Walvis Bay or packaging are not listed here."
+      );
     }
     if (statusKey === "in_storage_weathering") {
       return (
-        "Factory yard only — bulk bags still on the 21-day clock. "
-        + "Matches “Factory yard — on clock” (" + yardStill + " bags) and the “In Storage — weathering” tile (bulk only)."
+        "At factory — bulk bags still on the 21-day clock in yard storage. "
+        + "Matches “In Storage — weathering” (bulk only)."
       );
     }
     return null;
@@ -1344,7 +1349,7 @@
 
     if (!fn || !wx) return [];
 
-    return (wx.days_buckets || []).filter(function (b) {
+    return yardDaysBuckets(wx).filter(function (b) {
 
       return (b.bags || 0) > 0 && fn(b.key);
 
@@ -2563,7 +2568,7 @@
     });
     if (!grid.childNodes.length) {
       panel.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, [
-        "No restaurant, lumpwood, or fines bags in this selection.",
+        "No restaurant, lumpwood, fines, or briquette bags in this selection.",
       ]));
     } else {
       panel.appendChild(grid);
@@ -3295,8 +3300,7 @@
 
           body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
 
-            "Grouped by days left on the weathering clock (all locations). "
-              + "For factory yard totals that match the In Storage tiles, open those tiles directly — not the global “Ready now” bucket.",
+            "Factory yard only — days left on the weathering clock. Matches the At factory In Storage tiles.",
 
           ]));
 
@@ -3307,7 +3311,11 @@
           } else {
 
             body.appendChild(renderWxBucketCards(selected.buckets, ui, function (bucketSel) {
-              openWxDrill(bucketSel, { backTo: "status_buckets", keepSelected: true });
+              openWxDrill({
+                bucket: bucketSel.bucket,
+                label: bucketSel.label,
+                pipeline_location: "in_storage",
+              }, { backTo: "status_buckets", keepSelected: true });
             }));
 
           }
