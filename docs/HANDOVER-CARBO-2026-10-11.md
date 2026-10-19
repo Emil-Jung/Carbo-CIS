@@ -1,5 +1,7 @@
 # Carbo handover — 11 Oct 2026 (for Cursor on laptop at Carbo)
 
+> **Field work 19 Oct 2026:** use **[HANDOVER-CARBO-2026-10-19.md](./HANDOVER-CARBO-2026-10-19.md)** (Bag Walk canonical status, ops float, pallet column, deploy HEADs).
+
 Use this when you open **`G:\My Coding Projects`** (or your synced clone) **on VPN at Carbo**. Past chat: agent transcript `97a24333-d638-4b75-8888-b688fa4210e3`.
 
 ---
