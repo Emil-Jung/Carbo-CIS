@@ -4670,23 +4670,18 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 /* Pallet Configuration — same office layout as Walvis Bay Dispatch */
 .pallet-config-host .pallet-config-status { margin-bottom: 0.5rem; font-size: 0.88rem; }
 .pallet-config-host { position: relative; }
-.packaging-floor-scanner-banner {
-  margin: 0.5rem 0 1rem;
-  padding: 0.65rem 0.85rem;
-  border-radius: 6px;
-  border: 1px solid var(--gold, #c9a227);
-  background: rgba(201, 162, 39, 0.12);
-  font-weight: 600;
-  font-size: 0.95rem;
+.pallet-config-row-on-scanner .packing-floor-col-scan {
+  box-shadow: inset 0 0 0 2px rgba(201, 162, 39, 0.75);
+  background: rgba(201, 162, 39, 0.08);
 }
-.packaging-floor-scanner-banner--idle {
-  border-color: var(--border, #475569);
-  background: rgba(100, 116, 139, 0.15);
-  font-weight: 500;
-  color: var(--muted, #94a3b8);
+.packing-floor-table thead .packing-floor-col-basket,
+.packing-floor-table tbody .packing-floor-col-basket {
+  border-left: 2px solid rgba(15, 23, 42, 0.85);
+  border-right: 2px solid rgba(15, 23, 42, 0.85);
+  background: rgba(15, 23, 42, 0.22);
 }
-.pallet-config-row-on-scanner td:first-child {
-  box-shadow: inset 3px 0 0 var(--gold, #c9a227);
+.packing-floor-table thead .packing-floor-col-basket {
+  background: rgba(15, 23, 42, 0.45);
 }
 .pallet-config-scan-cell input[type="checkbox"],
 .packing-floor-scan-control input[type="checkbox"] {

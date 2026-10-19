@@ -51,18 +51,10 @@
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Packing & products"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "Manage pallet SKUs and packing-floor status here (CIS only — packaging scanner apps are unchanged). ",
-      "Use the table columns ",
+      "Every packing scanner shows the same product list when ",
       ui.el("strong", {}, ["Packing scanner"]),
-      " and ",
-      ui.el("strong", {}, ["Pallet basket"]),
-      " to see what operators can pick vs charcoal already consumed at the plant.",
+      " is Yes; Bag Walk is shared across scanners. Turn SKUs on or off in that column — not when adding a new catalog row.",
     ]));
-
-    var scannerBanner = ui.el("p", {
-      class: "packaging-floor-scanner-banner",
-      hidden: true,
-    });
-    container.appendChild(scannerBanner);
 
     var status = ui.el("p", { class: "muted pallet-config-status" }, [""]);
     container.appendChild(status);
@@ -87,6 +79,15 @@
             "Bulk charcoal already consumed at the plant and waiting for an A4 pallet wrap — ",
             "not the same as “on scanner”. Empty = nothing in the pool for that SKU.",
           ]),
+          ui.el("dt", {}, ["Production target"]),
+          ui.el("dd", {}, [
+            "Kg the line must accumulate before one pallet is complete (scale / build logic). ",
+            "This is not the commercial nominal weight — use Commercial kg for labels or customer-facing nominal weight.",
+          ]),
+          ui.el("dt", {}, ["Commercial kg"]),
+          ui.el("dd", {}, [
+            "Optional nominal pallet weight for reports and paperwork; does not change when the build completes.",
+          ]),
         ]),
       ])
     );
@@ -95,6 +96,13 @@
 
     formPanel.appendChild(
       ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Add product"])
+    );
+    formPanel.appendChild(
+      ui.el("p", { class: "muted pallet-config-add-lead" }, [
+        "New SKUs join the catalog only — set ",
+        ui.el("strong", {}, ["Packing scanner"]),
+        " to Yes in the table when a line should run them.",
+      ])
     );
     var form = buildForm(ui, null);
     formPanel.appendChild(form.el);
@@ -161,8 +169,7 @@
         min: "0.001",
         step: "0.001",
       });
-      var activeInput = ui.el("input", { type: "checkbox", class: "pallet-config-active-cb" });
-      activeInput.checked = true;
+      var activeInput = null;
       var fscSel = ui.el("select", { class: "wd-field-select", required: "required" });
       fscSel.appendChild(ui.el("option", { value: "" }, ["— Select source-bag policy —"]));
       FSC_BAG_POLICIES.forEach(function (opt) {
@@ -183,7 +190,6 @@
           product.commercial_pallet_weight_kg != null ? String(product.commercial_pallet_weight_kg) : "";
         prodPackInput.value =
           product.production_pack_weight_kg != null ? String(product.production_pack_weight_kg) : "";
-        activeInput.checked = product.active !== false;
         fscSel.value = product.fsc_bag_policy || "mixed";
       } else {
         fscSel.value = "";
@@ -208,8 +214,20 @@
       el.appendChild(field("Client", clientInput, "Optional — e.g. Big-K England"));
       el.appendChild(field("Retail bag weight (kg)", retailInput));
       el.appendChild(field("Bags per pallet", bagsInput));
-      el.appendChild(field("Production pallet target (kg)", prodPalletInput, "Kg accumulated before one pallet is complete."));
-      el.appendChild(field("Commercial pallet weight (kg)", commercialInput, "Optional nominal weight for reports."));
+      el.appendChild(
+        field(
+          "Production pallet target (kg)",
+          prodPalletInput,
+          "Plant scale target — when this kg is reached, one pallet build is complete. Not the commercial nominal weight."
+        )
+      );
+      el.appendChild(
+        field(
+          "Commercial pallet weight (kg)",
+          commercialInput,
+          "Optional customer / label nominal weight — does not drive the packing line counter."
+        )
+      );
       el.appendChild(field("Production pack weight (kg)", prodPackInput, "Optional — when fill weight differs from declared retail (e.g. LF4)."));
       el.appendChild(
         field(
@@ -218,7 +236,17 @@
           "Which bulk bags may be scanned into this SKU at the packing plant. LF lines are typically FSC only."
         )
       );
-      el.appendChild(field("Active", activeInput, "Inactive products are hidden from scanners but history is kept."));
+      if (isEdit) {
+        activeInput = ui.el("input", { type: "checkbox", class: "pallet-config-active-cb" });
+        activeInput.checked = product.active === false;
+        el.appendChild(
+          field(
+            "Retired from catalog",
+            activeInput,
+            "Checked = SKU discontinued (hidden from Packing scanner). To run a SKU today, use Packing scanner Yes in the table — not this box."
+          )
+        );
+      }
 
       var actions = ui.el("div", { class: "pallet-config-form-actions" });
       var submit = ui.el("button", {
@@ -251,9 +279,11 @@
           bags_per_pallet: parseInt(bagsInput.value, 10),
           production_pallet_weight_kg: parseFloat(prodPalletInput.value),
           client_name: clientInput.value.trim() || null,
-          active: activeInput.checked,
           fsc_bag_policy: fscSel.value,
         };
+        if (isEdit) {
+          payload.active = !activeInput.checked;
+        }
         var commercial = commercialInput.value.trim();
         if (commercial) payload.commercial_pallet_weight_kg = parseFloat(commercial);
         var prodPack = prodPackInput.value.trim();
@@ -284,20 +314,6 @@
       ]));
       formWrap = buildForm(ui, editing);
       formPanel.appendChild(formWrap.el);
-    }
-
-    function paintScannerBanner() {
-      if (!onScannersList.length) {
-        scannerBanner.hidden = false;
-        scannerBanner.className = "packaging-floor-scanner-banner packaging-floor-scanner-banner--idle";
-        scannerBanner.textContent =
-          "No SKUs on packing scanners — set Packing scanner to Yes for what the line runs today.";
-        return;
-      }
-      scannerBanner.hidden = false;
-      scannerBanner.className = "packaging-floor-scanner-banner";
-      scannerBanner.textContent =
-        "Packing scanner menu — only these SKUs (Yes in table): " + onScannersList.join(", ");
     }
 
     function closeBasketModal() {
@@ -447,7 +463,7 @@
         var groupRow = ui.el("tr", { class: "packing-floor-head-group" });
         groupRow.appendChild(ui.el("th", { colspan: "2", scope: "colgroup" }, ["Product"]));
         groupRow.appendChild(ui.el("th", { colspan: "2", scope: "colgroup" }, ["Packing floor status"]));
-        groupRow.appendChild(ui.el("th", { colspan: "4", scope: "colgroup" }, ["Pallet specification"]));
+        groupRow.appendChild(ui.el("th", { colspan: "5", scope: "colgroup" }, ["Pallet specification"]));
         groupRow.appendChild(ui.el("th", { class: "packing-floor-col-action", scope: "colgroup" }, [""]));
         thead.appendChild(groupRow);
       }
@@ -461,7 +477,20 @@
       hr.appendChild(ui.el("th", { scope: "col" }, ["Source FSC"]));
       hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-num" }, ["Retail kg"]));
       hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-num" }, ["Bags / pallet"]));
-      hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-num" }, ["Target kg"]));
+      hr.appendChild(
+        ui.el("th", {
+          scope: "col",
+          class: "packing-floor-num",
+          title: "Production target — kg on the scale before one pallet build completes",
+        }, ["Prod. target kg"])
+      );
+      hr.appendChild(
+        ui.el("th", {
+          scope: "col",
+          class: "packing-floor-num",
+          title: "Commercial nominal pallet weight (optional)",
+        }, ["Commercial kg"])
+      );
       hr.appendChild(ui.el("th", { scope: "col", class: "packing-floor-col-action" }, [""]));
       thead.appendChild(hr);
       table.appendChild(thead);
@@ -488,6 +517,11 @@
         tr.appendChild(ui.el("td", { class: "packing-floor-num" }, [fmtKg(p.retail_bag_weight_kg)]));
         tr.appendChild(ui.el("td", { class: "packing-floor-num" }, [fmtNum(p.bags_per_pallet)]));
         tr.appendChild(ui.el("td", { class: "packing-floor-num" }, [fmtKg(p.production_target_kg)]));
+        tr.appendChild(
+          ui.el("td", { class: "packing-floor-num" }, [
+            p.commercial_pallet_weight_kg != null ? fmtKg(p.commercial_pallet_weight_kg) : "—",
+          ])
+        );
         var actions = ui.el("td", { class: "packing-floor-col-action" });
         actions.appendChild(ui.el("button", {
           class: "btn btn-sm",
@@ -547,7 +581,6 @@
         "No inactive products.",
         false
       );
-      paintScannerBanner();
     }
 
     async function load() {
