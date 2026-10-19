@@ -4670,9 +4670,28 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 /* Pallet Configuration — same office layout as Walvis Bay Dispatch */
 .pallet-config-host .pallet-config-status { margin-bottom: 0.5rem; font-size: 0.88rem; }
 .pallet-config-host { position: relative; }
+/* On-scanner rows: one gold band across SKU + Name + Packing scanner */
+.pallet-config-row-on-scanner .packing-floor-col-code,
+.pallet-config-row-on-scanner .packing-floor-col-name,
 .pallet-config-row-on-scanner .packing-floor-col-scan {
-  box-shadow: inset 0 0 0 2px rgba(201, 162, 39, 0.75);
-  background: rgba(201, 162, 39, 0.08);
+  background: rgba(201, 162, 39, 0.1);
+}
+.pallet-config-row-on-scanner .packing-floor-col-code {
+  box-shadow:
+    inset 2px 0 0 rgba(201, 162, 39, 0.85),
+    inset 0 2px 0 rgba(201, 162, 39, 0.85),
+    inset 0 -2px 0 rgba(201, 162, 39, 0.85);
+}
+.pallet-config-row-on-scanner .packing-floor-col-name {
+  box-shadow:
+    inset 0 2px 0 rgba(201, 162, 39, 0.85),
+    inset 0 -2px 0 rgba(201, 162, 39, 0.85);
+}
+.pallet-config-row-on-scanner .packing-floor-col-scan {
+  box-shadow:
+    inset -2px 0 0 rgba(201, 162, 39, 0.85),
+    inset 0 2px 0 rgba(201, 162, 39, 0.85),
+    inset 0 -2px 0 rgba(201, 162, 39, 0.85);
 }
 .packing-floor-table thead .packing-floor-col-basket,
 .packing-floor-table tbody .packing-floor-col-basket {
