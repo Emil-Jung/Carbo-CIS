@@ -24,8 +24,12 @@
   var STOCK_6128_LAYOUT_Y_OFFSET_DOTS = 12;
   var STOCK_6128_QR_LEFT_INSET_MM = 1.5;
 
-  /** Zebra ~SD darkness 00–30 (higher = darker). Tune with a test print; 22 is a solid default for ZT231. */
-  var PRODUCTION_DARKNESS = 22;
+  /** Zebra ~SD darkness 00–30 (higher = darker). 30 + slow print for dull USB/legacy stock. */
+  var PRODUCTION_DARKNESS = 30;
+
+  /** Print speed (ips) — lower often darkens thermal output on ZT231. */
+  var PRODUCTION_PRINT_SPEED = 2;
+  var PRODUCTION_SLEW_SPEED = 2;
 
   function mmToDots(mm, dpi) {
     return Math.round((mm * dpi) / 25.4);
@@ -149,22 +153,44 @@
     );
   }
 
-  function zplDarknessCommand(spec) {
+  function parsedDarkness(spec) {
     if (!spec || spec.darkness === false || spec.darkness === null || spec.darkness === "") {
-      return "";
+      return null;
     }
     var sd = parseInt(spec.darkness, 10);
-    if (isNaN(sd)) return "";
-    sd = Math.max(0, Math.min(30, sd));
+    if (isNaN(sd)) return null;
+    return Math.max(0, Math.min(30, sd));
+  }
+
+  /** Session darkness before ^XA — ZT231 respects this more reliably than ~SD mid-label over USB RAW. */
+  function zplSessionDarkness(spec) {
+    var sd = parsedDarkness(spec);
+    if (sd === null) return "";
     return "~SD" + (sd < 10 ? "0" + sd : String(sd)) + "\n";
+  }
+
+  function zplInLabelTuning(spec) {
+    var sd = parsedDarkness(spec);
+    var printSp = parseInt(spec && spec.printSpeed, 10);
+    var slewSp = parseInt(spec && spec.slewSpeed, 10);
+    if (isNaN(printSp)) printSp = PRODUCTION_PRINT_SPEED;
+    if (isNaN(slewSp)) slewSp = PRODUCTION_SLEW_SPEED;
+    printSp = Math.max(1, Math.min(12, printSp));
+    slewSp = Math.max(1, Math.min(12, slewSp));
+    var out = "^PR" + printSp + "," + slewSp + "\n";
+    if (sd !== null && sd >= 24) {
+      out += "^MD30\n";
+    }
+    return out;
   }
 
   function zplOneLabel(serial, spec) {
     var layout = layoutLabel(serial, spec);
     var d = layout.dots;
     return (
+      zplSessionDarkness(spec) +
       "^XA\n^CI28\n" +
-      zplDarknessCommand(spec) +
+      zplInLabelTuning(spec) +
       "^PW" + d.pw + "\n^LL" + d.ll + "\n^LH0,0\n" +
       zplSymbolField(layout) + "\n" +
       zplTextField(layout) +
@@ -191,6 +217,8 @@
         qrLeftInsetMm: 0,
         layoutYOffsetDots: 0,
         darkness: PRODUCTION_DARKNESS,
+        printSpeed: PRODUCTION_PRINT_SPEED,
+        slewSpeed: PRODUCTION_SLEW_SPEED,
         symbol: "qr",
       },
       overrides || {}
@@ -211,7 +239,9 @@
         qrBoostMag: STOCK_6128_QR_BOOST_MAG,
         qrLeftInsetMm: STOCK_6128_QR_LEFT_INSET_MM,
         layoutYOffsetDots: STOCK_6128_LAYOUT_Y_OFFSET_DOTS,
-        darkness: PRODUCTION_DARKNESS,
+        darkness: 22,
+        printSpeed: PRODUCTION_PRINT_SPEED,
+        slewSpeed: PRODUCTION_SLEW_SPEED,
         symbol: "qr",
       },
       overrides || {}
