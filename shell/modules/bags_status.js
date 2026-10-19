@@ -2022,7 +2022,9 @@
 
       ["Status", p.storage_status || "—"],
 
-      ["FSC", p.fsc_status || p.fsc_bag_policy_label || "—"],
+      ["SKU FSC rule", p.fsc_bag_policy_label || "—"],
+
+      ["Source charcoal FSC", p.fsc_source_charcoal || p.fsc_status || "—"],
 
     ].forEach(function (pair) {
 
@@ -2052,6 +2054,8 @@
 
         var line = pr.display || "—";
 
+        if (pr.fsc_status && pr.fsc_status !== "—") line += " · " + pr.fsc_status;
+
         if (pr.kg != null) line += " · " + fmtMass(pr.kg);
 
         if (pr.pct != null) line += " (" + pr.pct + "%)";
@@ -2070,11 +2074,19 @@
 
       var blist = ui.el("ul", { class: "bs-dash-pallet-sources" });
 
-      p.input_bags.forEach(function (s) {
-
-        blist.appendChild(ui.el("li", {}, [s]));
-
-      });
+      var allocs = p.source_allocations || [];
+      if (allocs.length) {
+        allocs.forEach(function (a) {
+          var line = (a.serial || "—") + " · " + fmtMass(a.kg, true);
+          if (a.producer_display) line += " · " + a.producer_display;
+          if (a.fsc_status && a.fsc_status !== "—") line += " · " + a.fsc_status;
+          blist.appendChild(ui.el("li", {}, [line]));
+        });
+      } else {
+        p.input_bags.forEach(function (s) {
+          blist.appendChild(ui.el("li", {}, [s]));
+        });
+      }
 
       wrap.appendChild(blist);
 
