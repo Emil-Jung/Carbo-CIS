@@ -882,6 +882,12 @@
 
         else if (k === "html") node.innerHTML = attrs[k];
 
+        else if (k === "checked") node.checked = !!attrs[k];
+
+        else if (k === "disabled") node.disabled = !!attrs[k];
+
+        else if (k === "readOnly") node.readOnly = !!attrs[k];
+
         else if (k.startsWith("on") && typeof attrs[k] === "function") node.addEventListener(k.slice(2), attrs[k]);
 
         else node.setAttribute(k, attrs[k]);

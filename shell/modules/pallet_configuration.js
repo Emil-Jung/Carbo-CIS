@@ -297,7 +297,7 @@
       scannerBanner.hidden = false;
       scannerBanner.className = "packaging-floor-scanner-banner";
       scannerBanner.textContent =
-        "Packing scanner menu (operators): " + onScannersList.join(", ");
+        "Packing scanner menu — only these SKUs (Yes in table): " + onScannersList.join(", ");
     }
 
     function closeBasketModal() {
@@ -397,9 +397,9 @@
         }, [onScan ? "Yes" : "No"]);
         var cb = ui.el("input", {
           type: "checkbox",
-          checked: onScan,
           "aria-label": "Packing scanner menu for " + p.product_code,
         });
+        cb.checked = onScan;
         cb.addEventListener("change", function () {
           var want = cb.checked;
           stateEl.textContent = want ? "Yes" : "No";
@@ -470,7 +470,7 @@
       list.forEach(function (p) {
         var tr = ui.el("tr");
         var floor = floorByCode[p.product_code] || {};
-        var onScan = !!floor.on_scanners;
+        var onScan = !!(p.on_scanners || floor.on_scanners);
         var basketKg = floor.basket_kg != null ? floor.basket_kg : 0;
         if (p.active === false) tr.className = "pallet-config-row-inactive";
         if (showScannerCols && onScan) {
