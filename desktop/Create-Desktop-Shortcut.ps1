@@ -32,7 +32,7 @@ $shortcut = $wsh.CreateShortcut($lnkPath)
 $shortcut.TargetPath = $target
 $shortcut.WorkingDirectory = $workDir
 $shortcut.WindowStyle = 1
-$shortcut.Description = "Carbo Integrated System (desktop app — not browser CIS)"
+$shortcut.Description = "Carbo Integrated System (desktop app, not browser CIS)"
 $shortcut.Save()
 
 [System.Windows.Forms.MessageBox]::Show(
