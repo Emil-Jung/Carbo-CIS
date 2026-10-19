@@ -252,20 +252,15 @@
       formPanel.appendChild(formWrap.el);
     }
 
-    function paintList() {
-      listHost.innerHTML = "";
-      if (!products.length) {
-        listHost.appendChild(ui.el("p", { class: "muted" }, ["No products configured yet."]));
-        return;
-      }
+    function renderProductTable(list) {
       var table = ui.el("table", { class: "data-table pallet-config-table" });
       table.innerHTML =
         "<thead><tr>" +
         "<th>Code</th><th>Name</th><th>Client</th>" +
-        "<th>Source FSC</th><th>Retail</th><th>Bags</th><th>Production target</th><th>Status</th><th></th>" +
+        "<th>Source FSC</th><th>Retail</th><th>Bags</th><th>Production target</th><th></th>" +
         "</tr></thead>";
       var tbody = ui.el("tbody");
-      products.forEach(function (p) {
+      list.forEach(function (p) {
         var tr = ui.el("tr");
         if (p.active === false) tr.className = "pallet-config-row-inactive";
         tr.innerHTML =
@@ -275,8 +270,7 @@
           "<td>" + ui.escape(p.fsc_bag_policy_label || fscPolicyLabel(p.fsc_bag_policy)) + "</td>" +
           "<td>" + ui.escape(fmtKg(p.retail_bag_weight_kg)) + "</td>" +
           "<td>" + ui.escape(fmtNum(p.bags_per_pallet)) + "</td>" +
-          "<td>" + ui.escape(fmtKg(p.production_target_kg)) + "</td>" +
-          "<td>" + (p.active === false ? "Inactive" : "Active") + "</td>";
+          "<td>" + ui.escape(fmtKg(p.production_target_kg)) + "</td>";
         var actions = ui.el("td", {});
         actions.appendChild(ui.el("button", {
           class: "btn-ghost",
@@ -292,7 +286,48 @@
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      listHost.appendChild(table);
+      return table;
+    }
+
+    function appendProductBlock(title, list, emptyText) {
+      var block = ui.el("div", { class: "pallet-config-product-block" });
+      block.appendChild(ui.el("h4", { class: "pallet-config-block-title" }, [title]));
+      if (!list.length) {
+        block.appendChild(ui.el("p", { class: "muted pallet-config-block-empty" }, [emptyText]));
+      } else {
+        block.appendChild(renderProductTable(list));
+      }
+      listHost.appendChild(block);
+    }
+
+    function paintList() {
+      listHost.innerHTML = "";
+      if (!products.length) {
+        listHost.appendChild(ui.el("p", { class: "muted" }, ["No products configured yet."]));
+        return;
+      }
+      var active = products.filter(function (p) {
+        return p.active !== false;
+      });
+      var inactive = products.filter(function (p) {
+        return p.active === false;
+      });
+      active.sort(function (a, b) {
+        return String(a.product_code).localeCompare(String(b.product_code));
+      });
+      inactive.sort(function (a, b) {
+        return String(a.product_code).localeCompare(String(b.product_code));
+      });
+      appendProductBlock(
+        "Active products",
+        active,
+        "No active products — scanners will have no pallet SKUs until you add or reactivate one."
+      );
+      appendProductBlock(
+        "Inactive products",
+        inactive,
+        "No inactive products."
+      );
     }
 
     async function load() {
@@ -305,7 +340,10 @@
         var data = await ctx.api.traceability("/packaging/products/admin?include_inactive=true");
         products = data.products || [];
         paintList();
-        setStatus(products.length + " product(s).");
+        var nActive = products.filter(function (p) {
+          return p.active !== false;
+        }).length;
+        setStatus(nActive + " active, " + (products.length - nActive) + " inactive.");
       } catch (e) {
         setStatus("Could not load products: " + (e.message || e), true);
       }

@@ -4555,6 +4555,22 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   vertical-align: top;
 }
 .pallet-config-row-inactive { opacity: 0.65; }
+.pallet-config-product-block {
+  margin-bottom: 1.25rem;
+}
+.pallet-config-product-block:last-child {
+  margin-bottom: 0;
+}
+.pallet-config-block-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--gold-bright);
+}
+.pallet-config-block-empty {
+  margin: 0 0 0.25rem;
+  font-size: 0.88rem;
+}
 .pallet-config-host .walvis-dispatch-form input[type="checkbox"] {
   width: auto;
   max-width: none;
