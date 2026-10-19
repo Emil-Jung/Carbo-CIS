@@ -273,9 +273,8 @@
           "<td>" + ui.escape(fmtKg(p.production_target_kg)) + "</td>";
         var actions = ui.el("td", {});
         actions.appendChild(ui.el("button", {
-          class: "btn-ghost",
+          class: "btn btn-sm",
           type: "button",
-          style: "padding:0.2rem 0.5rem;font-size:0.85rem;",
           onclick: function () {
             editing = p;
             paintForm();
