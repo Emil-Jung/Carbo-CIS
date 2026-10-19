@@ -101,8 +101,31 @@
     return Object.prototype.hasOwnProperty.call(STREAM_ORDER, key) ? STREAM_ORDER[key] : 99;
   }
 
+  /** One row per truck load (intake), not merged by producer name on the same day. */
   function summaryKey(row) {
-    return String(row.recorded_date || "") + "\0" + String(row.producer_name || "Unknown producer").trim();
+    var intake = String(row.intake_id || "").trim();
+    if (!intake) {
+      return String(row.recorded_date || "") + "\0" + String(row.producer_name || "Unknown producer").trim();
+    }
+    return String(row.recorded_date || "") + "\0" + intake;
+  }
+
+  function producerLoadCellText(row) {
+    var name = (row.producer_name || "Unknown producer").trim();
+    var truck = (row.truck_registration || "").trim();
+    var grn = (row.grn || "").trim();
+    if (truck || grn) {
+      var bits = [name];
+      if (truck) bits.push(truck);
+      if (grn) bits.push("GRN " + grn);
+      return bits.join(" · ");
+    }
+    return name;
+  }
+
+  function producerGroupCellText(group) {
+    var row = (group.detail_rows && group.detail_rows[0]) || {};
+    return producerLoadCellText(row);
   }
 
   function buildSummaryRows(rows) {
@@ -113,6 +136,7 @@
         map[key] = {
           key: key,
           recorded_date: row.recorded_date,
+          intake_id: row.intake_id || null,
           producer_name: row.producer_name || "Unknown producer",
           bags: 0,
           restaurant: 0,
@@ -646,7 +670,7 @@
     table.innerHTML =
       SUMMARY_COLGROUP +
       "<thead><tr>" +
-      "<th>Producer</th><th>FSC</th>" +
+      "<th>Producer / load</th><th>FSC</th>" +
       "<th class='bm-num' title='Bag count'>Bags</th>" +
       "<th class='bm-num' title='Restaurant'>R</th>" +
       "<th class='bm-num' title='Lumpwood'>L</th>" +
@@ -661,7 +685,7 @@
       });
       tr.style.cursor = "pointer";
       tr.innerHTML =
-        "<td class='bm-producer'>" + ui.escape(group.producer_name) + "</td>" +
+        "<td class='bm-producer'>" + ui.escape(producerGroupCellText(group)) + "</td>" +
         "<td class='bm-fsc'>" + ui.escape(groupFscText(group)) + "</td>" +
         "<td class='bm-num'>" + fmt(group.bags) + "</td>" +
         "<td class='bm-num'>" + fmt(group.restaurant) + "</td>" +
@@ -760,7 +784,7 @@
 
     if (drillDown) {
       var panel = ui.el("div", { class: "bm-drill-panel" });
-      var titleParts = [drillDown.producer_name];
+      var titleParts = [producerGroupCellText(drillDown)];
       if (drillDown.recorded_date) {
         titleParts.push(fmtDate(drillDown.recorded_date));
       }
