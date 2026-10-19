@@ -2195,10 +2195,27 @@
     return sortPalletFlattenedRows(rows);
   }
 
-  function palletProducerCell(row) {
-    if (row.producer_name) return row.producer_name;
-    if (row.mixed_producers) return "Mixed producers — tap for split";
-    return "—";
+  function traceabilityColumnCell(row) {
+    var stream = String(row.product_stream || "").toLowerCase();
+    if (stream === "pallet") {
+      if (row.content_traceability) return row.content_traceability;
+      var code = (row.product_code || "").trim();
+      var prefix = code ? code + " · " : "Pallet · ";
+      if (row.mixed_producers) {
+        var n = row.producer_mix && row.producer_mix.length;
+        return prefix + (n ? "Mixed (" + n + " sources)" : "Mixed sources") + " — tap for split";
+      }
+      if (row.producer_name) return prefix + "1 source · " + row.producer_name;
+      return prefix + "Tap bag for source bulk bags";
+    }
+    return (row.producer_name || "").trim() || "Unknown producer";
+  }
+
+  function traceabilityGroupLabel(row) {
+    if (String(row.product_stream || "").toLowerCase() === "pallet") {
+      return traceabilityColumnCell(row);
+    }
+    return (row.producer_name || "").trim() || "Unknown producer";
   }
 
   function producerSnapshotObj(row) {
@@ -2288,11 +2305,7 @@
   function groupRowsByProducerFsc(rows) {
     var map = {};
     (rows || []).forEach(function (row) {
-      var producer = (row.producer_name || "").trim();
-      if (!producer && row.product_stream === "pallet") {
-        producer = "Pallet — tap bag for source producers";
-      }
-      if (!producer) producer = "Unknown producer";
+      var producer = traceabilityGroupLabel(row);
       var fsc = fscText(row);
       var key = producer + "\0" + fsc;
       if (!map[key]) {
@@ -2416,7 +2429,7 @@
 
     var hr = ui.el("tr", {});
 
-    ["#", "Bag", "Stream", "Producer", "FSC", "kg", "Status since", "Weathering", "Detail"].forEach(function (h) {
+    ["#", "Bag", "Stream", "Source / traceability", "FSC", "kg", "Status since", "Weathering", "Detail"].forEach(function (h) {
 
       hr.appendChild(ui.el("th", {}, [h]));
 
@@ -2468,7 +2481,7 @@
 
       tr.appendChild(streamTd);
 
-      tr.appendChild(ui.el("td", {}, [palletProducerCell(row)]));
+      tr.appendChild(ui.el("td", {}, [traceabilityColumnCell(row)]));
 
       tr.appendChild(fscTableCell(row, ui));
 
