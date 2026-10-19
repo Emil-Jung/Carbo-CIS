@@ -1,4 +1,4 @@
-/* Core CIS V1 — floating read-only active operations (sieving, packaging, Walvis dispatch). */
+/* Core CIS V1 — floating read-only active operations (sieving, packaging, Walvis, containers). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -90,29 +90,44 @@
       var wMain = wd.display_label || wd.title || "Walvis dispatch";
       if (wd.product_summary) wMain += " · " + wd.product_summary;
       if (wd.truck_registration) wMain += " · " + wd.truck_registration;
+      var wMeta = startedLine(wd.started_at);
+      if (wd.plan_total != null && wd.plan_total > 0) {
+        var onPlan = wd.plan_loaded != null ? wd.plan_loaded : wd.loaded_bags;
+        wMeta +=
+          '<p class="cis-float-ops-card__meta">' +
+          esc(String(onPlan != null ? onPlan : 0)) +
+          " / " +
+          esc(String(wd.plan_total)) +
+          " bags on manifest</p>";
+      } else if (wd.loaded_bags != null) {
+        wMeta +=
+          '<p class="cis-float-ops-card__meta">' +
+          esc(String(wd.loaded_bags)) +
+          " bag(s) on manifest</p>";
+      }
       items.push({
         sort: 3,
-        html: renderItem("Walvis dispatch", wMain, startedLine(wd.started_at)),
+        html: renderItem("Walvis dispatch", wMain, wMeta),
       });
     }
 
-    var labelDeps = data.label_deployments || [];
-    labelDeps.forEach(function (dep) {
-      var kindLabel =
-        dep.kind === "quantity_park" ? "Labels parked" : "Label deployment";
-      var mainParts = [];
-      if (dep.category) mainParts.push(dep.category);
-      if (dep.note) mainParts.push(dep.note);
-      var main = mainParts.length ? mainParts.join(" — ") : "Active deployment";
-      if (dep.kind === "serial_range" && dep.first_serial && dep.last_serial) {
-        main += " · " + dep.first_serial + " … " + dep.last_serial;
-      } else if (dep.quantity != null) {
-        main += " · qty " + dep.quantity;
+    (data.container_loading || []).forEach(function (c) {
+      var cMain =
+        (c.container_number || "Container") +
+        (c.location_display ? " · " + c.location_display : "");
+      if (c.product_label) cMain += " · " + c.product_label;
+      var cMeta = startedLine(c.started_at);
+      if (c.loaded_bags != null && c.target_bag_count != null) {
+        cMeta +=
+          '<p class="cis-float-ops-card__meta">' +
+          esc(String(c.loaded_bags)) +
+          " / " +
+          esc(String(c.target_bag_count)) +
+          " bags loaded</p>";
       }
-      var meta = startedLine(dep.created_at);
       items.push({
         sort: 4,
-        html: renderItem(kindLabel, main, meta),
+        html: renderItem("Container loading", cMain, cMeta),
       });
     });
 
@@ -148,7 +163,7 @@
       state.floatEl.innerHTML =
         '<div class="cis-float-ops-card cis-float-ops-card--idle">' +
         '<div class="cis-float-ops-card__title">Active operations</div>' +
-        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active sieving, packaging, Walvis load, or label deployments.</p></div>';
+        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active sieving, packaging, Walvis load, or container loading.</p></div>';
       return;
     }
 
