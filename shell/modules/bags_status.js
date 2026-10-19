@@ -2179,46 +2179,21 @@
     if (p.mixed_producers) {
 
       wrap.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-        "This pallet draws from more than one producer — weights below are from source bulk bag allocations at packaging.",
+        "This pallet draws from more than one source bulk bag — kg below are packaging allocations.",
       ]));
 
     }
 
-    if ((p.producers || []).length) {
-
-      wrap.appendChild(ui.el("h4", {}, ["Producers (from source bulk bags)"]));
-
-      var plist = ui.el("ul", { class: "bs-dash-pallet-producers" });
-
-      p.producers.forEach(function (pr) {
-
-        var line = pr.display || "—";
-
-        if (pr.fsc_status && pr.fsc_status !== "—") line += " · " + pr.fsc_status;
-
-        if (pr.kg != null) line += " · " + fmtMass(pr.kg);
-
-        if (pr.pct != null) line += " (" + pr.pct + "%)";
-
-        plist.appendChild(ui.el("li", {}, [line]));
-
-      });
-
-      wrap.appendChild(plist);
-
-    }
-
-    if ((p.input_bags || []).length) {
+    var allocs = p.source_allocations || [];
+    if (allocs.length || (p.input_bags || []).length) {
 
       wrap.appendChild(ui.el("h4", {}, ["Source bulk bag BAG IDs"]));
 
       var blist = ui.el("ul", { class: "bs-dash-pallet-sources" });
 
-      var allocs = p.source_allocations || [];
       if (allocs.length) {
         allocs.forEach(function (a) {
           var line = (a.serial || "—") + " · " + fmtMass(a.kg, true);
-          if (a.producer_display) line += " · " + a.producer_display;
           if (a.fsc_status && a.fsc_status !== "—") line += " · " + a.fsc_status;
           blist.appendChild(ui.el("li", {}, [line]));
         });
