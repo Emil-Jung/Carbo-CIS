@@ -30,7 +30,7 @@ WINDOW_TITLE = "Carbo Print Labels"
 
 REMOTE_SHELL_URL = (
     os.environ.get("CIS_PRINT_LABELS_URL", "").strip()
-    or "https://bkweb3.bigk.co.uk/cis/print_labels.html?shellRev=20261008-zebra-network-print"
+    or "https://bkweb3.bigk.co.uk/cis/print_labels.html"
 )
 
 _LOCAL = os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()
@@ -39,12 +39,6 @@ STORAGE_DIR = os.path.join(_LOCAL, "CarboPrintLabels", "webview")
 
 def _use_local_shell_only() -> bool:
     return os.environ.get("CIS_LOCAL_SHELL", "").strip().lower() in ("1", "true", "yes")
-
-
-def _use_remote_shell() -> bool:
-    if _use_local_shell_only():
-        return False
-    return os.environ.get("CIS_REMOTE_SHELL", "").strip().lower() in ("1", "true", "yes")
 
 
 def _remote_shell_available() -> bool:
@@ -178,7 +172,9 @@ class PrintLabelsApi:
 
 
 def main():
-    if _use_remote_shell() and _remote_shell_available():
+    # Online: load print_labels.html from bkweb3 (label/UI fixes without reinstalling this .exe).
+    # Offline or CIS_LOCAL_SHELL=1: bundled shell on 127.0.0.1.
+    if _remote_shell_available():
         url = REMOTE_SHELL_URL
     else:
         shell_dir = _prepare_shell_dir()

@@ -10,6 +10,6 @@ See VERSIONING.md for the rules and examples.
 
 CIS_MAJOR = 1      # X — CIS version
 CIS_MODULE = 6     # Y — Bags Movement report + remote shell sync
-CIS_INTERNAL = 10  # Z — desktop uses bundled shell; shortcut helper
+CIS_INTERNAL = 12  # Z — A4 pallet QR prints pure black (1-bit)
 
 CIS_VERSION = f"{CIS_MAJOR}.{CIS_MODULE}.{CIS_INTERNAL}"

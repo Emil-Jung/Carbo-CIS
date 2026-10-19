@@ -33,10 +33,20 @@ def _printer_names() -> set[str]:
 
 
 def _qr_image(serial: str, size_px: int) -> Image.Image:
-    qr = qrcode.make(serial, box_size=8, border=2).convert("RGB")
-    if size_px < 8:
-        return qr
-    return qr.resize((size_px, size_px), Image.LANCZOS)
+    """Crisp 1-bit QR — LANCZOS/RGB upscaling prints as washed-out gray on many A4 lasers."""
+    factory = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=12,
+        border=2,
+    )
+    factory.add_data(serial)
+    factory.make(fit=True)
+    img = factory.make_image(fill_color=0, back_color=255).convert("L")
+    if size_px >= 8 and img.width != size_px:
+        img = img.resize((size_px, size_px), Image.NEAREST)
+    # Pure black/white only (no anti-aliased module edges).
+    return img.point(lambda p: 0 if p < 128 else 255, mode="1").convert("RGB")
 
 
 def _apply_devmode(hdc, devmode) -> None:

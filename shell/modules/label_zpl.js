@@ -27,9 +27,9 @@
   /** Zebra ~SD darkness 00–30 (higher = darker). 30 + slow print for dull USB/legacy stock. */
   var PRODUCTION_DARKNESS = 30;
 
-  /** Print speed (ips) — lower often darkens thermal output on ZT231. */
-  var PRODUCTION_PRINT_SPEED = 2;
-  var PRODUCTION_SLEW_SPEED = 2;
+  /** Print speed (ips) — 1 ips = darkest reliable output on ZT231 legacy stock. */
+  var PRODUCTION_PRINT_SPEED = 1;
+  var PRODUCTION_SLEW_SPEED = 1;
 
   function mmToDots(mm, dpi) {
     return Math.round((mm * dpi) / 25.4);
@@ -162,11 +162,15 @@
     return Math.max(0, Math.min(30, sd));
   }
 
-  /** Session darkness before ^XA — ZT231 respects this more reliably than ~SD mid-label over USB RAW. */
-  function zplSessionDarkness(spec) {
+  function _sdCommand(sd) {
+    return "~SD" + (sd < 10 ? "0" + sd : String(sd)) + "\n";
+  }
+
+  /** Start of a multi-label job (USB RAW spooler doc or one LAN socket). */
+  function zplJobPreamble(spec) {
     var sd = parsedDarkness(spec);
     if (sd === null) return "";
-    return "~SD" + (sd < 10 ? "0" + sd : String(sd)) + "\n";
+    return _sdCommand(sd);
   }
 
   function zplInLabelTuning(spec) {
@@ -178,17 +182,20 @@
     printSp = Math.max(1, Math.min(12, printSp));
     slewSp = Math.max(1, Math.min(12, slewSp));
     var out = "^PR" + printSp + "," + slewSp + "\n";
-    if (sd !== null && sd >= 24) {
+    if (sd !== null) {
+      out += _sdCommand(sd);
       out += "^MD30\n";
     }
     return out;
   }
 
-  function zplOneLabel(serial, spec) {
+  function zplOneLabelFormat(serial, spec) {
     var layout = layoutLabel(serial, spec);
     var d = layout.dots;
+    var sd = parsedDarkness(spec);
+    var beforeXa = sd !== null ? _sdCommand(sd) : "";
     return (
-      zplSessionDarkness(spec) +
+      beforeXa +
       "^XA\n^CI28\n" +
       zplInLabelTuning(spec) +
       "^PW" + d.pw + "\n^LL" + d.ll + "\n^LH0,0\n" +
@@ -198,8 +205,14 @@
     );
   }
 
+  function zplOneLabel(serial, spec) {
+    return zplJobPreamble(spec) + zplOneLabelFormat(serial, spec);
+  }
+
   function zplBatch(serials, spec) {
-    return (serials || []).map(function (s) { return zplOneLabel(s, spec); }).join("");
+    var list = serials || [];
+    if (!list.length) return "";
+    return zplJobPreamble(spec) + list.map(function (s) { return zplOneLabelFormat(s, spec); }).join("");
   }
 
   /** Active production — 54×25 mm legacy stock (ZT231). */
@@ -257,7 +270,9 @@
     symbolPayload: symbolPayload,
     layoutLabel: layoutLabel,
     zplOneLabel: zplOneLabel,
+    zplOneLabelFormat: zplOneLabelFormat,
     zplBatch: zplBatch,
+    zplJobPreamble: zplJobPreamble,
     productionSpec: productionSpec,
     productionSpec6128: productionSpec6128,
   };
