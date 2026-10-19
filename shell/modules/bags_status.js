@@ -1002,6 +1002,90 @@
     return !!FACTORY_STORAGE_STATUS_KEYS[key];
   }
 
+  /** Weathering drill — restaurant / lumpwood / fines × FSC split (not briquettes or pallets). */
+  var WX_DRILL_GROUP_STREAMS = ["restaurant", "lumpwood", "fines"];
+
+  function factoryStoragePipelineDrillSel(st) {
+    if (!st || !isFactoryStorageBagStatus(st.key)) return null;
+    if (st.key === "in_storage") {
+      return {
+        pipeline_location: "in_storage",
+        pipeline_clock: "ready",
+        label: st.label,
+      };
+    }
+    if (st.key === "in_storage_weathering") {
+      return {
+        pipeline_location: "in_storage",
+        pipeline_clock: "still_weathering",
+        label: st.label,
+      };
+    }
+    return null;
+  }
+
+  function factoryStorageWxDrillNote(statusKey, wx) {
+    if (!isFactoryStorageBagStatus(statusKey) || !wx) return null;
+    var yardReady = (pipelineYardBucket(wx, "ready").bags || 0);
+    var yardStill = (pipelineYardBucket(wx, "still_weathering").bags || 0);
+    var globalReady = ((wx.kpis && wx.kpis.ready_now) || {}).bags || 0;
+    if (statusKey === "in_storage") {
+      var parts = [
+        "Factory yard only — bulk bags with storage “In storage” and the 21-day clock complete.",
+        "Matches the weathering KPI “Factory yard — clock complete” and the “In Storage” tile (bulk only; pallets are separate).",
+      ];
+      if (globalReady > yardReady) {
+        parts.push(
+          "The weathering board “Ready now” row counts " + globalReady + " bags everywhere (packaging plant, Walvis Bay, etc.). "
+            + "That is why it can be higher than " + yardReady + " here."
+        );
+      }
+      return parts.join(" ");
+    }
+    if (statusKey === "in_storage_weathering") {
+      return (
+        "Factory yard only — bulk bags still on the 21-day clock. "
+        + "Matches “Factory yard — on clock” (" + yardStill + " bags) and the “In Storage — weathering” tile (bulk only)."
+      );
+    }
+    return null;
+  }
+
+  function isNonFscForWxDrill(row) {
+    return fscText(row) === "Non-FSC";
+  }
+
+  function summarizeWxDrillStreamFsc(rows) {
+    var out = {};
+    WX_DRILL_GROUP_STREAMS.forEach(function (stream) {
+      out[stream] = {
+        fsc: { bags: 0, kg: 0 },
+        non_fsc: { bags: 0, kg: 0 },
+      };
+    });
+    (rows || []).forEach(function (row) {
+      var stream = (row.product_stream || "").toLowerCase();
+      if (!out[stream]) return;
+      var bucket = isNonFscForWxDrill(row) ? "non_fsc" : "fsc";
+      out[stream][bucket].bags += 1;
+      out[stream][bucket].kg += Number(row.net_weight_kg || 0);
+    });
+    WX_DRILL_GROUP_STREAMS.forEach(function (stream) {
+      ["fsc", "non_fsc"].forEach(function (b) {
+        out[stream][b].kg = Math.round(out[stream][b].kg * 10) / 10;
+      });
+    });
+    return out;
+  }
+
+  function rowsForWxDrillSlice(rows, stream, fscGroup) {
+    return (rows || []).filter(function (row) {
+      if ((row.product_stream || "").toLowerCase() !== stream) return false;
+      var non = isNonFscForWxDrill(row);
+      return fscGroup === "non_fsc" ? non : !non;
+    });
+  }
+
   function bagsOnlyMetrics(st) {
     var total = st.bags || 0;
     var palletN = (st.streams && st.streams.pallet) || 0;
@@ -2413,9 +2497,7 @@
     return panel;
   }
 
-  function renderWxDrillView(rows, ui, onRowClick) {
-    var wrap = ui.el("div", { class: "bs-dash-wx-drill" });
-    wrap.appendChild(renderStreamCategorySummary(rows, ui));
+  function renderWxProducerList(rows, ui, onRowClick) {
     var groups = groupRowsByProducerFsc(rows);
     var list = ui.el("div", { class: "bs-dash-producer-list" });
     groups.forEach(function (group) {
@@ -2432,7 +2514,85 @@
       details.appendChild(renderProducerBagTable(group.rows, ui, onRowClick));
       list.appendChild(details);
     });
-    wrap.appendChild(list);
+    return list;
+  }
+
+  function renderWxDrillStreamFscGroups(rows, ui, onPickSlice) {
+    var summary = summarizeWxDrillStreamFsc(rows);
+    var panel = ui.el("section", { class: "bs-dash-wx-slice-board" });
+    panel.appendChild(ui.el("h4", { class: "bs-dash-wx-slice-board__title" }, [
+      "By category — FSC and non-FSC",
+    ]));
+    panel.appendChild(ui.el("p", { class: "bs-dash-wx-slice-board__lead muted" }, [
+      "Pick a tile for producers in that stream and FSC group only.",
+    ]));
+    var grid = ui.el("div", { class: "bs-dash-wx-slice-grid" });
+    WX_DRILL_GROUP_STREAMS.forEach(function (stream) {
+      var cat = summary[stream];
+      var totalBags = (cat.fsc.bags || 0) + (cat.non_fsc.bags || 0);
+      if (!totalBags) return;
+      var color = STREAM_COLORS[stream] || "#64748B";
+      var box = ui.el("div", {
+        class: "bs-dash-wx-slice-group",
+        style: { "--wx-slice-color": color },
+      });
+      var head = ui.el("div", { class: "bs-dash-wx-slice-group__head" });
+      head.appendChild(streamSwatch(stream, "bs-dash-wx-slice-group__swatch"));
+      head.appendChild(ui.el("span", { class: "bs-dash-wx-slice-group__name" }, [STREAM_LABELS[stream]]));
+      box.appendChild(head);
+      var pair = ui.el("div", { class: "bs-dash-wx-slice-pair" });
+      [
+        { key: "fsc", label: STREAM_LABELS[stream] + " FSC", data: cat.fsc },
+        { key: "non_fsc", label: STREAM_LABELS[stream] + " non-FSC", data: cat.non_fsc },
+      ].forEach(function (slot) {
+        if (!(slot.data.bags || 0)) return;
+        var btn = ui.el("button", {
+          type: "button",
+          class: "bs-dash-wx-slice-tile",
+          onclick: function () {
+            onPickSlice({ stream: stream, fscGroup: slot.key, label: slot.label });
+          },
+        });
+        btn.appendChild(ui.el("span", { class: "bs-dash-wx-slice-tile__label" }, [slot.label]));
+        btn.appendChild(ui.el("div", { class: "bs-dash-wx-slice-tile__value" }, [String(slot.data.bags)]));
+        btn.appendChild(ui.el("span", { class: "bs-dash-wx-slice-tile__sub" }, [fmtMass(slot.data.kg)]));
+        pair.appendChild(btn);
+      });
+      box.appendChild(pair);
+      grid.appendChild(box);
+    });
+    if (!grid.childNodes.length) {
+      panel.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, [
+        "No restaurant, lumpwood, or fines bags in this selection.",
+      ]));
+    } else {
+      panel.appendChild(grid);
+    }
+    return panel;
+  }
+
+  function renderWxDrillView(wxDrillState, ui, onRowClick, onSliceChange) {
+    var wrap = ui.el("div", { class: "bs-dash-wx-drill" });
+    var rows = (wxDrillState && wxDrillState.rows) || [];
+    var slice = wxDrillState && wxDrillState.slice;
+    if (slice) {
+      var sliceRows = rowsForWxDrillSlice(rows, slice.stream, slice.fscGroup);
+      wrap.appendChild(ui.el("h4", { class: "bs-dash-wx-slice-heading" }, [slice.label]));
+      wrap.appendChild(ui.el("p", { class: "bs-dash-wx-slice-heading__meta muted" }, [
+        sliceRows.length + " bags · " + fmtMass(sliceRows.reduce(function (s, r) {
+          return s + (Number(r.net_weight_kg) || 0);
+        }, 0)),
+      ]));
+      if (!sliceRows.length) {
+        wrap.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No bags in this group."]));
+      } else {
+        wrap.appendChild(renderWxProducerList(sliceRows, ui, onRowClick));
+      }
+      return wrap;
+    }
+    wrap.appendChild(renderWxDrillStreamFscGroups(rows, ui, function (nextSlice) {
+      if (onSliceChange) onSliceChange(nextSlice);
+    }));
     return wrap;
   }
 
@@ -2629,6 +2789,14 @@
 
       if (sel.week) q.push("week=" + encodeURIComponent(sel.week));
 
+      if (sel.pipeline_location) {
+        q.push("pipeline_location=" + encodeURIComponent(sel.pipeline_location));
+      }
+
+      if (sel.pipeline_clock) {
+        q.push("pipeline_clock=" + encodeURIComponent(sel.pipeline_clock));
+      }
+
       return "/reports/bags-weathering?" + q.join("&");
 
     }
@@ -2636,6 +2804,11 @@
 
 
     function goBackFromWxDrill() {
+      if (wxDrill && wxDrill.slice) {
+        wxDrill.slice = null;
+        paint();
+        return;
+      }
       wxDrillToken += 1;
       var backTo = wxDrill && wxDrill.backTo;
       var backDispatch = wxDrill && wxDrill.backDispatch;
@@ -2780,6 +2953,8 @@
           label: sel.label,
           rows: wxRows,
           backTo: opts.backTo || "main",
+          note: opts.note || null,
+          slice: null,
         };
         paint();
       } catch (e) {
@@ -2819,11 +2994,15 @@
 
       if (wxDrill) {
 
-        body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
+        var wxTitle = wxDrill.slice
+          ? wxDrill.label + " — " + wxDrill.slice.label
+          : wxDrill.label + " — " + (wxDrill.rows || []).length + " bags";
 
-          wxDrill.label + " — " + (wxDrill.rows || []).length + " bags",
+        body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [wxTitle]));
 
-        ]));
+        if (wxDrill.note && !wxDrill.slice) {
+          body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [wxDrill.note]));
+        }
 
         if (!(wxDrill.rows || []).length) {
 
@@ -2831,7 +3010,10 @@
 
         } else {
 
-          body.appendChild(renderWxDrillView(wxDrill.rows, ui, openPalletDetail));
+          body.appendChild(renderWxDrillView(wxDrill, ui, openPalletDetail, function (slice) {
+            wxDrill.slice = slice;
+            paint();
+          }));
 
         }
 
@@ -3113,7 +3295,8 @@
 
           body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
 
-            "Grouped by weathering clock, not scan date. Click a bucket for the bag list.",
+            "Grouped by days left on the weathering clock (all locations). "
+              + "For factory yard totals that match the In Storage tiles, open those tiles directly — not the global “Ready now” bucket.",
 
           ]));
 
@@ -3746,6 +3929,16 @@
         selectedEvent = null;
 
         wxDrill = null;
+
+        var pipeDrill = factoryStoragePipelineDrillSel(st);
+
+        if (pipeDrill) {
+          await openWxDrill(pipeDrill, {
+            backTo: "main",
+            note: factoryStorageWxDrillNote(st.key, weathering),
+          });
+          return;
+        }
 
         selected = {
 

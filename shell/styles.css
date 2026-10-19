@@ -1551,8 +1551,111 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* Weathering drill — category summary + producer groups */
+/* Weathering drill — stream × FSC tiles + producer groups */
 .bs-dash-wx-drill { margin-top: 4px; }
+.bs-dash-wx-slice-board {
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+.bs-dash-wx-slice-board__title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748B;
+}
+.bs-dash-wx-slice-board__lead {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.bs-dash-wx-slice-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.bs-dash-wx-slice-group {
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--wx-slice-color, #64748B) 8%, #fff);
+  border-left: 4px solid var(--wx-slice-color, #64748B);
+}
+.bs-dash-wx-slice-group__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.bs-dash-wx-slice-group__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.bs-dash-wx-slice-group__name {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0F172A;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.bs-dash-wx-slice-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .bs-dash-wx-slice-pair { grid-template-columns: 1fr; }
+}
+.bs-dash-wx-slice-tile {
+  text-align: left;
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.bs-dash-wx-slice-tile:hover {
+  border-color: var(--wx-slice-color, #64748B);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+.bs-dash-wx-slice-tile__label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748B;
+  line-height: 1.35;
+  margin-bottom: 4px;
+}
+.bs-dash-wx-slice-tile__value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0F172A;
+  font-variant-numeric: tabular-nums;
+}
+.bs-dash-wx-slice-tile__sub {
+  display: block;
+  font-size: 12px;
+  color: #64748B;
+  margin-top: 2px;
+}
+.bs-dash-wx-slice-heading {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0F172A;
+}
+.bs-dash-wx-slice-heading__meta {
+  margin: 0 0 14px;
+  font-size: 13px;
+}
 .bs-dash-cat-summary {
   background: #fff;
   border: 1px solid #E2E8F0;
