@@ -760,11 +760,42 @@
     );
     if (detail.status === "open") {
       var closeLoadBox = ui.el("div", { class: "walvis-dispatch-close-load" });
+      var openHint =
+        "Released — loading at Grootfontein. When this truck is finished, close the load so scanners cannot add more bags until you create and release the next plan.";
+      if (detail.awaiting_first_load_scan || !(detail.loaded_bags || detail.plan_loaded)) {
+        openHint +=
+          " No bags scanned yet — the dispatch label day follows today until the first GF load scan, then that day and time are fixed.";
+      }
       closeLoadBox.appendChild(
-        ui.el("p", { class: "walvis-dispatch-status-line" }, [
-          "Released — loading at Grootfontein. When this truck is finished, close the load so scanners cannot add more bags until you create and release the next plan.",
-        ])
+        ui.el("p", { class: "walvis-dispatch-status-line" }, [openHint])
       );
+      if (detail.awaiting_first_load_scan || !(detail.loaded_bags || detail.plan_loaded)) {
+        var abortBtn = ui.el("button", {
+          type: "button",
+          class: "btn-ghost walvis-dispatch-abort-open",
+        }, ["Abort release (truck did not load)"]);
+        abortBtn.addEventListener("click", async function () {
+          if (
+            !window.confirm(
+              "Abort this released dispatch?\n\nOnly use when the truck never loaded — no bags on the manifest.\n\nCancel = keep open."
+            )
+          ) {
+            return;
+          }
+          try {
+            await apiPost(
+              ctx,
+              "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/cancel-plan",
+              {}
+            );
+            await renderList(container, ctx);
+            if (CIS.refreshOperationsSummary) CIS.refreshOperationsSummary();
+          } catch (e) {
+            window.alert(e.message || String(e));
+          }
+        });
+        closeLoadBox.appendChild(abortBtn);
+      }
       var closeLoadBtn = ui.el("button", {
         type: "button",
         class: "settings-action-btn walvis-dispatch-close-load-btn",
@@ -918,7 +949,12 @@
     metaBox.appendChild(
       ui.el("h4", { class: "walvis-dispatch-meta-panel-title" }, ["Truck & dispatch details"])
     );
-    var labelDay = detail.loading_date || windhoekLabelDateYmd(detail.opened_at) || "—";
+    var labelDay =
+      detail.loading_date_effective ||
+      detail.loading_date ||
+      windhoekLabelDateYmd(detail.opened_at) ||
+      "—";
+    var plannedDay = detail.loading_date || "—";
     metaBox.appendChild(
       ui.el("dl", { class: "walvis-dispatch-meta-dl" }, [
         ui.el("div", { class: "walvis-dispatch-meta-row" }, [
@@ -931,7 +967,12 @@
         ]),
         ui.el("div", { class: "walvis-dispatch-meta-row" }, [
           ui.el("dt", {}, ["Dispatch label day"]),
-          ui.el("dd", {}, [labelDay]),
+          ui.el("dd", {}, [
+            labelDay,
+            detail.awaiting_first_load_scan && plannedDay !== labelDay
+              ? ui.el("span", { class: "muted" }, [" (planned " + plannedDay + ")"])
+              : "",
+          ]),
         ]),
         ui.el("div", { class: "walvis-dispatch-meta-row walvis-dispatch-meta-row--notes" }, [
           ui.el("dt", {}, ["Notes"]),
