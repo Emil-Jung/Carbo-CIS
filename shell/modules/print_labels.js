@@ -396,25 +396,43 @@
     return { value: n };
   }
 
-  function renderCisNotConfiguredMessage(container, ctx) {
+  function renderCisLaunchStandalone(container, ctx) {
     var ui = CIS.ui;
+    var cfg = (ctx && ctx.config) || {};
+    var installer =
+      (CIS.printLabelsInstallerUrl && CIS.printLabelsInstallerUrl(cfg)) ||
+      "/cis/app/CarboPrintLabels-Setup.exe";
     container.innerHTML = "";
     container.className = "module-content print-labels-launcher-host";
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Print Labels"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Bag identity labels are printed from a dedicated Windows utility with local printers.",
+      "Label printing runs in the separate Carbo Print Labels app (printers stay on your PC).",
     ]));
-    container.appendChild(ui.el("div", { class: "print-labels-panel launcher-note" }, [
-      ui.el("p", {}, [
-        ui.el("strong", {}, ["Printing labels is not configured through CIS."]),
-      ]),
-      ui.el("p", {}, [
-        "An administrator must set up label printing on this workstation (printers, the Carbo Print Labels app, and network access).",
-      ]),
-      ui.el("p", { class: "muted" }, [
-        "If you need to print labels, contact your site administrator.",
-      ]),
-    ]));
+    var statusEl = ui.el("p", { class: "muted" }, ["Opening Carbo Print Labels…"]);
+    container.appendChild(statusEl);
+    var row = ui.el("div", { class: "print-labels-launcher-actions" });
+    var openBtn = ui.el("button", { class: "btn", type: "button" }, ["Open Print Labels app"]);
+    openBtn.addEventListener("click", function () {
+      if (CIS.openPrintLabelsApp) CIS.openPrintLabelsApp(function (msg, err) {
+        statusEl.textContent = msg || "";
+        statusEl.className = err ? "error-box" : "muted";
+      });
+    });
+    row.appendChild(openBtn);
+    var installLink = ui.el("a", {
+      class: "btn-ghost",
+      href: installer,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    }, ["Download Print Labels installer"]);
+    row.appendChild(installLink);
+    container.appendChild(row);
+    if (CIS.openPrintLabelsApp) {
+      CIS.openPrintLabelsApp(function (msg, err) {
+        statusEl.textContent = msg || "";
+        statusEl.className = err ? "error-box" : "muted";
+      });
+    }
   }
 
   function render(container, ctx) {
@@ -425,7 +443,7 @@
     if (CIS.isPrintLabelsUtility && CIS.isPrintLabelsUtility()) {
       return renderPrintLabelsApp(container, ctx);
     }
-    return renderCisNotConfiguredMessage(container, ctx);
+    return renderCisLaunchStandalone(container, ctx);
   }
 
   function renderPrintLabelsApp(container, ctx) {
@@ -1619,7 +1637,7 @@
     title: "Print Labels",
     kind: "app",
     icon: "labels",
-    description: "Bag label printing — administrator setup required",
+    description: "Opens Carbo Print Labels app",
     requires: "traceability.labels.print",
     render: render,
   });

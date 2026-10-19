@@ -487,14 +487,49 @@
     );
   };
 
-  /** Launch the standalone Carbo Print Labels Windows utility (carbolabels:// handler). */
+  /** Launch the standalone Carbo Print Labels Windows utility (not the CIS web module). */
   CIS.openPrintLabelsApp = function (onStatus) {
     function notify(msg, isError) {
       if (typeof onStatus === "function") onStatus(msg, isError);
     }
+
+    var bridge = window.pywebview && window.pywebview.api;
+    if (bridge && typeof bridge.open_print_labels === "function") {
+      var token = CIS.getToken ? CIS.getToken() : null;
+      Promise.resolve(bridge.open_print_labels(token))
+        .then(function (res) {
+          if (res && res.ok) {
+            notify("Carbo Print Labels is opening in its own window.", false);
+          } else {
+            notify((res && res.error) || "Could not start Print Labels.", true);
+          }
+        })
+        .catch(function (e) {
+          notify(e.message || "Could not start Print Labels.", true);
+        });
+      return;
+    }
+
+    try {
+      var iframe = document.createElement("iframe");
+      iframe.setAttribute("aria-hidden", "true");
+      iframe.style.display = "none";
+      iframe.src = "carbolabels://open";
+      document.body.appendChild(iframe);
+      window.setTimeout(function () {
+        try {
+          document.body.removeChild(iframe);
+        } catch (ignore) {}
+      }, 3000);
+    } catch (e2) {
+      notify("Could not launch Print Labels.", true);
+      return;
+    }
+
     notify(
-      "If Windows asks to open Carbo Print Labels, click Open or Allow. " +
-      "If nothing happens, start Carbo Print Labels from the Windows Start menu instead."
+      "Opening Carbo Print Labels… If Windows asks, choose Open. " +
+        "If nothing happens, use Start menu → Carbo Print Labels.",
+      false
     );
   };
 })();

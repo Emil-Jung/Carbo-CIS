@@ -41,6 +41,12 @@ def _use_local_shell_only() -> bool:
     return os.environ.get("CIS_LOCAL_SHELL", "").strip().lower() in ("1", "true", "yes")
 
 
+def _use_remote_shell() -> bool:
+    if _use_local_shell_only():
+        return False
+    return os.environ.get("CIS_REMOTE_SHELL", "").strip().lower() in ("1", "true", "yes")
+
+
 def _remote_shell_available() -> bool:
     if _use_local_shell_only():
         return False
@@ -172,7 +178,7 @@ class PrintLabelsApi:
 
 
 def main():
-    if _remote_shell_available():
+    if _use_remote_shell() and _remote_shell_available():
         url = REMOTE_SHELL_URL
     else:
         shell_dir = _prepare_shell_dir()

@@ -9,7 +9,7 @@
     {
       id: "print_labels",
       title: "Print Labels",
-      description: "Bag label printing — administrator setup required on each workstation.",
+      description: "Opens the Carbo Print Labels app (Zebra + A4). Not the CIS website.",
       requires: "traceability.labels.print",
       icon: "print",
     },
@@ -48,6 +48,10 @@
         class: "dashboard-tile hub-option-tile",
         type: "button",
         onclick: function () {
+          if (opt.id === "print_labels" && CIS.openPrintLabelsApp) {
+            CIS.openPrintLabelsApp();
+            return;
+          }
           if (CIS.openModule) CIS.openModule(opt.id);
         },
       });

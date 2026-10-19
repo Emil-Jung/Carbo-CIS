@@ -18,13 +18,19 @@ def print_labels_exe_path(cis_data_dir: str) -> str:
 
 
 def resolve_print_labels_exe(cis_data_dir: str) -> str:
+    local_app = os.environ.get("LOCALAPPDATA", "")
+    candidates = [
+        print_labels_exe_path(cis_data_dir),
+        os.path.join(local_app, "Programs", "Carbo CIS", "Print Labels", PRINT_LABELS_EXE_NAME),
+    ]
+    for path in candidates:
+        if path and os.path.isfile(path):
+            return path
     primary = print_labels_exe_path(cis_data_dir)
-    if os.path.isfile(primary):
-        return primary
     raise FileNotFoundError(
-        "Carbo Print Labels is not installed next to CIS.\n\n"
+        "Carbo Print Labels is not installed.\n\n"
         f"Expected: {primary}\n\n"
-        "Re-run the CIS installer or install Print Labels from your IT link."
+        "Install from Start menu setup, or download CarboPrintLabels-Setup.exe from /cis/app/."
     )
 
 
