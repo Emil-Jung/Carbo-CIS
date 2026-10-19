@@ -22,24 +22,17 @@
   CIS._state = state;
 
   const floatNavState = { secondary: null, backCooldown: false };
-  const FLOAT_BACK_MIN_MS = 450;
-  const FLOAT_BACK_MAX_MS = 1200;
-  let floatBackCooldownTimer = null;
-  let floatBackCooldownStartedAt = 0;
   const navStack = ["dashboard"];
 
-  function scheduleFloatBackCooldownClear(delayMs) {
-    clearTimeout(floatBackCooldownTimer);
-    floatBackCooldownTimer = setTimeout(function () {
-      floatNavState.backCooldown = false;
-      renderFloatNav();
-    }, delayMs);
+  function endFloatBackCooldown() {
+    if (!floatNavState.backCooldown) return;
+    floatNavState.backCooldown = false;
+    renderFloatNav();
   }
 
+  /** Modules may call after async drill paint (legacy hook; sync back clears automatically). */
   function releaseFloatBackCooldown() {
-    if (!floatNavState.backCooldown) return;
-    var remaining = FLOAT_BACK_MIN_MS - (Date.now() - floatBackCooldownStartedAt);
-    scheduleFloatBackCooldownClear(Math.max(80, remaining));
+    endFloatBackCooldown();
   }
 
   /** Parent hub for hierarchical back (module.parentModule overrides). */
@@ -137,15 +130,22 @@
   function goBack() {
     if (floatNavState.backCooldown) return;
     if (floatNavState.secondary && typeof floatNavState.secondary.onClick === "function") {
-      floatBackCooldownStartedAt = Date.now();
       floatNavState.backCooldown = true;
       renderFloatNav();
+      var finish = function () {
+        endFloatBackCooldown();
+      };
       try {
-        floatNavState.secondary.onClick();
+        var ret = floatNavState.secondary.onClick();
+        if (ret && typeof ret.then === "function") {
+          ret.then(finish, finish);
+        } else {
+          finish();
+        }
       } catch (e) {
         console.error("goBack secondary handler failed", e);
+        finish();
       }
-      scheduleFloatBackCooldownClear(FLOAT_BACK_MAX_MS);
       return;
     }
     popNavigation();

@@ -398,7 +398,7 @@
     ctx.setFloatingBack({
       label: "Dispatch list",
       onClick: function () {
-        renderList(container, ctx);
+        return renderList(container, ctx);
       },
     });
   }
