@@ -16,9 +16,8 @@
   }
 
   var FSC_BAG_POLICIES = [
-    { value: "fsc_only", label: "FSC only" },
-    { value: "non_fsc_only", label: "Non-FSC only" },
-    { value: "mixed", label: "Mixed FSC & non-FSC" },
+    { value: "fsc_only", label: "FSC only (FSC bulk only)" },
+    { value: "non_fsc_only", label: "Non-FSC only (non-FSC bulk only)" },
   ];
 
   function fscPolicyLabel(code) {
@@ -190,7 +189,10 @@
           product.commercial_pallet_weight_kg != null ? String(product.commercial_pallet_weight_kg) : "";
         prodPackInput.value =
           product.production_pack_weight_kg != null ? String(product.production_pack_weight_kg) : "";
-        fscSel.value = product.fsc_bag_policy || "mixed";
+        fscSel.value =
+          product.fsc_bag_policy === "fsc_only" || product.fsc_bag_policy === "non_fsc_only"
+            ? product.fsc_bag_policy
+            : "non_fsc_only";
       } else {
         fscSel.value = "";
         codeInput.addEventListener("input", function () {
@@ -269,7 +271,7 @@
       el.addEventListener("submit", function (ev) {
         ev.preventDefault();
         if (!fscSel.value) {
-          setStatus("Choose source bags (FSC) — mixed, FSC only, or non-FSC only.", true);
+          setStatus("Choose source bags: FSC only or Non-FSC only (never mixed on one SKU).", true);
           fscSel.focus();
           return;
         }
