@@ -1258,21 +1258,15 @@
         ])
       );
     }
-    if (detail.missing_count) {
-      var missingP = ui.el("p", { class: "walvis-dispatch-missing" }, [
-        ui.el("strong", {}, [
-          String(detail.missing_count) +
-            " on manifest but Received (offload) is empty — bags can still show on the AGL/Cabo tile if offload scans ran before the server linked AGL to this column.",
-        ]),
-        detail.missing_bags && detail.missing_bags.length
-          ? ": " + detail.missing_bags.slice(0, 12).join(", ") +
-            (detail.missing_bags.length > 12 ? "…" : "")
-          : "",
-      ]);
-      summary.appendChild(missingP);
+    function appendBackfillReceivedButton(parentEl) {
+      var loaded = detail.loaded_bags || 0;
+      var received = detail.received_bags || 0;
+      if (loaded <= received) {
+        return;
+      }
       var backfillBtn = ui.el("button", {
         type: "button",
-        class: "settings-action-btn",
+        class: "settings-action-btn walvis-dispatch-backfill-received",
         style: "margin: 0.35rem 0 0.5rem 0;",
       }, ["Fill Received from offload scans"]);
       backfillBtn.addEventListener("click", async function () {
@@ -1300,8 +1294,24 @@
           backfillBtn.disabled = false;
         }
       });
-      summary.appendChild(backfillBtn);
+      parentEl.appendChild(backfillBtn);
     }
+
+    if (detail.missing_count) {
+      summary.appendChild(
+        ui.el("p", { class: "walvis-dispatch-missing" }, [
+          ui.el("strong", {}, [
+            String(detail.missing_count) +
+              " on manifest but Received (offload) is empty — bags can still show on the AGL/Cabo tile if offload scans ran before the server linked AGL to this column.",
+          ]),
+          detail.missing_bags && detail.missing_bags.length
+            ? ": " + detail.missing_bags.slice(0, 12).join(", ") +
+              (detail.missing_bags.length > 12 ? "…" : "")
+            : "",
+        ])
+      );
+    }
+    appendBackfillReceivedButton(summary);
     rightPanel.appendChild(summary);
 
     if (detail.streams && Object.keys(detail.streams).length) {
