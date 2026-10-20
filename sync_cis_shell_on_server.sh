@@ -37,6 +37,24 @@ mkdir -p "$DEST"
 echo ">> copy shell/* -> $DEST"
 cp -r "$REPO/shell/"* "$DEST/"
 
+SHELL_REV=$(python3 - <<'PY' 2>/dev/null || true
+import json, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        print(json.load(f).get("shellRev", "") or "")
+except Exception:
+    pass
+PY
+"$DEST/config.json")
+if [[ -z "$SHELL_REV" ]]; then
+  SHELL_REV=$(grep -o '"shellRev"[[:space:]]*:[[:space:]]*"[^"]*"' "$DEST/config.json" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/' || true)
+fi
+if [[ -n "$SHELL_REV" && -f "$DEST/index.html" ]]; then
+  echo ">> align index.html boot rev with config shellRev: $SHELL_REV"
+  sed -i "s/<meta name=\"cis-shell-rev\" content=\"[^\"]*\"/<meta name=\"cis-shell-rev\" content=\"$SHELL_REV\"/" "$DEST/index.html"
+  sed -i "s/window.CIS_BOOT_SHELL_REV = \"[^\"]*\"/window.CIS_BOOT_SHELL_REV = \"$SHELL_REV\"/" "$DEST/index.html"
+fi
+
 echo ""
 echo "Deployed shell:"
 ls -la "$DEST" | head -8
@@ -58,6 +76,19 @@ fi
 test -f "$DEST/modules/pallet_configuration.js" \
   && echo "OK: pallet_configuration.js present" \
   || echo "WARN: pallet_configuration.js missing — git pull Carbo-CIS then re-run this script"
+
+test -f "$DEST/shell_cache_guard.js" \
+  && echo "OK: shell_cache_guard.js present" \
+  || echo "WARN: shell_cache_guard.js missing — old shell cache behaviour"
+
+if [[ -n "$SHELL_REV" && -f "$DEST/index.html" ]]; then
+  if grep -q "cis-shell-rev\" content=\"$SHELL_REV\"" "$DEST/index.html" 2>/dev/null \
+    && grep -q "CIS_BOOT_SHELL_REV = \"$SHELL_REV\"" "$DEST/index.html" 2>/dev/null; then
+    echo "OK: index.html boot rev matches config shellRev"
+  else
+    echo "WARN: index.html boot rev still mismatched config.json shellRev"
+  fi
+fi
 
 grep -q 'pallet_configuration.js' "$DEST/index.html" 2>/dev/null \
   && echo "OK: index.html loads pallet_configuration.js" \

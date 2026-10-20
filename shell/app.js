@@ -473,18 +473,10 @@
 
     if (CIS.syncControlRoomVisibility) CIS.syncControlRoomVisibility(state.config);
 
-    var shellRev = state.config && state.config.shellRev;
-    if (shellRev) {
-      var revKey = "cis_shell_rev";
-      var prevRev = localStorage.getItem(revKey);
-      if (prevRev && prevRev !== shellRev) {
-        localStorage.setItem(revKey, shellRev);
-        var u = new URL(window.location.href);
-        u.searchParams.set("shellRev", shellRev);
-        window.location.replace(u.toString());
-        return;
-      }
-      localStorage.setItem(revKey, shellRev);
+    if (CIS.shellCache) {
+      if (await CIS.shellCache.applyFreshShellIfRequested()) return;
+      var shellCheck = await CIS.shellCache.ensureShellMatchesConfig({ overlay: false });
+      if (shellCheck && shellCheck.reloaded) return;
     }
 
     state.token = localStorage.getItem(TOKEN_KEY);
@@ -553,6 +545,18 @@
 
     if (CIS.operationsSummary && CIS.operationsSummary.stop) CIS.operationsSummary.stop();
 
+    if (CIS.shellCache) {
+      CIS.shellCache.markFreshShellWantedOnExit();
+      await CIS.shellCache.clearBrowserCaches();
+      if (!silent) {
+        var u = new URL(window.location.href);
+        u.searchParams.set("_cisBust", String(Date.now()));
+        u.searchParams.delete("shellRev");
+        window.location.replace(u.pathname + u.search + u.hash);
+        return;
+      }
+    }
+
     showLogin();
 
   }
@@ -596,6 +600,10 @@
         vt = (vt ? vt + " · " : "") + "Desktop";
       }
       verEl.textContent = vt;
+    }
+
+    if (CIS.shellCache && state.config && state.config.shellRev) {
+      CIS.shellCache.startShellRevWatch(state.config.shellRev);
     }
 
     setupUpdateButton();
