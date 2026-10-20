@@ -1,0 +1,54 @@
+{
+  "release_id": "20261020-reprint-stable",
+  "released_at": "2026-10-20",
+  "status": "production_known_good",
+  "labels_ui_version": "1.9.6",
+  "app_build": "20261020-shell-refresh",
+  "script_cache": {
+    "print_labels.js": "1.9.6-exact-bag-id",
+    "label_zpl.js": "1.9.3-ydown3mm",
+    "print_labels_app.js": "1.8.2-frame",
+    "auth.js": "1.0.2-pwd-toggle",
+    "print_labels_theme.css": "1.9.4-pwd"
+  },
+  "defaults": {
+    "label_format": "zebra",
+    "zebra_stock": "6128",
+    "zebra_print_mode": "windows",
+    "local_storage_key": "cis_print_labels_v6"
+  },
+  "reprint": {
+    "exact_bag_id_only": true,
+    "hub_then_step_dialogs": true,
+    "range": "two_full_bag_ids_first_and_last",
+    "example_first": "BAG-2026-006071",
+    "example_last": "BAG-2026-006080"
+  },
+  "zpl_6128": {
+    "layout_y_offset_mm": 3,
+    "darkness_sd": 24,
+    "media_md": 10,
+    "qr_boost_mag": 2
+  },
+  "host": {
+    "fresh_temp_shell_each_launch": true,
+    "bundled_shell_only": true
+  },
+  "canonical_files": [
+    "shell/print_labels.html",
+    "shell/print_labels_app.js",
+    "shell/print_labels_theme.css",
+    "shell/modules/print_labels.js",
+    "shell/modules/label_zpl.js",
+    "shell/auth.js",
+    "desktop/print_labels_app.py",
+    "desktop/print_labels.spec"
+  ],
+  "deploy": {
+    "plant_installer": "CarboPrintLabels-Setup.exe",
+    "shortcut_target": "%LOCALAPPDATA%\\Programs\\Carbo CIS\\Print Labels\\Carbo Print Labels.exe",
+    "after_js_only_change": "Quit app; delete %TEMP%\\carbo_print_labels_shell* OR install build with shell-refresh host",
+    "dev_build": "desktop\\BUILD-PRINT-LABELS.cmd"
+  },
+  "change_policy": "Do not edit canonical_files for other features (Walvis, CIS web). Bump release_id and labels_ui_version only in a dedicated Print Labels change."
+}

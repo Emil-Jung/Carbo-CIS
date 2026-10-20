@@ -5,15 +5,33 @@
   CIS.modules = CIS.modules || [];
   var ZPL = window.CIS_LABEL_ZPL;
 
-  var LS = "cis_print_labels_v5";
+  var LS = "cis_print_labels_v6";
   var LS_LEGACY = "cis_print_labels_v4";
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
-  var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
+  var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/i;
+  /** Capture year + sequence — SERIAL_RE alone has no groups (do not use match[1] on it). */
+  var BAG_ID_PARTS = /^BAG-(\d{4})-(\d+)$/i;
   var ZEBRA_STOCK_6128 = "6128";
   var ZEBRA_STOCK_5425 = "5425";
-  var PL_UI_VERSION = "1.7.4";
+  var PL_RELEASE_ID = "20261020-reprint-stable";
+  var PL_UI_VERSION = "1.9.7";
+  var STOCK_PROFILES = {
+    "6128": {
+      code: "6128",
+      title: "62 × 28 mm standard stock",
+      short: "62×28",
+      warnSmall: false,
+    },
+    "5425": {
+      code: "5425",
+      title: "54 × 25 mm legacy SMALL stock",
+      short: "54×25",
+      warnSmall: true,
+    },
+  };
   CIS.printLabelsUiVersion = PL_UI_VERSION;
+  CIS.printLabelsReleaseId = PL_RELEASE_ID;
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
 
@@ -109,11 +127,16 @@
     };
     try {
       var raw = localStorage.getItem(LS);
+      if (!raw) raw = localStorage.getItem("cis_print_labels_v5");
       if (!raw) raw = localStorage.getItem(LS_LEGACY);
       var parsed = null;
       if (raw) {
         parsed = JSON.parse(raw);
-        Object.assign(s, parsed);
+        if (parsed.zebraPrinterName) s.zebraPrinterName = parsed.zebraPrinterName;
+        if (parsed.a4PrinterName) s.a4PrinterName = parsed.a4PrinterName;
+        if (parsed.zebraHost) s.zebraHost = parsed.zebraHost;
+        if (parsed.zebraPort != null) s.zebraPort = parsed.zebraPort;
+        if (parsed.zebraStock) s.zebraStock = parsed.zebraStock;
       }
       var stockOk = s.zebraStock === ZEBRA_STOCK_5425 || s.zebraStock === ZEBRA_STOCK_6128;
       if (!stockOk) {
@@ -124,11 +147,14 @@
           s.zebraStock = ZEBRA_STOCK_6128;
         }
       }
+      if (cfg.zebraLabelStockStandardOnly) {
+        s.zebraStock = ZEBRA_STOCK_6128;
+      }
     } catch (e) {}
     if (!s.zebraPrinterName && s.printerName) s.zebraPrinterName = s.printerName;
     if (!s.zebraPrinterName && s.printerNameManual) s.zebraPrinterName = s.printerNameManual;
     s.zebraPrintMode = "windows";
-    s.labelFormat = s.labelFormat === "a4_pallet" ? "a4_pallet" : "zebra";
+    s.labelFormat = "zebra";
     var port = parseInt(s.zebraPort, 10);
     s.zebraPort = port >= 1 && port <= 65535 ? port : 9100;
     s.zebraHost = (s.zebraHost || "").trim();
@@ -318,11 +344,72 @@
   }
 
   function saveSettings(s) {
-    localStorage.setItem(LS, JSON.stringify(s));
+    var out = Object.assign({}, s);
+    out.releaseId = PL_RELEASE_ID;
+    out.uiVersion = PL_UI_VERSION;
+    localStorage.setItem(LS, JSON.stringify(out));
   }
 
   function desktopBridge() {
-    return window.pywebview && window.pywebview.api ? window.pywebview.api : null;
+    if (window.pywebview && window.pywebview.api) return window.pywebview.api;
+    if (window.CIS && typeof CIS.pywebviewApi === "function") {
+      var api = CIS.pywebviewApi();
+      if (api) return api;
+    }
+    return null;
+  }
+
+  function printLabelsShellHost() {
+    return (window.location.hostname || "").toLowerCase();
+  }
+
+  function printLabelsShellIsLocal() {
+    var host = printLabelsShellHost();
+    return host === "127.0.0.1" || host === "localhost" || host === "";
+  }
+
+  /** Legacy .exe loaded the website inside WebView (not a browser tab). Current builds use bundled UI only. */
+  function printLabelsOutdatedDesktopHost() {
+    return !printLabelsShellIsLocal() && !!(window.pywebview && window.pywebview.api);
+  }
+
+  function printLabelsRunningInBrowserTab() {
+    return !printLabelsShellIsLocal() && !printLabelsOutdatedDesktopHost();
+  }
+
+  /** pywebview.api is injected after first paint when loading the remote shell — do not cache once at render. */
+  function waitForDesktopBridge(timeoutMs) {
+    return new Promise(function (resolve) {
+      function ready() {
+        var b = desktopBridge();
+        if (b && (b.list_printers || b.send_zpl_usb || b.send_zpl)) return b;
+        return null;
+      }
+      var immediate = ready();
+      if (immediate) {
+        resolve(immediate);
+        return;
+      }
+      var deadline = Date.now() + (timeoutMs || 15000);
+      var done = false;
+      function finish() {
+        if (done) return;
+        var b = ready();
+        if (b) {
+          done = true;
+          resolve(b);
+          return;
+        }
+        if (Date.now() >= deadline) {
+          done = true;
+          resolve(null);
+          return;
+        }
+        setTimeout(finish, 200);
+      }
+      window.addEventListener("pywebviewready", finish);
+      setTimeout(finish, 200);
+    });
   }
 
   function downloadText(filename, text) {
@@ -336,7 +423,7 @@
 
   function panel(ui, title) {
     var p = ui.el("section", { class: "print-labels-panel" });
-    p.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, [title]));
+    if (title) p.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, [title]));
     var body = ui.el("div", { class: "print-labels-panel-body" });
     p.appendChild(body);
     return { root: p, body: body };
@@ -350,44 +437,63 @@
     return w;
   }
 
+  function labelYearDefault(raw) {
+    var y = parseInt(raw, 10);
+    if (y >= 2000 && y <= 2100) return y;
+    return new Date().getFullYear();
+  }
+
   function canonicalSerial(year, seq) {
-    var y = parseInt(year, 10);
+    var y = labelYearDefault(year);
     var n = parseInt(seq, 10);
-    if (!y || !n) return "";
+    if (!n) return "";
     var pad = String(n);
     while (pad.length < 6) pad = "0" + pad;
     return "BAG-" + y + "-" + pad;
   }
 
-  function parseSerialToken(token, defaultYear) {
-    var t = (token || "").trim();
-    if (!t) return null;
-    if (SERIAL_RE.test(t)) return t;
-    if (/^\d+$/.test(t)) {
-      return canonicalSerial(defaultYear, parseInt(t, 10));
+  function cleanSerialToken(raw) {
+    var t = (raw || "").trim().replace(/[\u2010-\u2015\u2212]/g, "-");
+    if (/bag/i.test(t)) {
+      t = t.replace(/\s+/g, "");
+      t = t.replace(/^bags?-/i, "BAG-");
     }
-    return null;
+    return t;
   }
 
-  /** Expand "321-330", "BAG-2026-000321 - 000330", etc. */
-  function expandReprintRange(raw, defaultYear) {
-    var text = (raw || "").trim();
-    if (!text) return { error: "Enter a range, e.g. 321-330 or BAG-2026-000321 - BAG-2026-000330." };
-    var m = text.match(/^(.+?)\s*(?:-|–|to)\s*(.+)$/i);
-    if (!m) {
-      var one = parseSerialToken(text, defaultYear);
-      if (!one) return { error: "Could not parse range. Use 321-330 or full Bag IDs." };
-      return { value: [one] };
+  /** Full Bag ID only — no sequence numbers or shortcuts. */
+  function parseExactBagId(raw) {
+    var t = cleanSerialToken(raw);
+    if (!t) return null;
+    var m = t.match(BAG_ID_PARTS);
+    if (!m) return null;
+    return canonicalSerial(m[1], m[2]);
+  }
+
+  function serialsFromExactEndpoints(startTok, endTok) {
+    var start = parseExactBagId(startTok);
+    var end = parseExactBagId(endTok);
+    if (!start || !end) {
+      return {
+        error:
+          "Type the full Bag ID in both boxes, exactly as on the label (BAG-YYYY-NNNNNN). Short numbers like 6071 are not accepted.",
+      };
     }
-    var start = parseSerialToken(m[1], defaultYear);
-    var end = parseSerialToken(m[2], defaultYear);
-    if (!start || !end) return { error: "Could not parse range endpoints." };
-    var sm = start.match(SERIAL_RE);
-    var em = end.match(SERIAL_RE);
-    if (!sm || !em) return { error: "Invalid Bag ID in range." };
+    var sm = start.match(BAG_ID_PARTS);
+    var em = end.match(BAG_ID_PARTS);
+    if (!sm || !em) {
+      return { error: "Invalid Bag ID in range." };
+    }
     var year = parseInt(sm[1], 10);
     if (parseInt(em[1], 10) !== year) {
-      return { error: "Range must be within the same year." };
+      return {
+        error:
+          "Start and end must be the same year (got BAG-" +
+          sm[1] +
+          "-… and BAG-" +
+          em[1] +
+          "-…).",
+      };
     }
     var a = parseInt(sm[2], 10);
     var b = parseInt(em[2], 10);
@@ -402,6 +508,17 @@
     var serials = [];
     for (var i = a; i <= b; i++) serials.push(canonicalSerial(year, i));
     return { value: serials };
+  }
+
+  function readReprintRangeFromFields(startRaw, endRaw) {
+    var start = (startRaw || "").trim();
+    var end = (endRaw || "").trim();
+    if (!start || !end) {
+      return {
+        error: "Enter the first and last Bag ID (full BAG-YYYY-NNNNNN in each box).",
+      };
+    }
+    return serialsFromExactEndpoints(start, end);
   }
 
   function parseQuantity(raw) {
@@ -468,10 +585,10 @@
 
   function renderPrintLabelsApp(container, ctx) {
     var ui = CIS.ui;
+    var cfg = (ctx && ctx.config) || {};
+    var standardStockOnly = !!cfg.zebraLabelStockStandardOnly;
     var saved = loadSettings(ctx);
     var labelFormat = saved.labelFormat || "zebra";
-    var bridge = desktopBridge();
-    var isDesktop = !!(bridge && (bridge.send_zpl_usb || bridge.send_zpl));
     var pendingRun = null;
     var pendingLabels = [];
     var pendingMode = null;
@@ -480,31 +597,47 @@
     container.innerHTML = "";
     container.className = "module-content print-labels-host";
 
-    container.appendChild(
-      ui.el("div", { class: "print-labels-utility-strip" }, [
-        ui.el("strong", {}, ["Label printer utility"]),
-        " — you are not in CIS. This app only allocates Bag IDs and sends ZPL to your Zebra (or A4 pallet sheets).",
-      ])
-    );
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Print run"]));
-    container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Zebra stock 61 × 28 mm (standard) or legacy 54 × 25 mm · A4 pallet option · UI " + PL_UI_VERSION + ".",
-    ]));
+    if (printLabelsOutdatedDesktopHost()) {
+      container.appendChild(
+        ui.el("div", { class: "error-box print-labels-browser-block" }, [
+          ui.el("strong", {}, ["Reinstall Carbo Print Labels on this PC"]),
+          ui.el("p", {}, [
+            "This is an old desktop build that opened the website inside the window. ",
+            "Use the current installer so the UI stays bundled and printers work.",
+          ]),
+          ui.el("p", {}, [
+            "Run ",
+            ui.el("strong", {}, ["CarboPrintLabels-Setup.exe"]),
+            " (same version on all label PCs), then reopen from Start. ",
+            "Footer should show ",
+            ui.el("strong", {}, ["bundled installer"]),
+            " and labels ",
+            PL_UI_VERSION + ".",
+          ]),
+        ])
+      );
+    } else if (printLabelsRunningInBrowserTab()) {
+      container.appendChild(
+        ui.el("div", { class: "error-box print-labels-browser-block" }, [
+          ui.el("strong", {}, ["Wrong place — no printers here"]),
+          ui.el("p", {}, ["Use the Carbo Print Labels shortcut from the Start menu, not a browser tab."]),
+        ])
+      );
+    }
+    var actionsBar = ui.el("div", { class: "pl-actions-bar" });
+    var openReprintDlgBtn = ui.el("button", { type: "button", class: "btn-secondary btn-sm" }, ["Reprint…"]);
+    var openHistoryDlgBtn = ui.el("button", { type: "button", class: "btn-secondary btn-sm" }, ["History…"]);
+    var openInventoryDlgBtn = ui.el("button", { type: "button", class: "btn-secondary btn-sm" }, ["Inventory…"]);
+    actionsBar.appendChild(openReprintDlgBtn);
+    actionsBar.appendChild(openHistoryDlgBtn);
+    actionsBar.appendChild(openInventoryDlgBtn);
+    container.appendChild(actionsBar);
 
-    var workspace = ui.el("div", { class: "print-labels-workspace" });
-    var panelsGrid = ui.el("div", { class: "print-labels-panels-grid" });
-    var panelsRowTop = ui.el("div", { class: "print-labels-panels-row" });
-    var panelsRowBottom = ui.el("div", { class: "print-labels-panels-row" });
-    panelsGrid.appendChild(panelsRowTop);
-    panelsGrid.appendChild(panelsRowBottom);
+    var workspace = ui.el("div", { class: "print-labels-workspace pl-main-grid" });
     container.appendChild(workspace);
 
     var printerPanel = panel(ui, "Printer");
-    panelsRowTop.appendChild(printerPanel.root);
-    printerPanel.body.appendChild(ui.el("p", { class: "print-labels-field-hint" }, [
-      "Step 1 — pick the Zebra (small labels, USB via Windows) and A4 if you use pallet sheets. " +
-        "Use Refresh if the Zebra was just added in Windows Settings. Direct IP is optional only.",
-    ]));
+    workspace.appendChild(printerPanel.root);
     var refreshBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh printer list"]);
     var testZebraBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Test Zebra (USB)"]);
     var refreshRow = ui.el("div", { class: "print-labels-printer-row" });
@@ -520,29 +653,44 @@
     zebraRow.appendChild(zebraPrinterEl);
     var a4Row = ui.el("div", { class: "print-labels-printer-row" });
     a4Row.appendChild(a4PrinterEl);
-    var zebraStockEl = ui.el("select", {}, [
-      ui.el("option", {
-        value: ZEBRA_STOCK_6128,
-        selected: (saved.zebraStock || ZEBRA_STOCK_6128) !== ZEBRA_STOCK_5425,
-      }, ["61 × 28 mm (standard stock)"]),
-      ui.el("option", {
-        value: ZEBRA_STOCK_5425,
-        selected: saved.zebraStock === ZEBRA_STOCK_5425,
-      }, ["54 × 25 mm (legacy small stock)"]),
-    ]);
     var zebraStockRow = ui.el("div", { class: "print-labels-printer-row" });
-    zebraStockRow.appendChild(zebraStockEl);
-    printerPanel.body.appendChild(field(ui, "Zebra label stock", zebraStockRow,
-      "Must match what's loaded in the printer. Standard is 61 × 28 mm; use 54 × 25 only for old rolls."));
-    printerPanel.body.appendChild(field(ui, "Zebra printer (USB / Windows)", zebraRow,
-      "USB or network Zebra in Windows — RAW ZPL queue. Use Refresh if you just added the printer."));
-    printerPanel.body.appendChild(field(ui, "A4 pallet sheets", a4Row,
-      "Large QR pallet labels — prints single-sided to this printer (not the Windows default)."));
+    var zebraStockEl;
+    if (standardStockOnly) {
+      zebraStockEl = ui.el("input", { type: "hidden", value: ZEBRA_STOCK_6128 });
+      zebraStockRow.appendChild(zebraStockEl);
+      zebraStockRow.appendChild(
+        ui.el("div", { class: "print-labels-stock-locked" }, [
+          ui.el("strong", {}, ["62 × 28 mm"]),
+          " — standard stock (locked; not 54 × 25 mm)",
+        ])
+      );
+    } else {
+      zebraStockEl = ui.el("select", {}, [
+        ui.el("option", {
+          value: ZEBRA_STOCK_6128,
+          selected: (saved.zebraStock || ZEBRA_STOCK_6128) !== ZEBRA_STOCK_5425,
+        }, ["61 × 28 mm (standard stock)"]),
+        ui.el("option", {
+          value: ZEBRA_STOCK_5425,
+          selected: saved.zebraStock === ZEBRA_STOCK_5425,
+        }, ["54 × 25 mm (legacy small stock)"]),
+      ]);
+      zebraStockRow.appendChild(zebraStockEl);
+    }
+    var stockSizeBanner = ui.el("p", {
+      class: "print-labels-stock-size-banner",
+      "aria-live": "polite",
+    }, [""]);
+    printerPanel.body.appendChild(field(ui, "Label stock", zebraStockRow,
+      standardStockOnly ? "62 × 28 mm standard." : "Must match roll in printer."));
+    printerPanel.body.appendChild(stockSizeBanner);
+    printerPanel.body.appendChild(field(ui, "Zebra", zebraRow, "Windows printer queue."));
+    printerPanel.body.appendChild(field(ui, "A4 (optional)", a4Row, "Pallet sheets only."));
     printerPanel.body.appendChild(refreshRow);
 
-    var labelsPanel = panel(ui, "Print labels");
+    var labelsPanel = panel(ui, "Preview");
     labelsPanel.root.classList.add("print-labels-panel--labels-preview");
-    panelsRowTop.appendChild(labelsPanel.root);
+    workspace.appendChild(labelsPanel.root);
     var sequenceEl = ui.el("div", { class: "print-labels-sequence muted" }, ["Loading sequence…"]);
     labelsPanel.body.appendChild(sequenceEl);
     var previewBlock = ui.el("div", { class: "print-labels-preview-block" });
@@ -559,16 +707,16 @@
     previewBlock.appendChild(status);
     labelsPanel.body.appendChild(previewBlock);
 
-    var runPanel = panel(ui, "Print run");
-    panelsRowBottom.appendChild(runPanel.root);
+    var runPanel = panel(ui, "New print run");
+    workspace.appendChild(runPanel.root);
     var formatEl = ui.el("select", {}, [
-      ui.el("option", { value: "zebra", selected: labelFormat !== "a4_pallet" }, [
-        "Zebra bag labels",
-      ]),
-      ui.el("option", { value: "a4_pallet", selected: labelFormat === "a4_pallet" }, [
+      ui.el("option", { value: "zebra", selected: true }, ["Zebra bag labels (62×28)"]),
+      ui.el("option", { value: "a4_pallet", selected: false }, [
         "A4 — one pallet sheet per Bag ID",
       ]),
     ]);
+    formatEl.value = "zebra";
+    labelFormat = "zebra";
     var qtyEl = ui.el("input", {
       type: "text",
       inputmode: "numeric",
@@ -577,41 +725,106 @@
       value: "",
     });
     var noteEl = ui.el("input", { type: "text", placeholder: "Optional note", value: "" });
-    runPanel.body.appendChild(field(ui, "Label format", formatEl,
-      "A4 uses the same Bag ID sequence as Zebra. QR above centre, serial below. Unused IDs can be reprinted on Zebra."));
-    runPanel.body.appendChild(field(ui, "Quantity", qtyEl,
-      "Required — no default. Maximum " + MAX_QUANTITY + " labels per run."));
+    runPanel.body.appendChild(field(ui, "Format", formatEl, ""));
+    runPanel.body.appendChild(field(ui, "Quantity", qtyEl, "Max " + MAX_QUANTITY + " per run."));
     runPanel.body.appendChild(field(ui, "Note", noteEl));
     var prepareBtn = ui.el("button", { class: "btn-primary", type: "button" }, ["Continue"]);
     runPanel.body.appendChild(prepareBtn);
     var runStatus = ui.el("p", { class: "print-labels-status print-labels-run-status muted" }, [""]);
     runPanel.body.appendChild(runStatus);
 
-    var reprintPanel = panel(ui, "Reprint labels");
-    panelsRowBottom.appendChild(reprintPanel.root);
-    workspace.appendChild(panelsGrid);
+    function plDialog(title) {
+      var backdrop = ui.el("div", { class: "pl-dialog-backdrop hidden" });
+      var box = ui.el("div", { class: "pl-dialog", role: "dialog" });
+      var head = ui.el("div", { class: "pl-dialog__head" });
+      head.appendChild(ui.el("h2", { class: "pl-dialog__title" }, [title]));
+      var closeBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm pl-dialog__close" }, ["Close"]);
+      head.appendChild(closeBtn);
+      var body = ui.el("div", { class: "pl-dialog__body" });
+      box.appendChild(head);
+      box.appendChild(body);
+      backdrop.appendChild(box);
+      document.body.appendChild(backdrop);
+      function close() { backdrop.classList.add("hidden"); }
+      function open() { backdrop.classList.remove("hidden"); }
+      closeBtn.addEventListener("click", close);
+      backdrop.addEventListener("click", function (ev) {
+        if (ev.target === backdrop) close();
+      });
+      return { backdrop: backdrop, body: body, open: open, close: close };
+    }
+
+    var reprintCatalog = [];
+    var reprintDefaultYear = new Date().getFullYear();
+    var reprintSelected = {};
+    var reprintReasonNote = "";
+
+    var reprintHubDlg = plDialog("Reprint labels");
+    reprintHubDlg.body.appendChild(
+      ui.el("p", { class: "muted", style: "margin:0 0 12px 0;" }, [
+        "Pick labels in one step. The reprint window closes before print confirmation.",
+      ])
+    );
+    var reprintHubActions = ui.el("div", { class: "pl-reprint-hub" });
+    var hubOneBtn = ui.el("button", { type: "button", class: "btn-primary" }, ["One Bag ID"]);
+    var hubRangeBtn = ui.el("button", { type: "button", class: "btn-primary" }, ["Number range"]);
+    var hubRunBtn = ui.el("button", { type: "button", class: "btn-secondary" }, ["From print run…"]);
+    reprintHubActions.appendChild(hubOneBtn);
+    reprintHubActions.appendChild(hubRangeBtn);
+    reprintHubActions.appendChild(hubRunBtn);
+    reprintHubDlg.body.appendChild(reprintHubActions);
+
+    var reprintOneDlg = plDialog("Reprint one label");
+    var reprintOneEl = ui.el("input", {
+      type: "text",
+      placeholder: "BAG-2026-006071",
+      value: "",
+      autocomplete: "off",
+    });
+    var reprintOneReasonEl = ui.el("input", { type: "text", placeholder: "Optional reason", value: "" });
+    var reprintOneMsg = ui.el("p", { class: "print-labels-field-hint" }, [""]);
+    var reprintOneActions = ui.el("div", { class: "pl-dialog-step-actions" });
+    var reprintOneBackBtn = ui.el("button", { type: "button", class: "btn-ghost" }, ["Back"]);
+    var reprintOneContinueBtn = ui.el("button", { type: "button", class: "btn-primary" }, ["Continue"]);
+    reprintOneActions.appendChild(reprintOneBackBtn);
+    reprintOneActions.appendChild(reprintOneContinueBtn);
+    reprintOneDlg.body.appendChild(field(ui, "Bag ID", reprintOneEl, "Smudged or misprinted label."));
+    reprintOneDlg.body.appendChild(field(ui, "Reason", reprintOneReasonEl));
+    reprintOneDlg.body.appendChild(reprintOneMsg);
+    reprintOneDlg.body.appendChild(reprintOneActions);
+
+    var reprintStartEl = ui.el("input", {
+      type: "text",
+      placeholder: "BAG-2026-006071",
+      value: "",
+      autocomplete: "off",
+    });
+    var reprintEndEl = ui.el("input", {
+      type: "text",
+      placeholder: "BAG-2026-006080",
+      value: "",
+      autocomplete: "off",
+    });
+    var reprintRangeReasonEl = ui.el("input", { type: "text", placeholder: "Optional reason", value: "" });
+    var reprintRangeMsg = ui.el("p", { class: "print-labels-field-hint" }, [""]);
+    var reprintRangeDlg = plDialog("Reprint range");
+    var reprintRangeRow = ui.el("div", { class: "print-labels-range-row" });
+    reprintRangeRow.appendChild(reprintStartEl);
+    reprintRangeRow.appendChild(reprintEndEl);
+    var reprintRangeActions = ui.el("div", { class: "pl-dialog-step-actions" });
+    var reprintRangeBackBtn = ui.el("button", { type: "button", class: "btn-ghost" }, ["Back"]);
+    var reprintRangeContinueBtn = ui.el("button", { type: "button", class: "btn-primary" }, ["Continue"]);
+    reprintRangeActions.appendChild(reprintRangeBackBtn);
+    reprintRangeActions.appendChild(reprintRangeContinueBtn);
+    reprintRangeDlg.body.appendChild(field(ui, "First / last Bag ID", reprintRangeRow,
+      "Full ID in each box — same format as printed on the label."));
+    reprintRangeDlg.body.appendChild(field(ui, "Reason", reprintRangeReasonEl));
+    reprintRangeDlg.body.appendChild(reprintRangeMsg);
+    reprintRangeDlg.body.appendChild(reprintRangeActions);
+
+    var reprintRunDlg = plDialog("Reprint from print run");
     var reprintRunEl = ui.el("select", {}, [ui.el("option", { value: "" }, ["Loading print runs…"])]);
-    var reprintManualEl = ui.el("input", {
-      type: "text",
-      placeholder: "BAG-2026-000137 or 137",
-      value: "",
-      autocomplete: "off",
-    });
-    var reprintManualBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Add label"]);
-    var reprintManualRow = ui.el("div", { class: "print-labels-printer-row" });
-    reprintManualRow.appendChild(reprintManualEl);
-    reprintManualRow.appendChild(reprintManualBtn);
-    var reprintRangeEl = ui.el("input", {
-      type: "text",
-      placeholder: "e.g. 321-330 or BAG-2026-000321 - BAG-2026-000330",
-      value: "",
-      autocomplete: "off",
-    });
-    var reprintRangeBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Apply range"]);
-    var reprintRangeRow = ui.el("div", { class: "print-labels-printer-row" });
-    reprintRangeRow.appendChild(reprintRangeEl);
-    reprintRangeRow.appendChild(reprintRangeBtn);
-    var reprintListEl = ui.el("div", { class: "print-labels-reprint-list muted" }, ["Select a print run above."]);
+    var reprintListEl = ui.el("div", { class: "print-labels-reprint-list muted" }, ["Choose a print run."]);
     var reprintToolbar = ui.el("div", { class: "print-labels-reprint-toolbar" });
     var reprintSelectAllBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Select all"]);
     var reprintClearBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Clear"]);
@@ -619,34 +832,88 @@
     reprintToolbar.appendChild(reprintSelectAllBtn);
     reprintToolbar.appendChild(reprintClearBtn);
     reprintToolbar.appendChild(reprintCountEl);
-    var reprintReasonEl = ui.el("input", { type: "text", placeholder: "Optional reason", value: "" });
-    reprintPanel.body.appendChild(field(ui, "Bag ID", reprintManualRow,
-      "Smudged or misprinted — enter one Bag ID and Add (no print run needed)."));
-    reprintPanel.body.appendChild(field(ui, "Print run", reprintRunEl,
-      "Optional — pick a failed/completed run to tick many labels, or use range below."));
-    reprintPanel.body.appendChild(field(ui, "Range", reprintRangeRow,
-      "Within the selected run — e.g. 321-330, then Apply range."));
-    reprintPanel.body.appendChild(reprintToolbar);
-    reprintPanel.body.appendChild(reprintListEl);
-    reprintPanel.body.appendChild(field(ui, "Reason", reprintReasonEl));
-    var reprintBtn = ui.el("button", { class: "btn-secondary", type: "button" }, ["Prepare reprint batch"]);
-    reprintPanel.body.appendChild(reprintBtn);
+    var reprintRunReasonEl = ui.el("input", { type: "text", placeholder: "Optional reason", value: "" });
+    var reprintRunActions = ui.el("div", { class: "pl-dialog-step-actions" });
+    var reprintRunBackBtn = ui.el("button", { type: "button", class: "btn-ghost" }, ["Back"]);
+    var reprintRunContinueBtn = ui.el("button", { type: "button", class: "btn-primary" }, ["Continue"]);
+    reprintRunActions.appendChild(reprintRunBackBtn);
+    reprintRunActions.appendChild(reprintRunContinueBtn);
+    reprintRunDlg.body.appendChild(field(ui, "Print run", reprintRunEl, "Failed or completed runs only."));
+    reprintRunDlg.body.appendChild(reprintToolbar);
+    reprintRunDlg.body.appendChild(reprintListEl);
+    reprintRunDlg.body.appendChild(field(ui, "Reason", reprintRunReasonEl));
+    reprintRunDlg.body.appendChild(reprintRunActions);
 
-    var reprintCatalog = [];
-    var reprintDefaultYear = new Date().getFullYear();
-    var reprintSelected = {};
+    var inventoryDlg = plDialog("Label inventory");
+    var inventoryEl = ui.el("div", { class: "print-labels-inventory" }, ["Loading…"]);
+    inventoryDlg.body.appendChild(inventoryEl);
 
-    var inventoryPanel = panel(ui, "Label inventory (server)");
-    workspace.appendChild(inventoryPanel.root);
-    var inventoryEl = ui.el("div", { class: "print-labels-inventory muted" }, ["Loading…"]);
-    inventoryPanel.body.appendChild(inventoryEl);
-
-    var historyPanel = panel(ui, "Print run history");
-    workspace.appendChild(historyPanel.root);
+    var historyDlg = plDialog("Print run history");
     var historyList = ui.el("div", { class: "print-labels-history-weeks" });
-    historyPanel.body.appendChild(historyList);
-    var refreshHistoryBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh history"]);
-    historyPanel.body.appendChild(refreshHistoryBtn);
+    historyDlg.body.appendChild(historyList);
+    var refreshHistoryBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Refresh"]);
+    historyDlg.body.appendChild(refreshHistoryBtn);
+
+    function closeAllPlDialogs() {
+      reprintHubDlg.close();
+      reprintOneDlg.close();
+      reprintRangeDlg.close();
+      reprintRunDlg.close();
+      historyDlg.close();
+      inventoryDlg.close();
+    }
+
+    function closeAuxDialogs() {
+      closeAllPlDialogs();
+    }
+
+    function openReprintHub() {
+      closeAllPlDialogs();
+      reprintHubDlg.open();
+    }
+
+    function openReprintOneStep() {
+      closeAllPlDialogs();
+      reprintOneMsg.textContent = "";
+      reprintOneMsg.className = "print-labels-field-hint";
+      reprintOneDlg.open();
+      window.setTimeout(function () { reprintOneEl.focus(); }, 50);
+    }
+
+    function openReprintRangeStep() {
+      closeAllPlDialogs();
+      reprintRangeMsg.textContent = "";
+      reprintRangeMsg.className = "print-labels-field-hint";
+      reprintRangeDlg.open();
+      window.setTimeout(function () { reprintStartEl.focus(); }, 50);
+    }
+
+    function openReprintRunStep() {
+      closeAllPlDialogs();
+      reprintRunDlg.open();
+      loadReprintRuns();
+    }
+
+    var lastReprintPrepareError = "";
+
+    openReprintDlgBtn.addEventListener("click", openReprintHub);
+    hubOneBtn.addEventListener("click", openReprintOneStep);
+    hubRangeBtn.addEventListener("click", openReprintRangeStep);
+    hubRunBtn.addEventListener("click", openReprintRunStep);
+    reprintOneBackBtn.addEventListener("click", openReprintHub);
+    reprintRangeBackBtn.addEventListener("click", openReprintHub);
+    reprintRunBackBtn.addEventListener("click", openReprintHub);
+
+    openHistoryDlgBtn.addEventListener("click", function () {
+      closeAllPlDialogs();
+      historyDlg.open();
+      loadHistory();
+    });
+    openInventoryDlgBtn.addEventListener("click", function () {
+      closeAllPlDialogs();
+      inventoryDlg.open();
+      loadInventory();
+    });
 
     var oldModal = document.querySelector(".print-labels-modal-backdrop");
     if (oldModal) oldModal.remove();
@@ -711,7 +978,7 @@
 
     function formatDisplayName(fmt) {
       if (fmt === "a4_pallet") return "A4 pallet sheet";
-      return readSaved().zebraStock === ZEBRA_STOCK_5425 ? "Zebra 54×25 mm" : "Zebra 61×28 mm";
+      return activeStockCode() === ZEBRA_STOCK_5425 ? "Zebra 54×25 mm" : "Zebra 62×28 mm";
     }
 
     function resolvedZebraPrinter(s) {
@@ -733,10 +1000,81 @@
       saveSettings(readSaved());
     }
 
+    function activeStockCode() {
+      var raw = readSaved().zebraStock;
+      if (standardStockOnly) return ZEBRA_STOCK_6128;
+      return raw === ZEBRA_STOCK_5425 ? ZEBRA_STOCK_5425 : ZEBRA_STOCK_6128;
+    }
+
+    function stockProfile(code) {
+      return STOCK_PROFILES[code || activeStockCode()] || STOCK_PROFILES[ZEBRA_STOCK_6128];
+    }
+
     function labelSpec() {
-      return readSaved().zebraStock === ZEBRA_STOCK_5425
+      return activeStockCode() === ZEBRA_STOCK_5425
         ? ZPL.productionSpec()
         : ZPL.productionSpec6128();
+    }
+
+    function zplStockSummary() {
+      var spec = labelSpec();
+      var dim = ZPL.labelDimensions(spec);
+      var prof = stockProfile(activeStockCode());
+      return {
+        profile: prof,
+        widthMm: dim.widthMm,
+        heightMm: dim.heightMm,
+        pw: dim.pw,
+        ll: dim.ll,
+      };
+    }
+
+    function refreshStockSizeBanner() {
+      if (!stockSizeBanner) return;
+      var sum = zplStockSummary();
+      var prof = sum.profile;
+      stockSizeBanner.innerHTML = "";
+      stockSizeBanner.appendChild(
+        ui.el("strong", {}, ["ZPL layout: " + prof.title])
+      );
+      stockSizeBanner.appendChild(document.createTextNode(
+        " — ^PW" + sum.pw + " ^LL" + sum.ll + " (203 dpi). " +
+          (prof.warnSmall
+            ? "Confirm the SMALL 54×25 roll is loaded before printing."
+            : "Load 61×28 mm stock in the printer — not legacy 54×25.")
+      ));
+      stockSizeBanner.className = "print-labels-stock-size-banner" +
+        (prof.warnSmall ? " print-labels-stock-size-banner--small" : " print-labels-stock-size-banner--standard");
+    }
+
+    function assertZebraStockMatchesZpl() {
+      if (labelFormat === "a4_pallet") return zplStockSummary();
+      var code = activeStockCode();
+      var spec = labelSpec();
+      var dim = ZPL.labelDimensions(spec);
+      var expect = code === ZEBRA_STOCK_5425
+        ? { widthMm: 54, heightMm: 25 }
+        : { widthMm: 62, heightMm: 28 };
+      if (dim.widthMm !== expect.widthMm || dim.heightMm !== expect.heightMm) {
+        throw new Error("Label layout size mismatch — reload the app or contact IT.");
+      }
+      if (standardStockOnly && code === ZEBRA_STOCK_5425) {
+        throw new Error("This site uses 61 × 28 mm stock only — 54 × 25 layout is disabled.");
+      }
+      return zplStockSummary();
+    }
+
+    function stockConfirmHtml() {
+      if (labelFormat === "a4_pallet") return "";
+      var sum = assertZebraStockMatchesZpl();
+      return (
+        "<p>Physical label / ZPL size:<br><strong>" + sum.profile.title + "</strong><br>" +
+        "<span class=\"muted\">^PW" + sum.pw + " · ^LL" + sum.ll + " · " +
+        sum.widthMm + "×" + sum.heightMm + " mm</span></p>" +
+        (sum.profile.warnSmall
+          ? "<p><strong>Small-stock warning:</strong> 54×25 layout — do not use on 61×28 rolls.</p>"
+          : "<p>Confirm <strong>61×28 mm</strong> stock is loaded (not 54×25).</p>")
+      );
     }
 
     function apiErrorMessage(err) {
@@ -760,12 +1098,21 @@
 
     function setBusy(busy) {
       prepareBtn.disabled = busy;
-      reprintBtn.disabled = busy;
+      if (!busy) {
+        reprintOneContinueBtn.disabled = false;
+        reprintRangeContinueBtn.disabled = false;
+        reprintRunContinueBtn.disabled = false;
+      }
       refreshBtn.disabled = busy;
       refreshHistoryBtn.disabled = busy;
-      modalPrintBtn.disabled = busy;
-      modalCancelBtn.disabled = busy;
-      modalDownloadBtn.disabled = busy;
+      if (busy) {
+        modalPrintBtn.disabled = true;
+        modalCancelBtn.disabled = true;
+        modalDownloadBtn.disabled = true;
+      } else {
+        modalCancelBtn.disabled = false;
+        modalDownloadBtn.disabled = false;
+      }
     }
 
     function fitPreviewFrame(frame, canvas, labelW, labelH) {
@@ -880,10 +1227,10 @@
           );
         }
         if (data.next_serial) {
-          var hm = String(data.next_serial).match(SERIAL_RE);
+          var hm = String(data.next_serial).match(/^BAG-(\d{4})-\d{6,}$/i);
           if (hm) reprintDefaultYear = parseInt(hm[1], 10);
         } else if (data.year) {
-          reprintDefaultYear = parseInt(data.year, 10);
+          reprintDefaultYear = labelYearDefault(data.year);
         }
         sequenceEl.innerHTML = parts.join("<br>") +
           "<div class=\"print-labels-sequence-next\">Next new run starts at: <code>" +
@@ -898,6 +1245,7 @@
     }
 
     function canPhysicalPrint() {
+      var bridge = desktopBridge();
       if (!bridge) return false;
       if (labelFormat === "a4_pallet") {
         return !!(bridge.print_a4_labels && resolvedA4Printer());
@@ -906,17 +1254,25 @@
     }
 
     function showModal(title, htmlBody, printLabel, showDownload) {
+      closeAuxDialogs();
       modalTitle.textContent = title;
-      modalBody.innerHTML = "";
+      if (!htmlBody || !String(htmlBody).trim()) {
+        var q = (pendingRun && pendingRun.quantity) || (pendingLabels && pendingLabels.length) || "?";
+        var fs = pendingRun && pendingRun.first_serial;
+        var ls = pendingRun && pendingRun.last_serial;
+        htmlBody =
+          "<p><strong>Confirm print</strong></p><p>Quantity: " + q + "</p>" +
+          (fs ? "<p>From <code>" + fs + "</code>" + (ls && ls !== fs ? " to <code>" + ls + "</code>" : "") + "</p>" : "");
+      }
       var isA4 = labelFormat === "a4_pallet";
       var extra = canPhysicalPrint()
         ? (isA4
-          ? "<p class=\"print-labels-field-hint\">Prints to <strong>" +
+          ? "<p class=\"pl-confirm-hint\">Prints to <strong>" +
             (resolvedA4Printer() || "your A4 printer") +
-            "</strong>, one single-sided sheet per Bag ID.</p>"
+            "</strong>, one sheet per Bag ID.</p>"
           : "")
-        : "<p class=\"print-labels-field-hint\">Physical printing needs desktop CIS on Windows with a configured printer. You can download ZPL instead.</p>";
-      modalBody.appendChild(ui.el("div", { html: htmlBody + extra }));
+        : "<p class=\"pl-confirm-hint\">Select a printer in the main window, then Print. Or download ZPL.</p>";
+      modalBody.innerHTML = htmlBody + extra;
       var modalPrintLabel = printLabel;
       if (isA4) {
         var qtyMatch = printLabel.match(/^Print\s+(\d+)\s+labels?/i);
@@ -937,6 +1293,7 @@
         modalDownloadBtn.textContent = "Download ZPL";
         modalDownloadBtn.style.display = showDownload && !canPhysicalPrint() ? "" : "none";
       }
+      document.body.appendChild(modalBackdrop);
       modalBackdrop.classList.remove("hidden");
     }
 
@@ -971,17 +1328,23 @@
     }
 
     async function refreshPrinters() {
-      if (!bridge || !bridge.list_printers) {
-        setStatus(
-          "Printer list needs Carbo Print Labels on Windows (not a browser tab). Restart from the Start menu.",
-          true
-        );
-        fillPrinterSelect(zebraPrinterEl, [], "", null, null);
-        fillPrinterSelect(a4PrinterEl, [], "", null, null);
-        return;
-      }
       refreshBtn.disabled = true;
       try {
+        setStatus("Reading Windows printers…", false);
+        var bridge = await waitForDesktopBridge(15000);
+        if (!bridge || !bridge.list_printers) {
+          setStatus(
+            printLabelsOutdatedDesktopHost()
+              ? "This PC has an old Print Labels build. Run CarboPrintLabels-Setup.exe, reopen from Start, then Refresh."
+              : printLabelsRunningInBrowserTab()
+                ? "Open Carbo Print Labels from the Start menu shortcut — not a browser tab."
+                : "Printer bridge not ready. Quit the app completely and reopen from Start, then Refresh.",
+            true
+          );
+          fillPrinterSelect(zebraPrinterEl, [], "", null, null);
+          fillPrinterSelect(a4PrinterEl, [], "", null, null);
+          return;
+        }
         var res = await bridge.list_printers();
         if (res && res.error) {
           setStatus("Could not read Windows printers: " + res.error, true);
@@ -1017,6 +1380,7 @@
     }
 
     async function sendZpl(zpl) {
+      var bridge = desktopBridge();
       if (!bridge) throw new Error("Printing needs Carbo Print Labels on Windows.");
       if (!bridge.send_zpl_usb) throw new Error("Printing needs Carbo Print Labels on Windows.");
       var name = resolvedZebraPrinter();
@@ -1123,12 +1487,14 @@
         if (n === 1) {
           return (
             "<p><strong>" + title + "</strong></p>" +
+            stockConfirmHtml() +
             "<p>Bag ID:<br><code>" + run.first_serial + "</code></p>" +
             "<p>Printer:<br><strong>" + printer + "</strong></p>"
           );
         }
         return (
           "<p><strong>" + title + "</strong></p>" +
+          stockConfirmHtml() +
           "<p>Bag IDs:<br><code>" + run.first_serial + "</code><br>to<br><code>" + run.last_serial + "</code></p>" +
           "<p>Printer:<br><strong>" + printer + "</strong></p>"
         );
@@ -1137,6 +1503,7 @@
       return (
         "<p><strong>You are about to print:</strong><br>" + qty + " label" + (qty === 1 ? "" : "s") + "</p>" +
         "<p>Label format:<br><strong>" + fmtName + "</strong></p>" +
+        stockConfirmHtml() +
         "<p>Bag IDs:<br><code>" + run.first_serial + "</code><br>to<br><code>" + run.last_serial + "</code></p>" +
         "<p>Printer:<br><strong>" + printer + "</strong></p>"
       );
@@ -1172,6 +1539,7 @@
       var isReprint = pendingMode === "reprint";
       var isA4 = labelFormat === "a4_pallet";
       try {
+        if (!isA4) assertZebraStockMatchesZpl();
         await ctx.api.traceability("/labels/print-runs/" + runId + "/start", { method: "POST" });
         setStatus(isA4 ? "Opening A4 print…" : "Printing…");
         var sent = 0;
@@ -1268,6 +1636,14 @@
     async function prepareBatch() {
       syncLabelFormat();
       persistForm();
+      if (labelFormat !== "a4_pallet") {
+        try {
+          assertZebraStockMatchesZpl();
+        } catch (sizeErr) {
+          setStatus(sizeErr.message || String(sizeErr), true);
+          return;
+        }
+      }
       var parsed = parseQuantity(qtyEl.value);
       if (parsed.error) {
         setStatus(parsed.error, true);
@@ -1295,6 +1671,7 @@
         pendingLabels = data.labels || [];
         pendingMode = "batch";
         if (pendingLabels.length) paintPreview(pendingLabels[0].serial);
+        closeAllPlDialogs();
         showModal(
           "Confirm print run",
           confirmHtml(pendingRun, "batch"),
@@ -1354,47 +1731,41 @@
       return status === "available" || status === "used";
     }
 
-    async function addManualReprintSerial() {
+    function setOneStepMsg(text, isError) {
+      reprintOneMsg.textContent = text || "";
+      reprintOneMsg.className = isError ? "error-box" : "print-labels-field-hint";
+    }
+
+    async function continueReprintOneLabel() {
       if (!ctx.api.traceability) {
-        setStatus("Traceability API not configured.", true);
+        setOneStepMsg("Traceability API not configured.", true);
         return;
       }
-      var serial = parseSerialToken(reprintManualEl.value, reprintDefaultYear);
+      var serial = parseExactBagId(reprintOneEl.value);
       if (!serial || !SERIAL_RE.test(serial)) {
-        setStatus("Enter a valid Bag ID (BAG-YYYY-NNNNNN or sequence number).", true);
+        setOneStepMsg("Enter the full Bag ID as printed (BAG-YYYY-NNNNNN).", true);
         return;
       }
-      if (reprintCatalog.some(function (item) { return item.serial === serial; })) {
-        reprintSelected[serial] = true;
-        reprintManualEl.value = "";
-        renderReprintChecklist();
-        setStatus("Selected " + serial + " (already in list).");
-        return;
+      reprintOneContinueBtn.disabled = true;
+      setOneStepMsg("Preparing reprint…", false);
+      reprintReasonNote = reprintOneReasonEl.value.trim();
+      reprintCatalog = [{
+        serial: serial,
+        status: "manual",
+        reprint_ok: true,
+        manual: true,
+      }];
+      reprintSelected = {};
+      reprintSelected[serial] = true;
+      var ok = await prepareReprint();
+      if (ok) {
+        reprintOneEl.value = "";
+        setOneStepMsg("", false);
+        reprintOneDlg.close();
+      } else {
+        setOneStepMsg(lastReprintPrepareError || "Could not prepare reprint.", true);
       }
-      try {
-        var label = await ctx.api.traceability("/labels/" + encodeURIComponent(serial));
-        var recovery = label.status === "allocated";
-        if (!reprintOkStatus(label.status, recovery)) {
-          setStatus(
-            serial + " is " + label.status + " — only available, used, or recovery (allocated) labels can be reprinted.",
-            true
-          );
-          return;
-        }
-        reprintCatalog.push({
-          serial: label.serial,
-          status: label.status,
-          recovery: recovery,
-          reprint_ok: true,
-          manual: true,
-        });
-        reprintSelected[serial] = true;
-        reprintManualEl.value = "";
-        renderReprintChecklist();
-        setStatus("Added " + serial + " for reprint.");
-      } catch (e) {
-        setStatus("Could not look up " + serial + ": " + apiErrorMessage(e), true);
-      }
+      reprintOneContinueBtn.disabled = false;
     }
 
     function setReprintSelection(serials, on) {
@@ -1405,23 +1776,57 @@
       renderReprintChecklist();
     }
 
-    function applyReprintRangeSelection() {
-      var expanded = expandReprintRange(reprintRangeEl.value, reprintDefaultYear);
+    function reprintRangeMessage(text, isError) {
+      reprintRangeMsg.textContent = text || "";
+      reprintRangeMsg.className = isError ? "error-box" : "print-labels-field-hint";
+      setStatus(text, isError);
+    }
+
+    async function continueReprintRange() {
+      var expanded = readReprintRangeFromFields(reprintStartEl.value, reprintEndEl.value);
       if (expanded.error) {
-        setStatus(expanded.error, true);
+        reprintRangeMessage(expanded.error, true);
         return;
       }
-      var known = {};
-      reprintCatalog.forEach(function (item) {
-        if (item.reprint_ok) known[item.serial] = true;
+      reprintRangeContinueBtn.disabled = true;
+      reprintRangeMessage("Preparing reprint…", false);
+      reprintReasonNote = reprintRangeReasonEl.value.trim();
+      reprintCatalog = expanded.value.map(function (serial) {
+        return {
+          serial: serial,
+          status: "manual",
+          reprint_ok: true,
+          manual: true,
+        };
       });
-      var matched = expanded.value.filter(function (s) { return known[s]; });
-      if (!matched.length) {
-        setStatus("No labels in that range are on this print run (or not reprintable).", true);
+      reprintSelected = {};
+      expanded.value.forEach(function (serial) {
+        reprintSelected[serial] = true;
+      });
+      var ok = await prepareReprint();
+      if (ok) {
+        reprintRangeDlg.close();
+      } else {
+        reprintRangeMessage(lastReprintPrepareError || "Could not prepare reprint.", true);
+      }
+      reprintRangeContinueBtn.disabled = false;
+    }
+
+    async function continueReprintFromRun() {
+      reprintReasonNote = reprintRunReasonEl.value.trim();
+      var serials = getSelectedReprintSerials();
+      if (!serials.length) {
+        setStatus("Select at least one label in the list.", true);
         return;
       }
-      setReprintSelection(matched, true);
-      setStatus("Selected " + matched.length + " label(s) from range.");
+      reprintRunContinueBtn.disabled = true;
+      var ok = await prepareReprint();
+      if (ok) {
+        reprintRunDlg.close();
+      } else {
+        setStatus(lastReprintPrepareError || "Could not prepare reprint.", true);
+      }
+      reprintRunContinueBtn.disabled = false;
     }
 
     async function loadReprintRuns() {
@@ -1490,19 +1895,23 @@
     }
 
     async function prepareReprint() {
+      lastReprintPrepareError = "";
       persistForm();
       var serials = getSelectedReprintSerials();
       if (!serials.length) {
-        setStatus("Select at least one label to reprint (tick boxes or use a range).", true);
-        return;
+        lastReprintPrepareError = "No Bag ID selected for reprint.";
+        setStatus(lastReprintPrepareError, true);
+        return false;
       }
       if (serials.length > MAX_QUANTITY) {
-        setStatus("Maximum reprint batch size is " + MAX_QUANTITY + ".", true);
-        return;
+        lastReprintPrepareError = "Maximum reprint batch size is " + MAX_QUANTITY + ".";
+        setStatus(lastReprintPrepareError, true);
+        return false;
       }
       if (!ctx.api.traceability) {
-        setStatus("Traceability API not configured.", true);
-        return;
+        lastReprintPrepareError = "Traceability API not configured.";
+        setStatus(lastReprintPrepareError, true);
+        return false;
       }
       setBusy(true);
       try {
@@ -1513,7 +1922,7 @@
             : (resolvedZebraPrinter() || null),
           printer_connection: labelFormat === "a4_pallet" ? "windows" : zebraPrinterConnection(),
         };
-        var reason = reprintReasonEl.value.trim();
+        var reason = (reprintReasonNote || "").trim();
         if (reason) body.reason = reason;
         var data = await ctx.api.traceability("/labels/print-runs/reprint/prepare", { method: "POST", body: body });
         pendingRun = data.print_run;
@@ -1521,9 +1930,13 @@
         if (!pendingLabels.length && data.serial) {
           pendingLabels = [{ serial: data.serial }];
         }
+        if (!pendingRun) {
+          throw new Error("Server did not return a print run.");
+        }
         pendingMode = "reprint";
         pendingRecovery = !!(data.recovery || (data.recovery_count && data.recovery_count > 0));
         if (pendingLabels.length) paintPreview(pendingLabels[0].serial);
+        closeAllPlDialogs();
         var n = pendingRun.quantity || pendingLabels.length || 1;
         showModal(
           pendingRecovery ? "Confirm recovery print" : "Confirm reprint batch",
@@ -1536,8 +1949,11 @@
         setStatus(pendingRecovery
           ? "Recovery batch prepared — confirm or cancel."
           : "Reprint batch prepared — confirm or cancel.");
+        return true;
       } catch (e) {
-        setStatus("Reprint prepare failed: " + apiErrorMessage(e), true);
+        lastReprintPrepareError = "Reprint prepare failed: " + apiErrorMessage(e);
+        setStatus(lastReprintPrepareError, true);
+        return false;
       } finally {
         setBusy(false);
       }
@@ -1558,13 +1974,28 @@
       persistForm();
       paintPreview(null);
     });
-    zebraStockEl.addEventListener("change", function () {
+    function onZebraStockChange() {
+      if (!standardStockOnly && zebraStockEl.tagName === "SELECT" &&
+          zebraStockEl.value === ZEBRA_STOCK_5425) {
+        var ok = window.confirm(
+          "54 × 25 mm is for LEGACY SMALL rolls only.\n\n" +
+            "If the printer has 61 × 28 mm stock, cancel and keep standard size.\n\n" +
+            "Continue with small-label layout?"
+        );
+        if (!ok) {
+          zebraStockEl.value = ZEBRA_STOCK_6128;
+        }
+      }
       persistForm();
+      refreshStockSizeBanner();
       paintPreview(null);
-    });
+    }
+    if (zebraStockEl.tagName === "SELECT") {
+      zebraStockEl.addEventListener("change", onZebraStockChange);
+    }
     async function testZebraConnection() {
       persistForm();
-      if (!bridge) {
+      if (!desktopBridge()) {
         setStatus("Open Carbo Print Labels on Windows to test the printer.", true);
         return;
       }
@@ -1579,17 +2010,17 @@
     refreshBtn.addEventListener("click", refreshPrinters);
     testZebraBtn.addEventListener("click", testZebraConnection);
     prepareBtn.addEventListener("click", prepareBatch);
-    reprintBtn.addEventListener("click", prepareReprint);
+    reprintOneContinueBtn.addEventListener("click", function () { void continueReprintOneLabel(); });
+    reprintOneEl.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") void continueReprintOneLabel();
+    });
+    reprintRangeContinueBtn.addEventListener("click", function () { void continueReprintRange(); });
+    reprintEndEl.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") void continueReprintRange();
+    });
+    reprintRunContinueBtn.addEventListener("click", function () { void continueReprintFromRun(); });
     reprintRunEl.addEventListener("change", function () {
       loadReprintForRun(reprintRunEl.value);
-    });
-    reprintManualBtn.addEventListener("click", addManualReprintSerial);
-    reprintManualEl.addEventListener("keydown", function (ev) {
-      if (ev.key === "Enter") addManualReprintSerial();
-    });
-    reprintRangeBtn.addEventListener("click", applyReprintRangeSelection);
-    reprintRangeEl.addEventListener("keydown", function (ev) {
-      if (ev.key === "Enter") applyReprintRangeSelection();
     });
     reprintSelectAllBtn.addEventListener("click", function () {
       setReprintSelection(
@@ -1619,13 +2050,16 @@
 
     syncZebraConnectionUi();
     syncLabelFormat();
+    if (standardStockOnly) persistForm();
+    refreshStockSizeBanner();
     paintPreview(null);
     setStatus("Enter a quantity and click Continue. Bag IDs come from the server — nothing prints until you confirm.");
     loadInventory();
     loadHistory();
     loadSequence();
     loadReprintRuns();
-    if (bridge && bridge.list_printers) refreshPrinters();
+    refreshPrinters();
+    setTimeout(function () { refreshPrinters(); }, 2500);
   }
 
   CIS.modules.push({

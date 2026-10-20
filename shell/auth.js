@@ -86,6 +86,13 @@
     });
   }
 
+  var PWD_ICON_SHOW =
+    '<svg class="password-toggle__icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path fill="currentColor" d="M12 5C7 5 2.73 8.11 1 12.5 2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 11.5a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>';
+  var PWD_ICON_HIDE =
+    '<svg class="password-toggle__icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path fill="currentColor" d="M12 6.5c2.5 0 4.65 1.03 6.22 2.68l-1.42 1.42A6.9 6.9 0 0 0 12 8.5c-1.6 0-3.08.55-4.25 1.47L6.34 8.56C7.88 7.2 9.85 6.5 12 6.5zM3.27 3 2 4.27l2.28 2.28A11.8 11.8 0 0 0 1 12.5C2.73 16.89 7 20 12 20c2.09 0 4.04-.53 5.7-1.46L20.73 22 22 20.73 3.27 3zm6.53 6.53 1.41 1.41A2.5 2.5 0 0 1 12 14.5c.69 0 1.31-.28 1.76-.73l1.41 1.41A4.5 4.5 0 0 1 12 16.5a4.5 4.5 0 0 1-4.76-4.47l1.56-1.5z"/></svg>';
+
   function togglePasswordField(btn) {
     var field = btn.closest(".password-field");
     var input = field && field.querySelector("input");
@@ -96,6 +103,8 @@
       btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
       btn.setAttribute("aria-pressed", show ? "true" : "false");
       btn.title = show ? "Hide password" : "Show password";
+      btn.innerHTML = (show ? PWD_ICON_HIDE : PWD_ICON_SHOW) +
+        '<span class="password-toggle__text">' + (show ? "Hide" : "Show") + "</span>";
     });
   }
 

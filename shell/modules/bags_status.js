@@ -1418,7 +1418,7 @@
 
     coast: "teal",
 
-    transit_coast: "teal",
+    walvis_bay: "teal",
 
     closed: "slate",
 
@@ -1441,7 +1441,7 @@
     }
     return {
       key: WALVIS_STORAGE_STATUS,
-      label: "Pallets in storage — Walvis Bay",
+      label: "Pallets in storage — Carbo Yard",
       bags: 0,
       kg: 0,
     };
@@ -1456,122 +1456,144 @@
     return rows;
   }
 
-  function combineTransitCoastGroups(groups) {
+  var BS_STREAM_KEYS = ["restaurant", "lumpwood", "fines", "briquettes", "pallet"];
 
+  function relabelStatusTiles(statuses, labelByKey) {
+    return (statuses || []).map(function (st) {
+      var next = labelByKey[st.key];
+      return next ? Object.assign({}, st, { label: next }) : st;
+    });
+  }
+
+  function statusTileFromTotals(statusKey, label, totals) {
+    var bucket = (totals && totals[statusKey]) || { bags: 0, kg: 0 };
+    var tile = {
+      key: statusKey,
+      label: label,
+      bags: Number(bucket.bags) || 0,
+      kg: Number(bucket.kg) || 0,
+      streams: {},
+    };
+    BS_STREAM_KEYS.forEach(function (stream) {
+      if (bucket[stream] != null) tile.streams[stream] = Number(bucket[stream]) || 0;
+    });
+    return tile;
+  }
+
+  /** Split movement (in transit) from stationary coast stock — bag status is canonical. */
+  function layoutTransitAndWalvisGroups(groups, statusTotals) {
     groups = groups || [];
 
     var transit = null;
-
     var walvis = null;
-
     var coast = null;
-
     var insertIdx = -1;
 
     groups.forEach(function (g, i) {
-
       if (g.key === "in_transit") {
-
         transit = g;
-
         if (insertIdx < 0) insertIdx = i;
-
       }
-
       if (g.key === "walvis_storage") {
-
         walvis = g;
-
         if (insertIdx < 0) insertIdx = i;
-
       }
-
       if (g.key === "coast") {
-
         coast = g;
-
         if (insertIdx < 0) insertIdx = i;
-
       }
-
     });
 
     if (!transit && !walvis && !coast) return groups;
 
-    var sections = [];
-
-    if (transit) {
-
-      sections.push({
-
-        key: "in_transit",
-
-        label: transit.label || "In transit",
-
-        statuses: transit.statuses || [],
-
-      });
-
-    }
-
-    if (walvis) {
-
-      sections.push({
-
-        key: "walvis_storage",
-
-        label: walvis.label || "In storage — Walvis Bay",
-
-        statuses: walvis.statuses || [],
-
-      });
-
-    }
-
-    if (coast) {
-
-      sections.push({
-
-        key: "coast",
-
-        label: coast.label || "At the coast",
-
-        statuses: coast.statuses || [],
-
-      });
-
-    }
-
-    var combined = {
-
-      key: "transit_coast",
-
-      label: "In transit & at the coast",
-
-      bags: (transit ? transit.bags : 0) + (walvis ? walvis.bags : 0) + (coast ? coast.bags : 0),
-
-      kg: (transit ? transit.kg : 0) + (walvis ? walvis.kg : 0) + (coast ? coast.kg : 0),
-
-      sections: sections,
-
-    };
-
     var out = groups.filter(function (g) {
-
       return g.key !== "in_transit" && g.key !== "coast" && g.key !== "walvis_storage";
-
     });
 
     var at = groups.slice(0, insertIdx).filter(function (g) {
-
       return g.key !== "in_transit" && g.key !== "coast" && g.key !== "walvis_storage";
-
     }).length;
 
-    out.splice(at, 0, combined);
+    var inserts = [];
 
+    if (transit) {
+      inserts.push({
+        key: "in_transit",
+        label: transit.label || "In transit",
+        note:
+          "On the road — not at a yard. Truck scans from Grootfontein show here as In transit — Walvis Bay.",
+        bags: transit.bags,
+        kg: transit.kg,
+        statuses: relabelStatusTiles(transit.statuses, {
+          on_truck_walvisbay: "In transit — Walvis Bay",
+        }),
+      });
+    }
+
+    if (walvis || coast) {
+      var carboTiles = relabelStatusTiles(walvis && walvis.statuses, {
+        storage_walvisbay: "In storage — Carbo Yard",
+      });
+      var aglTiles = relabelStatusTiles(coast && coast.statuses, {
+        storage_agl: "In storage — AGL",
+      });
+      var intoTile = statusTileFromTotals("in_container", "Into container", statusTotals);
+
+      var sections = [];
+      if (walvis) {
+        sections.push({
+          key: "walvis_storage",
+          label: "In storage — Carbo Yard",
+          statuses: carboTiles.length
+            ? carboTiles
+            : [
+                {
+                  key: "storage_walvisbay",
+                  label: "In storage — Carbo Yard",
+                  bags: 0,
+                  kg: 0,
+                  streams: {},
+                },
+              ],
+        });
+      }
+      if (coast) {
+        sections.push({
+          key: "coast",
+          label: "In storage — AGL",
+          statuses: aglTiles.length
+            ? aglTiles
+            : [{ key: "storage_agl", label: "In storage — AGL", bags: 0, kg: 0, streams: {} }],
+        });
+      }
+      sections.push({
+        key: "into_container",
+        label: "Into container",
+        statuses: [intoTile],
+      });
+
+      var wbBags =
+        (walvis ? Number(walvis.bags) || 0 : 0) +
+        (coast ? Number(coast.bags) || 0 : 0) +
+        (intoTile.bags || 0);
+      var wbKg =
+        (walvis ? Number(walvis.kg) || 0 : 0) +
+        (coast ? Number(coast.kg) || 0 : 0) +
+        (intoTile.kg || 0);
+
+      inserts.push({
+        key: "walvis_bay",
+        label: "Walvis Bay",
+        note:
+          "Stationary at the coast — Carbo yard, AGL, or scanned into an export container. Not in transit on a truck.",
+        bags: wbBags,
+        kg: Math.round(wbKg * 1000) / 1000,
+        sections: sections,
+      });
+    }
+
+    out.splice.apply(out, [at, 0].concat(inserts));
     return out;
-
   }
 
 
@@ -1579,7 +1601,8 @@
   var DASHBOARD_GROUP_ORDER = [
     "factory",
     "packaging_outputs",
-    "transit_coast",
+    "in_transit",
+    "walvis_bay",
     "closed",
   ];
 
@@ -1839,7 +1862,7 @@
       );
     } else {
       parent.appendChild(
-        ui.el("p", { class: "bs-dash-empty" }, ["No bulk bags in Walvis storage linked to a dispatch manifest yet."])
+        ui.el("p", { class: "bs-dash-empty" }, ["No bulk bags in Carbo yard storage linked to a dispatch manifest yet."])
       );
     }
 
@@ -1903,7 +1926,7 @@
         walvisDispatchDisplayLabel(dispatch) +
           " — " +
           String(dispatch.bags_in_storage || 0) +
-          " bag(s) in Walvis storage. Tap a category for detail.",
+          " bag(s) in Carbo yard storage. Tap a category for detail.",
       ])
     );
     var cats = dispatch.categories || [];
@@ -2976,7 +2999,7 @@
             onClick: function () {
               selected = {
                 key: WALVIS_STORAGE_STATUS,
-                label: "In storage — Walvis Bay",
+                label: "In storage — Carbo Yard",
                 mode: "walvis_storage_hub",
                 walvisReport: walvisStorageReport,
               };
@@ -2988,7 +3011,7 @@
             onClick: function () {
               selected = {
                 key: WALVIS_STORAGE_STATUS,
-                label: "In storage — Walvis Bay",
+                label: "In storage — Carbo Yard",
                 mode: "walvis_storage_hub",
                 walvisReport: walvisStorageReport,
               };
@@ -3196,9 +3219,9 @@
 
 
         if (selected.mode === "walvis_storage_hub") {
-          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label || "In storage — Walvis Bay"]));
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label || "In storage — Carbo Yard"]));
           if (selected.walvisReportLoading) {
-            body.appendChild(renderDrillLoading("Walvis storage by dispatch", ui));
+            body.appendChild(renderDrillLoading("Carbo yard — by dispatch", ui));
             syncFloatingNav();
             return;
           }
@@ -3233,7 +3256,7 @@
           body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, ["Not on a dispatch manifest"]));
           body.appendChild(
             ui.el("p", { class: "bs-dash-drill-note" }, [
-              "These bulk bags are in Walvis storage but were never linked to a GF truck manifest. Tap a category for detail.",
+              "These bulk bags are in Carbo yard storage but were never linked to a GF truck manifest. Tap a category for detail.",
             ])
           );
           var unHub = selected.unassigned || {};
@@ -3570,7 +3593,9 @@
 
 
 
-      orderDashboardGroups(combineTransitCoastGroups(summary.groups)).forEach(function (group) {
+      orderDashboardGroups(
+        layoutTransitAndWalvisGroups(summary.groups, summary.status_totals)
+      ).forEach(function (group) {
 
         body.appendChild(renderGroup(group, ui, null, openStatus, summary));
 
@@ -3905,7 +3930,7 @@
       wxDrill = null;
       selected = {
         key: WALVIS_STORAGE_STATUS,
-        label: st.label || "In storage — Walvis Bay",
+        label: st.label || "In storage — Carbo Yard",
         mode: "walvis_storage_hub",
         bulkStatus: st,
         palletBucket: palletWalvisStorageBucket(summary.pallet_summary),
@@ -3932,7 +3957,7 @@
     }
 
     async function openWalvisBulkDrill() {
-      var token = beginDrillFetch("Bulk bags — Walvis Bay");
+      var token = beginDrillFetch("Bulk bags — Carbo Yard");
       try {
         var data = await ctx.api.traceability(bagsStatusDrillPath(WALVIS_STORAGE_STATUS));
         if (drillFetchCancelled(token)) return;
@@ -3942,7 +3967,7 @@
         selectedEvent = null;
         selected = null;
         wxDrill = {
-          label: "Bulk bags — Walvis Bay",
+          label: "Bulk bags — Carbo Yard",
           rows: rows,
           backTo: "main",
         };

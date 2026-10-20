@@ -1,0 +1,11 @@
+Print Labels — production checkpoint (2026-10-20)
+=================================================
+
+Release ID: 20261020-reprint-stable
+Manifest:   ../shell/print_labels_RELEASE.json
+Cursor rule: ../.cursor/rules/print-labels-stable-release.mdc
+
+This station's Zebra/A4 printer names are saved in localStorage (key cis_print_labels_v6)
+on each PC — they survive app updates.
+
+Ship to label PCs: CarboPrintLabels-Setup.exe after desktop\BUILD-PRINT-LABELS.cmd

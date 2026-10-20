@@ -1,4 +1,4 @@
-/* Bag label ZPL — 203 dpi ZT231. productionSpec6128() = 61×28 mm (standard); productionSpec() = 54×25 legacy. */
+/* Bag label ZPL — 203 dpi ZT231. productionSpec6128() = 62×28 mm (standard); productionSpec() = 54×25 legacy. */
 (function (root) {
   "use strict";
 
@@ -20,12 +20,16 @@
   /** Larger QR modules = more heat per cell on dull 54×25 stock. */
   var PRODUCTION_54_QR_BOOST_MAG = 4;
 
-  /** Physically verified on ZT231 61×28 stock — use productionSpec6128() when that stock is loaded. */
+  /** Physically verified on ZT231 62×28 stock — productionSpec6128(); ^PW/^LL set from widthMm/heightMm only. */
   var STOCK_6128_QR_BOOST_MAG = 2;
-  var STOCK_6128_LAYOUT_Y_OFFSET_DOTS = 12;
-  var STOCK_6128_QR_LEFT_INSET_MM = 2.5;
-  /** Nudge QR + serial right — away from physical left edge on 61×28 stock. */
-  var STOCK_6128_CONTENT_SHIFT_MM = 2.5;
+  /** Center QR + serial on the physical label (does not change QR mag / font size). */
+  var STOCK_6128_CENTER_BLOCK = true;
+  /** Move QR + serial down on physical 62×28 stock (mm → dots at 203 dpi). */
+  var STOCK_6128_LAYOUT_Y_OFFSET_MM = 3;
+  var STOCK_6128_LAYOUT_Y_OFFSET_DOTS = mmToDots(STOCK_6128_LAYOUT_Y_OFFSET_MM, 203);
+  /** Print strength only (~SD / ^MD) — not layout size. UI/CSS changes do not touch these; only rebuild ships new values. */
+  var STOCK_6128_DARKNESS = 24;
+  var STOCK_6128_MEDIA_DARKNESS = 10;
 
   /** Zebra ~SD darkness 00–30 (higher = darker). 30 + slow print for dull USB/legacy stock. */
   var PRODUCTION_DARKNESS = 30;
@@ -86,7 +90,9 @@
     var s = Object.assign({}, DEFAULT_SPEC, spec || {});
     var d = specToDots(s);
     var payload = symbolPayload(serial, s);
-    var qrLeftInset = mmToDots(parseFloat(s.qrLeftInsetMm) || 0, d.dpi);
+    var qrLeftInset = s.centerContentBlock
+      ? 0
+      : mmToDots(parseFloat(s.qrLeftInsetMm) || 0, d.dpi);
     var usableW = d.pw - 2 * d.margin;
     var usableH = d.ll - 2 * d.margin;
     var mag = d.qrMag > 0 ? d.qrMag : autoQrMag(
@@ -107,28 +113,51 @@
       mag = Math.max(2, Math.floor(maxQrW / modules));
       qrSize = qrPrintedSize(modules, mag);
     }
-    var qrX = d.margin + qrLeftInset;
-    var qrY = d.margin + Math.round((usableH - qrSize) / 2);
-    var textX = qrX + qrSize + d.gap;
-    var textAreaW = Math.max(40, d.pw - d.margin - textX);
     var fontMax = s.heightMm <= 25 ? 26 : 28;
     var fontMin = s.heightMm <= 25 ? 18 : 20;
     var fontH = Math.min(fontMax, Math.max(fontMin, Math.round(usableH * 0.18)));
     var fontW = Math.round(fontH * 0.9);
+    var textAreaW = Math.max(40, usableW - qrSize - d.gap - qrLeftInset);
     while (fontH > fontMin && estimateTextWidth(serial, fontW) > textAreaW) {
       fontH -= 1;
       fontW = Math.round(fontH * 0.9);
     }
-    var textY = d.margin + Math.round((usableH - fontH) / 2);
+    var qrX;
+    var qrY;
+    var textX;
+    var textY;
     var yOffset = parseInt(s.layoutYOffsetDots, 10) || 0;
-    qrY += yOffset;
-    textY += yOffset;
-    var contentShift = mmToDots(parseFloat(s.contentShiftMm) || 0, d.dpi);
-    if (contentShift > 0) {
-      var maxShift = Math.max(0, d.pw - d.margin - textX - textAreaW);
-      contentShift = Math.min(contentShift, maxShift);
-      qrX += contentShift;
-      textX += contentShift;
+    if (s.centerContentBlock) {
+      var textPrintW = Math.min(textAreaW, Math.ceil(estimateTextWidth(serial, fontW)));
+      var blockW = qrSize + d.gap + textPrintW;
+      var biasR = mmToDots(parseFloat(s.contentBiasRightMm) || 0, d.dpi);
+      var startX = Math.round((d.pw - blockW) / 2) + biasR;
+      var maxStart = d.pw - d.margin - blockW;
+      startX = Math.max(d.margin, Math.min(startX, maxStart));
+      qrX = startX;
+      textX = qrX + qrSize + d.gap;
+      textAreaW = Math.max(40, d.pw - d.margin - textX);
+      var blockH = Math.max(qrSize, fontH);
+      var blockTop = d.margin + Math.round((usableH - blockH) / 2);
+      qrY = blockTop + Math.round((blockH - qrSize) / 2);
+      textY = blockTop + Math.round((blockH - fontH) / 2);
+      qrY += yOffset;
+      textY += yOffset;
+    } else {
+      qrX = d.margin + qrLeftInset;
+      qrY = d.margin + Math.round((usableH - qrSize) / 2);
+      textX = qrX + qrSize + d.gap;
+      textAreaW = Math.max(40, d.pw - d.margin - textX);
+      textY = d.margin + Math.round((usableH - fontH) / 2);
+      qrY += yOffset;
+      textY += yOffset;
+      var contentShift = mmToDots(parseFloat(s.contentShiftMm) || 0, d.dpi);
+      if (contentShift > 0) {
+        var maxShift = Math.max(0, d.pw - d.margin - textX - textAreaW);
+        contentShift = Math.min(contentShift, maxShift);
+        qrX += contentShift;
+        textX += contentShift;
+      }
     }
     return {
       dots: d,
@@ -143,6 +172,7 @@
       fontH: fontH,
       fontW: fontW,
       serial: serial,
+      textDoubleStroke: s.textDoubleStroke !== false,
     };
   }
 
@@ -157,14 +187,16 @@
 
   function zplTextField(layout) {
     var h = layout.fontH;
-    var w = Math.min(999, layout.fontW + 2);
+    var strokeW = layout.textDoubleStroke ? layout.fontW + 2 : layout.fontW;
+    var w = Math.min(999, strokeW);
     var x = layout.textX;
     var y = layout.textY;
     var fb = "^FB" + layout.textAreaW + ",1,0,L,0^FD" + layout.serial + "^FS\n";
-    return (
-      "^FO" + x + "," + y + "^A0N," + h + "," + w + fb +
-      "^FO" + (x + 1) + "," + y + "^A0N," + h + "," + w + fb
-    );
+    var line = "^FO" + x + "," + y + "^A0N," + h + "," + w + fb;
+    if (layout.textDoubleStroke) {
+      line += "^FO" + (x + 1) + "," + y + "^A0N," + h + "," + w + fb;
+    }
+    return line;
   }
 
   function parsedDarkness(spec) {
@@ -174,6 +206,15 @@
     var sd = parseInt(spec.darkness, 10);
     if (isNaN(sd)) return null;
     return Math.max(0, Math.min(30, sd));
+  }
+
+  function parsedMediaDarkness(spec) {
+    if (!spec || spec.mediaDarkness === false || spec.mediaDarkness === null || spec.mediaDarkness === "") {
+      return 30;
+    }
+    var md = parseInt(spec.mediaDarkness, 10);
+    if (isNaN(md)) return 30;
+    return Math.max(-30, Math.min(30, md));
   }
 
   function _sdCommand(sd) {
@@ -190,9 +231,11 @@
     if (isNaN(slewSp)) slewSp = PRODUCTION_SLEW_SPEED;
     printSp = Math.max(1, Math.min(12, printSp));
     slewSp = Math.max(1, Math.min(12, slewSp));
+    var md = parsedMediaDarkness(spec);
+    var mdStr = md < 0 ? String(md) : (md < 10 ? "0" + md : String(md));
     return (
       _sdCommand(sd) +
-      "^MD30\n" +
+      "^MD" + mdStr + "\n" +
       "^PR" + printSp + "," + slewSp + "\n"
     );
   }
@@ -200,7 +243,9 @@
   function zplInLabelTuning(spec) {
     var sd = parsedDarkness(spec);
     if (sd === null) return "";
-    return "^MD30\n";
+    var md = parsedMediaDarkness(spec);
+    var mdStr = md < 0 ? String(md) : (md < 10 ? "0" + md : String(md));
+    return "^MD" + mdStr + "\n";
   }
 
   function zplOneLabelFormat(serial, spec) {
@@ -255,23 +300,39 @@
     return Object.assign(
       {
         dpi: 203,
-        widthMm: 61,
+        widthMm: 62,
         heightMm: 28,
         marginMm: 2.5,
         gapMm: 1.5,
         textReserveMm: 27,
         qrMag: 0,
         qrBoostMag: STOCK_6128_QR_BOOST_MAG,
-        qrLeftInsetMm: STOCK_6128_QR_LEFT_INSET_MM,
-        contentShiftMm: STOCK_6128_CONTENT_SHIFT_MM,
+        centerContentBlock: STOCK_6128_CENTER_BLOCK,
+        contentBiasRightMm: 0,
+        qrLeftInsetMm: 0,
+        contentShiftMm: 0,
         layoutYOffsetDots: STOCK_6128_LAYOUT_Y_OFFSET_DOTS,
-        darkness: 22,
+        darkness: STOCK_6128_DARKNESS,
+        mediaDarkness: STOCK_6128_MEDIA_DARKNESS,
+        textDoubleStroke: false,
         printSpeed: PRODUCTION_PRINT_SPEED,
         slewSpeed: PRODUCTION_SLEW_SPEED,
         symbol: "qr",
       },
       overrides || {}
     );
+  }
+
+  function labelDimensions(spec) {
+    var s = spec || productionSpec6128();
+    var d = specToDots(s);
+    return {
+      widthMm: s.widthMm,
+      heightMm: s.heightMm,
+      pw: d.pw,
+      ll: d.ll,
+      dpi: d.dpi,
+    };
   }
 
   root.CIS_LABEL_ZPL = {
@@ -282,6 +343,7 @@
     specToDots: specToDots,
     symbolPayload: symbolPayload,
     layoutLabel: layoutLabel,
+    labelDimensions: labelDimensions,
     zplOneLabel: zplOneLabel,
     zplOneLabelFormat: zplOneLabelFormat,
     zplBatch: zplBatch,

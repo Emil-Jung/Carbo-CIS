@@ -1,8 +1,8 @@
 """
 Carbo Print Labels — standalone Windows utility (WebView2 via pywebview).
 
-Hosts only the label printing module (Zebra + A4). Launched from the CIS PWA tile
-via carbolabels:// or from the installed CIS desktop app.
+UI and label logic are frozen inside the installed build. Updates only when IT runs
+CarboPrintLabels-Setup.exe again. Cloud APIs (login, bag IDs) are unchanged.
 """
 
 from __future__ import annotations
@@ -27,42 +27,30 @@ import a4_print_host
 import printer_usb
 
 WINDOW_TITLE = "Carbo Print Labels"
-
-REMOTE_SHELL_URL = (
-    os.environ.get("CIS_PRINT_LABELS_URL", "").strip()
-    or "https://bkweb3.bigk.co.uk/cis/print_labels.html"
-)
+# Bump when desktop host / bundled shell changes (shown in UI). Release = new installer on each PC.
+PRINT_LABELS_APP_BUILD = "20261020-shell-refresh"
 
 _LOCAL = os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()
 STORAGE_DIR = os.path.join(_LOCAL, "CarboPrintLabels", "webview")
 
-
-def _use_local_shell_only() -> bool:
-    return os.environ.get("CIS_LOCAL_SHELL", "").strip().lower() in ("1", "true", "yes")
-
-
-def _remote_shell_available() -> bool:
-    if _use_local_shell_only():
-        return False
-    try:
-        import urllib.error
-        import urllib.request
-
-        cfg_url = REMOTE_SHELL_URL.rsplit("/", 1)[0] + "/config.json"
-        req = urllib.request.Request(cfg_url, method="GET")
-        with urllib.request.urlopen(req, timeout=6) as resp:
-            return resp.status == 200
-    except Exception:
-        return False
+# Copied from repo shell/config.json at build time — not fetched from the network.
+_BUNDLED_CFG_KEYS = (
+    "shellRev",
+    "zebraLabelStockStandardOnly",
+    "zebraLabelStockDefault",
+    "zebraPrinterHost",
+    "zebraPrinterPort",
+)
 
 
 def _prepare_shell_dir() -> str:
-    dest = os.path.join(tempfile.gettempdir(), "carbo_print_labels_shell")
-    if os.path.lexists(dest):
-        shutil.rmtree(dest, ignore_errors=True)
-    if os.path.lexists(dest):
-        dest = tempfile.mkdtemp(prefix="carbo_print_labels_shell_", dir=tempfile.gettempdir())
-    shutil.copytree(config.SHELL_DIR, dest, dirs_exist_ok=os.path.isdir(dest))
+    """Copy bundled shell to a temp dir and write runtime API config (no remote files)."""
+    tmp_root = tempfile.gettempdir()
+    for name in os.listdir(tmp_root):
+        if name == "carbo_print_labels_shell" or name.startswith("carbo_print_labels_shell_"):
+            shutil.rmtree(os.path.join(tmp_root, name), ignore_errors=True)
+    dest = tempfile.mkdtemp(prefix="carbo_print_labels_shell_", dir=tmp_root)
+    shutil.copytree(config.SHELL_DIR, dest)
 
     runtime_config = {
         "appName": "Carbo Print Labels",
@@ -70,10 +58,22 @@ def _prepare_shell_dir() -> str:
         "traceabilityApiBase": config.TRACEABILITY_API_BASE_URL,
         "displayTimezone": "Africa/Windhoek",
         "cisVersion": CIS_VERSION,
+        "printLabelsAppBuild": PRINT_LABELS_APP_BUILD,
         "printLabelsInstallerUrl": f"{config.CIS_DOWNLOAD_BASE_URL.rstrip('/')}/CarboPrintLabels-Setup.exe",
         "zebraPrinterHost": os.environ.get("CIS_ZEBRA_HOST", "192.168.8.73"),
         "zebraPrinterPort": int(os.environ.get("CIS_ZEBRA_PORT", "9100") or "9100"),
     }
+
+    bundled_cfg_path = os.path.join(config.SHELL_DIR, "config.json")
+    try:
+        with open(bundled_cfg_path, encoding="utf-8") as fh:
+            bundled = json.load(fh)
+        for key in _BUNDLED_CFG_KEYS:
+            if key in bundled:
+                runtime_config[key] = bundled[key]
+    except (OSError, json.JSONDecodeError):
+        pass
+
     with open(os.path.join(dest, "config.json"), "w", encoding="utf-8") as fh:
         json.dump(runtime_config, fh, indent=2)
     return dest
@@ -82,6 +82,29 @@ def _prepare_shell_dir() -> str:
 class _QuietHandler(SimpleHTTPRequestHandler):
     def log_message(self, *args):
         pass
+
+
+def _window_rect_for_work_area(width: int, height: int) -> tuple[int | None, int | None, int, int]:
+    """Center on the primary monitor work area (above taskbar) so the bottom is never off-screen."""
+    if sys.platform != "win32":
+        return None, None, width, height
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        rect = wintypes.RECT()
+        if not ctypes.windll.user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(rect), 0):
+            return None, None, width, height
+        work_w = int(rect.right - rect.left)
+        work_h = int(rect.bottom - rect.top)
+        margin = 32
+        w = min(width, max(720, work_w - margin))
+        h = min(height, max(560, work_h - margin))
+        x = int(rect.left + (work_w - w) // 2)
+        y = int(rect.top + (work_h - h) // 2)
+        return x, y, w, h
+    except (AttributeError, OSError, ValueError):
+        return None, None, width, height
 
 
 def _start_local_server(directory: str):
@@ -96,13 +119,26 @@ class PrintLabelsApi:
     """Exposed to print_labels.html as window.pywebview.api.*"""
 
     def app_info(self):
-        return {"name": "Carbo Print Labels", "version": CIS_VERSION}
+        return {
+            "name": "Carbo Print Labels",
+            "version": CIS_VERSION,
+            "build": PRINT_LABELS_APP_BUILD,
+            "shell_mode": "bundled",
+        }
 
     def set_window_title(self, title=""):
         title = "Carbo Print Labels"
         try:
             if webview.windows:
                 webview.windows[0].title = title
+            return {"ok": True}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def maximize_window(self):
+        try:
+            if webview.windows:
+                webview.windows[0].maximize()
             return {"ok": True}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
@@ -172,18 +208,38 @@ class PrintLabelsApi:
 
 
 def main():
-    # Online: load print_labels.html from bkweb3 (label/UI fixes without reinstalling this .exe).
-    # Offline or CIS_LOCAL_SHELL=1: bundled shell on 127.0.0.1.
-    if _remote_shell_available():
-        url = REMOTE_SHELL_URL
-    else:
-        shell_dir = _prepare_shell_dir()
-        httpd, port = _start_local_server(shell_dir)
-        url = f"http://127.0.0.1:{port}/print_labels.html"
+    shell_dir = _prepare_shell_dir()
+    httpd, port = _start_local_server(shell_dir)
+    url = f"http://127.0.0.1:{port}/print_labels.html"
 
-    webview.create_window(WINDOW_TITLE, url, js_api=PrintLabelsApi(), width=1100, height=820)
+    want_w, want_h = 940, 520
+    pos_x, pos_y, win_w, win_h = _window_rect_for_work_area(want_w, want_h)
+
+    webview.create_window(
+        WINDOW_TITLE,
+        url,
+        js_api=PrintLabelsApi(),
+        width=win_w,
+        height=win_h,
+        x=pos_x,
+        y=pos_y,
+        min_size=(860, 500),
+        background_color="#f0f0f0",
+    )
     os.makedirs(STORAGE_DIR, exist_ok=True)
-    webview.start(storage_path=STORAGE_DIR, private_mode=False)
+
+    def _on_start():
+        try:
+            if not webview.windows:
+                return
+            win = webview.windows[0]
+            if pos_x is not None and pos_y is not None:
+                win.move(pos_x, pos_y)
+            win.resize(win_w, win_h)
+        except Exception:
+            pass
+
+    webview.start(_on_start, storage_path=STORAGE_DIR, private_mode=False)
 
 
 if __name__ == "__main__":

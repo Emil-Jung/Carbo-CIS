@@ -138,12 +138,40 @@
     document.getElementById("current-user").textContent =
       (state.user.display_name || state.user.login_id);
     var verEl = document.getElementById("app-version");
+    function setFooterVersion(text, title) {
+      if (!verEl) return;
+      verEl.textContent = text;
+      if (title) verEl.title = title;
+    }
     if (verEl) {
       var shell = (state.config && state.config.cisVersion) || CIS_VERSION_FALLBACK;
       var labels = CIS.printLabelsUiVersion || shell;
-      verEl.textContent = "v" + shell + " · labels " + labels;
+      setFooterVersion("Labels UI " + labels + " · checking app…", "");
     }
     syncWindowTitle();
+    var api = window.pywebview && window.pywebview.api;
+    if (api && api.app_info) {
+      Promise.resolve(api.app_info()).then(function (info) {
+        if (!info) return;
+        var labels = CIS.printLabelsUiVersion || "?";
+        var build = info.build || "?";
+        var mode = info.shell_mode === "bundled" ? "bundled installer" : "legacy";
+        var rel = CIS.printLabelsReleaseId || "";
+        var line =
+          "App " +
+          (info.version || "?") +
+          " · " +
+          build +
+          " · labels " +
+          labels +
+          (rel ? " · " + rel : "") +
+          " · " +
+          mode;
+        setFooterVersion(line, line);
+      }).catch(function () {
+        setFooterVersion("Labels UI " + (CIS.printLabelsUiVersion || "?") + " · app info unavailable", "");
+      });
+    }
     openPrintLabelsModule();
   }
   CIS._showApp = showApp;
@@ -162,29 +190,6 @@
       state.config = await (await fetch("config.json", { cache: "no-store" })).json();
     } catch (e) {
       state.config = { identityApiBase: "/identity/api", traceabilityApiBase: "/traceability/api/v1" };
-    }
-    var shellRev = state.config && state.config.shellRev;
-    if (shellRev) {
-      var revKey = "cis_print_labels_shell_rev";
-      var urlRev = new URL(window.location.href).searchParams.get("shellRev");
-      if (urlRev === shellRev) {
-        try { localStorage.setItem(revKey, shellRev); } catch (e) {}
-      } else {
-        var prevRev = null;
-        try { prevRev = localStorage.getItem(revKey); } catch (e) {}
-        if (prevRev && prevRev !== shellRev && !sessionStorage.getItem("cis_pl_shell_rev_reload")) {
-          try {
-            localStorage.setItem(revKey, shellRev);
-            sessionStorage.setItem("cis_pl_shell_rev_reload", "1");
-          } catch (e) {}
-          var u = new URL(window.location.href);
-          u.searchParams.set("shellRev", shellRev);
-          window.location.replace(u.toString());
-          return;
-        }
-        try { localStorage.setItem(revKey, shellRev); } catch (e) {}
-      }
-      try { sessionStorage.removeItem("cis_pl_shell_rev_reload"); } catch (e) {}
     }
     syncWindowTitle();
 
@@ -205,5 +210,41 @@
     else showLogin();
   }
 
-  document.addEventListener("DOMContentLoaded", boot);
+  function warnIfBrowserTab() {
+    var host = (window.location.hostname || "").toLowerCase();
+    if (host === "127.0.0.1" || host === "localhost") return;
+    window.setTimeout(function () {
+      var trap = document.getElementById("pl-browser-trap");
+      if (!trap) return;
+      var title = trap.querySelector("h2");
+      var body = trap.querySelector(".print-labels-browser-trap__body");
+      if (window.pywebview && window.pywebview.api) {
+        if (title) title.textContent = "Wrong build — reinstall Print Labels";
+        if (body) {
+          body.innerHTML =
+            "<p>This install is loading the website instead of the bundled app. Printers will not work reliably.</p>" +
+            "<p>Run <strong>CarboPrintLabels-Setup.exe</strong> on this PC, then open the Start menu shortcut again.</p>";
+        }
+      }
+      trap.classList.remove("hidden");
+    }, 1200);
+  }
+
+  function paintLoginBuildHint() {
+    var hint = document.getElementById("login-build-hint");
+    if (!hint) return;
+    var labels = CIS.printLabelsUiVersion || "?";
+    var rel = CIS.printLabelsReleaseId || "";
+    hint.textContent =
+      (rel ? "Release " + rel + " · " : "") +
+      "UI " +
+      labels +
+      " · desktop shortcut = Start menu · status bar after sign-in";
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    paintLoginBuildHint();
+    warnIfBrowserTab();
+    boot();
+  });
 })();

@@ -391,10 +391,11 @@
 
   CIS.modules.push({
     id: "label_deployment",
-    title: "Label Fencing",
+    title: "Bag ID fencing",
+    parentModule: "traceability",
     kind: "app",
     icon: "labels",
-    description: "Fence serial ranges or park quantities for label stock",
+    description: "Fence serial ranges or park quantities for Bag ID stock",
     requires: "traceability.labels.deployment",
     render: render,
   });

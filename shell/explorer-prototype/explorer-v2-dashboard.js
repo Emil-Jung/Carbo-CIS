@@ -780,9 +780,6 @@
       shiftCard = makeStatCard("Packaging shift", "packaging_shift", "Packaging shift");
       cards.push(shiftCard.card);
     }
-    if (moduleAccessible("print_labels")) {
-      cards.push(makeStatCard("Print labels", "print_labels", "Print labels").card);
-    }
     appendDeptHub(host, cards);
 
     if (shiftCard) {

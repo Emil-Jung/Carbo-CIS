@@ -15,7 +15,7 @@ Do this **once per label PC** (Windows laptop at the plant).
 
 In **Carbo Print Labels → Printer → Zebra label stock**, choose **61 × 28 mm (standard)** when that roll is loaded, or **54 × 25 mm (legacy)** for old small rolls. The choice is saved on this PC.
 
-When the plant PC has internet/VPN, the app loads the UI from bkweb3 — stock options update without reinstalling the `.exe`. Offline mode uses whatever was bundled in the last installer.
+The screen and label layout **do not change** until IT installs a new `CarboPrintLabels-Setup.exe` on this PC (same file on all label PCs). Sign-in and bag IDs still use the cloud; only the app UI is fixed in the installer.
 
 ### 3. Add printers in Windows (not USB)
 

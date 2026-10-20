@@ -1,0 +1,31 @@
+---
+description: Print Labels production release — do not regress reprint/ZPL when changing other products
+globs: shell/print_labels.html,shell/print_labels_app.js,shell/print_labels_theme.css,shell/modules/print_labels.js,shell/modules/label_zpl.js,shell/auth.js,desktop/print_labels_app.py,desktop/print_labels.spec,desktop/BUILD-PRINT-LABELS.cmd
+alwaysApply: false
+---
+
+# Print Labels — frozen production release
+
+**Source of truth:** `shell/print_labels_RELEASE.json` (release `20261020-reprint-stable`).
+
+## When this rule applies
+
+You are editing Print Labels files. If the user did **not** ask for a Print Labels change, **stop** — do not bundle Walvis/CIS/Traceability fixes into these files.
+
+## Known-good behavior (must not regress)
+
+- **Default format:** Zebra 62×28 (`6128`), not A4, unless the user explicitly changes the dropdown.
+- **Reprint:** Hub → separate step dialogs → confirm modal (no single mega-dialog). **Full Bag ID only** for one-label and range (no short sequence numbers).
+- **ZPL 62×28:** Layout/darkness live in `label_zpl.js` only (`STOCK_6128_*`), not CSS.
+- **Desktop host:** Bundled shell from install; fresh temp copy each launch (`print_labels_app.py`).
+
+## Making intentional Print Labels changes
+
+1. Read `shell/print_labels_RELEASE.json`.
+2. Apply the smallest diff; bump `labels_ui_version` in `print_labels.js` and cache query strings in `print_labels.html`.
+3. Update `print_labels_RELEASE.json` (`release_id`, versions, any behavior notes).
+4. Rebuild installer for plant PCs when shipping.
+
+## Printer names on each PC
+
+Persisted in browser localStorage key `cis_print_labels_v6` (per machine). Installer updates do not erase this unless the key name changes.

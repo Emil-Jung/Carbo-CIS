@@ -1,249 +1,528 @@
-/* Carbo Print Labels — visual identity (not CIS gold/charcoal). Loaded only by print_labels.html */
+/* Carbo Print Labels — light Windows-style desktop UI (bundled app). */
 
-body.print-labels-app {
-  --bg: #070d12;
-  --bg-elevated: #0c151c;
-  --panel: #101c26;
-  --panel-2: #152532;
-  --border: #234656;
-  --gold: #22d3ee;
-  --gold-bright: #67e8f9;
-  --gold-dim: #0891b2;
-  --text: #e8f4fa;
-  --muted: #8eb4c7;
-  --accent: #06b6d4;
-  --accent-hover: #22d3ee;
-  --ok: #10b981;
-  --warn: #f59e0b;
-  --danger: #f87171;
-  --pl-accent-rgb: 6, 182, 212;
-  --pl-header-h: 84px;
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body.print-labels-app {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: "Segoe UI", Tahoma, system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #1a1a1a;
+  background: #f0f0f0;
 }
 
-body.print-labels-app {
-  background:
-    radial-gradient(1200px 520px at 12% -8%, rgba(var(--pl-accent-rgb), 0.14), transparent 55%),
-    radial-gradient(900px 400px at 100% 0%, rgba(14, 165, 233, 0.08), transparent 50%),
-    var(--bg);
-}
+body.print-labels-app .hidden { display: none !important; }
 
-body.print-labels-app .login-view {
-  background:
-    radial-gradient(800px 420px at 50% -10%, rgba(var(--pl-accent-rgb), 0.2), transparent 60%),
-    var(--bg);
-}
-
-body.print-labels-app .login-logo-wrap {
-  border-color: var(--gold-dim);
-  box-shadow: 0 0 0 1px rgba(var(--pl-accent-rgb), 0.25);
-}
-
-body.print-labels-app .brand {
-  color: var(--gold-bright);
-  letter-spacing: 0.06em;
-  font-size: 28px;
-}
-
-body.print-labels-app .login-card {
-  border-color: var(--border);
-  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(var(--pl-accent-rgb), 0.12);
-}
-
-body.print-labels-app .login-card button:not(.password-toggle),
-body.print-labels-app .btn,
-body.print-labels-app .btn-primary {
-  background: linear-gradient(180deg, #22d3ee, #0891b2);
-  color: #042028;
-}
-
-body.print-labels-app .login-card input:focus,
-body.print-labels-app .login-card .password-field:focus-within {
-  border-color: var(--accent);
-}
-
-body.print-labels-app .setup-user-id {
-  color: var(--gold-bright);
-}
-
-/* ---- App chrome ---- */
-body.print-labels-app .app-view {
-  background: transparent;
-}
-
-body.print-labels-app .print-labels-topbar {
-  height: var(--pl-header-h);
-  background: linear-gradient(180deg, #0f1e28 0%, #0c171f 100%);
-  border-bottom: 3px solid var(--accent);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
-}
-
-body.print-labels-app .print-labels-topbar::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  background: linear-gradient(180deg, var(--gold-bright), var(--gold-dim));
-}
-
-body.print-labels-app .print-labels-topbar {
-  position: relative;
-  padding-left: 20px;
-}
-
-body.print-labels-app .print-labels-logo {
-  filter: saturate(0.85) hue-rotate(165deg) brightness(1.05);
-}
-
-body.print-labels-app .print-labels-brand-stack {
+body.print-labels-app .print-labels-shell {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  min-height: 0;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
-body.print-labels-app .print-labels-utility-badge {
-  display: inline-flex;
-  align-self: flex-start;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #042028;
-  background: var(--gold-bright);
-  padding: 3px 8px;
-  border-radius: 4px;
-  line-height: 1.2;
+body.print-labels-app .app-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #f0f0f0;
 }
 
-body.print-labels-app .topbar-brand {
-  color: var(--text);
-  font-size: 18px;
-  letter-spacing: 0.02em;
+body.print-labels-app .print-labels-topbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #fff;
+  border-bottom: 1px solid #a0a0a0;
+  -webkit-app-region: no-drag;
 }
 
-body.print-labels-app .print-labels-not-cis {
+body.print-labels-app .topbar-brand { font-size: 14px; font-weight: 600; color: #000; }
+body.print-labels-app .print-labels-app-tag { font-size: 10px; color: #666; text-transform: uppercase; }
+body.print-labels-app .print-labels-logo { width: 32px; height: 32px; object-fit: contain; }
+
+body.print-labels-app .print-labels-topbar .topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body.print-labels-app .print-labels-meta--user {
   font-size: 12px;
-  color: var(--muted);
-  font-weight: 500;
+  color: #333;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-body.print-labels-app .topbar-context {
-  color: var(--gold-bright);
-  font-size: 15px;
-  font-weight: 600;
-}
-
-body.print-labels-app .topbar-context::before {
-  content: "▸ ";
-  opacity: 0.65;
-}
-
-body.print-labels-app .btn-ghost {
-  border-color: var(--border);
-  color: var(--text);
-}
-
-body.print-labels-app .btn-ghost:hover {
-  border-color: var(--gold-dim);
-  background: rgba(var(--pl-accent-rgb), 0.12);
+body.print-labels-app .app-view .body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px 10px;
+  background: #f0f0f0;
 }
 
 body.print-labels-app .module-content.print-labels-host {
-  max-width: 1120px;
-}
-
-body.print-labels-app .print-labels-utility-strip {
+  height: 100%;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 16px;
-  margin: 0 0 18px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  border: 1px solid rgba(var(--pl-accent-rgb), 0.35);
-  background: rgba(var(--pl-accent-rgb), 0.08);
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--muted);
+  flex-direction: column;
+  min-height: 0;
+  max-width: none;
+  padding: 0;
+  margin: 0;
 }
 
-body.print-labels-app .print-labels-utility-strip strong {
-  color: var(--gold-bright);
-  font-weight: 600;
+body.print-labels-app .pl-actions-bar {
+  flex-shrink: 0;
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
 }
 
-body.print-labels-app h2.module-title {
-  color: var(--gold-bright);
-  font-size: 1.35rem;
-  letter-spacing: 0.03em;
-}
-
-body.print-labels-app .module-desc {
-  color: var(--muted);
-  border-left: 3px solid var(--accent);
-  padding-left: 12px;
-  margin-bottom: 16px;
+body.print-labels-app .pl-main-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr minmax(160px, 0.55fr);
+  grid-template-rows: 1fr;
+  gap: 8px;
+  overflow: hidden;
 }
 
 body.print-labels-app .print-labels-panel {
-  border: 1px solid var(--border);
-  background: var(--panel);
-  border-radius: 12px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
-  border-top: 3px solid rgba(var(--pl-accent-rgb), 0.55);
+  border: 1px solid #a0a0a0;
+  border-radius: 4px;
+  background: #fff;
+  padding: 10px 12px;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: none;
+}
+
+body.print-labels-app .print-labels-panel--flat {
+  border: none;
+  padding: 0;
 }
 
 body.print-labels-app .print-labels-panel-title {
-  color: var(--gold-bright);
-  font-size: 14px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #000;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
-body.print-labels-app .print-labels-field input,
-body.print-labels-app .print-labels-field select,
-body.print-labels-app .print-labels-field textarea {
-  background: var(--panel-2);
-  border-color: var(--border);
-  color: var(--text);
+body.print-labels-app .print-labels-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-body.print-labels-app .print-labels-field input:focus,
-body.print-labels-app .print-labels-field select:focus {
-  border-color: var(--accent);
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(var(--pl-accent-rgb), 0.25);
+body.print-labels-app .print-labels-panel--labels-preview .print-labels-panel-body {
+  overflow: hidden;
+}
+
+body.print-labels-app .print-labels-sequence {
+  font-size: 11px;
+  color: #444;
+  line-height: 1.35;
+  max-height: 2.8em;
+  overflow: hidden;
 }
 
 body.print-labels-app .print-labels-preview-stock {
-  background: var(--bg-elevated);
-  border: 1px dashed var(--border);
-  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  min-height: 72px;
+  max-height: 100px;
+  overflow: hidden;
 }
 
-body.print-labels-app .print-labels-modal {
-  border: 1px solid var(--border);
-  background: var(--panel);
+body.print-labels-app .print-labels-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #333;
+  text-transform: none;
 }
 
-body.print-labels-app .print-labels-modal h3 {
-  color: var(--gold-bright);
+body.print-labels-app .print-labels-field-hint {
+  font-size: 10px;
+  color: #666;
 }
 
-body.print-labels-app .card {
-  border-color: var(--border);
-  background: var(--panel-2);
+body.print-labels-app .print-labels-field input,
+body.print-labels-app .print-labels-field select {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #7a7a7a;
+  border-radius: 2px;
+  background: #fff;
+  color: #000;
+  font-size: 13px;
+}
+
+body.print-labels-app .print-labels-printer-row,
+body.print-labels-app .print-labels-range-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+body.print-labels-app .print-labels-range-row input { flex: 1; min-width: 100px; }
+body.print-labels-app .print-labels-printer-row select { flex: 1; min-width: 0; }
+
+body.print-labels-app .btn,
+body.print-labels-app .btn-primary,
+body.print-labels-app .btn-secondary,
+body.print-labels-app .btn-sm {
+  padding: 5px 12px;
+  font-size: 12px;
+  border: 1px solid #707070;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #f8f8f8, #e5e5e5);
+  color: #000;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+body.print-labels-app .btn-primary {
+  border-color: #005a9e;
+  background: linear-gradient(180deg, #0078d4, #0067b8);
+  color: #fff;
+  font-weight: 600;
+}
+
+body.print-labels-app .btn-ghost {
+  background: #fff;
+  border: 1px solid #7a7a7a;
+  color: #000;
+}
+
+body.print-labels-app .btn-ghost.btn-sm { padding: 4px 8px; }
+
+body.print-labels-app .print-labels-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  border-top: 1px solid #a0a0a0;
+  background: #ececec;
+  font-size: 11px;
+  color: #333;
+}
+
+body.print-labels-app .print-labels-footer__version {
+  font-family: Consolas, ui-monospace, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 body.print-labels-app .error-box {
-  border-color: rgba(248, 113, 113, 0.45);
-  background: rgba(127, 29, 29, 0.35);
+  padding: 8px 10px;
+  border: 1px solid #c00;
+  background: #fff0f0;
+  color: #900;
+  border-radius: 2px;
+  font-size: 12px;
 }
 
-body.print-labels-app .btn-secondary {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  color: var(--text);
+body.print-labels-app .muted { color: #555; }
+
+/* Confirm print dialog */
+body.print-labels-app .print-labels-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50000;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+body.print-labels-app .print-labels-modal-backdrop.hidden { display: none !important; }
+
+body.print-labels-app .print-labels-modal {
+  width: min(420px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #666;
+  border-radius: 4px;
+  padding: 16px 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  color: #000;
+}
+
+body.print-labels-app .print-labels-modal h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: #000;
+}
+
+body.print-labels-app .print-labels-modal-body,
+body.print-labels-app .print-labels-modal-body p,
+body.print-labels-app .pl-confirm-hint {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #1a1a1a;
+  margin: 0 0 10px;
+}
+
+body.print-labels-app .print-labels-modal-body code {
+  font-family: Consolas, ui-monospace, monospace;
+  font-size: 12px;
+  background: #f5f5f5;
+  padding: 2px 4px;
+  border: 1px solid #ddd;
+}
+
+body.print-labels-app .print-labels-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ddd;
+}
+
+/* Secondary dialogs (reprint / history / inventory) */
+body.print-labels-app .pl-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25000;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+body.print-labels-app .pl-dialog-backdrop.hidden { display: none !important; }
+
+body.print-labels-app .pl-dialog {
+  width: min(640px, 100%);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #666;
+  border-radius: 4px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+}
+
+body.print-labels-app .pl-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #ccc;
+  background: #f5f5f5;
+}
+
+body.print-labels-app .pl-dialog__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+body.print-labels-app .pl-dialog__body {
+  padding: 12px 14px;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+body.print-labels-app .pl-reprint-hub {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body.print-labels-app .pl-reprint-hub .btn-primary,
+body.print-labels-app .pl-reprint-hub .btn-secondary {
+  width: 100%;
+  justify-content: center;
+  padding: 10px 12px;
+}
+
+body.print-labels-app .pl-dialog-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #ddd;
+}
+
+body.print-labels-app .print-labels-reprint-list {
+  max-height: 200px;
+  overflow: auto;
+  border: 1px solid #ccc;
+  padding: 6px 8px;
+  background: #fafafa;
+  font-size: 12px;
+}
+
+body.print-labels-app .print-labels-history-weeks { font-size: 12px; }
+
+body.print-labels-app .login-view {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: #f0f0f0;
+}
+
+body.print-labels-app .login-card {
+  width: 100%;
+  max-width: 360px;
+  padding: 1.5rem;
+  border: 1px solid #a0a0a0;
+  border-radius: 4px;
+  background: #fff;
+}
+
+body.print-labels-app .login-card label { font-size: 12px; color: #333; display: block; margin-top: 0.5rem; }
+
+body.print-labels-app .login-card input[type="text"] {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #7a7a7a;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+body.print-labels-app .login-card .password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  border: 1px solid #7a7a7a;
+  border-radius: 2px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+body.print-labels-app .login-card .password-field:focus-within {
+  border-color: #0078d4;
+  outline: 1px solid #0078d4;
+  outline-offset: -1px;
+}
+
+body.print-labels-app .login-card .password-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 6px 58px 6px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 2px;
+}
+
+body.print-labels-app .login-card .password-field input:focus {
+  outline: none;
+}
+
+body.print-labels-app .password-toggle {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 52px;
+  height: 32px;
+  padding: 0 4px;
+  margin: 0;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: #333;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+body.print-labels-app .password-toggle__text {
+  font-size: 11px;
+  line-height: 1;
+  user-select: none;
+}
+
+body.print-labels-app .password-toggle:hover,
+body.print-labels-app .password-toggle:focus-visible {
+  color: #000;
+  background: #eee;
+  outline: none;
+}
+
+body.print-labels-app .password-toggle__icon {
+  display: block;
+  pointer-events: none;
+}
+
+body.print-labels-app .login-card button[type="submit"],
+body.print-labels-app .login-card .btn-primary {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 8px 12px;
+}
+
+body.print-labels-app .login-card .setup-back {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+body.print-labels-app .brand { font-size: 20px; color: #000; }
+
+body.print-labels-app .print-labels-login-build {
+  margin: 0.75rem 0 0;
+  font-size: 11px;
+  text-align: center;
+  font-family: Consolas, ui-monospace, monospace;
+  color: #555;
+}
+
+@media (max-width: 820px) {
+  body.print-labels-app .pl-main-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+  }
+  body.print-labels-app .print-labels-panel--labels-preview {
+    grid-column: 1 / -1;
+  }
 }

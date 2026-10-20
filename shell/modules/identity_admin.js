@@ -86,7 +86,7 @@
     const ui = CIS.ui;
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Identity Administration"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Each CIS dashboard tile has its own permission. Nested items under a tile are options inside that app, not extra dashboard tiles. Tick per person — e.g. Traceability hub access plus Print Labels for label operators.",
+      "Each CIS dashboard tile has its own permission. Nested items under a tile are options inside that app, not extra dashboard tiles. Label printing uses the separate Print Labels Windows app (not a CIS tile).",
     ]));
 
     const usersWrap = ui.el("div", {});

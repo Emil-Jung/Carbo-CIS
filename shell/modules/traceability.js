@@ -49,12 +49,12 @@
       requires: "traceability.containers",
       icon: "container",
     },
-    labels: {
-      id: "labels",
-      title: "Labels",
-      description: "Print bag labels and fence or park stock (testing abroad, pre-scanner, etc.).",
-      requiresAny: ["traceability.labels.print", "traceability.labels.deployment"],
-      icon: "labels",
+    label_deployment: {
+      id: "label_deployment",
+      title: "Bag ID fencing",
+      description: "Fence serial ranges or park quantities (excluded from available stock).",
+      requires: "traceability.labels.deployment",
+      icon: "override",
     },
     manager_override: {
       id: "manager_override",
@@ -69,7 +69,7 @@
   var HUB_ROWS = [
     ["control_room", "delivery_confirmations"],
     ["pallet_configuration", "walvis_dispatches", "containers"],
-    ["labels", "manager_override"],
+    ["label_deployment", "manager_override"],
   ];
 
   var ICONS = {
@@ -150,7 +150,7 @@
 
     if (!shown) {
       container.appendChild(ui.el("p", { class: "muted" }, [
-        "No Traceability options are assigned to your account. Ask an administrator to grant Control Room or Print Labels access.",
+        "No Traceability options are assigned to your account. Ask an administrator to grant the modules you need.",
       ]));
     } else {
       container.appendChild(rowsHost);
@@ -162,7 +162,7 @@
     title: "Traceability",
     kind: "app",
     icon: "traceability",
-    description: "Control room, bag labels, and scanning",
+    description: "Control room, packing, and coast logistics",
     requires: "traceability.access",
     render: render,
   });

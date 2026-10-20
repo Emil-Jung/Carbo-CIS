@@ -10,14 +10,14 @@
     maintenance_certs: true,
     labels: true,
     print_labels: true,
-    label_deployment: true,
+    label_deployment: false,
   };
 
   /** Extra tiles on department dashboards (not in left rail). */
   window.CIS_V2_CONTEXTUAL_MODULES = {
-    office: ["print_labels"],
-    logistics: ["print_labels"],
-    production: ["print_labels", "label_deployment"],
+    office: [],
+    logistics: [],
+    production: ["label_deployment"],
   };
 
   window.CIS_V2_NAV = {

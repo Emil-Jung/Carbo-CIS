@@ -1237,14 +1237,73 @@
     reconWrap.appendChild(recon);
 
     var summary = ui.el("div", { class: "walvis-dispatch-summary walvis-dispatch-manifest-summary" });
+    var gfLoaded =
+      detail.gf_loaded_bags != null ? detail.gf_loaded_bags : detail.manifest_gf_scan_bags;
+    if (gfLoaded == null) {
+      gfLoaded = (detail.bags || []).filter(function (b) {
+        return (b.load_source || "gf_scan") === "gf_scan";
+      }).length;
+    }
     summary.appendChild(
       ui.el("p", {}, [
-        ui.el("strong", {}, ["Manifest: "]),
-        CIS.bagsAndMassText(detail.loaded_bags, detail.kg_loaded) +
-          " loaded · Received (offload scan): " +
-          CIS.bagsAndMassText(detail.received_bags, detail.kg_received),
+        ui.el("strong", {}, ["GF loaded (scan): "]),
+        CIS.bagsAndMassText(gfLoaded, detail.kg_loaded),
+        " · ",
+        ui.el("strong", {}, ["Received (offload scan): "]),
+        CIS.bagsAndMassText(detail.received_bags, detail.kg_received),
+        " · ",
+        ui.el("strong", {}, ["Manifest rows: "]),
+        String(detail.loaded_bags || 0),
       ])
     );
+    var auditOffN = detail.walvis_offload_audit_not_on_manifest_count || 0;
+    var auditTotal = detail.walvis_offload_audit_total;
+    if (auditTotal != null && auditTotal > 0) {
+      summary.appendChild(
+        ui.el("p", { class: "muted", style: "font-size:12px;margin:0.25rem 0 0;" }, [
+          "Offload events in truck window (audit): ",
+          String(auditTotal),
+          " · On this manifest: ",
+          String(detail.walvis_offload_audit_on_manifest || 0),
+          auditOffN > 0 ? " · Not on manifest yet: " + String(auditOffN) : "",
+        ])
+      );
+    }
+    if (auditOffN > 0) {
+      var syncAuditBtn = ui.el("button", {
+        type: "button",
+        class: "settings-action-btn",
+        style: "margin: 0.35rem 0 0.5rem 0;",
+      }, ["Add offload audit rows to this manifest"]);
+      syncAuditBtn.addEventListener("click", async function () {
+        if (
+          !window.confirm(
+            "Create manifest rows for " +
+              auditOffN +
+              " Walvis offload scan(s) recorded in this truck window but not on this manifest?\n\nOK = data only (no GF load required)."
+          )
+        ) {
+          return;
+        }
+        syncAuditBtn.disabled = true;
+        try {
+          var resp = await apiPost(
+            ctx,
+            "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/sync-offloads-from-audit",
+            {}
+          );
+          var n = resp && resp.added != null ? resp.added : 0;
+          if (resp && resp.dispatch) {
+            await renderDetail(container, ctx, resp.dispatch);
+          }
+          window.alert("Manifest updated (" + n + " row change(s)).");
+        } catch (e) {
+          window.alert(e.message || String(e));
+          syncAuditBtn.disabled = false;
+        }
+      });
+      summary.appendChild(syncAuditBtn);
+    }
     if (detail.manifest_audit_line) {
       summary.appendChild(
         ui.el("p", { class: "muted" }, [
@@ -1438,11 +1497,13 @@
     manifestBags.forEach(function (b) {
       var src = b.load_source || (b.manifest_addendum ? "cis_addendum" : "gf_scan");
       var srcLabel =
-        src === "cis_addendum"
-          ? "CIS addendum"
-          : src === "fence_bulk"
-            ? "Fenced bulk"
-            : "GF scan";
+        src === "walvis_offload"
+          ? "Offload scan"
+          : src === "cis_addendum"
+            ? "CIS addendum"
+            : src === "fence_bulk"
+              ? "Fenced bulk"
+              : "GF scan";
       var rowCb = ui.el("input", { type: "checkbox", value: b.bag_identifier });
       manifestCheckboxes.push(rowCb);
       tbody.appendChild(
@@ -1461,6 +1522,10 @@
     table.appendChild(tbody);
     tableWrap.appendChild(table);
     rightPanel.appendChild(tableWrap);
+
+    if (auditOffN > 0 || groundGap.length > 0 || (detail.missing_count || 0) > 0) {
+      reconWrap.open = true;
+    }
 
     workspace.appendChild(leftPanel);
     workspace.appendChild(rightPanel);

@@ -37,9 +37,7 @@
 
   /** Parent hub for hierarchical back (module.parentModule overrides). */
   const MODULE_PARENTS = {
-    labels: "traceability",
-    print_labels: "labels",
-    label_deployment: "labels",
+    label_deployment: "traceability",
     control_room: "traceability",
     delivery_confirmations: "traceability",
     containers: "traceability",

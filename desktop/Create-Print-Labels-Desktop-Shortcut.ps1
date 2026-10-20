@@ -3,13 +3,26 @@ $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Windows.Forms
 
 $localApp = [Environment]::GetFolderPath("LocalApplicationData")
-$candidates = @(
-    (Join-Path $localApp "Programs\Carbo CIS\Print Labels\Carbo Print Labels.exe"),
-    (Join-Path $PSScriptRoot "dist\Carbo Print Labels\Carbo Print Labels.exe")
-)
+$installExe = Join-Path $localApp "Programs\Carbo CIS\Print Labels\Carbo Print Labels.exe"
+$distExe = Join-Path $PSScriptRoot "dist\Carbo Print Labels\Carbo Print Labels.exe"
 
 $target = $null
-foreach ($path in $candidates) {
+if ((Test-Path -LiteralPath $installExe) -and (Test-Path -LiteralPath $distExe)) {
+    $installTime = (Get-Item -LiteralPath $installExe).LastWriteTime
+    $distTime = (Get-Item -LiteralPath $distExe).LastWriteTime
+    if ($distTime -gt $installTime) {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Your latest build is in desktop\dist\ but Start menu shortcuts open the installed copy.`n`n" +
+            "  Installed: $installExe`n    $($installTime.ToString('yyyy-MM-dd HH:mm'))`n`n" +
+            "  Dev build: $distExe`n    $($distTime.ToString('yyyy-MM-dd HH:mm'))`n`n" +
+            "Run SYNC-PRINT-LABELS-TO-INSTALL.cmd (or CarboPrintLabels-Setup.exe), then use the shortcut again.",
+            "Carbo Print Labels — install is older than dist",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        ) | Out-Null
+    }
+}
+foreach ($path in @($installExe, $distExe)) {
     if (Test-Path -LiteralPath $path) {
         $target = $path
         break
