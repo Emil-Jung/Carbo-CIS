@@ -157,7 +157,7 @@
     sel.innerHTML = "";
     sel.appendChild(
       CIS.ui.el("option", { value: BOOKING_SAMPLE_VALUE }, [
-        "Last " + SIEVE_SAMPLE_DAYS + " sieving days (all trucks on those dates)",
+        "Last " + SIEVE_SAMPLE_DAYS + " calendar days (PJ-complete trucks)",
       ])
     );
     sel.appendChild(CIS.ui.el("option", { value: "all" }, ["All dates in filter"]));
@@ -247,10 +247,10 @@
       " = last ",
       String(SIEVE_SAMPLE_DAYS),
       " distinct ",
-      ui.el("strong", {}, ["sieving days"]),
-      " — ",
-      ui.el("strong", {}, ["every truck"]),
-      " on those days in the sheet below, not “5 trucks”.",
+      ui.el("strong", {}, ["calendar days"]),
+      " (Windhoek) — ",
+      ui.el("strong", {}, ["every PJ-complete truck"]),
+      " with booking date in that window. Refreshes each time you open the page.",
     ]));
 
     var toolbar = ui.el("div", { class: "toolbar deliveries-register-toolbar truck-scale-variance-toolbar" });
@@ -473,7 +473,7 @@
       });
       var thead = ui.el("thead");
       var hr = ui.el("tr");
-      ["Measure", "Last " + SIEVE_SAMPLE_DAYS + " sieving days", "All complete loads (filter)"].forEach(function (h) {
+      ["Measure", "Last " + SIEVE_SAMPLE_DAYS + " calendar days", "All complete loads (filter)"].forEach(function (h) {
         hr.appendChild(ui.el("th", {}, [h]));
       });
       thead.appendChild(hr);
@@ -633,7 +633,7 @@
       );
       var grid = ui.el("div", { class: "tsv-cat-insight-grid" });
       grid.appendChild(
-        renderCategoryInsights(sampleSnap.category_analysis, "Last " + SIEVE_SAMPLE_DAYS + " sieving days")
+        renderCategoryInsights(sampleSnap.category_analysis, "Last " + SIEVE_SAMPLE_DAYS + " calendar days")
       );
       if (allSnap && allSnap.category_analysis) {
         grid.appendChild(renderCategoryInsights(allSnap.category_analysis, "All complete loads in filter"));
@@ -664,7 +664,7 @@
           ui.el("p", { class: "muted tsv-dual-summary-lead" }, [
             "Default view compares the last ",
             String(SIEVE_SAMPLE_DAYS),
-            " sieving days to ",
+            " calendar days to ",
             ui.el("strong", {}, ["every"]),
             " complete-load truck in the filter (digital-scale confirmation + bag scans; ",
             filterScopeLabel(data),
@@ -672,30 +672,28 @@
           ])
         );
         var grid = ui.el("div", { class: "tsv-period-grid" });
-        var sd = data.sample_booking_dates || [];
-        var sampleHint =
-          sd.length > 0
-            ? sd[sd.length - 1] +
-              " → " +
-              sd[0] +
+        var calHint = "";
+        if (data.calendar_from && data.calendar_to) {
+          calHint =
+            data.calendar_from +
+            " → " +
+            data.calendar_to +
+            " (Windhoek) · " +
+            (sampleSnap.count || 0) +
+            " PJ-complete truck" +
+            (sampleSnap.count === 1 ? "" : "s");
+          if (data.pending_office_complete_count) {
+            calHint +=
               " · " +
-              sd.length +
-              " sieving day" +
-              (sd.length === 1 ? "" : "s") +
-              (sd.length < SIEVE_SAMPLE_DAYS
-                ? " (only " + sd.length + " in system so far — not a full " + SIEVE_SAMPLE_DAYS + "-day window yet)"
-                : "") +
-              " · " +
-              (sampleSnap.count || 0) +
-              " truck" +
-              (sampleSnap.count === 1 ? "" : "s") +
-              " in sheet"
-            : "";
+              data.pending_office_complete_count +
+              " posted at factory, awaiting PJ mark complete (not in variance until complete)";
+          }
+        }
         grid.appendChild(
           renderPeriodPanel(
             sampleSnap,
-            "Last " + SIEVE_SAMPLE_DAYS + " sieving days",
-            sampleHint
+            "Last " + SIEVE_SAMPLE_DAYS + " calendar days",
+            calHint
           )
         );
         var allHint =
@@ -893,26 +891,26 @@
         status.textContent =
           (data.count != null ? data.count + " trucks" : "") +
           (data.flagged_count ? " · " + data.flagged_count + " flagged" : "") +
-          (isSampleView && sdStatus.length
-            ? " · " +
-              sdStatus.length +
-              " sieving day" +
-              (sdStatus.length === 1 ? "" : "s") +
-              " (" +
-              sdStatus.join(", ") +
-              ")"
-            : data.date_min && data.date_max
-              ? " · " + data.date_min + " → " + data.date_max
-              : "") +
+          (isSampleView && data.calendar_from && data.calendar_to
+            ? " · window " + data.calendar_from + " → " + data.calendar_to
+            : isSampleView && sdStatus.length
+              ? " · dates with rows: " + sdStatus.join(", ")
+              : data.date_min && data.date_max
+                ? " · " + data.date_min + " → " + data.date_max
+                : "") +
+          (data.pending_office_complete_count
+            ? " · " + data.pending_office_complete_count + " awaiting PJ complete"
+            : "") +
+          (data.generated_at ? " · loaded " + String(data.generated_at).replace("T", " ").slice(0, 19) + " UTC" : "") +
           (data.eligible_truck_count != null && data.eligible_truck_count !== data.count
             ? " · " + data.eligible_truck_count + " eligible before flagged filter"
             : "");
         renderSummary(data);
         tableSectionTitle.style.display = "";
         tableSectionTitle.textContent = isSampleView
-          ? "Line by line — trucks on last " +
+          ? "Line by line — PJ-complete trucks, last " +
             SIEVE_SAMPLE_DAYS +
-            " sieving days (" +
+            " calendar days (" +
             (data.count != null ? data.count : (data.rows || []).length) +
             " rows)"
           : "Line by line — one row per truck";
