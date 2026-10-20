@@ -1,0 +1,249 @@
+/* Carbo Print Labels — visual identity (not CIS gold/charcoal). Loaded only by print_labels.html */
+
+body.print-labels-app {
+  --bg: #070d12;
+  --bg-elevated: #0c151c;
+  --panel: #101c26;
+  --panel-2: #152532;
+  --border: #234656;
+  --gold: #22d3ee;
+  --gold-bright: #67e8f9;
+  --gold-dim: #0891b2;
+  --text: #e8f4fa;
+  --muted: #8eb4c7;
+  --accent: #06b6d4;
+  --accent-hover: #22d3ee;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --danger: #f87171;
+  --pl-accent-rgb: 6, 182, 212;
+  --pl-header-h: 84px;
+}
+
+body.print-labels-app {
+  background:
+    radial-gradient(1200px 520px at 12% -8%, rgba(var(--pl-accent-rgb), 0.14), transparent 55%),
+    radial-gradient(900px 400px at 100% 0%, rgba(14, 165, 233, 0.08), transparent 50%),
+    var(--bg);
+}
+
+body.print-labels-app .login-view {
+  background:
+    radial-gradient(800px 420px at 50% -10%, rgba(var(--pl-accent-rgb), 0.2), transparent 60%),
+    var(--bg);
+}
+
+body.print-labels-app .login-logo-wrap {
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 0 1px rgba(var(--pl-accent-rgb), 0.25);
+}
+
+body.print-labels-app .brand {
+  color: var(--gold-bright);
+  letter-spacing: 0.06em;
+  font-size: 28px;
+}
+
+body.print-labels-app .login-card {
+  border-color: var(--border);
+  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(var(--pl-accent-rgb), 0.12);
+}
+
+body.print-labels-app .login-card button:not(.password-toggle),
+body.print-labels-app .btn,
+body.print-labels-app .btn-primary {
+  background: linear-gradient(180deg, #22d3ee, #0891b2);
+  color: #042028;
+}
+
+body.print-labels-app .login-card input:focus,
+body.print-labels-app .login-card .password-field:focus-within {
+  border-color: var(--accent);
+}
+
+body.print-labels-app .setup-user-id {
+  color: var(--gold-bright);
+}
+
+/* ---- App chrome ---- */
+body.print-labels-app .app-view {
+  background: transparent;
+}
+
+body.print-labels-app .print-labels-topbar {
+  height: var(--pl-header-h);
+  background: linear-gradient(180deg, #0f1e28 0%, #0c171f 100%);
+  border-bottom: 3px solid var(--accent);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+body.print-labels-app .print-labels-topbar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold-dim));
+}
+
+body.print-labels-app .print-labels-topbar {
+  position: relative;
+  padding-left: 20px;
+}
+
+body.print-labels-app .print-labels-logo {
+  filter: saturate(0.85) hue-rotate(165deg) brightness(1.05);
+}
+
+body.print-labels-app .print-labels-brand-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+body.print-labels-app .print-labels-utility-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #042028;
+  background: var(--gold-bright);
+  padding: 3px 8px;
+  border-radius: 4px;
+  line-height: 1.2;
+}
+
+body.print-labels-app .topbar-brand {
+  color: var(--text);
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+
+body.print-labels-app .print-labels-not-cis {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+body.print-labels-app .topbar-context {
+  color: var(--gold-bright);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+body.print-labels-app .topbar-context::before {
+  content: "▸ ";
+  opacity: 0.65;
+}
+
+body.print-labels-app .btn-ghost {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+body.print-labels-app .btn-ghost:hover {
+  border-color: var(--gold-dim);
+  background: rgba(var(--pl-accent-rgb), 0.12);
+}
+
+body.print-labels-app .module-content.print-labels-host {
+  max-width: 1120px;
+}
+
+body.print-labels-app .print-labels-utility-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin: 0 0 18px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(var(--pl-accent-rgb), 0.35);
+  background: rgba(var(--pl-accent-rgb), 0.08);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+body.print-labels-app .print-labels-utility-strip strong {
+  color: var(--gold-bright);
+  font-weight: 600;
+}
+
+body.print-labels-app h2.module-title {
+  color: var(--gold-bright);
+  font-size: 1.35rem;
+  letter-spacing: 0.03em;
+}
+
+body.print-labels-app .module-desc {
+  color: var(--muted);
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+  margin-bottom: 16px;
+}
+
+body.print-labels-app .print-labels-panel {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+  border-top: 3px solid rgba(var(--pl-accent-rgb), 0.55);
+}
+
+body.print-labels-app .print-labels-panel-title {
+  color: var(--gold-bright);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body.print-labels-app .print-labels-field input,
+body.print-labels-app .print-labels-field select,
+body.print-labels-app .print-labels-field textarea {
+  background: var(--panel-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+body.print-labels-app .print-labels-field input:focus,
+body.print-labels-app .print-labels-field select:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--pl-accent-rgb), 0.25);
+}
+
+body.print-labels-app .print-labels-preview-stock {
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+body.print-labels-app .print-labels-modal {
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+body.print-labels-app .print-labels-modal h3 {
+  color: var(--gold-bright);
+}
+
+body.print-labels-app .card {
+  border-color: var(--border);
+  background: var(--panel-2);
+}
+
+body.print-labels-app .error-box {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(127, 29, 29, 0.35);
+}
+
+body.print-labels-app .btn-secondary {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}

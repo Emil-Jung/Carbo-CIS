@@ -4,18 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta name="theme-color" content="#070d12" />
   <title>Carbo Print Labels</title>
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
   <link rel="stylesheet" href="styles.css?v=1.6.45" />
+  <link rel="stylesheet" href="print_labels_theme.css?v=1.7.4-print-theme" />
 </head>
-<body>
+<body class="print-labels-app">
   <div id="login-view" class="login-view hidden">
     <form id="login-form" class="login-card" autocomplete="on">
       <div class="login-logo-wrap">
         <img class="login-logo" src="assets/logo.png" alt="Carbo" width="92" height="92" />
       </div>
-      <h1 class="brand">Carbo Print Labels</h1>
-      <p class="subtitle">Sign in to print bag identity labels</p>
+      <h1 class="brand">Print Labels</h1>
+      <p class="subtitle">Label printer utility · same login as CIS, different app</p>
       <label for="login-id">User ID</label>
       <input id="login-id" name="username" type="text" autocomplete="username" required />
       <label for="login-password">Password</label>
@@ -53,15 +55,19 @@
   </div>
 
   <div id="app-view" class="app-view hidden">
-    <header class="topbar">
+    <header class="topbar print-labels-topbar">
       <div class="topbar-left">
         <div class="topbar-brand-wrap">
-          <img class="topbar-logo" src="assets/logo.png" alt="Carbo" width="72" height="72" />
-          <span class="topbar-brand">Carbo Print Labels</span>
+          <img class="topbar-logo print-labels-logo" src="assets/logo.png" alt="Carbo" width="72" height="72" />
+          <div class="print-labels-brand-stack">
+            <span class="print-labels-utility-badge">Label printer</span>
+            <span class="topbar-brand">Carbo Print Labels</span>
+            <span class="print-labels-not-cis">Not CIS — bag labels &amp; Zebra only</span>
+          </div>
         </div>
       </div>
       <div class="topbar-center">
-        <span id="topbar-context" class="topbar-context">Print Labels</span>
+        <span id="topbar-context" class="topbar-context">Zebra &amp; A4 printing</span>
       </div>
       <div class="topbar-right">
         <span id="app-version" class="current-user"></span>
@@ -79,7 +85,7 @@
   <script src="vendor/qrcode.min.js"></script>
   <script src="modules/cis_helpers.js?v=1.4.3"></script>
   <script src="modules/label_zpl.js?v=1.7.3-stock-6128"></script>
-  <script src="modules/print_labels.js?v=1.7.3-stock-6128"></script>
-  <script src="print_labels_app.js?v=1.6.5"></script>
+  <script src="modules/print_labels.js?v=1.7.4-print-theme"></script>
+  <script src="print_labels_app.js?v=1.7.4-print-theme"></script>
 </body>
 </html>

@@ -12,7 +12,7 @@
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
   var ZEBRA_STOCK_6128 = "6128";
   var ZEBRA_STOCK_5425 = "5425";
-  var PL_UI_VERSION = "1.7.3";
+  var PL_UI_VERSION = "1.7.4";
   CIS.printLabelsUiVersion = PL_UI_VERSION;
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
@@ -480,10 +480,15 @@
     container.innerHTML = "";
     container.className = "module-content print-labels-host";
 
-    container.appendChild(ui.el("h2", { class: "module-title" }, ["Print Labels"]));
+    container.appendChild(
+      ui.el("div", { class: "print-labels-utility-strip" }, [
+        ui.el("strong", {}, ["Label printer utility"]),
+        " — you are not in CIS. This app only allocates Bag IDs and sends ZPL to your Zebra (or A4 pallet sheets).",
+      ])
+    );
+    container.appendChild(ui.el("h2", { class: "module-title" }, ["Print run"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Bag identity labels · Zebra (61 × 28 mm or legacy 54 × 25 mm) or A4 pallet sheet · Bag IDs from the server. " +
-        "Pick stock size and the Zebra in Windows once, then print. UI " + PL_UI_VERSION + ".",
+      "Zebra stock 61 × 28 mm (standard) or legacy 54 × 25 mm · A4 pallet option · UI " + PL_UI_VERSION + ".",
     ]));
 
     var workspace = ui.el("div", { class: "print-labels-workspace" });
