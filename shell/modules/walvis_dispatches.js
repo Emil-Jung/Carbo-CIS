@@ -2,6 +2,7 @@
    Display names: Dispatch [DAY] [DATE] #[N] — Windhoek day; N = 1st/2nd/… dispatch that day (API display_label). */
 (function () {
   "use strict";
+  var WALVIS_DISPATCH_UI_REV = "1.6.68-manifest-list-only";
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
@@ -663,6 +664,7 @@
     var ui = CIS.ui;
     container.innerHTML = "";
     container.className = "module-content walvis-dispatch-host walvis-dispatch-detail";
+    container.setAttribute("data-walvis-ui-rev", WALVIS_DISPATCH_UI_REV);
     setWalvisDetailFloatingBack(container, ctx);
 
     container.appendChild(
@@ -964,22 +966,14 @@
         return (b.load_source || "gf_scan") === "gf_scan";
       }).length;
     }
-    var summary = ui.el("div", { class: "walvis-dispatch-summary walvis-dispatch-manifest-summary" });
-    summary.appendChild(
-      ui.el("p", { class: "muted", style: "margin:0 0 0.5rem 0;" }, [
-        "Trace record for this truck — bags appear when Shorty scans. Manifest rows are not removed after close.",
-      ])
-    );
-    summary.appendChild(
-      ui.el("p", { style: "margin:0;" }, [
-        ui.el("strong", {}, ["Loaded: "]),
+    rightPanel.appendChild(
+      ui.el("p", { class: "muted walvis-manifest-counts", style: "margin:0 0 0.75rem 0;" }, [
+        "Loaded ",
         CIS.bagsAndMassText(gfLoaded, detail.kg_loaded),
-        " · ",
-        ui.el("strong", {}, ["Received: "]),
+        " · Received ",
         CIS.bagsAndMassText(detail.received_bags, detail.kg_received),
       ])
     );
-    rightPanel.appendChild(summary);
 
     var manifestBags = detail.bags || [];
     var tableWrap = ui.el("div", { class: "walvis-dispatch-list-col walvis-dispatch-table-wrap" });
@@ -1432,7 +1426,7 @@
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Walvis Bay Dispatch"]));
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
-        "Plan truck loads, schedule ahead, release for Grootfontein scanners, reconcile at Walvis Bay.",
+        "Truck loads for traceability — release for Grootfontein scanning, close when the truck leaves, read manifest only.",
       ])
     );
 
@@ -1467,106 +1461,6 @@
     workspace.appendChild(leftPanel);
     workspace.appendChild(rightPanel);
     container.appendChild(workspace);
-
-    var actions = ui.el("details", { class: "walvis-dispatch-admin-tools" });
-    actions.appendChild(ui.el("summary", {}, ["Admin & reconcile tools"]));
-    var actionsInner = ui.el("div", { class: "walvis-dispatch-actions" });
-
-    var roadCatchupLine = ui.el("p", {
-      class: "muted",
-      id: "walvis-road-catchup-line",
-      style: "font-size:0.88rem;margin:0.5rem 0 0;line-height:1.35;",
-    }, ["Checking in-transit manifest gap…"]);
-
-    var roadCatchupBtn = ui.el("button", {
-      type: "button",
-      class: "settings-action-btn",
-      style: "max-width: 32rem; margin-bottom: 0.5rem; display: block;",
-    }, ["Queue in-transit bags on one dispatch (no GF scan manifest)"]);
-    roadCatchupBtn.addEventListener("click", async function () {
-      var preview;
-      try {
-        preview = await apiGet(ctx, "/walvis-dispatches/preview-road-catchup");
-      } catch (e) {
-        window.alert(e.message || String(e));
-        return;
-      }
-      var n = preview.unmanifested_in_transit_bags || 0;
-      if (!n) {
-        window.alert("Every in-transit bag is already on a dispatch manifest.");
-        return;
-      }
-      if (
-        !window.confirm(
-          "Create one closed dispatch for " +
-            n +
-            " bag(s) already In transit with no manifest?\n\n" +
-            "Bag status stays in transit — Wynand can still offload scan. Cancel = stop."
-        )
-      ) {
-        return;
-      }
-      var form = await truckDetailsModal(
-        ui,
-        "In-transit catch-up dispatch",
-        "Optional truck reg / notes for paper reconcile.",
-        null
-      );
-      if (!form) return;
-      roadCatchupBtn.disabled = true;
-      try {
-        var detail = await apiPost(ctx, "/walvis-dispatches/road-catchup-in-transit", {
-          truck_registration: form.truck_registration.trim() || null,
-          notes: form.notes ? form.notes.trim() : null,
-        });
-        detail = await enrichDetailWithGroundReconcile(ctx, detail);
-        await renderDetail(container, ctx, detail);
-      } catch (e) {
-        window.alert(e.message || String(e));
-      } finally {
-        roadCatchupBtn.disabled = false;
-      }
-    });
-
-    var fenceBtn = ui.el("button", {
-      type: "button",
-      class: "btn-ghost",
-      style: "max-width: 32rem; display: block;",
-    }, ["Fence unassigned Walvis bags only (keeps existing dispatch numbers)"]);
-    fenceBtn.addEventListener("click", async function () {
-      if (
-        !window.confirm(
-          "Create a new closed dispatch for Walvis storage bags not on any manifest?\n\nCancel = stop.\nThis does NOT delete existing dispatches."
-        )
-      ) {
-        return;
-      }
-      var form = await truckDetailsModal(
-        ui,
-        "Fence unassigned bags",
-        "Cancel closes without creating a dispatch.",
-        null
-      );
-      if (!form) return;
-      if (!window.confirm("Create this closed dispatch now?")) return;
-      fenceBtn.disabled = true;
-      try {
-        var detail = await apiPost(ctx, "/walvis-dispatches/fence-unassigned-storage", {
-          truck_registration: form.truck_registration.trim() || null,
-        });
-        detail = await enrichDetailWithGroundReconcile(ctx, detail);
-        await renderDetail(container, ctx, detail);
-      } catch (e) {
-        window.alert(e.message || String(e));
-      } finally {
-        fenceBtn.disabled = false;
-      }
-    });
-    actionsInner.appendChild(roadCatchupLine);
-    actionsInner.appendChild(roadCatchupBtn);
-    actionsInner.appendChild(fenceBtn);
-    actions.appendChild(actionsInner);
-    container.appendChild(actions);
 
     var openDispatch = null;
     var plannedCount = 0;
@@ -1616,18 +1510,6 @@
     }
 
     await renderCreateDispatchPlan(planFormHost, ctx, ui, openDispatch);
-
-    try {
-      var roadPreview = await apiGet(ctx, "/walvis-dispatches/preview-road-catchup");
-      var roadN = roadPreview.unmanifested_in_transit_bags || 0;
-      roadCatchupLine.textContent = roadN
-        ? roadN +
-          " bag(s) in transit with no dispatch manifest — use the queue button before offload if scanners get stuck."
-        : "All in-transit bags are on a dispatch manifest.";
-      roadCatchupBtn.disabled = roadN === 0;
-    } catch (e) {
-      roadCatchupLine.textContent = "Could not load in-transit manifest count.";
-    }
 
     try {
       var data = await apiGet(ctx, "/walvis-dispatches?limit=50&include_closed=true");
