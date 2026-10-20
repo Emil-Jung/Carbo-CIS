@@ -1241,7 +1241,7 @@
       ui.el("p", {}, [
         ui.el("strong", {}, ["Manifest: "]),
         CIS.bagsAndMassText(detail.loaded_bags, detail.kg_loaded) +
-          " loaded · Received at Walvis: " +
+          " loaded · Received (offload scan): " +
           CIS.bagsAndMassText(detail.received_bags, detail.kg_received),
       ])
     );
@@ -1259,18 +1259,48 @@
       );
     }
     if (detail.missing_count) {
-      summary.appendChild(
-        ui.el("p", { class: "walvis-dispatch-missing" }, [
-          ui.el("strong", {}, [
-            String(detail.missing_count) +
-              " on manifest but not yet received at Walvis (Received column empty)",
-          ]),
-          detail.missing_bags && detail.missing_bags.length
-            ? ": " + detail.missing_bags.slice(0, 12).join(", ") +
-              (detail.missing_bags.length > 12 ? "…" : "")
-            : "",
-        ])
-      );
+      var missingP = ui.el("p", { class: "walvis-dispatch-missing" }, [
+        ui.el("strong", {}, [
+          String(detail.missing_count) +
+            " on manifest but Received (offload) is empty — bags can still show on the AGL/Cabo tile if offload scans ran before the server linked AGL to this column.",
+        ]),
+        detail.missing_bags && detail.missing_bags.length
+          ? ": " + detail.missing_bags.slice(0, 12).join(", ") +
+            (detail.missing_bags.length > 12 ? "…" : "")
+          : "",
+      ]);
+      summary.appendChild(missingP);
+      var backfillBtn = ui.el("button", {
+        type: "button",
+        class: "settings-action-btn",
+        style: "margin: 0.35rem 0 0.5rem 0;",
+      }, ["Fill Received from offload scans"]);
+      backfillBtn.addEventListener("click", async function () {
+        if (
+          !window.confirm(
+            "Set Received (offload) from each bag's AGL/Cabo scan time where it is still empty?\n\nOK = update this dispatch only."
+          )
+        ) {
+          return;
+        }
+        backfillBtn.disabled = true;
+        try {
+          var resp = await apiPost(
+            ctx,
+            "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/backfill-received-from-coast-storage",
+            {}
+          );
+          var n = resp && resp.updated != null ? resp.updated : 0;
+          if (resp && resp.dispatch) {
+            await renderDetail(container, ctx, resp.dispatch);
+          }
+          window.alert("Updated " + n + " manifest row(s).");
+        } catch (e) {
+          window.alert(e.message || String(e));
+          backfillBtn.disabled = false;
+        }
+      });
+      summary.appendChild(backfillBtn);
     }
     rightPanel.appendChild(summary);
 
@@ -1388,7 +1418,7 @@
         ui.el("th", {}, ["Stream"]),
         ui.el("th", {}, ["kg"]),
         ui.el("th", {}, ["Loaded"]),
-        ui.el("th", {}, ["Received Walvis"]),
+        ui.el("th", {}, ["Received (offload)"]),
         ui.el("th", {}, ["Source"]),
         ui.el("th", {}, ["Status now"]),
       ])
