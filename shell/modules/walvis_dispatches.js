@@ -282,78 +282,6 @@
   }
 
   async function enrichDetailWithGroundReconcile(ctx, detail) {
-    var hasGround =
-      (detail.walvis_ground_total_count != null && detail.walvis_ground_total_count > 0) ||
-      (detail.walvis_ground_all && detail.walvis_ground_all.length > 0);
-    if (hasGround) return detail;
-    try {
-      var recon = await apiGet(
-        ctx,
-        "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/ground-reconcile"
-      );
-      detail.walvis_ground_all = recon.walvis_ground_all;
-      detail.walvis_ground_total_count = recon.walvis_ground_total_count;
-      detail.walvis_ground_on_manifest_count = recon.walvis_ground_on_manifest_count;
-      detail.walvis_ground_not_on_manifest = recon.walvis_ground_not_on_manifest;
-      detail.walvis_ground_not_on_manifest_count = recon.walvis_ground_not_on_manifest_count;
-      return detail;
-    } catch (e) {
-      /* old API — fall back to Bags Status breakdown (already deployed). */
-    }
-    try {
-      var breakdown = await apiGet(ctx, "/walvis-dispatches/storage-at-walvis-breakdown");
-      applyBreakdownReconcile(detail, breakdown);
-      if (detail.walvis_ground_total_count > 0) return detail;
-    } catch (e2) {
-      /* bags-status report works on older API builds too */
-    }
-    try {
-      var report = await apiGet(
-        ctx,
-        "/reports/bags-status?drill=1&status=" + encodeURIComponent("storage_walvisbay")
-      );
-      var manifestIds = {};
-      (detail.bags || []).forEach(function (b) {
-        manifestIds[b.bag_identifier] = true;
-      });
-      var all = [];
-      (report.event_sections || []).forEach(function (sec) {
-        (sec.rows || []).forEach(function (r) {
-          var serial = rowSerial(r);
-          if (!serial) return;
-          all.push({
-            bag_identifier: serial,
-            product_stream: r.product_stream,
-            net_weight_kg: r.net_weight_kg,
-            on_this_manifest: !!manifestIds[serial],
-          });
-        });
-      });
-      all.sort(function (a, b) {
-        return a.bag_identifier.localeCompare(b.bag_identifier);
-      });
-      var gap = all
-        .filter(function (b) {
-          return !manifestIds[b.bag_identifier];
-        })
-        .map(function (b) {
-          return {
-            bag_identifier: b.bag_identifier,
-            product_stream: b.product_stream,
-            net_weight_kg: b.net_weight_kg,
-          };
-        });
-      detail.walvis_ground_all = all;
-      detail.walvis_ground_total_count = all.length;
-      detail.walvis_ground_on_manifest_count = all.filter(function (b) {
-        return b.on_this_manifest;
-      }).length;
-      detail.walvis_ground_not_on_manifest = gap;
-      detail.walvis_ground_not_on_manifest_count = gap.length;
-      detail._reconcile_from_bags_status = true;
-    } catch (e3) {
-      detail._reconcile_unavailable = true;
-    }
     return detail;
   }
 
@@ -756,16 +684,12 @@
     var leftPanel = ui.el("section", { class: "walvis-dispatch-panel" });
     var rightPanel = ui.el("section", { class: "walvis-dispatch-panel walvis-dispatch-panel--detail-manifest" });
     leftPanel.appendChild(
-      ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Plan & actions"])
+      ui.el("h3", { class: "walvis-dispatch-panel-title" }, ["Truck setup"])
     );
     if (detail.status === "open") {
       var closeLoadBox = ui.el("div", { class: "walvis-dispatch-close-load" });
       var openHint =
-        "Released — loading at Grootfontein. When this truck is finished, close the load so scanners cannot add more bags until you create and release the next plan.";
-      if (detail.awaiting_first_load_scan || !(detail.loaded_bags || detail.plan_loaded)) {
-        openHint +=
-          " No bags scanned yet — the dispatch label day follows today until the first GF load scan, then that day and time are fixed.";
-      }
+        "Released for Grootfontein loading. Close the truck when it leaves — bags on the manifest stay as the trace record.";
       closeLoadBox.appendChild(
         ui.el("p", { class: "walvis-dispatch-status-line" }, [openHint])
       );
@@ -1032,234 +956,7 @@
     });
     metaBox.appendChild(editMetaBtn);
     leftPanel.appendChild(metaBox);
-    await appendInTransitLinkBlock(leftPanel, container, ctx, ui, detail);
 
-    function copyText(text) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).catch(function () {
-          window.prompt("Copy these serials:", text);
-        });
-      } else {
-        window.prompt("Copy these serials:", text);
-      }
-    }
-
-    var groundAll = detail.walvis_ground_all || [];
-    var groundGap = detail.walvis_ground_not_on_manifest || [];
-    var groundTotal =
-      detail.walvis_ground_total_count != null
-        ? detail.walvis_ground_total_count
-        : groundAll.length;
-    var onManifest =
-      detail.walvis_ground_on_manifest_count != null
-        ? detail.walvis_ground_on_manifest_count
-        : groundAll.filter(function (b) {
-            return b.on_this_manifest;
-          }).length;
-
-    var recon = ui.el("div", { class: "walvis-dispatch-reconcile-panel" });
-    recon.appendChild(ui.el("h4", { style: "margin:0 0 0.5rem 0;" }, [
-      "Walvis Bay ground stock vs this manifest",
-    ]));
-    recon.appendChild(
-      ui.el("p", { class: "muted", style: "margin:0 0 0.5rem 0;" }, [
-        "Every bag currently in storage at Walvis Bay (",
-        String(groundTotal),
-        "), compared to what is recorded on ",
-        dispatchDisplayLabel(detail),
-        " — not grouped by other dispatch tiles.",
-      ])
-    );
-    recon.appendChild(
-      ui.el("p", { style: "margin:0.25rem 0;" }, [
-        ui.el("strong", {}, ["At Walvis now: "]),
-        String(groundTotal),
-        " · On this manifest and at Walvis: ",
-        String(onManifest),
-        " · ",
-        ui.el("strong", {}, ["Missing from this manifest: "]),
-        String(groundGap.length),
-      ])
-    );
-
-    var reconActions = ui.el("div", { style: "display:flex;flex-wrap:wrap;gap:0.5rem;margin:0.5rem 0;" });
-    var copyAllBtn = ui.el("button", { type: "button", class: "btn-ghost" }, [
-      "Copy all Walvis serials",
-    ]);
-    copyAllBtn.addEventListener("click", function () {
-      copyText(
-        groundAll
-          .map(function (b) {
-            return b.bag_identifier;
-          })
-          .join("\n")
-      );
-    });
-    reconActions.appendChild(copyAllBtn);
-    if (groundGap.length) {
-      var copyGapBtn = ui.el("button", { type: "button", class: "settings-action-btn" }, [
-        "Copy missing serials (" + groundGap.length + ")",
-      ]);
-      copyGapBtn.addEventListener("click", function () {
-        copyText(
-          groundGap
-            .map(function (b) {
-              return b.bag_identifier;
-            })
-            .join("\n")
-        );
-      });
-      reconActions.appendChild(copyGapBtn);
-    }
-    recon.appendChild(reconActions);
-
-    await appendGroundPlanPicker(recon, container, ctx, ui, detail);
-
-    if (groundAll.length) {
-      var allPre = ui.el("details", { style: "margin:0.5rem 0;" });
-      allPre.appendChild(
-        ui.el("summary", {}, ["All bags at Walvis Bay (" + groundAll.length + ")"])
-      );
-      allPre.appendChild(
-        ui.el(
-          "pre",
-          {
-            style:
-              "white-space:pre-wrap;font-size:12px;max-height:12rem;overflow:auto;margin:0.35rem 0;",
-          },
-          [
-            groundAll
-              .map(function (b) {
-                var mark = b.on_this_manifest ? "✓ manifest" : "— not on manifest";
-                var kind = b.product_label || b.product_stream || "";
-                return b.bag_identifier + (kind ? "  " + kind : "") + "  " + mark;
-              })
-              .join("\n"),
-          ]
-        )
-      );
-      recon.appendChild(allPre);
-    }
-
-    if (detail._reconcile_unavailable) {
-      recon.appendChild(
-        ui.el("p", { class: "walvis-dispatch-missing" }, [
-          "Could not load Walvis ground stock. Restart charcoal-traceability on bkweb3, then Ctrl+F5.",
-        ])
-      );
-    } else if (
-      groundTotal === 0 &&
-      (detail.bags || []).some(function (b) {
-        return b.storage_status === "storage_walvisbay";
-      })
-    ) {
-      recon.appendChild(
-        ui.el("p", { class: "muted" }, ["Loading reconcile counts… use “Add bag” below if this stays at 0 after refresh."])
-      );
-    }
-
-    var addPrimaryBtn = ui.el("button", {
-      type: "button",
-      class: "settings-action-btn",
-      style: "max-width: 100%; margin: 0.5rem 0;",
-    }, ["Add bag to this dispatch…"]);
-    addPrimaryBtn.addEventListener("click", function () {
-      addPrimaryBtn.disabled = true;
-      promptAndAddBagToDispatch(container, ctx, detail).finally(function () {
-        addPrimaryBtn.disabled = false;
-      });
-    });
-    recon.appendChild(addPrimaryBtn);
-    recon.appendChild(
-      ui.el("p", { class: "muted", style: "margin:0 0 0.5rem 0;font-size:12px;" }, [
-        "Use for each missing serial: confirm ",
-        ui.el("strong", {}, ["mark received at Walvis"]),
-        " when the bag is already on the ground (typical for the 7 missed GF scans).",
-      ])
-    );
-
-    if (groundGap.length) {
-      recon.appendChild(
-        ui.el("p", { class: "walvis-dispatch-missing", style: "margin:0.5rem 0 0.25rem 0;" }, [
-          ui.el("strong", {}, [
-            String(groundGap.length) +
-              " at Walvis not on this manifest — add unassigned serials only (locked bags stay on their dispatch):",
-          ]),
-        ])
-      );
-      var gapList = ui.el("ul", {
-        style: "list-style:none;padding:0;margin:0.25rem 0;max-height:14rem;overflow:auto;",
-      });
-      groundGap.forEach(function (b) {
-        var row = ui.el("li", {
-          style: "display:flex;flex-wrap:wrap;align-items:center;gap:0.35rem;margin:0.35rem 0;",
-        });
-        row.appendChild(ui.el("code", {}, [b.bag_identifier]));
-        if (b.product_label || b.product_stream) {
-          row.appendChild(
-            ui.el("span", { class: "muted", style: "font-size:12px;" }, [
-              b.product_label || b.product_stream,
-            ])
-          );
-        }
-        var onOther = !!b.other_dispatch_label;
-        if (onOther) {
-          row.appendChild(
-            ui.el("span", { class: "walvis-dispatch-missing", style: "font-size:12px;" }, [
-              "Locked on " + b.other_dispatch_label + " — detach or transfer there first.",
-            ])
-          );
-        }
-        if (!onOther) {
-          var addOne = ui.el("button", { type: "button", class: "btn-ghost", style: "padding:0.2rem 0.5rem;" }, [
-            "Add",
-          ]);
-          addOne.addEventListener("click", function () {
-            addOne.disabled = true;
-            promptAndAddBagToDispatch(container, ctx, detail, b.bag_identifier).finally(function () {
-              addOne.disabled = false;
-            });
-          });
-          row.appendChild(addOne);
-        }
-        gapList.appendChild(row);
-      });
-      recon.appendChild(gapList);
-    } else if (groundTotal > 0 && onManifest === groundTotal) {
-      recon.appendChild(
-        ui.el("p", { class: "muted" }, [
-          "Ground stock matches this manifest — every Walvis bag is on this dispatch.",
-        ])
-      );
-    }
-    var reconWrap = ui.el("details", { class: "walvis-dispatch-admin-tools walvis-dispatch-reconcile-wrap" });
-    reconWrap.appendChild(
-      ui.el("summary", {}, ["Optional advanced: all Carbo yard stock vs this manifest"])
-    );
-    reconWrap.appendChild(recon);
-
-    var summary = ui.el("div", { class: "walvis-dispatch-summary walvis-dispatch-manifest-summary" });
-    summary.appendChild(
-      ui.el("div", { class: "walvis-dispatch-guide" }, [
-        ui.el("p", { style: "margin:0 0 0.5rem 0;" }, [
-          ui.el("strong", {}, ["This page = one truck manifest. "]),
-          "Use the table below: ",
-          ui.el("strong", {}, ["Loaded"]),
-          " = on this shipping list · ",
-          ui.el("strong", {}, ["Received"]),
-          " = coast scan tied to this truck.",
-        ]),
-        ui.el("p", { class: "muted", style: "margin:0;font-size:0.9rem;" }, [
-          "Missed a scan? Fix it on ",
-          ui.el("strong", {}, ["bags-lookup"]),
-          ": tap the Walvis offload bar → choose this truck → ",
-          ui.el("strong", {}, ["Into storage — AGL"]),
-          " or ",
-          ui.el("strong", {}, ["Walvisbay"]),
-          ". Ignore the long tick-lists under “Optional advanced” unless you are paper-rebuilding Carbo yard stock.",
-        ]),
-      ])
-    );
     var gfLoaded =
       detail.gf_loaded_bags != null ? detail.gf_loaded_bags : detail.manifest_gf_scan_bags;
     if (gfLoaded == null) {
@@ -1267,277 +964,47 @@
         return (b.load_source || "gf_scan") === "gf_scan";
       }).length;
     }
+    var summary = ui.el("div", { class: "walvis-dispatch-summary walvis-dispatch-manifest-summary" });
     summary.appendChild(
-      ui.el("p", {}, [
-        ui.el("strong", {}, ["GF loaded (scan): "]),
-        CIS.bagsAndMassText(gfLoaded, detail.kg_loaded),
-        " · ",
-        ui.el("strong", {}, ["Received (offload scan): "]),
-        CIS.bagsAndMassText(detail.received_bags, detail.kg_received),
-        " · ",
-        ui.el("strong", {}, ["Manifest rows: "]),
-        String(detail.loaded_bags || 0),
+      ui.el("p", { class: "muted", style: "margin:0 0 0.5rem 0;" }, [
+        "Trace record for this truck — bags appear when Shorty scans. Manifest rows are not removed after close.",
       ])
     );
-    var auditOffN = detail.walvis_offload_audit_not_on_manifest_count || 0;
-    var auditTotal = detail.walvis_offload_audit_total;
-    if (auditTotal != null && auditTotal > 0) {
-      summary.appendChild(
-        ui.el("p", { class: "muted", style: "font-size:12px;margin:0.25rem 0 0;" }, [
-          "Offload events in truck window (audit): ",
-          String(auditTotal),
-          " · On this manifest: ",
-          String(detail.walvis_offload_audit_on_manifest || 0),
-          auditOffN > 0 ? " · Not on manifest yet: " + String(auditOffN) : "",
-        ])
-      );
-    }
-    if (auditOffN > 0) {
-      var syncAuditBtn = ui.el("button", {
-        type: "button",
-        class: "settings-action-btn",
-        style: "margin: 0.35rem 0 0.5rem 0;",
-      }, ["Add offload audit rows to this manifest"]);
-      syncAuditBtn.addEventListener("click", async function () {
-        if (
-          !window.confirm(
-            "Create manifest rows for " +
-              auditOffN +
-              " Walvis offload scan(s) recorded in this truck window but not on this manifest?\n\nOK = data only (no GF load required)."
-          )
-        ) {
-          return;
-        }
-        syncAuditBtn.disabled = true;
-        try {
-          var resp = await apiPost(
-            ctx,
-            "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/sync-offloads-from-audit",
-            {}
-          );
-          var n = resp && resp.added != null ? resp.added : 0;
-          if (resp && resp.dispatch) {
-            await renderDetail(container, ctx, resp.dispatch);
-          }
-          window.alert("Manifest updated (" + n + " row change(s)).");
-        } catch (e) {
-          window.alert(e.message || String(e));
-          syncAuditBtn.disabled = false;
-        }
-      });
-      summary.appendChild(syncAuditBtn);
-    }
-    if (detail.manifest_audit_line) {
-      summary.appendChild(
-        ui.el("p", { class: "muted" }, [
-          ui.el("strong", {}, ["Audit trail: "]),
-          detail.manifest_audit_line,
-          " — ",
-          ui.el("strong", {}, ["GF scan"]),
-          " = Shorty load scan; ",
-          ui.el("strong", {}, ["CIS addendum"]),
-          " = retro manifest fix (offload / paper reconcile), kept on the same dispatch.",
-        ])
-      );
-    }
-    function appendBackfillReceivedButton(parentEl) {
-      var loaded = detail.loaded_bags || 0;
-      var received = detail.received_bags || 0;
-      if (loaded <= received) {
-        return;
-      }
-      var backfillBtn = ui.el("button", {
-        type: "button",
-        class: "settings-action-btn walvis-dispatch-backfill-received",
-        style: "margin: 0.35rem 0 0.5rem 0;",
-      }, ["Fill Received from offload scans"]);
-      backfillBtn.addEventListener("click", async function () {
-        if (
-          !window.confirm(
-            "Set Received (offload) from each bag's AGL/Cabo scan time where it is still empty?\n\nOK = update this dispatch only."
-          )
-        ) {
-          return;
-        }
-        backfillBtn.disabled = true;
-        try {
-          var resp = await apiPost(
-            ctx,
-            "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/backfill-received-from-coast-storage",
-            {}
-          );
-          var n = resp && resp.updated != null ? resp.updated : 0;
-          if (resp && resp.dispatch) {
-            await renderDetail(container, ctx, resp.dispatch);
-          }
-          window.alert("Updated " + n + " manifest row(s).");
-        } catch (e) {
-          window.alert(e.message || String(e));
-          backfillBtn.disabled = false;
-        }
-      });
-      parentEl.appendChild(backfillBtn);
-    }
-
-    if (detail.missing_count) {
-      summary.appendChild(
-        ui.el("p", { class: "walvis-dispatch-missing" }, [
-          ui.el("strong", {}, [
-            String(detail.missing_count) +
-              " on manifest but Received (offload) is empty — bags can still show on the AGL/Cabo tile if offload scans ran before the server linked AGL to this column.",
-          ]),
-          detail.missing_bags && detail.missing_bags.length
-            ? ": " + detail.missing_bags.slice(0, 12).join(", ") +
-              (detail.missing_bags.length > 12 ? "…" : "")
-            : "",
-        ])
-      );
-    }
-    appendBackfillReceivedButton(summary);
+    summary.appendChild(
+      ui.el("p", { style: "margin:0;" }, [
+        ui.el("strong", {}, ["Loaded: "]),
+        CIS.bagsAndMassText(gfLoaded, detail.kg_loaded),
+        " · ",
+        ui.el("strong", {}, ["Received: "]),
+        CIS.bagsAndMassText(detail.received_bags, detail.kg_received),
+      ])
+    );
     rightPanel.appendChild(summary);
 
-    if (detail.streams && Object.keys(detail.streams).length) {
-      var streamLine = Object.keys(detail.streams)
-        .map(function (k) {
-          return k + ": " + detail.streams[k];
-        })
-        .join(" · ");
-      rightPanel.appendChild(
-        ui.el("p", { class: "muted", style: "font-size:0.85rem;" }, ["Mix: ", streamLine])
-      );
-    }
-
     var manifestBags = detail.bags || [];
-    var manifestCheckboxes = [];
-
-    if (manifestBags.length) {
-      var manifestTools = ui.el("div", { class: "walvis-manifest-tools" });
-      manifestTools.appendChild(
-        ui.el("p", { class: "muted walvis-manifest-tools-hint" }, [
-          "Tick bags to remove from this manifest only. Bag status (in transit / Walvis) stays unchanged.",
-        ])
-      );
-      var manifestToolActions = ui.el("div", { class: "walvis-in-transit-picker-actions" });
-      manifestToolActions.appendChild(
-        ui.el("button", {
-          type: "button",
-          class: "btn-ghost",
-          onclick: function () {
-            manifestCheckboxes.forEach(function (c) { c.checked = true; });
-          },
-        }, ["Select all"])
-      );
-      manifestToolActions.appendChild(
-        ui.el("button", {
-          type: "button",
-          class: "btn-ghost",
-          onclick: function () {
-            manifestCheckboxes.forEach(function (c) { c.checked = false; });
-          },
-        }, ["Clear"])
-      );
-      var loadDay = detail.loading_date || windhoekTodayInputValue();
-      manifestToolActions.appendChild(
-        ui.el("button", {
-          type: "button",
-          class: "btn-ghost",
-          onclick: function () {
-            manifestCheckboxes.forEach(function (c) {
-              var bag = manifestBags.find(function (b) { return b.bag_identifier === c.value; });
-              var day = bag && bag.loaded_at ? windhoekDayFromIso(bag.loaded_at) : "";
-              c.checked = day === loadDay;
-            });
-          },
-        }, ["Select load day only"])
-      );
-      manifestTools.appendChild(manifestToolActions);
-
-      var removeManifestBtn = ui.el("button", {
-        type: "button",
-        class: "btn-ghost walvis-manifest-remove-btn",
-      }, ["Remove selected from manifest"]);
-      removeManifestBtn.addEventListener("click", async function () {
-        var selected = manifestCheckboxes.filter(function (c) { return c.checked; }).map(function (c) {
-          return c.value;
-        });
-        if (!selected.length) {
-          window.alert("Select at least one bag on the manifest.");
-          return;
-        }
-        if (
-          !window.confirm(
-            "Remove " +
-              selected.length +
-              " bag(s) from " +
-              dispatchDisplayLabel(detail) +
-              "?\n\nThey stay in their current bag status; only the manifest link is removed."
-          )
-        ) {
-          return;
-        }
-        removeManifestBtn.disabled = true;
-        try {
-          var updated = await apiPost(
-            ctx,
-            "/walvis-dispatches/" + encodeURIComponent(detail.id) + "/detach-manifest",
-            { bag_identifiers: selected }
-          );
-          updated = await enrichDetailWithGroundReconcile(ctx, updated);
-          await renderDetail(container, ctx, updated);
-        } catch (e) {
-          window.alert(e.message || String(e));
-        } finally {
-          removeManifestBtn.disabled = false;
-        }
-      });
-      manifestTools.appendChild(removeManifestBtn);
-      rightPanel.appendChild(manifestTools);
-    }
-
     var tableWrap = ui.el("div", { class: "walvis-dispatch-list-col walvis-dispatch-table-wrap" });
     var table = ui.el("table", { class: "data-table walvis-dispatch-table" });
     var thead = ui.el("thead");
-    var selectAllCb = ui.el("input", { type: "checkbox", title: "Select all on manifest" });
-    selectAllCb.addEventListener("change", function () {
-      manifestCheckboxes.forEach(function (c) {
-        c.checked = selectAllCb.checked;
-      });
-    });
     thead.appendChild(
       ui.el("tr", {}, [
-        ui.el("th", { class: "walvis-manifest-col-select" }, [manifestBags.length ? selectAllCb : ""]),
         ui.el("th", {}, ["Bag"]),
         ui.el("th", {}, ["Stream"]),
         ui.el("th", {}, ["kg"]),
         ui.el("th", {}, ["Loaded"]),
-        ui.el("th", {}, ["Received (offload)"]),
-        ui.el("th", {}, ["Source"]),
-        ui.el("th", {}, ["Status now"]),
+        ui.el("th", {}, ["Received"]),
+        ui.el("th", {}, ["Bag status"]),
       ])
     );
     table.appendChild(thead);
     var tbody = ui.el("tbody");
     manifestBags.forEach(function (b) {
-      var src = b.load_source || (b.manifest_addendum ? "cis_addendum" : "gf_scan");
-      var srcLabel =
-        src === "walvis_offload"
-          ? "Offload scan"
-          : src === "cis_addendum"
-            ? "CIS addendum"
-            : src === "fence_bulk"
-              ? "Fenced bulk"
-              : "GF scan";
-      var rowCb = ui.el("input", { type: "checkbox", value: b.bag_identifier });
-      manifestCheckboxes.push(rowCb);
       tbody.appendChild(
         ui.el("tr", {}, [
-          ui.el("td", { class: "walvis-manifest-col-select" }, [rowCb]),
           ui.el("td", {}, [b.bag_identifier]),
           ui.el("td", {}, [b.product_stream || "—"]),
           ui.el("td", {}, [CIS.formatMassFromKg(b.net_weight_kg, { forceKg: true })]),
           ui.el("td", {}, [fmtDate(b.loaded_at)]),
           ui.el("td", {}, [b.received_at ? fmtDate(b.received_at) : "—"]),
-          ui.el("td", {}, [srcLabel]),
           ui.el("td", {}, [b.storage_status || "—"]),
         ])
       );
@@ -1546,23 +1013,9 @@
     tableWrap.appendChild(table);
     rightPanel.appendChild(tableWrap);
 
-    if ((detail.missing_count || 0) > 0 || auditOffN > 0) {
-      reconWrap.open = false;
-    }
-
-    reconWrap.addEventListener("toggle", function () {
-      if (!reconWrap.open || detail._groundReconcileLoaded) return;
-      detail._groundReconcileLoaded = true;
-      reconWrap.appendChild(ui.el("p", { class: "muted" }, ["Loading yard comparison…"]));
-      enrichDetailWithGroundReconcile(ctx, detail).then(function (enriched) {
-        renderDetail(container, ctx, enriched);
-      });
-    });
-
     workspace.appendChild(leftPanel);
     workspace.appendChild(rightPanel);
     container.appendChild(workspace);
-    container.appendChild(reconWrap);
   }
 
   async function openDetail(container, ctx, id) {
