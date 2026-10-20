@@ -199,20 +199,20 @@ body {
 
 .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .module-content { flex: 1; padding: 24px 28px; overflow: auto; }
-.module-content.has-float-nav,
+.module-content.has-float-nav:not(.module-iframe-host):not(.module-quality-host),
 .workspace-module.has-float-nav {
   padding-bottom: var(--cis-float-nav-clearance);
   scroll-padding-bottom: var(--cis-float-nav-clearance);
 }
-.module-content.has-float-nav--stacked,
+.module-content.has-float-nav--stacked:not(.module-iframe-host):not(.module-quality-host),
 .workspace-module.has-float-nav--stacked,
-.app-view:has(#cis-float-nav:not(.hidden)) #module-content.has-float-nav--stacked {
+.app-view:has(#cis-float-nav:not(.hidden)) #module-content.has-float-nav--stacked:not(.module-iframe-host):not(.module-quality-host) {
   padding-bottom: var(--cis-float-nav-clearance-stacked);
   scroll-padding-bottom: var(--cis-float-nav-clearance-stacked);
 }
 
 /* Production /cis/ shell: modules set container.className and wipe has-float-nav */
-.app-view:has(#cis-float-nav:not(.hidden)) #module-content {
+.app-view:has(#cis-float-nav:not(.hidden)) #module-content:not(.module-iframe-host):not(.module-quality-host) {
   padding-bottom: var(--cis-float-nav-clearance);
   scroll-padding-bottom: var(--cis-float-nav-clearance);
 }
@@ -427,6 +427,14 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+/* Full-bleed embeds (Control Room, etc.): float nav + ops overlay — no dead black strip */
+.module-content.module-iframe-host.has-float-nav,
+.module-content.module-iframe-host.has-float-nav--stacked,
+.module-content.module-quality-host.has-float-nav,
+.module-content.module-quality-host.has-float-nav--stacked {
+  padding-bottom: 0;
+  scroll-padding-bottom: 0;
 }
 .module-iframe {
   flex: 1;
@@ -2589,9 +2597,9 @@ a.btn-launch-secondary {
 
 @media (max-width: 640px) {
   .module-content { padding: 16px; }
-  .module-content.has-float-nav,
+  .module-content.has-float-nav:not(.module-iframe-host):not(.module-quality-host),
   .workspace-module.has-float-nav,
-  .app-view:has(#cis-float-nav:not(.hidden)) #module-content {
+  .app-view:has(#cis-float-nav:not(.hidden)) #module-content:not(.module-iframe-host):not(.module-quality-host) {
     padding-bottom: var(--cis-float-nav-clearance);
   }
   .topbar-brand { font-size: 14px; max-width: 42vw; overflow: hidden; text-overflow: ellipsis; }

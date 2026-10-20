@@ -26,5 +26,5 @@
   "zebraPrinterPort": 9100,
   "zebraLabelStockDefault": "6128",
   "zebraLabelStockStandardOnly": true,
-  "shellRev": "20261020-float-ops-drag-v2"
+  "shellRev": "20261020-iframe-fullbleed"
 }
