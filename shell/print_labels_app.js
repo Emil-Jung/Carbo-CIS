@@ -11,22 +11,41 @@
 
   function token() { return state.token; }
 
+  /** Never attach a stale Bearer to sign-in calls (was causing 401 → “session expired” loop). */
+  var IDENTITY_ANON_PATHS = /^\/auth\/(login|set-initial-password|account-status)(\/|\?|$)/;
+
+  function clearStoredSession() {
+    localStorage.removeItem(TOKEN_KEY);
+    state.token = null;
+    state.user = null;
+    state.permissions = [];
+  }
+
   async function apiFetch(base, path, opts) {
     opts = opts || {};
     var headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
-    if (token()) headers.Authorization = "Bearer " + token();
+    var anonIdentity = state.config && base === state.config.identityApiBase && IDENTITY_ANON_PATHS.test(path);
+    if (token() && !anonIdentity) headers.Authorization = "Bearer " + token();
     var res = await fetch(base + path, {
       method: opts.method || "GET",
       headers: headers,
       body: opts.body != null ? JSON.stringify(opts.body) : undefined,
     });
-    if (res.status === 401 && state.config && base === state.config.identityApiBase) {
-      doLogout(true);
-      throw new Error("Session expired. Please sign in again.");
-    }
     var data = null;
     var text = await res.text();
     if (text) { try { data = JSON.parse(text); } catch (e) { data = text; } }
+    if (res.status === 401 && state.config && base === state.config.identityApiBase) {
+      if (anonIdentity) {
+        var loginDetail = "Sign in failed — check user ID and password.";
+        if (data && data.detail != null) {
+          loginDetail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+        }
+        throw new Error(loginDetail);
+      }
+      clearStoredSession();
+      showLogin();
+      throw new Error("Session expired. Please sign in again.");
+    }
     if (!res.ok) {
       var detail = "HTTP " + res.status;
       if (data && data.detail != null) {
@@ -86,11 +105,11 @@
 
   function doLogout(silent) {
     return (async function () {
-      try { if (state.token) await CIS.api.identity("/auth/logout", { method: "POST" }); } catch (e) {}
-      localStorage.removeItem(TOKEN_KEY);
-      state.token = null;
-      state.user = null;
-      state.permissions = [];
+      var hadToken = state.token;
+      clearStoredSession();
+      try {
+        if (hadToken) await CIS.api.identity("/auth/logout", { method: "POST" });
+      } catch (e) {}
       showLogin();
     })();
   }
@@ -147,15 +166,25 @@
     var shellRev = state.config && state.config.shellRev;
     if (shellRev) {
       var revKey = "cis_print_labels_shell_rev";
-      var prevRev = localStorage.getItem(revKey);
-      if (prevRev && prevRev !== shellRev) {
-        localStorage.setItem(revKey, shellRev);
-        var u = new URL(window.location.href);
-        u.searchParams.set("shellRev", shellRev);
-        window.location.replace(u.toString());
-        return;
+      var urlRev = new URL(window.location.href).searchParams.get("shellRev");
+      if (urlRev === shellRev) {
+        try { localStorage.setItem(revKey, shellRev); } catch (e) {}
+      } else {
+        var prevRev = null;
+        try { prevRev = localStorage.getItem(revKey); } catch (e) {}
+        if (prevRev && prevRev !== shellRev && !sessionStorage.getItem("cis_pl_shell_rev_reload")) {
+          try {
+            localStorage.setItem(revKey, shellRev);
+            sessionStorage.setItem("cis_pl_shell_rev_reload", "1");
+          } catch (e) {}
+          var u = new URL(window.location.href);
+          u.searchParams.set("shellRev", shellRev);
+          window.location.replace(u.toString());
+          return;
+        }
+        try { localStorage.setItem(revKey, shellRev); } catch (e) {}
       }
-      localStorage.setItem(revKey, shellRev);
+      try { sessionStorage.removeItem("cis_pl_shell_rev_reload"); } catch (e) {}
     }
     syncWindowTitle();
 
@@ -169,8 +198,7 @@
         showApp();
         return;
       } catch (e) {
-        localStorage.removeItem(TOKEN_KEY);
-        state.token = null;
+        clearStoredSession();
       }
     }
     if (CIS.authUi) CIS.authUi.checkInviteAndShowLogin();
