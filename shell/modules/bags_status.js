@@ -311,7 +311,7 @@
     if (!row) return "—";
     if (row.client_name) return row.client_name;
     if (row.container_number) return row.container_number;
-    return row.status_display || row.effective_status || "—";
+    return "—";
   }
 
 
@@ -2719,7 +2719,7 @@
 
       tr.appendChild(ui.el("td", {}, [fmtMass(row.net_weight_kg, true)]));
 
-      tr.appendChild(ui.el("td", {}, [scanTimestampCell(row)]));
+      tr.appendChild(ui.el("td", {}, [statusDetailCell(row)]));
 
       tr.appendChild(ui.el("td", {}, [weatherText(row)]));
 
@@ -3148,6 +3148,10 @@
           return;
         }
         if (hit && hit.row) {
+          body.appendChild(ui.el("p", { class: "bs-dash-drill-note bs-dash-bag-search__status" }, [
+            ui.el("strong", {}, ["Bag status: "]),
+            hit.row.status_display || hit.row.effective_status || hit.row.storage_status || "—",
+          ]));
           if (hit.is_pallet) {
             body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
               "Physical pallet — tap the row or ",
