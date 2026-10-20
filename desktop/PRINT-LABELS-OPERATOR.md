@@ -11,18 +11,24 @@ Do this **once per label PC** (Windows laptop at the plant).
 - Run **Carbo Print Labels** from the Start menu (or install `CarboPrintLabels-Setup.exe`).
 - Sign in with your normal CIS user.
 
-### 2. Add printers in Windows (not USB)
+### 2. Label stock size (in the app)
+
+In **Carbo Print Labels → Printer → Zebra label stock**, choose **61 × 28 mm (standard)** when that roll is loaded, or **54 × 25 mm (legacy)** for old small rolls. The choice is saved on this PC.
+
+When the plant PC has internet/VPN, the app loads the UI from bkweb3 — stock options update without reinstalling the `.exe`. Offline mode uses whatever was bundled in the last installer.
+
+### 3. Add printers in Windows (not USB)
 
 **Settings → Bluetooth & devices → Printers & scanners → Add device → Add manually**
 
 | Printer | Type | Address |
 |---------|------|---------|
-| **Zebra ZT231** (small bag labels) | TCP/IP, port **9100** | `192.168.8.73` |
+| **Zebra ZT231** (bag labels) | TCP/IP, port **9100** | `192.168.8.73` |
 | **A4 office printer** (pallet sheets) | TCP/IP or network name | (your office printer) |
 
 For the Zebra: choose **Generic / Text Only** or **ZDesigner** driver if offered — we send raw ZPL.
 
-### 3. Permanent LAN fix (run once at the plant)
+### 4. Permanent LAN fix (run once at the plant)
 
 **PowerShell as Administrator** in the `desktop` folder:
 
@@ -34,7 +40,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 This checks ping + port 9100, creates a **LAN** Windows printer (`Zebra ZT231 LAN`), and tells you if port 9100 is still closed.
 
-### 4. If port 9100 fails (ping OK, TCP fails)
+### 5. If port 9100 fails (ping OK, TCP fails)
 
 Fix **on the Zebra** — not on the laptop:
 
@@ -47,7 +53,7 @@ Fix **on the Zebra** — not on the laptop:
 
 **USB-installed printer shows Offline** when unplugged — that is normal. Do not use the USB queue for daily work; use **`Zebra ZT231 LAN`** after the script runs.
 
-### 5. Printing hundreds of labels
+### 6. Printing hundreds of labels
 
 In Carbo Print Labels: enter quantity (e.g. **100**), **Continue**, confirm once, **Print**. The app sends labels one-by-one to the printer — leave it running until complete.
 
@@ -57,7 +63,8 @@ In Carbo Print Labels: enter quantity (e.g. **100**), **Continue**, confirm once
 
 1. Open **Carbo Print Labels** → sign in.
 2. **Printer panel**
-   - **Small labels:** pick the Zebra (network IP *or* Windows printer — whichever IT configured).
+   - **Zebra label stock:** **61 × 28 mm** for standard rolls (or **54 × 25 mm** for legacy).
+   - **Zebra printer:** pick the Windows queue (USB or LAN).
    - **A4 pallet sheets:** pick the A4 printer.
    - Click **Test Zebra connection** if using network IP (should say OK before a big print run).
 3. **Print run**

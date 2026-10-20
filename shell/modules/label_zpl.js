@@ -1,4 +1,4 @@
-/* Bag label ZPL — 203 dpi ZT231. productionSpec() = 54×25 mm (legacy stock); productionSpec6128() = 61×28. */
+/* Bag label ZPL — 203 dpi ZT231. productionSpec6128() = 61×28 mm (standard); productionSpec() = 54×25 legacy. */
 (function (root) {
   "use strict";
 

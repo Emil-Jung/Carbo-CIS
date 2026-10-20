@@ -10,7 +10,9 @@
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/;
-  var PL_UI_VERSION = "1.7.2";
+  var ZEBRA_STOCK_6128 = "6128";
+  var ZEBRA_STOCK_5425 = "5425";
+  var PL_UI_VERSION = "1.7.3";
   CIS.printLabelsUiVersion = PL_UI_VERSION;
   var DISPLAY_TZ = "Africa/Windhoek";
   var HISTORY_LIMIT = 300;
@@ -100,6 +102,7 @@
       zebraPrinterName: "",
       a4PrinterName: "",
       labelFormat: "zebra",
+      zebraStock: ZEBRA_STOCK_6128,
       zebraPrintMode: "windows",
       zebraHost: cfg.zebraPrinterHost || "192.168.8.73",
       zebraPort: cfg.zebraPrinterPort != null ? cfg.zebraPrinterPort : 9100,
@@ -107,7 +110,20 @@
     try {
       var raw = localStorage.getItem(LS);
       if (!raw) raw = localStorage.getItem(LS_LEGACY);
-      if (raw) Object.assign(s, JSON.parse(raw));
+      var parsed = null;
+      if (raw) {
+        parsed = JSON.parse(raw);
+        Object.assign(s, parsed);
+      }
+      var stockOk = s.zebraStock === ZEBRA_STOCK_5425 || s.zebraStock === ZEBRA_STOCK_6128;
+      if (!stockOk) {
+        var cfgStock = (cfg.zebraLabelStockDefault || "").trim();
+        if (cfgStock === ZEBRA_STOCK_5425 || cfgStock === ZEBRA_STOCK_6128) {
+          s.zebraStock = cfgStock;
+        } else {
+          s.zebraStock = ZEBRA_STOCK_6128;
+        }
+      }
     } catch (e) {}
     if (!s.zebraPrinterName && s.printerName) s.zebraPrinterName = s.printerName;
     if (!s.zebraPrinterName && s.printerNameManual) s.zebraPrinterName = s.printerNameManual;
@@ -466,8 +482,8 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Print Labels"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Bag identity labels · Zebra 54 × 25 mm (USB) or A4 pallet sheet · Bag IDs from the server. " +
-        "Pick the Zebra in Windows once, then print. UI " + PL_UI_VERSION + ".",
+      "Bag identity labels · Zebra (61 × 28 mm or legacy 54 × 25 mm) or A4 pallet sheet · Bag IDs from the server. " +
+        "Pick stock size and the Zebra in Windows once, then print. UI " + PL_UI_VERSION + ".",
     ]));
 
     var workspace = ui.el("div", { class: "print-labels-workspace" });
@@ -499,8 +515,22 @@
     zebraRow.appendChild(zebraPrinterEl);
     var a4Row = ui.el("div", { class: "print-labels-printer-row" });
     a4Row.appendChild(a4PrinterEl);
-    printerPanel.body.appendChild(field(ui, "Small labels (Zebra, USB)", zebraRow,
-      "54 × 25 mm bag labels — USB cable, Zebra driver in Windows, pick that printer here (RAW ZPL)."));
+    var zebraStockEl = ui.el("select", {}, [
+      ui.el("option", {
+        value: ZEBRA_STOCK_6128,
+        selected: (saved.zebraStock || ZEBRA_STOCK_6128) !== ZEBRA_STOCK_5425,
+      }, ["61 × 28 mm (standard stock)"]),
+      ui.el("option", {
+        value: ZEBRA_STOCK_5425,
+        selected: saved.zebraStock === ZEBRA_STOCK_5425,
+      }, ["54 × 25 mm (legacy small stock)"]),
+    ]);
+    var zebraStockRow = ui.el("div", { class: "print-labels-printer-row" });
+    zebraStockRow.appendChild(zebraStockEl);
+    printerPanel.body.appendChild(field(ui, "Zebra label stock", zebraStockRow,
+      "Must match what's loaded in the printer. Standard is 61 × 28 mm; use 54 × 25 only for old rolls."));
+    printerPanel.body.appendChild(field(ui, "Zebra printer (USB / Windows)", zebraRow,
+      "USB or network Zebra in Windows — RAW ZPL queue. Use Refresh if you just added the printer."));
     printerPanel.body.appendChild(field(ui, "A4 pallet sheets", a4Row,
       "Large QR pallet labels — prints single-sided to this printer (not the Windows default)."));
     printerPanel.body.appendChild(refreshRow);
@@ -528,7 +558,7 @@
     panelsRowBottom.appendChild(runPanel.root);
     var formatEl = ui.el("select", {}, [
       ui.el("option", { value: "zebra", selected: labelFormat !== "a4_pallet" }, [
-        "Zebra — 54 × 25 mm (production)",
+        "Zebra bag labels",
       ]),
       ui.el("option", { value: "a4_pallet", selected: labelFormat === "a4_pallet" }, [
         "A4 — one pallet sheet per Bag ID",
@@ -639,6 +669,7 @@
         zebraPrinterName: (zebraPrinterEl.value || "").trim(),
         a4PrinterName: (a4PrinterEl.value || "").trim(),
         labelFormat: formatEl.value === "a4_pallet" ? "a4_pallet" : "zebra",
+        zebraStock: zebraStockEl.value === ZEBRA_STOCK_5425 ? ZEBRA_STOCK_5425 : ZEBRA_STOCK_6128,
         zebraPrintMode: "windows",
         zebraHost: (zebraHostEl.value || "").trim(),
         zebraPort: port >= 1 && port <= 65535 ? port : 9100,
@@ -674,7 +705,8 @@
     }
 
     function formatDisplayName(fmt) {
-      return fmt === "a4_pallet" ? "A4 pallet sheet" : "Zebra 54×25 mm";
+      if (fmt === "a4_pallet") return "A4 pallet sheet";
+      return readSaved().zebraStock === ZEBRA_STOCK_5425 ? "Zebra 54×25 mm" : "Zebra 61×28 mm";
     }
 
     function resolvedZebraPrinter(s) {
@@ -697,7 +729,9 @@
     }
 
     function labelSpec() {
-      return ZPL.productionSpec();
+      return readSaved().zebraStock === ZEBRA_STOCK_5425
+        ? ZPL.productionSpec()
+        : ZPL.productionSpec6128();
     }
 
     function apiErrorMessage(err) {
@@ -1519,6 +1553,10 @@
       persistForm();
       paintPreview(null);
     });
+    zebraStockEl.addEventListener("change", function () {
+      persistForm();
+      paintPreview(null);
+    });
     async function testZebraConnection() {
       persistForm();
       if (!bridge) {
@@ -1562,7 +1600,7 @@
       loadHistory();
       loadReprintRuns();
     });
-    [zebraPrinterEl, a4PrinterEl, zebraModeEl].forEach(function (el) {
+    [zebraPrinterEl, a4PrinterEl, zebraModeEl, zebraStockEl].forEach(function (el) {
       el.addEventListener("change", function () {
         syncZebraConnectionUi();
         persistForm();
