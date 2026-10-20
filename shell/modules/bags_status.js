@@ -1063,6 +1063,14 @@
   /** Weathering drill — intake streams × FSC split (not pallets). */
   var WX_DRILL_GROUP_STREAMS = ["restaurant", "lumpwood", "fines", "briquettes"];
 
+  function wxDrillRowsAreAllPallets(rows) {
+    rows = rows || [];
+    if (!rows.length) return false;
+    return rows.every(function (r) {
+      return String(r.product_stream || "").toLowerCase() === "pallet";
+    });
+  }
+
   function yardDaysBuckets(wx) {
     if (wx && wx.yard_days_buckets && wx.yard_days_buckets.length) {
       return wx.yard_days_buckets;
@@ -3356,9 +3364,15 @@
 
       if (wxDrill) {
 
+        var wxRows = wxDrill.rows || [];
+        var wxPalletList =
+          !wxDrill.slice &&
+          (wxDrill.view === "pallet_table" || wxDrillRowsAreAllPallets(wxRows));
         var wxTitle = wxDrill.slice
           ? wxDrill.label + " — " + wxDrill.slice.label
-          : wxDrill.label + " — " + (wxDrill.rows || []).length + " bags";
+          : wxPalletList
+            ? wxDrill.label + " — " + wxRows.length + (wxRows.length === 1 ? " pallet" : " pallets")
+            : wxDrill.label + " — " + wxRows.length + " bags";
 
         body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [wxTitle]));
 
@@ -3366,9 +3380,18 @@
           body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [wxDrill.note]));
         }
 
-        if (!(wxDrill.rows || []).length) {
+        if (!wxRows.length) {
 
           body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No bags in this bucket."]));
+
+        } else if (wxPalletList) {
+
+          if (!wxDrill.note) {
+            body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+              "Physical pallet BAG IDs — tap a row for product mix and source bulk bags.",
+            ]));
+          }
+          body.appendChild(renderDrillTable(wxRows, ui, openPalletDetail));
 
         } else {
 
@@ -4288,6 +4311,7 @@
           label: st.label || "Pallets in transit",
           rows: st.rows || [],
           backTo: "walvis_transit_hub",
+          view: "pallet_table",
         };
         paint();
         return;
