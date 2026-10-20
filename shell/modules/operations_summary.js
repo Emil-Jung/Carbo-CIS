@@ -143,7 +143,7 @@
     if (state.error) {
       state.floatEl.innerHTML =
         '<div class="cis-float-ops-card cis-float-ops-card--error">' +
-        '<div class="cis-float-ops-card__title">Active operations</div>' +
+        '<div class="cis-float-ops-card__title" title="Drag to move · double-click title to reset">Active operations</div>' +
         '<p class="cis-float-ops-card__body">' +
         esc(state.error) +
         "</p></div>";
@@ -153,7 +153,7 @@
     if (!state.last) {
       state.floatEl.innerHTML =
         '<div class="cis-float-ops-card cis-float-ops-card--idle">' +
-        '<div class="cis-float-ops-card__title">Active operations</div>' +
+        '<div class="cis-float-ops-card__title" title="Drag to move · double-click title to reset">Active operations</div>' +
         '<p class="cis-float-ops-card__body cis-float-ops-card__muted">Loading…</p></div>';
       return;
     }
@@ -162,14 +162,14 @@
     if (!items.length) {
       state.floatEl.innerHTML =
         '<div class="cis-float-ops-card cis-float-ops-card--idle">' +
-        '<div class="cis-float-ops-card__title">Active operations</div>' +
+        '<div class="cis-float-ops-card__title" title="Drag to move · double-click title to reset">Active operations</div>' +
         '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active sieving, packaging, Walvis load, or container loading.</p></div>';
       return;
     }
 
     state.floatEl.innerHTML =
       '<div class="cis-float-ops-card cis-float-ops-card--active">' +
-      '<div class="cis-float-ops-card__title">Active operations</div>' +
+      '<div class="cis-float-ops-card__title" title="Drag to move · double-click title to reset">Active operations</div>' +
       items.map(function (it) {
         return it.html;
       }).join("") +

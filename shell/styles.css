@@ -225,6 +225,16 @@ body {
   max-width: min(92vw, 20rem);
   pointer-events: none;
 }
+.cis-float-ops-panel.cis-float-ops-panel--moved {
+  right: auto;
+  bottom: auto;
+}
+.cis-float-ops-panel.cis-float-ops-panel--dragging {
+  z-index: 950;
+}
+.cis-float-ops-panel.cis-float-ops-panel--dragging .cis-float-ops-host {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+}
 .cis-float-ops-panel.hidden {
   display: none;
 }
@@ -261,6 +271,24 @@ body {
   text-transform: uppercase;
   margin-bottom: 4px;
   opacity: 0.85;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  padding-right: 1.1rem;
+  position: relative;
+}
+.cis-float-ops-card__title:active {
+  cursor: grabbing;
+}
+.cis-float-ops-card__title::after {
+  content: "⋮⋮";
+  position: absolute;
+  right: 0;
+  top: -1px;
+  font-size: 0.62rem;
+  letter-spacing: -0.12em;
+  opacity: 0.55;
+  font-weight: 900;
 }
 .cis-float-ops-card__skus {
   margin: 0;
