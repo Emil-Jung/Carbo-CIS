@@ -223,7 +223,7 @@ body {
   bottom: max(14px, env(safe-area-inset-bottom, 0px));
   z-index: 900;
   max-width: min(92vw, 20rem);
-  pointer-events: none;
+  pointer-events: auto;
 }
 .cis-float-ops-panel.cis-float-ops-panel--moved {
   right: auto;
@@ -240,8 +240,31 @@ body {
 }
 .cis-float-ops-host {
   max-width: min(92vw, 20rem);
-  pointer-events: auto;
   user-select: text;
+}
+.cis-float-ops-drag-handle {
+  display: block;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 5px 8px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  color: #1a1200;
+  background: rgba(26, 18, 0, 0.14);
+  border: 1px solid rgba(26, 18, 0, 0.28);
+  border-radius: 5px;
+}
+.cis-float-ops-drag-handle:active {
+  cursor: grabbing;
+}
+.cis-float-ops-panel--dragging .cis-float-ops-drag-handle {
+  cursor: grabbing;
 }
 .cis-float-ops-card {
   padding: 8px 12px;

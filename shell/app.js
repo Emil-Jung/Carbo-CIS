@@ -612,6 +612,7 @@
 
     if (CIS.operationsSummary && CIS.operationsSummary.sync) {
       CIS.operationsSummary.sync({ api: CIS.api });
+      if (CIS.operationsSummary.ensureOpsPanelDrag) CIS.operationsSummary.ensureOpsPanelDrag();
     } else {
       renderFloatNav();
     }
