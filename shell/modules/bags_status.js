@@ -1429,6 +1429,7 @@
 
 
   var WALVIS_STORAGE_STATUS = "storage_walvisbay";
+  var WALVIS_TRANSIT_STATUS = "on_truck_walvisbay";
 
   function isWalvisStorageStatus(key) {
     return key === WALVIS_STORAGE_STATUS;
@@ -1830,6 +1831,14 @@
     return inStore;
   }
 
+  function walvisDispatchTileBagsInTransit(d) {
+    var onTruck = d.bags_in_transit || 0;
+    if (onTruck > 0) return onTruck;
+    if (d.status === "open" && (d.loaded_bags || 0) > 0) return d.loaded_bags;
+    if (d.loading_at_grootfontein && (d.loaded_bags || 0) > 0) return d.loaded_bags;
+    return onTruck;
+  }
+
   function renderWalvisStorageDispatchHub(parent, report, palletBucket, ui, onSelect) {
     report = report || { dispatches: [], unassigned: {}, pallets: {} };
     parent.appendChild(
@@ -1941,6 +1950,128 @@
         return {
           key: "walvis:cat:" + dispatch.id + ":" + streamKey,
           kind: "walvis_dispatch_category",
+          label: STREAM_LABELS[streamKey] || streamKey,
+          bags: cat.bags || 0,
+          kg: cat.kg || 0,
+          streams: {},
+          rows: cat.rows || [],
+          dispatch: dispatch,
+        };
+      }),
+      ui,
+      null,
+      onSelect,
+      "bs-dash-status-grid--inline"
+    );
+  }
+
+  function renderWalvisTransitDispatchHub(parent, report, ui, onSelect) {
+    report = report || { dispatches: [], unassigned: {}, pallets: {} };
+    parent.appendChild(
+      ui.el("p", { class: "bs-dash-drill-note" }, [
+        "One tile per truck dispatch — tap a dispatch for product categories, then the bag list for that truck only.",
+      ])
+    );
+
+    var dispatches = report.dispatches || [];
+    if (dispatches.length) {
+      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["By truck dispatch"]));
+      appendStatusCards(
+        parent,
+        dispatches.map(function (d) {
+          return {
+            key: "walvis:transit:dispatch:" + d.id,
+            kind: "walvis_dispatch_select",
+            transit: true,
+            label: walvisDispatchDisplayLabel(d),
+            receivedLabel: d.truck_registration || d.transporter || "",
+            bags: walvisDispatchTileBagsInTransit(d),
+            kg: d.kg_in_transit || 0,
+            streams: {},
+            dispatch: d,
+          };
+        }),
+        ui,
+        null,
+        onSelect,
+        "bs-dash-status-grid--inline"
+      );
+    } else {
+      parent.appendChild(
+        ui.el("p", { class: "bs-dash-empty" }, ["No bags in transit on a dispatch manifest right now."])
+      );
+    }
+
+    var un = report.unassigned || {};
+    if ((un.bags_in_transit || 0) > 0) {
+      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Not on a dispatch manifest"]));
+      appendStatusCards(
+        parent,
+        [
+          {
+            key: "walvis:transit:unassigned",
+            kind: "walvis_unassigned",
+            transit: true,
+            label: "Unassigned — in transit",
+            bags: un.bags_in_transit || 0,
+            kg: un.kg_in_transit || 0,
+            streams: {},
+            unassigned: un,
+          },
+        ],
+        ui,
+        null,
+        onSelect,
+        "bs-dash-status-grid--inline"
+      );
+    }
+
+    var palFromReport = report.pallets || {};
+    if ((palFromReport.bags_in_transit || 0) > 0) {
+      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Pallets in transit"]));
+      appendStatusCards(
+        parent,
+        [
+          {
+            key: "walvis:transit:pallets",
+            kind: "walvis_transit_pallets",
+            label: "Pallets on trucks",
+            bags: palFromReport.bags_in_transit || 0,
+            kg: palFromReport.kg_in_transit || 0,
+            streams: {},
+            rows: palFromReport.rows || [],
+          },
+        ],
+        ui,
+        null,
+        onSelect,
+        "bs-dash-status-grid--inline"
+      );
+    }
+  }
+
+  function renderWalvisTransitDispatchCategories(parent, dispatch, ui, onSelect) {
+    parent.appendChild(
+      ui.el("p", { class: "bs-dash-drill-note" }, [
+        walvisDispatchDisplayLabel(dispatch) +
+          " — " +
+          String(dispatch.bags_in_transit || walvisDispatchTileBagsInTransit(dispatch) || 0) +
+          " bag(s) on this truck. Tap a category for the bag list.",
+      ])
+    );
+    var cats = dispatch.categories || [];
+    if (!cats.length) {
+      parent.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No scanned bags on this dispatch yet."]));
+      return;
+    }
+    appendStatusCards(
+      parent,
+      cats.map(function (cat) {
+        var streamKey = cat.product_stream || "unknown";
+        return {
+          key: "walvis:transit:cat:" + dispatch.id + ":" + streamKey,
+          kind: "walvis_dispatch_category",
+          transit: true,
           label: STREAM_LABELS[streamKey] || streamKey,
           bags: cat.bags || 0,
           kg: cat.kg || 0,
@@ -2798,6 +2929,7 @@
     var wxDrillToken = 0;
     var drillFetchToken = 0;
     var walvisStorageReport = null;
+    var walvisTransitReport = null;
 
     var bagSearch = null;
 
@@ -2882,12 +3014,33 @@
           dispatch: backDispatch,
           walvisReport: walvisStorageReport,
         };
+      } else if (backTo === "walvis_transit_dispatch" && backDispatch) {
+        selected = {
+          key: WALVIS_TRANSIT_STATUS,
+          mode: "walvis_transit_dispatch",
+          dispatch: backDispatch,
+          walvisReport: walvisTransitReport,
+        };
       } else if (backTo === "walvis_unassigned") {
         selected = {
           key: "walvis:unassigned",
           mode: "walvis_unassigned_hub",
           unassigned: (walvisStorageReport && walvisStorageReport.unassigned) || {},
           walvisReport: walvisStorageReport,
+        };
+      } else if (backTo === "walvis_transit_unassigned") {
+        selected = {
+          key: "walvis:transit:unassigned",
+          mode: "walvis_transit_unassigned_hub",
+          unassigned: (walvisTransitReport && walvisTransitReport.unassigned) || {},
+          walvisReport: walvisTransitReport,
+        };
+      } else if (backTo === "walvis_transit_hub") {
+        selected = {
+          key: WALVIS_TRANSIT_STATUS,
+          label: "In transit — Walvis Bay",
+          mode: "walvis_transit_hub",
+          walvisReport: walvisTransitReport,
         };
       }
       paint();
@@ -3014,6 +3167,30 @@
                 label: "In storage — Carbo Yard",
                 mode: "walvis_storage_hub",
                 walvisReport: walvisStorageReport,
+              };
+              paint();
+            },
+          });
+        } else if (selected.mode === "walvis_transit_dispatch") {
+          ctx.setFloatingBack({
+            onClick: function () {
+              selected = {
+                key: WALVIS_TRANSIT_STATUS,
+                label: "In transit — Walvis Bay",
+                mode: "walvis_transit_hub",
+                walvisReport: walvisTransitReport,
+              };
+              paint();
+            },
+          });
+        } else if (selected.mode === "walvis_transit_unassigned_hub") {
+          ctx.setFloatingBack({
+            onClick: function () {
+              selected = {
+                key: WALVIS_TRANSIT_STATUS,
+                label: "In transit — Walvis Bay",
+                mode: "walvis_transit_hub",
+                walvisReport: walvisTransitReport,
               };
               paint();
             },
@@ -3245,6 +3422,23 @@
           return;
         }
 
+        if (selected.mode === "walvis_transit_hub") {
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label || "In transit — Walvis Bay"]));
+          if (selected.walvisReportLoading) {
+            body.appendChild(renderDrillLoading("In transit — by dispatch", ui));
+            syncFloatingNav();
+            return;
+          }
+          if (selected.walvisReportError) {
+            body.appendChild(ui.error(selected.walvisReportError));
+            syncFloatingNav();
+            return;
+          }
+          renderWalvisTransitDispatchHub(body, selected.walvisReport || walvisTransitReport, ui, openStatus);
+          syncFloatingNav();
+          return;
+        }
+
         if (selected.mode === "walvis_storage_dispatch") {
           body.appendChild(
             ui.el("h3", { class: "bs-dash-drill-title" }, [
@@ -3252,6 +3446,17 @@
             ])
           );
           renderWalvisStorageDispatchCategories(body, selected.dispatch || {}, ui, openStatus);
+          syncFloatingNav();
+          return;
+        }
+
+        if (selected.mode === "walvis_transit_dispatch") {
+          body.appendChild(
+            ui.el("h3", { class: "bs-dash-drill-title" }, [
+              selected.dispatch ? walvisDispatchDisplayLabel(selected.dispatch) : "Dispatch",
+            ])
+          );
+          renderWalvisTransitDispatchCategories(body, selected.dispatch || {}, ui, openStatus);
           syncFloatingNav();
           return;
         }
@@ -3271,6 +3476,39 @@
               return {
                 key: "walvis:unassigned:cat:" + streamKey,
                 kind: "walvis_dispatch_category",
+                label: STREAM_LABELS[streamKey] || streamKey,
+                bags: cat.bags || 0,
+                kg: cat.kg || 0,
+                streams: {},
+                rows: cat.rows || [],
+                dispatch: null,
+              };
+            }),
+            ui,
+            null,
+            openStatus,
+            "bs-dash-status-grid--inline"
+          );
+          syncFloatingNav();
+          return;
+        }
+
+        if (selected.mode === "walvis_transit_unassigned_hub") {
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, ["Not on a dispatch manifest"]));
+          body.appendChild(
+            ui.el("p", { class: "bs-dash-drill-note" }, [
+              "These bags are in transit but were not linked to a GF truck manifest when scanned. Tap a category for detail.",
+            ])
+          );
+          var unTransit = selected.unassigned || {};
+          appendStatusCards(
+            body,
+            (unTransit.categories || []).map(function (cat) {
+              var streamKey = cat.product_stream || "unknown";
+              return {
+                key: "walvis:transit:unassigned:cat:" + streamKey,
+                kind: "walvis_dispatch_category",
+                transit: true,
                 label: STREAM_LABELS[streamKey] || streamKey,
                 bags: cat.bags || 0,
                 kg: cat.kg || 0,
@@ -3960,6 +4198,35 @@
       }
     }
 
+    async function openWalvisTransitHub(st) {
+      selectedEvent = null;
+      wxDrill = null;
+      selected = {
+        key: WALVIS_TRANSIT_STATUS,
+        label: st.label || "In transit — Walvis Bay",
+        mode: "walvis_transit_hub",
+        walvisReportLoading: !walvisTransitReport,
+        walvisReport: walvisTransitReport,
+      };
+      paint();
+      if (walvisTransitReport) return;
+      try {
+        walvisTransitReport = await ctx.api.traceability("/walvis-dispatches/in-transit-breakdown");
+        if (selected && selected.mode === "walvis_transit_hub") {
+          selected.walvisReport = walvisTransitReport;
+          selected.walvisReportLoading = false;
+          selected.walvisReportError = null;
+          paint();
+        }
+      } catch (e) {
+        if (selected && selected.mode === "walvis_transit_hub") {
+          selected.walvisReportLoading = false;
+          selected.walvisReportError = e.message || String(e);
+          paint();
+        }
+      }
+    }
+
     async function openWalvisBulkDrill() {
       var token = beginDrillFetch("Bulk bags — Carbo Yard");
       try {
@@ -4010,15 +4277,40 @@
         return;
       }
 
+      if (st.key === WALVIS_TRANSIT_STATUS) {
+        await openWalvisTransitHub(st);
+        return;
+      }
+
+      if (st.kind === "walvis_transit_pallets" && (st.rows || []).length) {
+        selectedEvent = null;
+        wxDrill = {
+          label: st.label || "Pallets in transit",
+          rows: st.rows || [],
+          backTo: "walvis_transit_hub",
+        };
+        paint();
+        return;
+      }
+
       if (st.kind === "walvis_dispatch_select" && st.dispatch) {
         selectedEvent = null;
         wxDrill = null;
-        selected = {
-          key: st.key,
-          mode: "walvis_storage_dispatch",
-          dispatch: st.dispatch,
-          walvisReport: walvisStorageReport,
-        };
+        if (st.transit) {
+          selected = {
+            key: st.key,
+            mode: "walvis_transit_dispatch",
+            dispatch: st.dispatch,
+            walvisReport: walvisTransitReport,
+          };
+        } else {
+          selected = {
+            key: st.key,
+            mode: "walvis_storage_dispatch",
+            dispatch: st.dispatch,
+            walvisReport: walvisStorageReport,
+          };
+        }
         paint();
         return;
       }
@@ -4026,12 +4318,21 @@
       if (st.kind === "walvis_unassigned" && st.unassigned) {
         selectedEvent = null;
         wxDrill = null;
-        selected = {
-          key: st.key,
-          mode: "walvis_unassigned_hub",
-          unassigned: st.unassigned,
-          walvisReport: walvisStorageReport,
-        };
+        if (st.transit) {
+          selected = {
+            key: st.key,
+            mode: "walvis_transit_unassigned_hub",
+            unassigned: st.unassigned,
+            walvisReport: walvisTransitReport,
+          };
+        } else {
+          selected = {
+            key: st.key,
+            mode: "walvis_unassigned_hub",
+            unassigned: st.unassigned,
+            walvisReport: walvisStorageReport,
+          };
+        }
         paint();
         return;
       }
@@ -4041,7 +4342,9 @@
         wxDrill = {
           label: st.label || "Category",
           rows: st.rows || [],
-          backTo: st.dispatch ? "walvis_dispatch" : "walvis_unassigned",
+          backTo: st.transit
+            ? (st.dispatch ? "walvis_transit_dispatch" : "walvis_transit_unassigned")
+            : (st.dispatch ? "walvis_dispatch" : "walvis_unassigned"),
           backDispatch: st.dispatch || null,
         };
         paint();
