@@ -37,15 +37,7 @@ mkdir -p "$DEST"
 echo ">> copy shell/* -> $DEST"
 cp -r "$REPO/shell/"* "$DEST/"
 
-SHELL_REV=$(python3 - <<'PY' 2>/dev/null || true
-import json, sys
-try:
-    with open(sys.argv[1], encoding="utf-8") as f:
-        print(json.load(f).get("shellRev", "") or "")
-except Exception:
-    pass
-PY
-"$DEST/config.json")
+SHELL_REV=$(python3 -c "import json; print(json.load(open('$DEST/config.json', encoding='utf-8')).get('shellRev', '') or '')" 2>/dev/null || true)
 if [[ -z "$SHELL_REV" ]]; then
   SHELL_REV=$(grep -o '"shellRev"[[:space:]]*:[[:space:]]*"[^"]*"' "$DEST/config.json" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/' || true)
 fi
