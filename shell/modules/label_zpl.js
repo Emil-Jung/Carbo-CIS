@@ -12,6 +12,7 @@
     qrMag: 0,
     qrBoostMag: 0,
     qrLeftInsetMm: 0,
+    contentShiftMm: 0,
     layoutYOffsetDots: 0,
     symbol: "qr",
   };
@@ -22,7 +23,9 @@
   /** Physically verified on ZT231 61×28 stock — use productionSpec6128() when that stock is loaded. */
   var STOCK_6128_QR_BOOST_MAG = 2;
   var STOCK_6128_LAYOUT_Y_OFFSET_DOTS = 12;
-  var STOCK_6128_QR_LEFT_INSET_MM = 1.5;
+  var STOCK_6128_QR_LEFT_INSET_MM = 2.5;
+  /** Nudge QR + serial right — away from physical left edge on 61×28 stock. */
+  var STOCK_6128_CONTENT_SHIFT_MM = 2.5;
 
   /** Zebra ~SD darkness 00–30 (higher = darker). 30 + slow print for dull USB/legacy stock. */
   var PRODUCTION_DARKNESS = 30;
@@ -120,6 +123,13 @@
     var yOffset = parseInt(s.layoutYOffsetDots, 10) || 0;
     qrY += yOffset;
     textY += yOffset;
+    var contentShift = mmToDots(parseFloat(s.contentShiftMm) || 0, d.dpi);
+    if (contentShift > 0) {
+      var maxShift = Math.max(0, d.pw - d.margin - textX - textAreaW);
+      contentShift = Math.min(contentShift, maxShift);
+      qrX += contentShift;
+      textX += contentShift;
+    }
     return {
       dots: d,
       payload: payload,
@@ -228,7 +238,8 @@
         textReserveMm: 22,
         qrMag: 0,
         qrBoostMag: PRODUCTION_54_QR_BOOST_MAG,
-        qrLeftInsetMm: 0,
+        qrLeftInsetMm: 1,
+        contentShiftMm: 2,
         layoutYOffsetDots: 0,
         darkness: PRODUCTION_DARKNESS,
         printSpeed: PRODUCTION_PRINT_SPEED,
@@ -252,6 +263,7 @@
         qrMag: 0,
         qrBoostMag: STOCK_6128_QR_BOOST_MAG,
         qrLeftInsetMm: STOCK_6128_QR_LEFT_INSET_MM,
+        contentShiftMm: STOCK_6128_CONTENT_SHIFT_MM,
         layoutYOffsetDots: STOCK_6128_LAYOUT_Y_OFFSET_DOTS,
         darkness: 22,
         printSpeed: PRODUCTION_PRINT_SPEED,
