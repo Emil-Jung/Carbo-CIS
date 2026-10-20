@@ -1233,10 +1233,33 @@
       );
     }
     var reconWrap = ui.el("details", { class: "walvis-dispatch-admin-tools walvis-dispatch-reconcile-wrap" });
-    reconWrap.appendChild(ui.el("summary", {}, ["Walvis Bay ground stock reconcile"]));
+    reconWrap.appendChild(
+      ui.el("summary", {}, ["Optional advanced: all Carbo yard stock vs this manifest"])
+    );
     reconWrap.appendChild(recon);
 
     var summary = ui.el("div", { class: "walvis-dispatch-summary walvis-dispatch-manifest-summary" });
+    summary.appendChild(
+      ui.el("div", { class: "walvis-dispatch-guide" }, [
+        ui.el("p", { style: "margin:0 0 0.5rem 0;" }, [
+          ui.el("strong", {}, ["This page = one truck manifest. "]),
+          "Use the table below: ",
+          ui.el("strong", {}, ["Loaded"]),
+          " = on this shipping list · ",
+          ui.el("strong", {}, ["Received"]),
+          " = coast scan tied to this truck.",
+        ]),
+        ui.el("p", { class: "muted", style: "margin:0;font-size:0.9rem;" }, [
+          "Missed a scan? Fix it on ",
+          ui.el("strong", {}, ["bags-lookup"]),
+          ": tap the Walvis offload bar → choose this truck → ",
+          ui.el("strong", {}, ["Into storage — AGL"]),
+          " or ",
+          ui.el("strong", {}, ["Walvisbay"]),
+          ". Ignore the long tick-lists under “Optional advanced” unless you are paper-rebuilding Carbo yard stock.",
+        ]),
+      ])
+    );
     var gfLoaded =
       detail.gf_loaded_bags != null ? detail.gf_loaded_bags : detail.manifest_gf_scan_bags;
     if (gfLoaded == null) {
@@ -1523,9 +1546,18 @@
     tableWrap.appendChild(table);
     rightPanel.appendChild(tableWrap);
 
-    if (auditOffN > 0 || groundGap.length > 0 || (detail.missing_count || 0) > 0) {
-      reconWrap.open = true;
+    if ((detail.missing_count || 0) > 0 || auditOffN > 0) {
+      reconWrap.open = false;
     }
+
+    reconWrap.addEventListener("toggle", function () {
+      if (!reconWrap.open || detail._groundReconcileLoaded) return;
+      detail._groundReconcileLoaded = true;
+      reconWrap.appendChild(ui.el("p", { class: "muted" }, ["Loading yard comparison…"]));
+      enrichDetailWithGroundReconcile(ctx, detail).then(function (enriched) {
+        renderDetail(container, ctx, enriched);
+      });
+    });
 
     workspace.appendChild(leftPanel);
     workspace.appendChild(rightPanel);
@@ -1537,7 +1569,6 @@
     container.innerHTML = "<p class=\"muted\">Loading dispatch…</p>";
     try {
       var detail = await apiGet(ctx, "/walvis-dispatches/" + encodeURIComponent(id));
-      detail = await enrichDetailWithGroundReconcile(ctx, detail);
       await renderDetail(container, ctx, detail);
     } catch (e) {
       container.innerHTML = "";
@@ -1739,7 +1770,7 @@
         fmt(d.loaded_bags) +
         " loaded · " +
         fmt(d.received_bags) +
-        " Walvis";
+        " received";
       if (d.loading_date) {
         meta = "Load " + d.loading_date + " · " + meta;
       }
