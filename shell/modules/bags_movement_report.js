@@ -848,6 +848,7 @@
   async function render(container, ctx) {
     var ui = CIS.ui;
     /* Same pattern as Bags Status bs-dashboard-host: scoped theme so V2 light shell cannot override. */
+    container.innerHTML = "";
     container.className = "module-content module-host bm-report-host";
     var lastData = null;
     var labelInventory = null;
@@ -870,6 +871,8 @@
     container.appendChild(status);
     var body = ui.el("div", { class: "report-body bm-report-body" });
     container.appendChild(body);
+
+    if (ctx.onModuleShellReady) ctx.onModuleShellReady();
 
     function allLoadedRows() {
       var rows = (lastData && lastData.rows) ? lastData.rows.slice() : [];

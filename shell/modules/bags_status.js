@@ -2921,6 +2921,7 @@
 
     var ui = CIS.ui;
 
+    container.innerHTML = "";
     container.className = "module-content bs-dashboard-host";
 
 
@@ -2982,6 +2983,8 @@
     var body = ui.el("div", { class: "bs-dash-body" });
 
     dash.appendChild(body);
+
+    if (ctx.onModuleShellReady) ctx.onModuleShellReady();
 
 
 

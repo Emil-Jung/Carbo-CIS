@@ -777,6 +777,12 @@
 
     renderFloatNav();
 
+    function markModuleShellReady() {
+      if (openSeq !== floatNavState.moduleOpenSeq) return;
+      floatNavState.moduleOpening = false;
+      renderFloatNav();
+    }
+
     (async function () {
 
       try {
@@ -793,6 +799,7 @@
 
           setFloatingBack: setFloatingBack,
           releaseFloatBackCooldown: releaseFloatBackCooldown,
+          onModuleShellReady: markModuleShellReady,
 
         });
 
@@ -808,8 +815,7 @@
 
       if (openSeq !== floatNavState.moduleOpenSeq) return;
 
-      floatNavState.moduleOpening = false;
-      renderFloatNav();
+      markModuleShellReady();
 
     })();
 
