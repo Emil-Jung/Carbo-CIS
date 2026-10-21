@@ -15,7 +15,7 @@
   var ZEBRA_STOCK_6128 = "6128";
   var ZEBRA_STOCK_5425 = "5425";
   var PL_RELEASE_ID = "20261020-reprint-stable";
-  var PL_UI_VERSION = "1.9.8";
+  var PL_UI_VERSION = "1.9.9";
   var STOCK_PROFILES = {
     "6128": {
       code: "6128",
@@ -170,7 +170,7 @@
   }
 
   /** A4 pallet QR print size (mm) — keep in sync with desktop/a4_label_pdf.py */
-  var A4_QR_SIZE_MM = 120;
+  var A4_QR_SIZE_MM = 135;
 
   function buildA4PrintDocument(serials) {
     var pages = (serials || []).map(function (serial) {

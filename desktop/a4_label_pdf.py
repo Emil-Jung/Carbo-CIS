@@ -8,7 +8,7 @@ import qrcode
 from PIL import Image, ImageWin
 
 # Printed QR width (mm) — tuned for wrap-station scanning at arm's length.
-A4_QR_SIZE_MM = 120
+A4_QR_SIZE_MM = 135
 
 
 def _validate_serial(serial: str) -> str:
@@ -42,7 +42,8 @@ def _qr_image(serial: str, size_px: int) -> Image.Image:
     )
     factory.add_data(serial)
     factory.make(fit=True)
-    img = factory.make_image(fill_color=0, back_color=255).convert("L")
+    # qrcode treats fill_color=0 as missing — use named colours or the QR renders solid black.
+    img = factory.make_image(fill_color="black", back_color="white").convert("L")
     if size_px >= 8 and img.width != size_px:
         img = img.resize((size_px, size_px), Image.NEAREST)
     # Pure black/white only (no anti-aliased module edges).
