@@ -15,7 +15,7 @@
   var ZEBRA_STOCK_6128 = "6128";
   var ZEBRA_STOCK_5425 = "5425";
   var PL_RELEASE_ID = "20261020-reprint-stable";
-  var PL_UI_VERSION = "1.9.11";
+  var PL_UI_VERSION = "1.9.12";
   var STOCK_PROFILES = {
     "6128": {
       code: "6128",
@@ -898,7 +898,7 @@
     var reprintRunContinueBtn = ui.el("button", { type: "button", class: "btn-primary" }, ["Continue"]);
     reprintRunActions.appendChild(reprintRunBackBtn);
     reprintRunActions.appendChild(reprintRunContinueBtn);
-    reprintRunDlg.body.appendChild(field(ui, "Print run", reprintRunEl, "Failed or completed runs only."));
+    reprintRunDlg.body.appendChild(field(ui, "Print run", reprintRunEl, "Completed, failed, or stuck printing runs."));
     reprintRunDlg.body.appendChild(reprintToolbar);
     reprintRunDlg.body.appendChild(reprintListEl);
     reprintRunDlg.body.appendChild(field(ui, "Reason", reprintRunReasonEl));
@@ -1561,13 +1561,50 @@
         tr.appendChild(ui.el("td", {}, [run.first_serial || ""]));
         tr.appendChild(ui.el("td", {}, [run.last_serial || ""]));
         tr.appendChild(ui.el("td", {}, [run.printer_name || ""]));
-        tr.appendChild(ui.el("td", {}, [run.status || ""]));
+        var statusTd = ui.el("td", { class: "print-labels-history-status" });
+        statusTd.appendChild(document.createTextNode(run.status || ""));
+        if (run.status === "printing") {
+          statusTd.appendChild(document.createTextNode(" "));
+          var failBtn = ui.el("button", {
+            type: "button",
+            class: "btn-ghost btn-sm print-labels-history-fail-btn",
+          }, ["Mark failed"]);
+          failBtn.addEventListener("click", function () {
+            void markStuckPrintRunFailed(run.print_run_id);
+          });
+          statusTd.appendChild(failBtn);
+        }
+        tr.appendChild(statusTd);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
       var wrap = ui.el("div", { class: "print-labels-history-wrap" });
       wrap.appendChild(table);
       return wrap;
+    }
+
+    async function markStuckPrintRunFailed(runId) {
+      if (!ctx.api.traceability || !runId) return;
+      if (!window.confirm(
+        "Mark print run #" + runId + " as failed?\n\n" +
+          "Use this when the app hung on Printing and the run never finished. " +
+          "You can then Reprint from that run (recovery)."
+      )) {
+        return;
+      }
+      try {
+        await ctx.api.traceability("/labels/print-runs/" + runId + "/fail", {
+          method: "POST",
+          body: { error: "Marked failed — print run stuck in printing (operator)" },
+        });
+        setStatus("Print run #" + runId + " marked failed. Use Reprint from print run to recover.");
+        await loadHistory();
+        await loadInventory();
+        await loadSequence();
+        await loadReprintRuns();
+      } catch (e) {
+        setStatus("Could not mark run failed: " + (e.message || e), true);
+      }
     }
 
     async function loadHistory() {
@@ -1665,7 +1702,7 @@
       var serials = pendingLabels.map(function (l) { return l.serial; });
       var spec = labelSpec();
       var isReprint = pendingMode === "reprint";
-      var isA4 = labelFormat === "a4_pallet";
+      var isA4 = pendingRunLabelFormat() === "a4_pallet";
       try {
         if (!isA4) assertZebraStockMatchesZpl();
         await ctx.api.traceability("/labels/print-runs/" + runId + "/start", { method: "POST" });
@@ -1970,8 +2007,9 @@
         reprintRunEl.innerHTML = "";
         reprintRunEl.appendChild(ui.el("option", { value: "" }, ["— Select print run —"]));
         runs.forEach(function (run) {
-          if (run.status !== "failed" && run.status !== "completed") return;
+          if (run.status !== "failed" && run.status !== "completed" && run.status !== "printing") return;
           var label = "#" + run.print_run_id + " · " + run.status;
+          if (run.status === "printing") label += " (stuck?)";
           if (run.first_serial && run.last_serial) {
             label += " · " + run.first_serial + " … " + run.last_serial;
           }
