@@ -76,9 +76,6 @@
 
     const parent = getModuleParent(id);
     if (top === "dashboard") {
-      if (parent && parent !== "dashboard" && navStack.indexOf(parent) === -1) {
-        navStack.push(parent);
-      }
       navStack.push(id);
       return;
     }
@@ -126,10 +123,15 @@
           floatNavState.backInFlight = true;
           ret.finally(function () {
             floatNavState.backInFlight = false;
+            renderFloatNav();
           });
+        } else {
+          renderFloatNav();
         }
       } catch (e) {
         console.error("goBack secondary handler failed", e);
+        floatNavState.backInFlight = false;
+        renderFloatNav();
       }
       return;
     }
@@ -231,11 +233,6 @@
       floatNavState.secondary = { label: opts.label, onClick: opts.onClick };
     } else {
       floatNavState.secondary = null;
-    }
-    var nav = floatNavEl();
-    var onDashboard = !state.activeModuleId || state.activeModuleId === "dashboard";
-    if (nav && !nav.classList.contains("hidden") && !onDashboard) {
-      return;
     }
     renderFloatNav();
   }
