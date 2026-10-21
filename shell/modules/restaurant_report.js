@@ -135,6 +135,8 @@
 
   async function render(container, ctx) {
     var ui = CIS.ui;
+    container.className = "module-content module-report-host";
+    container.innerHTML = "";
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Restaurant quality"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "Monthly restaurant % trend and loads above 8% from the factory Deliveries tracker.",

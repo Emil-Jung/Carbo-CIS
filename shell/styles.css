@@ -198,7 +198,14 @@ body {
 .btn-back { color: var(--gold-bright); border-color: var(--gold-dim); font-weight: 600; }
 
 .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.module-content { flex: 1; padding: 24px 28px; overflow: auto; }
+.module-content {
+  flex: 1;
+  padding: 24px 28px;
+  overflow: auto;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
 .module-content.has-float-nav:not(.module-iframe-host):not(.module-quality-host),
 .workspace-module.has-float-nav {
   padding-bottom: var(--cis-float-nav-clearance);
@@ -374,6 +381,11 @@ body {
 .module-content.module-launcher-page {
   display: block;
   max-width: 42rem;
+}
+/* Standard reports (Restaurant quality, etc.) — vertical stack, full width up to cap */
+.module-content.module-report-host {
+  display: block;
+  max-width: 1100px;
 }
 .module-launcher-page .module-desc {
   margin-bottom: 0.75rem;
