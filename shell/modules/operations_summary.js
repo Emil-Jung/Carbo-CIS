@@ -291,9 +291,23 @@
       var cMain = c.container_number || "Container";
       var sku = (c.product_key || "").trim();
       if (sku) cMain += " · " + sku;
+      var cMeta = "";
+      if (c.loaded_bags != null && c.target_bag_count != null) {
+        cMeta =
+          '<p class="cis-float-ops-card__meta">' +
+          esc(String(c.loaded_bags)) +
+          " / " +
+          esc(String(c.target_bag_count)) +
+          " bags loaded</p>";
+      } else if (c.loaded_bags != null) {
+        cMeta =
+          '<p class="cis-float-ops-card__meta">' +
+          esc(String(c.loaded_bags)) +
+          " bag(s) loaded</p>";
+      }
       items.push({
         sort: 4,
-        html: renderItem("Container loading", cMain, ""),
+        html: renderItem("Container loading", cMain, cMeta),
       });
     });
 
