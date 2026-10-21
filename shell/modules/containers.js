@@ -69,9 +69,9 @@
       ui.el("p", { class: "module-desc" }, [
         "Preload containers from the booking (ship date and bag target). ",
         ui.el("strong", {}, ["Release for loading"]),
-        " activates the yard assignment — Wynand’s scanner only offers ",
+        " activates Bag Walk ",
         ui.el("strong", {}, ["Into container"]),
-        " when a released booking exists at that yard (same idea as packaging shift and Walvis dispatch).",
+        " when a released booking exists (any coast storage or in-transit bag that may load per status rules).",
       ])
     );
 
@@ -429,7 +429,7 @@
     kind: "lookup",
     order: 17,
     icon: "bags",
-    description: "Preload and release containers for Walvis / AGL Into container scans",
+    description: "Preload and release containers for Bag Walk Into container scans",
     requires: "traceability.containers",
     render: render,
   });
