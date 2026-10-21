@@ -787,6 +787,8 @@
 
       try {
 
+        content.innerHTML = "";
+
         const result = mod.render(content, {
 
           api: CIS.api,

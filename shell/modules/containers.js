@@ -70,6 +70,7 @@
     var rows = [];
     var showClosed = false;
 
+    container.className = "module-content ct-containers-host";
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Containers"]));
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
@@ -176,6 +177,8 @@
     var body = ui.el("div", { class: "ct-containers-list-body" });
     listSection.appendChild(body);
     container.appendChild(listSection);
+
+    if (ctx.onModuleShellReady) ctx.onModuleShellReady();
 
     function setStatus(text, isError) {
       status.textContent = text || "";
