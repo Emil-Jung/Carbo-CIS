@@ -236,6 +236,10 @@
       }
     }
 
+    function confirmContainerAction(title, detail) {
+      return window.confirm(title + "\n\n" + detail + "\n\nContinue?");
+    }
+
     async function act(containerId, path, payload, describe) {
       if (!window.confirm(describe + "?")) return;
       try {
@@ -316,13 +320,19 @@
               class: "btn btn-sm btn-sm-active",
               type: "button",
               onclick: function () {
+                if (
+                  !confirmContainerAction(
+                    "Close loading — " + c.container_number,
+                    "Yard must stop scanning bags into this container. Bags stay Into container until you mark Shipped. You can re-open loading later if needed."
+                  )
+                ) {
+                  return;
+                }
                 act(
                   c.id,
                   "/containers/" + encodeURIComponent(c.id) + "/close-loading",
                   {},
-                  "Close yard loading for " +
-                    c.container_number +
-                    " (bags stay In container; yard cannot scan more into this booking)"
+                  "Close yard loading for " + c.container_number
                 );
               },
             }, ["Close loading"])
@@ -334,11 +344,41 @@
               class: "btn btn-sm",
               type: "button",
               onclick: function () {
+                if (
+                  !confirmContainerAction(
+                    "Re-open loading — " + c.container_number,
+                    "Bag Walk may scan Into container again for this booking. Status returns to Loading."
+                  )
+                ) {
+                  return;
+                }
+                act(
+                  c.id,
+                  "/containers/" + encodeURIComponent(c.id) + "/reopen-loading",
+                  {},
+                  "Re-open yard loading for " + c.container_number
+                );
+              },
+            }, ["Re-open loading"])
+          );
+          actions.appendChild(
+            ui.el("button", {
+              class: "btn btn-sm",
+              type: "button",
+              onclick: function () {
+                if (
+                  !confirmContainerAction(
+                    "Mark Shipped — " + c.container_number,
+                    "Container has left the yard. Bags in this container will appear under Shipped in Bags Status."
+                  )
+                ) {
+                  return;
+                }
                 act(
                   c.id,
                   null,
                   { status: "dispatched" },
-                  "Mark " + c.container_number + " as shipped (left the yard)"
+                  "Mark " + c.container_number + " as shipped"
                 );
               },
             }, ["Shipped"])
@@ -350,6 +390,14 @@
               class: "btn btn-sm",
               type: "button",
               onclick: function () {
+                if (
+                  !confirmContainerAction(
+                    "Cancel booking — " + c.container_number,
+                    "Removes this preload row. No bags should be loaded against it."
+                  )
+                ) {
+                  return;
+                }
                 act(c.id, null, { status: "cancelled" }, "Cancel the booking for " + c.container_number);
               },
             }, ["Cancel"])
