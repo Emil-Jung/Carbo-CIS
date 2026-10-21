@@ -12,8 +12,8 @@
   var STATUS_LABEL = {
     booked: "Booked",
     loading: "Loading",
-    full: "Full",
-    dispatched: "Dispatched",
+    full: "Full (loading closed)",
+    dispatched: "Shipped",
     cancelled: "Cancelled",
   };
 
@@ -164,12 +164,12 @@
       ui.el("h3", { class: "ct-containers-section-title" }, ["Booked containers"])
     );
 
-    var toggle = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Show dispatched and cancelled"]);
+    var toggle = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Show shipped and cancelled"]);
     toggle.addEventListener("click", function () {
       showClosed = !showClosed;
       toggle.textContent = showClosed
-        ? "Hide dispatched and cancelled"
-        : "Show dispatched and cancelled";
+        ? "Hide shipped and cancelled"
+        : "Show shipped and cancelled";
       paint();
     });
     listSection.appendChild(toggle);
@@ -310,15 +310,38 @@
             }, ["Release for loading"])
           );
         }
-        if (c.status === "full" || c.status === "loading") {
+        if (c.status === "loading") {
+          actions.appendChild(
+            ui.el("button", {
+              class: "btn btn-sm btn-sm-active",
+              type: "button",
+              onclick: function () {
+                act(
+                  c.id,
+                  "/containers/" + encodeURIComponent(c.id) + "/close-loading",
+                  {},
+                  "Close yard loading for " +
+                    c.container_number +
+                    " (bags stay In container; yard cannot scan more into this booking)"
+                );
+              },
+            }, ["Close loading"])
+          );
+        }
+        if (c.status === "full") {
           actions.appendChild(
             ui.el("button", {
               class: "btn btn-sm",
               type: "button",
               onclick: function () {
-                act(c.id, null, { status: "dispatched" }, "Mark " + c.container_number + " dispatched");
+                act(
+                  c.id,
+                  null,
+                  { status: "dispatched" },
+                  "Mark " + c.container_number + " as shipped (left the yard)"
+                );
               },
-            }, ["Dispatched"])
+            }, ["Shipped"])
           );
         }
         if (c.status === "booked") {
