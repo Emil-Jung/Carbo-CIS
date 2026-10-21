@@ -1,9 +1,14 @@
-# CIS Shell V2 — development roadmap (Oct 2026)
+# CIS Shell V2 — **RETIRED** (Oct 2026)
 
-**Production V1:** https://bkweb3.bigk.co.uk/cis/  
-**V2 beta:** https://bkweb3.bigk.co.uk/cis/explorer-prototype/
+**Production (only):** https://bkweb3.bigk.co.uk/cis/
 
-V2 reuses the same `shell/modules/*.js` and session token as V1; only chrome, navigation, and dashboards differ until cutover.
+Shell V2 / explorer-prototype was removed from the repo. `/cis/explorer-prototype/` redirects to `/cis/`. Do not rebuild V2 unless explicitly requested.
+
+---
+
+## Historical note (pre-retirement)
+
+V2 reused the same `shell/modules/*.js` and session token as V1; only chrome, navigation, and dashboards differed.
 
 ---
 

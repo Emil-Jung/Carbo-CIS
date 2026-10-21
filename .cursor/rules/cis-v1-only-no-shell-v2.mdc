@@ -1,0 +1,11 @@
+---
+description: CIS production shell — V1 only; Shell V2 retired
+alwaysApply: true
+---
+
+# CIS — V1 only (Shell V2 retired)
+
+- **Production entry:** https://bkweb3.bigk.co.uk/cis/ — `shell/index.html`, `shell/app.js`, `shell/modules/*`.
+- **Do not** restore, deploy, or link to Shell V2 (`explorer-v2-*`, department sidebar prototype). The `shell/explorer-prototype/` path is a **redirect to `/cis/`** only.
+- **Do not** run or reintroduce `deploy_explorer_prototype_on_server.sh`. `sync_cis_shell_on_server.sh` must not auto-publish V2 assets.
+- Navigation fixes and UX work target **V1** float back (`#cis-float-nav`, `setFloatingBack`, `navStack` in `shell/app.js`).

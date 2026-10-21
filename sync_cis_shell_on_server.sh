@@ -37,6 +37,16 @@ mkdir -p "$DEST"
 echo ">> copy shell/* -> $DEST"
 cp -r "$REPO/shell/"* "$DEST/"
 
+# Shell V2 retired — wipe stale prototype assets nginx may still serve from old deploys.
+if [[ -d "$DEST/explorer-prototype" ]]; then
+  echo ">> retire explorer-prototype (V1 only; redirect stub if present in repo)"
+  rm -rf "$DEST/explorer-prototype"
+fi
+if [[ -d "$REPO/shell/explorer-prototype" ]]; then
+  mkdir -p "$DEST/explorer-prototype"
+  cp -r "$REPO/shell/explorer-prototype/"* "$DEST/explorer-prototype/" 2>/dev/null || true
+fi
+
 SHELL_REV=$(python3 -c "import json; print(json.load(open('$DEST/config.json', encoding='utf-8')).get('shellRev', '') or '')" 2>/dev/null || true)
 if [[ -z "$SHELL_REV" ]]; then
   SHELL_REV=$(grep -o '"shellRev"[[:space:]]*:[[:space:]]*"[^"]*"' "$DEST/config.json" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/' || true)
@@ -120,10 +130,5 @@ echo "Verify in browser (Ctrl+F5): https://bkweb3.bigk.co.uk/cis/"
 echo "View page source — should contain: dashboard.js, logo.png, topbar-context"
 echo "Should NOT contain: module-nav (old sidebar layout)"
 
-if [[ -x "$REPO/deploy_explorer_prototype_on_server.sh" ]]; then
-  echo ""
-  bash "$REPO/deploy_explorer_prototype_on_server.sh"
-else
-  echo ""
-  echo "V2 prototype: run bash deploy_explorer_prototype_on_server.sh for /cis/explorer-prototype/"
-fi
+echo ""
+echo "Shell V2 explorer-prototype: retired (production /cis/ only)."
