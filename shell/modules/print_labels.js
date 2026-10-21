@@ -188,8 +188,8 @@
       "@page { size: A4 portrait; margin: 15mm; }" +
       "html, body { margin: 0; padding: 0; }" +
       "html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }" +
-      "body { font-family: Arial, Helvetica, sans-serif; color: #000; }" +
-      ".a4-pallet-page { box-sizing: border-box; min-height: 267mm; page-break-after: always; " +
+      "body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }" +
+      ".a4-pallet-page { box-sizing: border-box; min-height: 267mm; page-break-after: always; background: #fff; " +
       "display: flex; flex-direction: column; align-items: center; justify-content: flex-start; " +
       "padding-top: 52mm; gap: 10mm; }" +
       ".a4-pallet-page:last-child { page-break-after: auto; }" +

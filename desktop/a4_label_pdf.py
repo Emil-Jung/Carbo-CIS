@@ -112,7 +112,7 @@ def _prompt_save_pdf_path(default_name: str) -> str | None:
 def _render_a4_page_image(serial: str, dpi: int) -> Image.Image:
     page_w = _mm_to_px(A4_WIDTH_MM, dpi)
     page_h = _mm_to_px(A4_HEIGHT_MM, dpi)
-    page = Image.new("RGB", (page_w, page_h), 255)
+    page = Image.new("RGB", (page_w, page_h), (255, 255, 255))
     qr_px = _mm_to_px(A4_QR_SIZE_MM, dpi)
     qr = _qr_image(serial, qr_px)
     x0 = max(0, (page_w - qr_px) // 2)
