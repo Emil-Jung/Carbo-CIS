@@ -277,6 +277,7 @@
 
   CIS.launcherPage = function (container, ctx, opts) {
     var ui = CIS.ui;
+    container.className = "module-content module-launcher-page";
     container.innerHTML = "";
     container.appendChild(ui.el("h2", { class: "module-title" }, [opts.title]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [opts.description]));

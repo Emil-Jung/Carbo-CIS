@@ -370,33 +370,16 @@ body {
   display: none;
 }
 
-.module-opening-host {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  min-height: 12rem;
-  padding: 2rem 1rem;
+/* Launcher tiles (Maintenance Manager, Producers office, etc.) — vertical stack, not a flex row. */
+.module-content.module-launcher-page {
+  display: block;
+  max-width: 42rem;
 }
-.cis-module-opening {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  color: var(--text-muted, #8a7a5c);
-  font-size: 0.95rem;
+.module-launcher-page .module-desc {
+  margin-bottom: 0.75rem;
 }
-.cis-module-opening__spinner {
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid rgba(228, 192, 74, 0.25);
-  border-top-color: var(--gold-bright, #e4c04a);
-  border-radius: 50%;
-  animation: cis-module-opening-spin 0.75s linear infinite;
-}
-@keyframes cis-module-opening-spin {
-  to {
-    transform: rotate(360deg);
-  }
+.module-launcher-page .launcher-note + .launcher-note {
+  margin-top: 0.5rem;
 }
 .cis-float-back-btn {
   display: inline-flex;

@@ -111,10 +111,7 @@
 
 
     container.innerHTML = "";
-
-
-
-    container.classList.add("module-native-host");
+    container.className = "module-content module-native-host";
 
 
 
@@ -235,29 +232,14 @@
 
 
   function render(container, ctx) {
-
-
+    container.className = "module-content";
 
     if (hasDesktopBridge()) {
-
-
-
       renderDesktopEmbed(container, ctx);
-
-
-
       return;
-
-
-
     }
 
-
-
     renderBrowserFallback(container, ctx);
-
-
-
   }
 
 
