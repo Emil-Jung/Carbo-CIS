@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 
 import qrcode
-from PIL import Image, ImageWin
+from PIL import Image, ImageDraw, ImageFont, ImageWin
 
 # Printed QR width (mm) — tuned for wrap-station scanning at arm's length.
 A4_QR_SIZE_MM = 135
+# Compact PDF export (Microsoft Print to PDF embeds huge full-page rasters).
+PDF_EXPORT_DPI = 200
+A4_WIDTH_MM = 210
+A4_HEIGHT_MM = 297
+A4_TOP_PAD_MM = 52
+A4_TEXT_GAP_MM = 10
+A4_TEXT_PT = 26
 
 
 def _validate_serial(serial: str) -> str:
@@ -69,6 +77,84 @@ def _apply_devmode(hdc, devmode) -> None:
         pass
 
 
+def _is_pdf_printer(printer_name: str) -> bool:
+    return "pdf" in (printer_name or "").lower()
+
+
+def _mm_to_px(mm: float, dpi: int) -> int:
+    return max(1, int(round(mm / 25.4 * dpi)))
+
+
+def _prompt_save_pdf_path(default_name: str) -> str | None:
+    """Windows Save As — avoids Microsoft Print to PDF multi‑hundred‑MB raster files."""
+    safe = (default_name or "Carbo-A4-labels.pdf").replace('"', "`")
+    script = (
+        "Add-Type -AssemblyName System.Windows.Forms; "
+        "$d = New-Object System.Windows.Forms.SaveFileDialog; "
+        "$d.Filter = 'PDF (*.pdf)|*.pdf'; "
+        f'$d.FileName = "{safe}"; '
+        "if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $d.FileName }"
+    )
+    try:
+        proc = subprocess.run(
+            ["powershell", "-NoProfile", "-Sta", "-Command", script],
+            capture_output=True,
+            text=True,
+            timeout=600,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    path = (proc.stdout or "").strip()
+    return path or None
+
+
+def _render_a4_page_image(serial: str, dpi: int) -> Image.Image:
+    page_w = _mm_to_px(A4_WIDTH_MM, dpi)
+    page_h = _mm_to_px(A4_HEIGHT_MM, dpi)
+    page = Image.new("RGB", (page_w, page_h), 255)
+    qr_px = _mm_to_px(A4_QR_SIZE_MM, dpi)
+    qr = _qr_image(serial, qr_px)
+    x0 = max(0, (page_w - qr_px) // 2)
+    y0 = _mm_to_px(A4_TOP_PAD_MM, dpi)
+    page.paste(qr, (x0, y0))
+
+    draw = ImageDraw.Draw(page)
+    font_px = max(12, int(round(A4_TEXT_PT / 72.0 * dpi)))
+    try:
+        font = ImageFont.truetype("arialbd.ttf", font_px)
+    except OSError:
+        try:
+            font = ImageFont.truetype("Arial Bold.ttf", font_px)
+        except OSError:
+            font = ImageFont.load_default()
+    text_y = y0 + qr_px + _mm_to_px(A4_TEXT_GAP_MM, dpi)
+    bbox = draw.textbbox((0, 0), serial, font=font)
+    text_w = bbox[2] - bbox[0]
+    draw.text(((page_w - text_w) // 2, text_y), serial, fill=0, font=font)
+    return page
+
+
+def write_serials_pdf_file(serials: list[str], path: str) -> dict:
+    pages = [_render_a4_page_image(s, PDF_EXPORT_DPI) for s in serials]
+    pages[0].save(
+        path,
+        format="PDF",
+        save_all=True,
+        append_images=pages[1:],
+        resolution=PDF_EXPORT_DPI,
+        optimize=True,
+    )
+    return {
+        "ok": True,
+        "printer": "PDF file",
+        "pages": len(pages),
+        "path": path,
+        "duplex": "simplex",
+        "pdf_compact": True,
+    }
+
+
 def _devmode_simplex(printer_name: str):
     import win32con
     import win32print
@@ -112,6 +198,24 @@ def print_serials_to_printer(serials, printer_name: str) -> dict:
         validated = [_validate_serial(str(s)) for s in serials]
     except ValueError as exc:
         return {"ok": False, "error": str(exc)}
+
+    if _is_pdf_printer(printer_name):
+        first = validated[0].replace("/", "-")
+        last = validated[-1].replace("/", "-")
+        default = (
+            f"Carbo-A4-{first}.pdf"
+            if len(validated) == 1
+            else f"Carbo-A4-{first}_to_{last}.pdf"
+        )
+        save_path = _prompt_save_pdf_path(default)
+        if not save_path:
+            return {"ok": False, "error": "PDF save cancelled."}
+        if not save_path.lower().endswith(".pdf"):
+            save_path += ".pdf"
+        try:
+            return write_serials_pdf_file(validated, save_path)
+        except OSError as exc:
+            return {"ok": False, "error": str(exc)}
 
     devmode = _devmode_simplex(printer_name)
     hdc = win32ui.CreateDC()

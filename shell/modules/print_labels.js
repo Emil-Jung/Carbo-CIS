@@ -15,7 +15,7 @@
   var ZEBRA_STOCK_6128 = "6128";
   var ZEBRA_STOCK_5425 = "5425";
   var PL_RELEASE_ID = "20261020-reprint-stable";
-  var PL_UI_VERSION = "1.9.10";
+  var PL_UI_VERSION = "1.9.11";
   var STOCK_PROFILES = {
     "6128": {
       code: "6128",
@@ -380,6 +380,7 @@
           if (!res || !res.ok) {
             throw new Error((res && res.error) || "A4 print failed.");
           }
+          return res;
         })
         .finally(function () {
           hideA4PdfBusyOverlay();
@@ -1672,7 +1673,10 @@
         var sent = 0;
         if (isA4) {
           hideModal();
-          await openA4PrintWindow(serials, { printerName: resolvedA4Printer() });
+          var a4Result = await openA4PrintWindow(serials, { printerName: resolvedA4Printer() });
+          if (a4Result && a4Result.path) {
+            setStatus("PDF saved: " + a4Result.path);
+          }
           for (var j = 0; j < serials.length; j++) {
             if (!isReprint) {
               await ctx.api.traceability("/labels/print-runs/" + runId + "/label-printed", {
