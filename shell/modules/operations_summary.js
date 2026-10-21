@@ -239,7 +239,7 @@
         sieving.farm_name || sieving.label || sieving.title || "Active truck";
       items.push({
         sort: 1,
-        html: renderItem("Sieving", sievMain, startedLine(sieving.started_at)),
+        html: renderItem("Sieving", sievMain, ""),
       });
     }
 
