@@ -15,7 +15,7 @@
   var ZEBRA_STOCK_6128 = "6128";
   var ZEBRA_STOCK_5425 = "5425";
   var PL_RELEASE_ID = "20261020-reprint-stable";
-  var PL_UI_VERSION = "1.9.9";
+  var PL_UI_VERSION = "1.9.10";
   var STOCK_PROFILES = {
     "6128": {
       code: "6128",
@@ -651,6 +651,7 @@
     var pendingLabels = [];
     var pendingMode = null;
     var pendingRecovery = false;
+    var lastWindowsPrinterNames = [];
 
     container.innerHTML = "";
     container.className = "module-content print-labels-host";
@@ -987,11 +988,65 @@
     modalActions.appendChild(modalCancelBtn);
     modalActions.appendChild(modalDownloadBtn);
     modalActions.appendChild(modalPrintBtn);
+    var modalPrinterWrap = ui.el("div", { class: "print-labels-modal-printer hidden" });
+    var modalPrinterSelect = ui.el("select", { class: "print-labels-modal-printer-select" });
+    modalPrinterWrap.appendChild(ui.el("span", { class: "print-labels-field-label" }, ["Printer"]));
+    modalPrinterWrap.appendChild(modalPrinterSelect);
     modal.appendChild(modalTitle);
     modal.appendChild(modalBody);
+    modal.appendChild(modalPrinterWrap);
     modal.appendChild(modalActions);
     modalBackdrop.appendChild(modal);
     document.body.appendChild(modalBackdrop);
+
+    function pendingRunLabelFormat() {
+      if (pendingRun && pendingRun.label_format === "a4_pallet") return "a4_pallet";
+      if (pendingRun && pendingRun.label_format) return "zebra";
+      return labelFormat;
+    }
+
+    function applyPendingRunLabelFormat() {
+      if (!pendingRun || !pendingRun.label_format) return;
+      formatEl.value = pendingRun.label_format === "a4_pallet" ? "a4_pallet" : "zebra";
+      syncLabelFormat();
+    }
+
+    function optionValuesFromSelect(selectEl) {
+      var names = [];
+      for (var i = 0; i < selectEl.options.length; i++) {
+        var v = (selectEl.options[i].value || "").trim();
+        if (v) names.push(v);
+      }
+      return names;
+    }
+
+    function populateModalPrinterSelect() {
+      var isA4 = pendingRunLabelFormat() === "a4_pallet";
+      var src = isA4 ? a4PrinterEl : zebraPrinterEl;
+      var names = lastWindowsPrinterNames.length
+        ? lastWindowsPrinterNames.slice()
+        : optionValuesFromSelect(src);
+      var savedName = isA4 ? resolvedA4Printer() : resolvedZebraPrinter();
+      fillPrinterSelect(
+        modalPrinterSelect,
+        names,
+        savedName,
+        isA4 ? /a4|office|laser|hp |brother|canon|xerox|ricoh|pdf/i : /zebra|zdesigner|zt231|carbo/i,
+        isA4 ? /zebra|zdesigner|zt231/i : null
+      );
+      var hasPrinters = names.length > 0 && modalPrinterSelect.value;
+      modalPrinterWrap.classList.toggle("hidden", !desktopBridge() || !hasPrinters);
+      return hasPrinters;
+    }
+
+    function syncModalPrinterToPanel() {
+      if (modalPrinterWrap.classList.contains("hidden")) return;
+      var v = (modalPrinterSelect.value || "").trim();
+      if (!v) return;
+      if (pendingRunLabelFormat() === "a4_pallet") a4PrinterEl.value = v;
+      else zebraPrinterEl.value = v;
+      persistForm();
+    }
 
     function readSaved() {
       var port = parseInt(zebraPortEl.value, 10);
@@ -1123,7 +1178,7 @@
     }
 
     function stockConfirmHtml() {
-      if (labelFormat === "a4_pallet") return "";
+      if (pendingRunLabelFormat() === "a4_pallet") return "";
       var sum = assertZebraStockMatchesZpl();
       return (
         "<p>Physical label / ZPL size:<br><strong>" + sum.profile.title + "</strong><br>" +
@@ -1305,14 +1360,21 @@
     function canPhysicalPrint() {
       var bridge = desktopBridge();
       if (!bridge) return false;
-      if (labelFormat === "a4_pallet") {
-        return !!(bridge.print_a4_labels && resolvedA4Printer());
+      if (pendingRunLabelFormat() === "a4_pallet") {
+        var a4Name = modalPrinterWrap.classList.contains("hidden")
+          ? resolvedA4Printer()
+          : (modalPrinterSelect.value || "").trim() || resolvedA4Printer();
+        return !!(bridge.print_a4_labels && a4Name);
       }
-      return !!(bridge.send_zpl_usb && resolvedZebraPrinter());
+      var zebraName = modalPrinterWrap.classList.contains("hidden")
+        ? resolvedZebraPrinter()
+        : (modalPrinterSelect.value || "").trim() || resolvedZebraPrinter();
+      return !!(bridge.send_zpl_usb && zebraName);
     }
 
     function showModal(title, htmlBody, printLabel, showDownload) {
       closeAuxDialogs();
+      applyPendingRunLabelFormat();
       modalTitle.textContent = title;
       if (!htmlBody || !String(htmlBody).trim()) {
         var q = (pendingRun && pendingRun.quantity) || (pendingLabels && pendingLabels.length) || "?";
@@ -1322,15 +1384,20 @@
           "<p><strong>Confirm print</strong></p><p>Quantity: " + q + "</p>" +
           (fs ? "<p>From <code>" + fs + "</code>" + (ls && ls !== fs ? " to <code>" + ls + "</code>" : "") + "</p>" : "");
       }
-      var isA4 = labelFormat === "a4_pallet";
-      var extra = canPhysicalPrint()
+      var isA4 = pendingRunLabelFormat() === "a4_pallet";
+      var hasModalPrinter = populateModalPrinterSelect();
+      var extra = hasModalPrinter
         ? (isA4
-          ? "<p class=\"pl-confirm-hint\">Prints to <strong>" +
-            (resolvedA4Printer() || "your A4 printer") +
-            "</strong>, one sheet per Bag ID.</p>"
-          : "")
-        : "<p class=\"pl-confirm-hint\">Select a printer in the main window, then Print. Or download ZPL.</p>";
+          ? "<p class=\"pl-confirm-hint\">One A4 sheet per Bag ID.</p>"
+          : "<p class=\"pl-confirm-hint\">Labels send to the Zebra queue selected below.</p>")
+        : (canPhysicalPrint()
+          ? ""
+          : "<p class=\"pl-confirm-hint\">Select a printer below, or use the Printer panel on the main screen.</p>");
       modalBody.innerHTML = htmlBody + extra;
+      modalPrintBtn.disabled = !canPhysicalPrint();
+      modalPrinterSelect.onchange = function () {
+        modalPrintBtn.disabled = !canPhysicalPrint();
+      };
       var modalPrintLabel = printLabel;
       if (isA4) {
         var qtyMatch = printLabel.match(/^Print\s+(\d+)\s+labels?/i);
@@ -1343,7 +1410,6 @@
         }
       }
       modalPrintBtn.textContent = modalPrintLabel;
-      modalPrintBtn.disabled = !canPhysicalPrint();
       if (isA4) {
         modalDownloadBtn.style.display = showDownload ? "" : "none";
         modalDownloadBtn.textContent = "Open print preview";
@@ -1408,6 +1474,7 @@
           setStatus("Could not read Windows printers: " + res.error, true);
         }
         var names = (res && res.printers) || [];
+        lastWindowsPrinterNames = names.slice();
         fillPrinterSelect(
           zebraPrinterEl,
           names,
@@ -1534,8 +1601,9 @@
 
     function confirmHtml(run, mode) {
       var qty = run.quantity;
-      var printer = labelFormat === "a4_pallet"
-        ? "Browser A4 print"
+      var isA4Run = run && run.label_format === "a4_pallet";
+      var printer = isA4Run
+        ? (resolvedA4Printer() || "Choose A4 printer below")
         : (run.printer_name || printerSummary());
       if (mode === "reprint") {
         var n = qty || 1;
@@ -1587,6 +1655,7 @@
 
     async function executePrint() {
       if (!pendingRun || !pendingLabels.length) return;
+      syncModalPrinterToPanel();
       persistForm();
       setBusy(true);
       progressWrap.style.display = "block";
@@ -1729,6 +1798,7 @@
         pendingRun = data.print_run;
         pendingLabels = data.labels || [];
         pendingMode = "batch";
+        applyPendingRunLabelFormat();
         if (pendingLabels.length) paintPreview(pendingLabels[0].serial);
         closeAllPlDialogs();
         showModal(
@@ -1994,6 +2064,7 @@
         }
         pendingMode = "reprint";
         pendingRecovery = !!(data.recovery || (data.recovery_count && data.recovery_count > 0));
+        applyPendingRunLabelFormat();
         if (pendingLabels.length) paintPreview(pendingLabels[0].serial);
         closeAllPlDialogs();
         var n = pendingRun.quantity || pendingLabels.length || 1;

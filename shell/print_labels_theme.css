@@ -301,6 +301,24 @@ body.print-labels-app .print-labels-modal-body code {
   border: 1px solid #ddd;
 }
 
+body.print-labels-app .print-labels-modal-printer {
+  margin: 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+body.print-labels-app .print-labels-modal-printer.hidden {
+  display: none !important;
+}
+
+body.print-labels-app .print-labels-modal-printer-select {
+  width: 100%;
+  max-width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
 body.print-labels-app .print-labels-modal-actions {
   display: flex;
   flex-wrap: wrap;
