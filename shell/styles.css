@@ -2697,6 +2697,48 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .btn-sm { padding: 7px 12px; font-size: 13px; background: var(--gold); color: #1a1200; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
 
+/* Containers — add form vs booked list */
+.ct-containers-add-section {
+  background: rgba(212, 175, 55, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 12px;
+  padding: 16px 18px 20px;
+  margin-bottom: 0;
+}
+.ct-containers-list-section {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 3px solid var(--border);
+}
+.ct-containers-section-title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.ct-containers-section-desc {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+.ct-containers-add-status {
+  margin: 12px 0 0;
+}
+.ct-containers-list-section > .btn-sm {
+  margin-bottom: 14px;
+}
+.cm-print-dialog { max-width: 420px; width: 100%; }
+.cm-print-dialog-hint { margin: 0 0 16px; font-size: 13px; line-height: 1.45; }
+.cm-print-field { margin-bottom: 14px; }
+.cm-print-field input[type="date"],
+.cm-print-field input[type="text"] { width: 100%; }
+.cm-print-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
 /* Containers — preload form */
 .ct-form { align-items: flex-end; margin-top: 18px; }
 .ct-form .btn { align-self: flex-end; width: auto; }

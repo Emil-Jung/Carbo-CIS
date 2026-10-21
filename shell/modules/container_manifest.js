@@ -56,12 +56,36 @@
     return html;
   }
 
-  function buildHtml(manifest, variant) {
+  function defaultSheetDateIso(header) {
+    var h = header || {};
+    var raw = h.load_date || h.expected_ship_date;
+    if (raw) {
+      var s = String(raw);
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    }
+    if (h.released_for_loading_at) {
+      try {
+        var d = new Date(h.released_for_loading_at);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString("en-CA", { timeZone: "Africa/Windhoek" });
+        }
+      } catch (e) { /* ignore */ }
+    }
+    return new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Windhoek" });
+  }
+
+  function buildHtml(manifest, variant, printOpts) {
+    var opts = printOpts || {};
     var h = manifest.header || {};
     var sum = manifest.summary || {};
     var cols = splitColumns(manifest.lines || []);
     var product = h.product_label || h.product_key || "";
-    var loadDate = fmtDate(h.load_date || h.expected_ship_date);
+    var sheetDateRaw = opts.sheetDate != null && opts.sheetDate !== "" ? opts.sheetDate : (h.load_date || h.expected_ship_date);
+    var loadDate = fmtDate(sheetDateRaw);
+    var bookingRef =
+      opts.bookingRef != null && String(opts.bookingRef).trim() !== ""
+        ? String(opts.bookingRef).trim()
+        : (h.booking_ref || "");
     var dispatchLine = "";
     if (h.walvis_dispatch_id && h.dispatch_number != null) {
       dispatchLine =
@@ -115,8 +139,11 @@
       "<div><label>CONTAINER</label>" +
       esc(h.container_number) +
       "</div>" +
+      "<div><label>BOOKING REF</label>" +
+      esc(bookingRef) +
+      "</div>" +
       "<div><label>DELIVERY NOTE</label>" +
-      esc(h.delivery_note || h.booking_ref || "") +
+      esc(h.delivery_note || "") +
       "</div>" +
       "<div><label>TRANSPORTER</label>" +
       esc(h.transporter || "") +
@@ -160,14 +187,97 @@
     );
   }
 
-  CIS.printContainerManifest = function (manifest, variant) {
+  CIS.printContainerManifest = function (manifest, variant, printOpts) {
     var w = window.open("", "_blank", "noopener,noreferrer");
     if (!w) {
       alert("Allow pop-ups to print the container manifest.");
       return;
     }
     w.document.open();
-    w.document.write(buildHtml(manifest, variant === "eudr" ? "eudr" : "general"));
+    w.document.write(buildHtml(manifest, variant === "eudr" ? "eudr" : "general", printOpts));
     w.document.close();
+  };
+
+  CIS.openContainerManifestPrintDialog = function (manifest, variant) {
+    var h = (manifest && manifest.header) || {};
+    var backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop cm-print-dialog-backdrop";
+    var dialog = document.createElement("div");
+    dialog.className = "modal cm-print-dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-labelledby", "cmPrintDialogTitle");
+
+    var title = document.createElement("h3");
+    title.id = "cmPrintDialogTitle";
+    title.textContent = "Print container manifest";
+    dialog.appendChild(title);
+
+    var hint = document.createElement("p");
+    hint.className = "muted cm-print-dialog-hint";
+    hint.textContent =
+      "Choose the date and booking reference shown on the load sheet (defaults from this container booking).";
+    dialog.appendChild(hint);
+
+    function field(labelText, inputEl) {
+      var lab = document.createElement("label");
+      lab.className = "ct-field cm-print-field";
+      var span = document.createElement("span");
+      span.className = "ct-field-label";
+      span.textContent = labelText;
+      lab.appendChild(span);
+      lab.appendChild(inputEl);
+      return lab;
+    }
+
+    var dateInput = document.createElement("input");
+    dateInput.type = "date";
+    dateInput.required = true;
+    dateInput.value = defaultSheetDateIso(h);
+    dialog.appendChild(field("Sheet date", dateInput));
+
+    var bookingInput = document.createElement("input");
+    bookingInput.type = "text";
+    bookingInput.placeholder = "e.g. EBKG19038595";
+    bookingInput.autocomplete = "off";
+    bookingInput.value = h.booking_ref || "";
+    dialog.appendChild(field("Booking ref", bookingInput));
+
+    var actions = document.createElement("div");
+    actions.className = "cm-print-dialog-actions";
+    var cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "btn btn-sm";
+    cancelBtn.textContent = "Cancel";
+    var printBtn = document.createElement("button");
+    printBtn.type = "button";
+    printBtn.className = "btn";
+    printBtn.textContent = variant === "eudr" ? "Print EUDR manifest" : "Print manifest";
+    actions.appendChild(cancelBtn);
+    actions.appendChild(printBtn);
+    dialog.appendChild(actions);
+
+    function close() {
+      if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+    }
+
+    cancelBtn.addEventListener("click", close);
+    backdrop.addEventListener("click", function (e) {
+      if (e.target === backdrop) close();
+    });
+    printBtn.addEventListener("click", function () {
+      if (!dateInput.value) {
+        dateInput.focus();
+        return;
+      }
+      CIS.printContainerManifest(manifest, variant, {
+        sheetDate: dateInput.value,
+        bookingRef: bookingInput.value.trim(),
+      });
+      close();
+    });
+
+    backdrop.appendChild(dialog);
+    document.body.appendChild(backdrop);
+    dateInput.focus();
   };
 })();

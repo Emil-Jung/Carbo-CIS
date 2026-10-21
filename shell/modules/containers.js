@@ -78,6 +78,16 @@
     var productOptions = [];
     var dispatchOptions = [];
 
+    var addSection = ui.el("section", { class: "ct-containers-add-section" });
+    addSection.appendChild(
+      ui.el("h3", { class: "ct-containers-section-title" }, ["Add container booking"])
+    );
+    addSection.appendChild(
+      ui.el("p", { class: "muted ct-containers-section-desc" }, [
+        "Create a new preload row — this does not load bags. Release for loading when the yard may scan Into container.",
+      ])
+    );
+
     var form = ui.el("form", { class: "toolbar ct-form ct-form--container-booking" });
     var numberInput = ui.el("input", {
       type: "text",
@@ -136,10 +146,16 @@
       ])
     );
     form.appendChild(ui.el("button", { class: "btn", type: "submit" }, ["Add container"]));
-    container.appendChild(form);
+    addSection.appendChild(form);
 
-    var status = ui.el("p", { class: "muted" }, [""]);
-    container.appendChild(status);
+    var status = ui.el("p", { class: "muted ct-containers-add-status" }, [""]);
+    addSection.appendChild(status);
+    container.appendChild(addSection);
+
+    var listSection = ui.el("section", { class: "ct-containers-list-section" });
+    listSection.appendChild(
+      ui.el("h3", { class: "ct-containers-section-title" }, ["Booked containers"])
+    );
 
     var toggle = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Show dispatched and cancelled"]);
     toggle.addEventListener("click", function () {
@@ -149,10 +165,11 @@
         : "Show dispatched and cancelled";
       paint();
     });
-    container.appendChild(toggle);
+    listSection.appendChild(toggle);
 
-    var body = ui.el("div", {});
-    container.appendChild(body);
+    var body = ui.el("div", { class: "ct-containers-list-body" });
+    listSection.appendChild(body);
+    container.appendChild(listSection);
 
     function setStatus(text, isError) {
       status.textContent = text || "";
@@ -164,7 +181,9 @@
         var data = await ctx.api.traceability(
           "/containers/" + encodeURIComponent(containerId) + "/manifest"
         );
-        if (CIS.printContainerManifest) {
+        if (CIS.openContainerManifestPrintDialog) {
+          CIS.openContainerManifestPrintDialog(data, variant);
+        } else if (CIS.printContainerManifest) {
           CIS.printContainerManifest(data, variant);
         } else {
           setStatus("Print module not loaded.", true);
