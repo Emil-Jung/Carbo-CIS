@@ -526,3 +526,57 @@ body.print-labels-app .print-labels-login-build {
     grid-column: 1 / -1;
   }
 }
+
+body.print-labels-app .pl-a4-pdf-busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: all;
+}
+
+body.print-labels-app .pl-a4-pdf-busy-overlay__card {
+  min-width: 280px;
+  max-width: 420px;
+  padding: 20px 22px 18px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+body.print-labels-app .pl-a4-pdf-busy-overlay__title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+body.print-labels-app .pl-a4-pdf-busy-overlay__sub {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #444;
+}
+
+body.print-labels-app .pl-a4-pdf-busy-overlay__track {
+  height: 8px;
+  overflow: hidden;
+  background: #e8e8e8;
+  border-radius: 4px;
+}
+
+body.print-labels-app .pl-a4-pdf-busy-overlay__bar {
+  height: 100%;
+  width: 40%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #0078d4, #0067b8);
+  animation: pl-a4-pdf-busy-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes pl-a4-pdf-busy-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}

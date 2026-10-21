@@ -15,7 +15,7 @@
   var ZEBRA_STOCK_6128 = "6128";
   var ZEBRA_STOCK_5425 = "5425";
   var PL_RELEASE_ID = "20261020-reprint-stable";
-  var PL_UI_VERSION = "1.9.7";
+  var PL_UI_VERSION = "1.9.8";
   var STOCK_PROFILES = {
     "6128": {
       code: "6128",
@@ -311,21 +311,79 @@
     });
   }
 
+  var a4PdfBusyOverlayEl = null;
+
+  function hideA4PdfBusyOverlay() {
+    if (a4PdfBusyOverlayEl && a4PdfBusyOverlayEl.parentNode) {
+      a4PdfBusyOverlayEl.parentNode.removeChild(a4PdfBusyOverlayEl);
+    }
+    a4PdfBusyOverlayEl = null;
+  }
+
+  function showA4PdfBusyOverlay(pageCount, titleText) {
+    hideA4PdfBusyOverlay();
+    var n = pageCount || 0;
+    var overlay = document.createElement("div");
+    overlay.className = "pl-a4-pdf-busy-overlay";
+    overlay.setAttribute("role", "status");
+    overlay.setAttribute("aria-live", "polite");
+    var card = document.createElement("div");
+    card.className = "pl-a4-pdf-busy-overlay__card";
+    var title = document.createElement("p");
+    title.className = "pl-a4-pdf-busy-overlay__title";
+    title.textContent = titleText || "Creating PDF…";
+    var sub = document.createElement("p");
+    sub.className = "pl-a4-pdf-busy-overlay__sub";
+    sub.textContent =
+      n > 0
+        ? "Preparing " + n + " A4 sheet" + (n === 1 ? "" : "s") + ". Please wait."
+        : "Please wait.";
+    var track = document.createElement("div");
+    track.className = "pl-a4-pdf-busy-overlay__track";
+    track.appendChild(document.createElement("div")).className = "pl-a4-pdf-busy-overlay__bar";
+    card.appendChild(title);
+    card.appendChild(sub);
+    card.appendChild(track);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    a4PdfBusyOverlayEl = overlay;
+  }
+
+  function yieldForA4BusyPaint() {
+    return new Promise(function (resolve) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          setTimeout(resolve, 50);
+        });
+      });
+    });
+  }
+
   function openA4PrintWindow(serials, options) {
     options = options || {};
     var autoPrint = options.autoPrint !== false;
     var printerName = (options.printerName || "").trim();
     var bridge = desktopBridge();
+    var sheetCount = (serials && serials.length) || 0;
 
     if (autoPrint && bridge && bridge.print_a4_labels) {
       if (!printerName) {
         return Promise.reject(new Error("Select the A4 printer in the Printer panel."));
       }
-      return bridge.print_a4_labels(serials, printerName).then(function (res) {
-        if (!res || !res.ok) {
-          throw new Error((res && res.error) || "A4 print failed.");
-        }
-      });
+      var busyTitle = /pdf/i.test(printerName) ? "Creating PDF…" : "Printing A4 sheets…";
+      showA4PdfBusyOverlay(sheetCount, busyTitle);
+      return yieldForA4BusyPaint()
+        .then(function () {
+          return bridge.print_a4_labels(serials, printerName);
+        })
+        .then(function (res) {
+          if (!res || !res.ok) {
+            throw new Error((res && res.error) || "A4 print failed.");
+          }
+        })
+        .finally(function () {
+          hideA4PdfBusyOverlay();
+        });
     }
 
     var html = buildA4PrintDocument(serials);
@@ -1544,6 +1602,7 @@
         setStatus(isA4 ? "Opening A4 print…" : "Printing…");
         var sent = 0;
         if (isA4) {
+          hideModal();
           await openA4PrintWindow(serials, { printerName: resolvedA4Printer() });
           for (var j = 0; j < serials.length; j++) {
             if (!isReprint) {
