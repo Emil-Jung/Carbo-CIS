@@ -1,4 +1,4 @@
-/* Core CIS V1 — floating read-only active operations (sieving, packaging, Walvis, containers). */
+/* Core CIS V1 — floating read-only active operations (sieving, packaging, Walvis). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -287,26 +287,6 @@
       });
     }
 
-    (data.container_loading || []).forEach(function (c) {
-      var cMain =
-        (c.container_number || "Container") +
-        (c.location_display ? " · " + c.location_display : "");
-      if (c.product_label) cMain += " · " + c.product_label;
-      var cMeta = startedLine(c.started_at);
-      if (c.loaded_bags != null && c.target_bag_count != null) {
-        cMeta +=
-          '<p class="cis-float-ops-card__meta">' +
-          esc(String(c.loaded_bags)) +
-          " / " +
-          esc(String(c.target_bag_count)) +
-          " bags loaded</p>";
-      }
-      items.push({
-        sort: 4,
-        html: renderItem("Container loading", cMain, cMeta),
-      });
-    });
-
     items.sort(function (a, b) {
       return a.sort - b.sort;
     });
@@ -339,7 +319,7 @@
       state.floatEl.innerHTML =
         opsCardOpen("cis-float-ops-card--idle") +
         '<div class="cis-float-ops-card__title">Active operations</div>' +
-        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active sieving, packaging, Walvis load, or container loading.</p></div>';
+        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active sieving, packaging, or Walvis load.</p></div>';
       return;
     }
 
