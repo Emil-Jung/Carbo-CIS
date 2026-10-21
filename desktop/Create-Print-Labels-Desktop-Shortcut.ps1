@@ -42,6 +42,13 @@ if (-not $target) {
 }
 
 $workDir = Split-Path $target -Parent
+$iconPath = Join-Path $workDir "print_labels.ico"
+if (-not (Test-Path -LiteralPath $iconPath)) {
+    $repoIco = Join-Path $PSScriptRoot "assets\print_labels.ico"
+    if (Test-Path -LiteralPath $repoIco) {
+        Copy-Item -LiteralPath $repoIco -Destination $iconPath -Force
+    }
+}
 $desktop = [Environment]::GetFolderPath("Desktop")
 $lnkPath = Join-Path $desktop "Carbo Print Labels.lnk"
 
@@ -51,8 +58,14 @@ $shortcut.TargetPath = $target
 $shortcut.WorkingDirectory = $workDir
 $shortcut.WindowStyle = 1
 $shortcut.Description = "Carbo Print Labels (Zebra and A4 only)"
-$shortcut.IconLocation = "$target,0"
+if (Test-Path -LiteralPath $iconPath) {
+    $shortcut.IconLocation = "$iconPath,0"
+} else {
+    $shortcut.IconLocation = "$target,0"
+}
 $shortcut.Save()
+
+& (Join-Path $PSScriptRoot "Apply-Print-Labels-Shortcut-Icons.ps1") 2>$null
 
 [System.Windows.Forms.MessageBox]::Show(
     "Desktop shortcut created:`n$lnkPath`n`nOpens:`n$target",

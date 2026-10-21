@@ -27,7 +27,7 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
 SetupIconFile=..\assets\print_labels.ico
-UninstallDisplayIcon={app}\{#AppExe}
+UninstallDisplayIcon={app}\print_labels.ico
 
 [Messages]
 SetupAppTitle={#AppTitle}
@@ -37,15 +37,16 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 
 [Files]
 Source: "..\dist\Carbo Print Labels\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "..\assets\print_labels.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{userprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
-Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
+Name: "{userprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"; IconFilename: "{app}\print_labels.ico"
+Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon; IconFilename: "{app}\print_labels.ico"
 
 [Registry]
 Root: HKCU; Subkey: "Software\Classes\carbolabels"; ValueType: string; ValueName: ""; ValueData: "URL:Carbo Print Labels"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\carbolabels"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Classes\carbolabels\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppExe},0"
+Root: HKCU; Subkey: "Software\Classes\carbolabels\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\print_labels.ico"
 Root: HKCU; Subkey: "Software\Classes\carbolabels\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" ""%1"""
 
 [Run]

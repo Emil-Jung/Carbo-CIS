@@ -41,6 +41,11 @@ if errorlevel 1 (
     exit /b 1
 )
 
+copy /Y "assets\print_labels.ico" "dist\Carbo Print Labels\print_labels.ico" >nul
+if errorlevel 1 (
+  echo Warning: could not copy print_labels.ico into dist folder.
+)
+
 echo.
 echo Done. Output: "%~dp0dist\Carbo Print Labels\Carbo Print Labels.exe"
 echo Next: BUILD-CIS.cmd  then  BUILD-INSTALLER.cmd

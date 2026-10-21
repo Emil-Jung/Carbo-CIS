@@ -32,6 +32,12 @@ if errorlevel 8 (
   exit /b 1
 )
 
+if exist "%~dp0assets\print_labels.ico" (
+  copy /Y "%~dp0assets\print_labels.ico" "%DEST%\print_labels.ico" >nul
+) else if exist "%SRC%\print_labels.ico" (
+  copy /Y "%SRC%\print_labels.ico" "%DEST%\print_labels.ico" >nul
+)
+
 for /f "delims=" %%T in ('powershell -NoProfile -Command "(Get-Item '%DEST%\%EXE%').LastWriteTime.ToString('yyyy-MM-dd HH:mm')"') do set "STAMP=%%T"
 echo. > "%DEST%\print_labels_install_stamp.txt"
 echo installed_from=desktop\dist >> "%DEST%\print_labels_install_stamp.txt"

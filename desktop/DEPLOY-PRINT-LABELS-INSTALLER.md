@@ -23,6 +23,8 @@ Requires: Python 3, `pip install -r requirements-print-labels.txt`
 
 `BUILD-PRINT-LABELS.cmd` regenerates `desktop/assets/print_labels.ico` (embedded in the `.exe` and installer wizard) and updates `shell/assets/print_labels-icon-*.png` for the in-app favicon.
 
+Shortcuts use **`print_labels.ico` next to the `.exe`**, not the generic PyInstaller icon. After an old install, run `Apply-Print-Labels-Shortcut-Icons.ps1` once (or recreate the desktop shortcut) so Start/desktop show the blue label icon.
+
 ## 2. Installer (Inno Setup)
 
 ```powershell
