@@ -10,7 +10,7 @@
 
   CIS.modules = CIS.modules || [];
 
-  var BS_AUTO_REFRESH_MS = 60000;
+  var BS_AUTO_REFRESH_MS = 45000;
 
   /** Drill-down requests — smaller API payload (`drill=1` on Traceability). */
   function bagsStatusDrillPath(statusKey, streamKey) {
@@ -3269,6 +3269,7 @@
         wxDrill = {
           label: sel.label,
           rows: wxRows,
+          querySel: sel,
           backTo: opts.backTo || "main",
           note: opts.note || null,
           slice: null,
@@ -4538,13 +4539,329 @@
 
 
 
-    var pollTimer = null;
-
     var countdownTimer = null;
 
     var countdownSec = Math.round(BS_AUTO_REFRESH_MS / 1000);
 
     var lastReportUpdatedAt = null;
+
+    var refreshInFlight = false;
+
+
+
+    function findWalvisDispatch(report, dispatchId) {
+
+      if (!report || dispatchId == null) return null;
+
+      var idStr = String(dispatchId);
+
+      var list = report.dispatches || [];
+
+      for (var i = 0; i < list.length; i++) {
+
+        if (String(list[i].id) === idStr) return list[i];
+
+      }
+
+      return null;
+
+    }
+
+
+
+    function syncSelectedEventFromSections() {
+
+      if (!selectedEvent || !selected || !selected.sections) return;
+
+      var evKey = selectedEvent.key || selectedEvent.date;
+
+      if (!evKey) return;
+
+      for (var i = 0; i < selected.sections.length; i++) {
+
+        var sec = selected.sections[i];
+
+        if ((sec.key || sec.date) === evKey) {
+
+          selectedEvent = sec;
+
+          return;
+
+        }
+
+      }
+
+    }
+
+
+
+    async function reloadDrillFromServer() {
+
+      if (!ctx.api.traceability || !summary) return;
+
+
+
+      if (bagSearch && bagSearch.active && bagSearch.serial && !bagSearch.loading) {
+
+        var hit = await ctx.api.traceability(
+
+          "/reports/bags-status/lookup?serial=" + encodeURIComponent(bagSearch.serial)
+
+        );
+
+        bagSearch.data = hit;
+
+        bagSearch.error = null;
+
+        return;
+
+      }
+
+
+
+      if (selected && selected.palletDetail && selected.serial) {
+
+        selected.palletDetail = await ctx.api.traceability(
+
+          "/reports/pallet-detail?serial=" + encodeURIComponent(selected.serial)
+
+        );
+
+        return;
+
+      }
+
+
+
+      if (wxDrill && wxDrill.querySel) {
+
+        var wxData = await ctx.api.traceability(buildWxDrillQuery(wxDrill.querySel));
+
+        var wxRows = (wxData.drill && wxData.drill.rows) || [];
+
+        if (selected && isFactoryStorageBagStatus(selected.key)) {
+
+          wxRows = wxRows.filter(function (r) {
+
+            return (r.product_stream || "").toLowerCase() !== "pallet";
+
+          });
+
+        }
+
+        wxDrill.rows = wxRows;
+
+        return;
+
+      }
+
+
+
+      var needsWalvisStorage =
+
+        selected &&
+
+        (selected.mode === "walvis_storage_hub" ||
+
+          selected.mode === "walvis_storage_dispatch" ||
+
+          selected.mode === "walvis_unassigned_hub");
+
+      var needsWalvisTransit =
+
+        selected &&
+
+        (selected.mode === "walvis_transit_hub" ||
+
+          selected.mode === "walvis_transit_dispatch" ||
+
+          selected.mode === "walvis_transit_unassigned_hub");
+
+      if (needsWalvisStorage) {
+
+        walvisStorageReport = await ctx.api.traceability("/walvis-dispatches/storage-at-walvis-breakdown");
+
+      }
+
+      if (needsWalvisTransit) {
+
+        walvisTransitReport = await ctx.api.traceability("/walvis-dispatches/in-transit-breakdown");
+
+      }
+
+      if (selected && selected.mode === "walvis_storage_hub") {
+
+        selected.walvisReport = walvisStorageReport;
+
+        selected.palletBucket = palletWalvisStorageBucket(summary.pallet_summary);
+
+        selected.walvisReportLoading = false;
+
+      }
+
+      if (selected && selected.mode === "walvis_transit_hub") {
+
+        selected.walvisReport = walvisTransitReport;
+
+        selected.walvisReportLoading = false;
+
+      }
+
+      if (selected && selected.mode === "walvis_unassigned_hub" && walvisStorageReport) {
+
+        selected.unassigned = walvisStorageReport.unassigned || {};
+
+        selected.walvisReport = walvisStorageReport;
+
+      }
+
+      if (selected && selected.mode === "walvis_transit_unassigned_hub" && walvisTransitReport) {
+
+        selected.unassigned = walvisTransitReport.unassigned || {};
+
+        selected.walvisReport = walvisTransitReport;
+
+      }
+
+      if (selected && selected.mode === "walvis_storage_dispatch" && walvisStorageReport && selected.dispatch) {
+
+        var sd = findWalvisDispatch(walvisStorageReport, selected.dispatch.id);
+
+        if (sd) selected.dispatch = sd;
+
+        selected.walvisReport = walvisStorageReport;
+
+      }
+
+      if (selected && selected.mode === "walvis_transit_dispatch" && walvisTransitReport && selected.dispatch) {
+
+        var td = findWalvisDispatch(walvisTransitReport, selected.dispatch.id);
+
+        if (td) selected.dispatch = td;
+
+        selected.walvisReport = walvisTransitReport;
+
+      }
+
+
+
+      if (selected && selected.mode === "events" && selected.key) {
+
+        var drillData = await ctx.api.traceability(bagsStatusDrillPath(selected.key));
+
+        var sections = drillData.event_sections || [];
+
+        if (isFactoryStorageBagStatus(selected.key)) {
+
+          sections = filterEventSectionsToIntakeBags(sections);
+
+        }
+
+        var drillCount = 0;
+
+        sections.forEach(function (sec) {
+
+          drillCount += sec.bags || 0;
+
+        });
+
+        selected.sections = sections;
+
+        selected.count = drillCount;
+
+        syncSelectedEventFromSections();
+
+        return;
+
+      }
+
+
+
+      if (selected && selected.mode === "weathering_buckets" && selected.key && weathering) {
+
+        selected.buckets = wxBucketsForStatus(selected.key, weathering);
+
+        return;
+
+      }
+
+
+
+      if (selected && selected.mode === "pallet_basket") {
+
+        selected.detail = summary.pallet_basket || selected.detail;
+
+        return;
+
+      }
+
+
+
+      if (selected && selected.mode === "physical_pallets" && selected.key) {
+
+        if (selected.view === "locations") {
+
+          var buckets = (summary.pallet_summary && summary.pallet_summary.buckets) || [];
+
+          selected.locationBuckets = buckets.filter(function (b) {
+
+            return (b.bags || 0) > 0;
+
+          });
+
+          var total = summary.pallet_summary && summary.pallet_summary.total;
+
+          selected.count = (total && total.bags) || selected.count;
+
+          return;
+
+        }
+
+        var palletDrill = await ctx.api.traceability(bagsStatusDrillPath(selected.key, "pallet"));
+
+        if (selected.view === "flat_list") {
+
+          var flatRows = sortPalletFlattenedRows(flattenPalletSectionRows(palletDrill.event_sections || []));
+
+          selected.rows = flatRows;
+
+          selected.count = flatRows.length || palletDrill.drill_bag_count || 0;
+
+          return;
+
+        }
+
+        if (selected.view === "by_product") {
+
+          var locRows = flattenPalletSectionRows(palletDrill.event_sections || []);
+
+          if (!locRows.length && palletDrill.physical_pallets && palletDrill.physical_pallets.by_product) {
+
+            (palletDrill.physical_pallets.by_product || []).forEach(function (b) {
+
+              (b.rows || []).forEach(function (row) {
+
+                locRows.push(row);
+
+              });
+
+            });
+
+          }
+
+          locRows = sortPalletFlattenedRows(locRows);
+
+          var locBuckets = buildProductBucketsFromRows(locRows);
+
+          selected.detail = { by_product: locBuckets, bags: locRows.length, kg: 0 };
+
+          selected.count = locRows.length || palletDrill.drill_bag_count || selected.count;
+
+        }
+
+      }
+
+    }
 
 
 
@@ -4572,14 +4889,6 @@
 
 
     function stopTimers() {
-
-      if (pollTimer) {
-
-        clearInterval(pollTimer);
-
-        pollTimer = null;
-
-      }
 
       if (countdownTimer) {
 
@@ -4611,7 +4920,9 @@
 
         countdownSec -= 1;
 
-        if (countdownSec < 0) {
+        if (countdownSec <= 0) {
+
+          void refreshReport({ silent: true });
 
           countdownSec = Math.round(BS_AUTO_REFRESH_MS / 1000);
 
@@ -4644,6 +4955,14 @@
       }
 
       if (opts.silent && !summary) return;
+
+      if (refreshInFlight) {
+
+        if (opts.silent) return;
+
+      }
+
+      refreshInFlight = true;
 
 
 
@@ -4685,6 +5004,16 @@
           selected.detail = summary.pallet_basket;
         }
 
+        try {
+
+          await reloadDrillFromServer();
+
+        } catch (drillErr) {
+
+          /* Keep prior drill view if a drill refetch fails; summary still refreshed. */
+
+        }
+
         if (!opts.silent) {
 
           status.style.display = "none";
@@ -4702,6 +5031,8 @@
         var errMsg = (e && e.message) || String(e || "");
 
         if (opts.silent && /\b401\b|unauthorized/i.test(errMsg)) {
+
+          stopTimers();
 
           refreshNote.hidden = false;
 
@@ -4722,6 +5053,10 @@
 
         body.appendChild(ui.error("Could not load report: " + (CIS.traceabilityApiErrorMessage ? CIS.traceabilityApiErrorMessage(e) : errMsg)));
 
+      } finally {
+
+        refreshInFlight = false;
+
       }
 
     }
@@ -4730,21 +5065,7 @@
 
     stopTimers();
 
-    pollTimer = setInterval(function () {
-
-      if (!container.isConnected) {
-
-        stopTimers();
-
-        return;
-
-      }
-
-      refreshReport({ silent: true });
-
-    }, BS_AUTO_REFRESH_MS);
-
-
+    startCountdown();
 
     await refreshReport({ reset: true });
 
