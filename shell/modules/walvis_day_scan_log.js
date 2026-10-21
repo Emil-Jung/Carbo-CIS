@@ -6,6 +6,7 @@
   CIS.modules = CIS.modules || [];
 
   var DISPLAY_TZ = "Africa/Windhoek";
+  var WDSL_AUTO_REFRESH_MS = 40000;
   var FALLBACK_STATUS_OPTIONS = [
     { value: "all", label: "All movement scans" },
     { value: "master_storage_revert", label: "God mode — status revert" },
@@ -191,6 +192,8 @@
 
     var summaryEl = ui.el("p", { class: "wdsl-summary bs-dash-drill-note" });
     dash.appendChild(summaryEl);
+    var refreshNote = ui.el("p", { class: "bm-refresh-note muted", hidden: true }, [""]);
+    dash.appendChild(refreshNote);
 
     var balanceEl = ui.el("div", { class: "wdsl-packaging-balance" });
     dash.appendChild(balanceEl);
@@ -237,15 +240,60 @@
       balanceEl.appendChild(panel);
     }
 
-    async function load() {
+    var pollTimer = null;
+    var countdownTimer = null;
+    var countdownSec = Math.round(WDSL_AUTO_REFRESH_MS / 1000);
+
+    function updateCountdownText() {
+      if (!refreshNote || !container.isConnected) return;
+      refreshNote.hidden = false;
+      refreshNote.textContent = "Next update in " + countdownSec + " seconds";
+    }
+
+    function resetCountdown() {
+      countdownSec = Math.round(WDSL_AUTO_REFRESH_MS / 1000);
+      updateCountdownText();
+    }
+
+    function stopTimers() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+    }
+
+    function startCountdown() {
+      if (countdownTimer) return;
+      resetCountdown();
+      countdownTimer = setInterval(function () {
+        if (!container.isConnected) {
+          stopTimers();
+          return;
+        }
+        countdownSec -= 1;
+        if (countdownSec < 0) {
+          countdownSec = Math.round(WDSL_AUTO_REFRESH_MS / 1000);
+        }
+        updateCountdownText();
+      }, 1000);
+    }
+
+    async function load(opts) {
+      opts = opts || {};
       var day = dayInput.value || windhoekTodayIso();
       var status = statusSelect.value;
       var stream = streamSelect.value;
       var gapMin = parseInt(gapInput.value, 10) || 20;
-      body.innerHTML = "";
-      balanceEl.innerHTML = "";
-      summaryEl.textContent = "Checking Traceability API…";
-      refreshBtn.disabled = true;
+      if (!opts.silent) {
+        body.innerHTML = "";
+        balanceEl.innerHTML = "";
+        summaryEl.textContent = "Checking Traceability API…";
+        refreshBtn.disabled = true;
+      }
       try {
         if (CIS.traceabilityHealth) {
           var health = await CIS.traceabilityHealth();
@@ -254,12 +302,14 @@
               health.status === 502 || (health.detail && /\b502\b/.test(String(health.detail)))
                 ? CIS.traceabilityApiErrorMessage(new Error("HTTP 502"))
                 : "Traceability API is not reachable (" + (health.detail || "health check failed") + ").";
-            summaryEl.textContent = "";
-            body.appendChild(ui.error(healthMsg));
+            if (!opts.silent) {
+              summaryEl.textContent = "";
+              body.appendChild(ui.error(healthMsg));
+            }
             return;
           }
         }
-        summaryEl.textContent = "Loading…";
+        if (!opts.silent) summaryEl.textContent = "Loading…";
         var q =
           "/reports/bag-movements-by-day?day=" +
           encodeURIComponent(day) +
@@ -269,7 +319,10 @@
           encodeURIComponent(String(gapMin));
         if (stream) q += "&stream=" + encodeURIComponent(stream);
         var data = await ctx.api.traceability(q);
+        if (!container.isConnected) return;
         var rows = data.rows || [];
+        body.innerHTML = "";
+        balanceEl.innerHTML = "";
         summaryEl.textContent =
           fmtDate(data.day) +
           " · " +
@@ -326,22 +379,38 @@
         wrap.appendChild(table);
         body.appendChild(wrap);
       } catch (e) {
+        if (opts.silent) return;
         summaryEl.textContent = "";
+        refreshNote.hidden = true;
         var errText =
           CIS.traceabilityApiErrorMessage && CIS.traceabilityApiErrorMessage(e)
             ? CIS.traceabilityApiErrorMessage(e)
             : e.message || e;
         body.appendChild(ui.error("Could not load scan log: " + errText));
       } finally {
-        refreshBtn.disabled = false;
+        if (!opts.silent) refreshBtn.disabled = false;
+        resetCountdown();
+        startCountdown();
       }
     }
 
-    refreshBtn.addEventListener("click", load);
+    refreshBtn.addEventListener("click", function () {
+      load();
+    });
     dayInput.addEventListener("change", load);
     statusSelect.addEventListener("change", load);
     streamSelect.addEventListener("change", load);
     gapInput.addEventListener("change", load);
+
+    stopTimers();
+    pollTimer = setInterval(function () {
+      if (!container.isConnected) {
+        stopTimers();
+        return;
+      }
+      load({ silent: true });
+    }, WDSL_AUTO_REFRESH_MS);
+
     await load();
   }
 
