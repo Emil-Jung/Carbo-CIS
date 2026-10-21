@@ -21,6 +21,8 @@ cd "D:\My Coding Projects\Carbo-CIS\desktop"
 
 Requires: Python 3, `pip install -r requirements-print-labels.txt`
 
+`BUILD-PRINT-LABELS.cmd` regenerates `desktop/assets/print_labels.ico` (embedded in the `.exe` and installer wizard) and updates `shell/assets/print_labels-icon-*.png` for the in-app favicon.
+
 ## 2. Installer (Inno Setup)
 
 ```powershell

@@ -51,6 +51,7 @@ $shortcut.TargetPath = $target
 $shortcut.WorkingDirectory = $workDir
 $shortcut.WindowStyle = 1
 $shortcut.Description = "Carbo Print Labels (Zebra and A4 only)"
+$shortcut.IconLocation = "$target,0"
 $shortcut.Save()
 
 [System.Windows.Forms.MessageBox]::Show(

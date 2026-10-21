@@ -26,6 +26,8 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
+SetupIconFile=..\assets\print_labels.ico
+UninstallDisplayIcon={app}\{#AppExe}
 
 [Messages]
 SetupAppTitle={#AppTitle}

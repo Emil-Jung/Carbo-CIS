@@ -1,9 +1,9 @@
 {
-  "release_id": "20261020-reprint-stable",
+  "release_id": "20261021-app-icon",
   "released_at": "2026-10-20",
   "status": "production_known_good",
   "labels_ui_version": "1.9.6",
-  "app_build": "20261020-shell-refresh",
+  "app_build": "20261021-app-icon",
   "script_cache": {
     "print_labels.js": "1.9.6-exact-bag-id",
     "label_zpl.js": "1.9.3-ydown3mm",

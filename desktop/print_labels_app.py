@@ -28,7 +28,7 @@ import printer_usb
 
 WINDOW_TITLE = "Carbo Print Labels"
 # Bump when desktop host / bundled shell changes (shown in UI). Release = new installer on each PC.
-PRINT_LABELS_APP_BUILD = "20261020-shell-refresh"
+PRINT_LABELS_APP_BUILD = "20261021-app-icon"
 
 _LOCAL = os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()
 STORAGE_DIR = os.path.join(_LOCAL, "CarboPrintLabels", "webview")

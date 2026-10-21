@@ -7,6 +7,7 @@ from PyInstaller.utils.hooks import collect_submodules
 spec_dir = os.path.dirname(os.path.abspath(SPEC))
 repo_dir = os.path.dirname(spec_dir)
 shell_dir = os.path.join(repo_dir, "shell")
+icon_path = os.path.join(spec_dir, "assets", "print_labels.ico")
 
 datas = []
 if os.path.isdir(shell_dir):
@@ -58,6 +59,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=icon_path if os.path.isfile(icon_path) else None,
 )
 
 coll = COLLECT(

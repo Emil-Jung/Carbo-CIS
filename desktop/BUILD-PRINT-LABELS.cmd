@@ -24,6 +24,14 @@ timeout /t 1 /nobreak >nul
 if exist build\print_labels rmdir /S /Q build\print_labels >nul 2>&1
 if exist "dist\Carbo Print Labels" rmdir /S /Q "dist\Carbo Print Labels" >nul 2>&1
 
+echo Generating Print Labels icon...
+python assets\generate_print_labels_icon.py
+if errorlevel 1 (
+  echo Icon generation failed.
+  pause
+  exit /b 1
+)
+
 echo Building Carbo Print Labels (one-folder)...
 python -m PyInstaller --noconfirm print_labels.spec
 if errorlevel 1 (
