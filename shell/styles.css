@@ -369,6 +369,35 @@ body {
 .cis-float-nav.hidden {
   display: none;
 }
+
+.module-opening-host {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 12rem;
+  padding: 2rem 1rem;
+}
+.cis-module-opening {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-muted, #8a7a5c);
+  font-size: 0.95rem;
+}
+.cis-module-opening__spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(228, 192, 74, 0.25);
+  border-top-color: var(--gold-bright, #e4c04a);
+  border-radius: 50%;
+  animation: cis-module-opening-spin 0.75s linear infinite;
+}
+@keyframes cis-module-opening-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .cis-float-back-btn {
   display: inline-flex;
   align-items: center;

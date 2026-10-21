@@ -129,6 +129,8 @@
 
       onclick: function () {
 
+        if (CIS.isModuleOpening && CIS.isModuleOpening()) return;
+
         if (CIS.openModule) CIS.openModule(mod.id);
 
       },

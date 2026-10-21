@@ -111,6 +111,7 @@
       class: tileClass,
       type: "button",
       onclick: function () {
+        if (CIS.isModuleOpening && CIS.isModuleOpening()) return;
         if (CIS.openModule) CIS.openModule(opt.id);
       },
     });

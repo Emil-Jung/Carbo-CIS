@@ -2936,6 +2936,7 @@
     var wxDrill = null;
     var wxDrillToken = 0;
     var drillFetchToken = 0;
+    var statusDrillInFlight = false;
     var walvisStorageReport = null;
     var walvisTransitReport = null;
 
@@ -4291,6 +4292,12 @@
 
     async function openStatus(st) {
 
+      if (statusDrillInFlight) return;
+
+      statusDrillInFlight = true;
+
+      try {
+
       if (st.kind === "walvis_bulk_bags") {
         await openWalvisStorageHub(st);
         return;
@@ -4532,6 +4539,12 @@
         body.appendChild(ui.error("Could not load bags: " + (e.message || e)));
 
         syncFloatingNav();
+
+      }
+
+      } finally {
+
+        statusDrillInFlight = false;
 
       }
 
