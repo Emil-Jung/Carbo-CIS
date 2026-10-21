@@ -28,7 +28,7 @@ import printer_usb
 
 WINDOW_TITLE = "Carbo Print Labels"
 # Bump when desktop host / bundled shell changes (shown in UI). Release = new installer on each PC.
-PRINT_LABELS_APP_BUILD = "20261021-app-icon"
+PRINT_LABELS_APP_BUILD = "20261021-copytree-fix"
 
 _LOCAL = os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()
 STORAGE_DIR = os.path.join(_LOCAL, "CarboPrintLabels", "webview")
@@ -46,11 +46,12 @@ _BUNDLED_CFG_KEYS = (
 def _prepare_shell_dir() -> str:
     """Copy bundled shell to a temp dir and write runtime API config (no remote files)."""
     tmp_root = tempfile.gettempdir()
-    for name in os.listdir(tmp_root):
-        if name == "carbo_print_labels_shell" or name.startswith("carbo_print_labels_shell_"):
-            shutil.rmtree(os.path.join(tmp_root, name), ignore_errors=True)
-    dest = tempfile.mkdtemp(prefix="carbo_print_labels_shell_", dir=tmp_root)
-    shutil.copytree(config.SHELL_DIR, dest)
+    dest = os.path.join(tmp_root, "carbo_print_labels_shell")
+    if os.path.lexists(dest):
+        shutil.rmtree(dest, ignore_errors=True)
+    if os.path.lexists(dest):
+        dest = tempfile.mkdtemp(prefix="carbo_print_labels_shell_", dir=tmp_root)
+    shutil.copytree(config.SHELL_DIR, dest, dirs_exist_ok=os.path.isdir(dest))
 
     runtime_config = {
         "appName": "Carbo Print Labels",
