@@ -91,6 +91,9 @@
 
     var htmlRev = bootRev();
     if (htmlRev && htmlRev !== remoteRev) {
+      if (/\b_cisBust=/.test(window.location.search)) {
+        return { ok: false, error: "shellRev mismatch after reload", remoteRev: remoteRev };
+      }
       if (opts.overlay) showReloadOverlay("New CIS version published. Loading fresh shell…");
       hardReload(remoteRev, "html-stale");
       return { ok: false, reloaded: true, remoteRev: remoteRev };
