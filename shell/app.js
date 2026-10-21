@@ -122,6 +122,7 @@
   }
 
   function goBack() {
+    if (floatNavState.moduleOpening) return;
     if (floatNavState.backInFlight) return;
     if (floatNavState.secondary && typeof floatNavState.secondary.onClick === "function") {
       try {

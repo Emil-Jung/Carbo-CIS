@@ -2936,7 +2936,8 @@
     var wxDrill = null;
     var wxDrillToken = 0;
     var drillFetchToken = 0;
-    var statusDrillInFlight = false;
+    /** Nav state to restore when Back is pressed during a drill API fetch. */
+    var navSnapshotBeforeFetch = null;
     var walvisStorageReport = null;
     var walvisTransitReport = null;
 
@@ -3115,8 +3116,47 @@
       paint();
     }
 
+    function captureNavState() {
+      return {
+        selected: selected,
+        selectedEvent: selectedEvent,
+        wxDrill: wxDrill,
+        bagSearch: bagSearch,
+      };
+    }
+
+    function restoreNavState(snap) {
+      if (!snap) return;
+      selected = snap.selected;
+      selectedEvent = snap.selectedEvent;
+      wxDrill = snap.wxDrill;
+      bagSearch = snap.bagSearch;
+    }
+
+    function cancelDrillFetchAndRestore() {
+      drillFetchToken += 1;
+      wxDrillToken += 1;
+      var snap = navSnapshotBeforeFetch;
+      navSnapshotBeforeFetch = null;
+      restoreNavState(snap);
+      paint();
+    }
+
+    function finishDrillFetch(token) {
+      if (token === drillFetchToken) {
+        navSnapshotBeforeFetch = null;
+      }
+    }
+
     function syncFloatingNav() {
       if (!ctx.setFloatingBack) return;
+      if (navSnapshotBeforeFetch) {
+        ctx.setFloatingBack({
+          onClick: cancelDrillFetchAndRestore,
+        });
+        if (ctx.releaseFloatBackCooldown) ctx.releaseFloatBackCooldown();
+        return;
+      }
       if (wxDrill) {
         ctx.setFloatingBack({ onClick: goBackFromWxDrill });
       } else if (selected) {
@@ -3237,6 +3277,7 @@
     }
 
     function beginDrillFetch(title) {
+      navSnapshotBeforeFetch = captureNavState();
       drillFetchToken += 1;
       var token = drillFetchToken;
       showDrillLoadingPanel(title);
@@ -3249,6 +3290,7 @@
 
     async function openWxDrill(sel, opts) {
       opts = opts || {};
+      navSnapshotBeforeFetch = captureNavState();
       var token = wxDrillToken + 1;
       wxDrillToken = token;
       wxDrill = null;
@@ -3275,9 +3317,11 @@
           note: opts.note || null,
           slice: null,
         };
+        navSnapshotBeforeFetch = null;
         paint();
       } catch (e) {
         if (token !== wxDrillToken) return;
+        navSnapshotBeforeFetch = null;
         body.innerHTML = "";
         body.appendChild(ui.error("Could not load bags: " + (e.message || e)));
         syncFloatingNav();
@@ -3906,12 +3950,14 @@
 
         if (!selected.label) selected.label = "Pallet";
 
+        finishDrillFetch(token);
         paint();
 
       } catch (e) {
 
         if (drillFetchCancelled(token)) return;
 
+        finishDrillFetch(token);
         body.innerHTML = "";
 
         body.appendChild(ui.error("Could not load pallet: " + (e.message || e)));
@@ -3982,6 +4028,7 @@
 
           };
 
+          finishDrillFetch(token);
           paint();
 
           return;
@@ -4008,12 +4055,14 @@
 
         selected.parentLabel = parent.parentLabel || parent.label || "Pallets";
 
+        finishDrillFetch(token);
         paint();
 
       } catch (e) {
 
         if (drillFetchCancelled(token)) return;
 
+        finishDrillFetch(token);
         body.innerHTML = "";
 
         body.appendChild(ui.error("Could not load pallets: " + (e.message || e)));
@@ -4176,10 +4225,13 @@
 
         showPhysicalPalletByProduct(st, palletData, count);
 
+        finishDrillFetch(token);
+
       } catch (e) {
 
         if (drillFetchCancelled(token)) return;
 
+        finishDrillFetch(token);
         body.innerHTML = "";
 
         body.appendChild(ui.error("Could not load pallets: " + (e.message || e)));
@@ -4267,9 +4319,11 @@
           rows: rows,
           backTo: "main",
         };
+        finishDrillFetch(token);
         paint();
       } catch (e) {
         if (drillFetchCancelled(token)) return;
+        finishDrillFetch(token);
         body.innerHTML = "";
         body.appendChild(ui.error("Could not load Walvis bags: " + (e.message || e)));
         syncFloatingNav();
@@ -4291,12 +4345,6 @@
     }
 
     async function openStatus(st) {
-
-      if (statusDrillInFlight) return;
-
-      statusDrillInFlight = true;
-
-      try {
 
       if (st.kind === "walvis_bulk_bags") {
         await openWalvisStorageHub(st);
@@ -4528,23 +4576,19 @@
 
         };
 
+        finishDrillFetch(token);
         paint();
 
       } catch (e) {
 
         if (drillFetchCancelled(token)) return;
 
+        finishDrillFetch(token);
         body.innerHTML = "";
 
         body.appendChild(ui.error("Could not load bags: " + (e.message || e)));
 
         syncFloatingNav();
-
-      }
-
-      } finally {
-
-        statusDrillInFlight = false;
 
       }
 
