@@ -251,10 +251,9 @@
     shifts.forEach(function (sh) {
       var skus =
         sh.product_codes && sh.product_codes.length ? sh.product_codes.join(", ") : "—";
-      var meta = startedLine(sh.started_at);
-      if (sh.notes) {
-        meta += '<p class="cis-float-ops-card__meta">' + esc(sh.notes) + "</p>";
-      }
+      var meta = sh.notes
+        ? '<p class="cis-float-ops-card__meta">' + esc(sh.notes) + "</p>"
+        : "";
       items.push({
         sort: 2,
         html: renderItem("Packaging", skus, meta),
@@ -266,7 +265,7 @@
       var wMain = wd.display_label || wd.title || "Walvis dispatch";
       if (wd.product_summary) wMain += " · " + wd.product_summary;
       if (wd.truck_registration) wMain += " · " + wd.truck_registration;
-      var wMeta = startedLine(wd.started_at);
+      var wMeta = "";
       if (wd.plan_total != null && wd.plan_total > 0) {
         var onPlan = wd.plan_loaded != null ? wd.plan_loaded : wd.loaded_bags;
         wMeta +=
