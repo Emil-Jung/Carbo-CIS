@@ -21,19 +21,11 @@
   const state = { config: null, token: null, user: null, permissions: [], activeModuleId: null };
   CIS._state = state;
 
-  const floatNavState = { secondary: null, backCooldown: false };
+  const floatNavState = { secondary: null, backInFlight: false };
   const navStack = ["dashboard"];
 
-  function endFloatBackCooldown() {
-    if (!floatNavState.backCooldown) return;
-    floatNavState.backCooldown = false;
-    renderFloatNav();
-  }
-
-  /** Modules may call after async drill paint (legacy hook; sync back clears automatically). */
-  function releaseFloatBackCooldown() {
-    endFloatBackCooldown();
-  }
+  /** No-op — kept so modules may still call after async drill paint. */
+  function releaseFloatBackCooldown() {}
 
   /** Parent hub for hierarchical back (module.parentModule overrides). */
   const MODULE_PARENTS = {
@@ -126,23 +118,18 @@
   }
 
   function goBack() {
-    if (floatNavState.backCooldown) return;
+    if (floatNavState.backInFlight) return;
     if (floatNavState.secondary && typeof floatNavState.secondary.onClick === "function") {
-      floatNavState.backCooldown = true;
-      renderFloatNav();
-      var finish = function () {
-        endFloatBackCooldown();
-      };
       try {
         var ret = floatNavState.secondary.onClick();
         if (ret && typeof ret.then === "function") {
-          ret.then(finish, finish);
-        } else {
-          finish();
+          floatNavState.backInFlight = true;
+          ret.finally(function () {
+            floatNavState.backInFlight = false;
+          });
         }
       } catch (e) {
         console.error("goBack secondary handler failed", e);
-        finish();
       }
       return;
     }
@@ -222,8 +209,6 @@
       btn.textContent = floatBackStepLabel();
       btn.title = "Back one step";
       btn.setAttribute("aria-label", floatBackStepLabel());
-      btn.disabled = !!floatNavState.backCooldown;
-      if (btn.disabled) btn.setAttribute("aria-disabled", "true");
       btn.addEventListener("click", goBack);
       nav.appendChild(btn);
       hasAny = true;
@@ -246,6 +231,11 @@
       floatNavState.secondary = { label: opts.label, onClick: opts.onClick };
     } else {
       floatNavState.secondary = null;
+    }
+    var nav = floatNavEl();
+    var onDashboard = !state.activeModuleId || state.activeModuleId === "dashboard";
+    if (nav && !nav.classList.contains("hidden") && !onDashboard) {
+      return;
     }
     renderFloatNav();
   }
