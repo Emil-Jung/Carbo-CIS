@@ -59,6 +59,12 @@
     return fmt(c.loaded_bags) + " / " + fmt(c.target_bag_count);
   }
 
+  /** Yard loading started (first pallet), not planned ship date or per-pallet dates. */
+  function fmtContainerLoadingDate(c) {
+    if (c.first_loaded_at) return fmtDate(c.first_loaded_at);
+    return fmtShipDate(c.load_date || c.expected_ship_date);
+  }
+
   async function render(container, ctx) {
     var ui = CIS.ui;
     var rows = [];
@@ -250,7 +256,7 @@
       var table = ui.el("table", { class: "data" });
       table.innerHTML =
         "<thead><tr>" +
-        "<th>Container</th><th>Product</th><th>Load date</th><th>Yard</th>" +
+        "<th>Container</th><th>Product</th><th>Loading date</th><th>Yard</th>" +
         "<th>Loaded</th><th>Status</th><th>Released</th><th></th>" +
         "</tr></thead>";
       var tbody = ui.el("tbody");
@@ -260,7 +266,7 @@
         tr.innerHTML =
           "<td><strong>" + ui.escape(c.container_number) + "</strong></td>" +
           "<td>" + ui.escape(c.product_label || c.product_key || "—") + "</td>" +
-          "<td>" + ui.escape(fmtShipDate(c.load_date || c.expected_ship_date)) + "</td>" +
+          "<td>" + ui.escape(fmtContainerLoadingDate(c)) + "</td>" +
           "<td>" + ui.escape(c.location_display) + "</td>" +
           "<td>" + ui.escape(progressText(c)) + "</td>" +
           "<td>" + ui.escape(STATUS_LABEL[c.status] || c.status) + "</td>" +
