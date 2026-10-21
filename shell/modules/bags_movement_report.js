@@ -872,8 +872,6 @@
     var body = ui.el("div", { class: "report-body bm-report-body" });
     container.appendChild(body);
 
-    if (ctx.onModuleShellReady) ctx.onModuleShellReady();
-
     function allLoadedRows() {
       var rows = (lastData && lastData.rows) ? lastData.rows.slice() : [];
       Object.keys(weekCache).forEach(function (weekKey) {

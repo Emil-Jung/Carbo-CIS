@@ -24,9 +24,8 @@
   const floatNavState = {
     secondary: null,
     backInFlight: false,
-    /** Hide float nav until module first paint — avoids second tap hitting Main dashboard. */
-    moduleOpening: false,
-    moduleOpenId: null,
+    /** Ignore duplicate tile taps while the same module render is in flight. */
+    moduleOpenInFlight: null,
     moduleOpenSeq: 0,
   };
   const navStack = ["dashboard"];
@@ -122,7 +121,6 @@
   }
 
   function goBack() {
-    if (floatNavState.moduleOpening) return;
     if (floatNavState.backInFlight) return;
     if (floatNavState.secondary && typeof floatNavState.secondary.onClick === "function") {
       try {
@@ -200,7 +198,7 @@
 
     var hasAny = false;
 
-    if (!onDashboard && !floatNavState.moduleOpening) {
+    if (!onDashboard) {
       const homeBtn = document.createElement("button");
       homeBtn.type = "button";
       homeBtn.className = "cis-float-back-btn cis-float-back-btn--home";
@@ -659,8 +657,7 @@
     state.activeModuleId = "dashboard";
 
     floatNavState.secondary = null;
-    floatNavState.moduleOpening = false;
-    floatNavState.moduleOpenId = null;
+    floatNavState.moduleOpenInFlight = null;
     updateTopbarContext();
     renderFloatNav();
 
@@ -699,8 +696,7 @@
     state.activeModuleId = mod.id;
 
     floatNavState.secondary = null;
-    floatNavState.moduleOpening = false;
-    floatNavState.moduleOpenId = null;
+    floatNavState.moduleOpenInFlight = null;
     updateTopbarContext();
     renderFloatNav();
 
@@ -734,15 +730,6 @@
 
 
 
-  function renderModuleOpeningShell(content, title) {
-    content.className = "module-content module-opening-host";
-    content.innerHTML =
-      '<div class="cis-module-opening" role="status">' +
-      '<div class="cis-module-opening__spinner" aria-hidden="true"></div>' +
-      "<p>Opening " + (title || "module") + "…</p>" +
-      "</div>";
-  }
-
   function openModule(id, opts) {
 
     opts = opts || {};
@@ -756,7 +743,7 @@
       return;
     }
 
-    if (!opts.skipStackPush && floatNavState.moduleOpening && floatNavState.moduleOpenId === id) {
+    if (!opts.skipStackPush && floatNavState.moduleOpenInFlight === id) {
       return;
     }
 
@@ -767,27 +754,19 @@
     state.activeModuleId = id;
 
     floatNavState.secondary = null;
-    floatNavState.moduleOpening = true;
-    floatNavState.moduleOpenId = id;
+    floatNavState.moduleOpenInFlight = id;
     updateTopbarContext();
 
     const content = document.getElementById("module-content");
 
-    renderModuleOpeningShell(content, mod.title);
+    content.className = "module-content";
+    content.innerHTML = "";
 
     renderFloatNav();
-
-    function markModuleShellReady() {
-      if (openSeq !== floatNavState.moduleOpenSeq) return;
-      floatNavState.moduleOpening = false;
-      renderFloatNav();
-    }
 
     (async function () {
 
       try {
-
-        content.innerHTML = "";
 
         const result = mod.render(content, {
 
@@ -801,7 +780,6 @@
 
           setFloatingBack: setFloatingBack,
           releaseFloatBackCooldown: releaseFloatBackCooldown,
-          onModuleShellReady: markModuleShellReady,
 
         });
 
@@ -817,7 +795,10 @@
 
       if (openSeq !== floatNavState.moduleOpenSeq) return;
 
-      markModuleShellReady();
+      if (floatNavState.moduleOpenInFlight === id) {
+        floatNavState.moduleOpenInFlight = null;
+      }
+      renderFloatNav();
 
     })();
 
@@ -825,7 +806,7 @@
 
   CIS.openModule = openModule;
   CIS.isModuleOpening = function () {
-    return !!floatNavState.moduleOpening;
+    return !!floatNavState.moduleOpenInFlight;
   };
   CIS.showDashboard = showDashboard;
 

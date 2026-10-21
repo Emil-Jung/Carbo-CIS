@@ -178,8 +178,6 @@
     listSection.appendChild(body);
     container.appendChild(listSection);
 
-    if (ctx.onModuleShellReady) ctx.onModuleShellReady();
-
     function setStatus(text, isError) {
       status.textContent = text || "";
       status.className = isError ? "error-box" : "muted";

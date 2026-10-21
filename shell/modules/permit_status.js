@@ -29,8 +29,7 @@
 
   async function render(container, ctx) {
     var ui = CIS.ui;
-    container.innerHTML = "";
-    container.classList.add("maintenance-ops-host");
+    container.className = "module-content maintenance-ops-host";
     container.appendChild(
       ui.el("h2", { class: "module-title" }, ["Permit Status"])
     );

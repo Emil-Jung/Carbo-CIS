@@ -2984,8 +2984,6 @@
 
     dash.appendChild(body);
 
-    if (ctx.onModuleShellReady) ctx.onModuleShellReady();
-
 
 
     function buildWxDrillQuery(sel) {
