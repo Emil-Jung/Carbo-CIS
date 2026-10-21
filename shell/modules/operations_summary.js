@@ -289,20 +289,11 @@
 
     (data.container_loading || []).forEach(function (c) {
       var cMain = c.container_number || "Container";
-      if (c.location_display) cMain += " · " + c.location_display;
-      if (c.product_label) cMain += " · " + c.product_label;
-      var cMeta = startedLine(c.started_at);
-      if (c.loaded_bags != null && c.target_bag_count != null) {
-        cMeta +=
-          '<p class="cis-float-ops-card__meta">' +
-          esc(String(c.loaded_bags)) +
-          " / " +
-          esc(String(c.target_bag_count)) +
-          " bags loaded</p>";
-      }
+      var sku = (c.product_key || "").trim();
+      if (sku) cMain += " · " + sku;
       items.push({
         sort: 4,
-        html: renderItem("Container loading", cMain, cMeta),
+        html: renderItem("Container loading", cMain, ""),
       });
     });
 
