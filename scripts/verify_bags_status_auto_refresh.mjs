@@ -11,7 +11,7 @@ const jsPath = path.join(__dirname, "..", "shell", "modules", "bags_status.js");
 const src = fs.readFileSync(jsPath, "utf8");
 
 const checks = [
-  { name: "15s interval", ok: /BS_AUTO_REFRESH_MS = 15000/.test(src) },
+  { name: "30s interval", ok: /BS_AUTO_REFRESH_MS = 30000/.test(src) },
   { name: "no floating refresh button", ok: !/bs-float-refresh-btn/.test(src) },
   { name: "reloadDrillFromServer for In storage AGL drill", ok: /selected\.mode === "events"/.test(src) && /bagsStatusDrillPath\(selected\.key\)/.test(src) },
   { name: "countdown fires refresh at zero", ok: /countdownSec === 0/.test(src) && /refreshReport\(\{ silent: true \}\)/.test(src) },

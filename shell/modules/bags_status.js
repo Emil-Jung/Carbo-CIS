@@ -10,7 +10,7 @@
 
   CIS.modules = CIS.modules || [];
 
-  var BS_AUTO_REFRESH_MS = 15000;
+  var BS_AUTO_REFRESH_MS = 30000;
 
   /** Drill-down requests — smaller API payload (`drill=1` on Traceability). */
   function bagsStatusDrillPath(statusKey, streamKey) {
