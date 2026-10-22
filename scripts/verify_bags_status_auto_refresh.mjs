@@ -15,8 +15,8 @@ const css = fs.readFileSync(cssPath, "utf8");
 
 const checks = [
   {
-    name: "floating Refresh button reloads page",
-    ok: /bs-float-refresh-btn/.test(src) && /window\.location\.reload\(\)/.test(src),
+    name: "floating Refresh refetches report in place",
+    ok: /bs-float-refresh-btn/.test(src) && /refreshReport\(\{\}\)/.test(src) && !/window\.location\.reload\(\)/.test(src),
   },
   {
     name: "auto countdown not started on module load",
@@ -48,4 +48,4 @@ if (failed) {
   process.exit(1);
 }
 
-console.log("\nAll checks passed — Bags Status uses manual floating Refresh (full page reload).");
+console.log("\nAll checks passed — Bags Status floating Refresh refetches without leaving the module.");

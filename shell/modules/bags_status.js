@@ -2998,21 +2998,7 @@
 
 
 
-    var floatRefreshBtn = ui.el(
-      "button",
-      {
-        type: "button",
-        class: "bs-float-refresh-btn",
-        title: "Reload page",
-        "aria-label": "Reload page",
-        onclick: function () {
-          window.location.reload();
-        },
-      },
-      ["Refresh"]
-    );
-
-    dash.appendChild(floatRefreshBtn);
+    var floatRefreshBtn = null;
 
     var status = ui.el("p", { class: "bs-dash-loading" }, ["Loading…"]);
 
@@ -5073,6 +5059,26 @@
     }
 
 
+
+    floatRefreshBtn = ui.el(
+      "button",
+      {
+        type: "button",
+        class: "bs-float-refresh-btn",
+        title: "Refresh from server (stay on this screen)",
+        "aria-label": "Refresh from server",
+        onclick: function () {
+          if (refreshInFlight) return;
+          floatRefreshBtn.disabled = true;
+          void refreshReport({}).finally(function () {
+            if (floatRefreshBtn) floatRefreshBtn.disabled = false;
+          });
+        },
+      },
+      ["Refresh"]
+    );
+
+    dash.appendChild(floatRefreshBtn);
 
     await refreshReport({ reset: true });
 
