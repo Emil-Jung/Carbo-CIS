@@ -40,6 +40,14 @@ const checks = [
     name: "wx drill stores querySel for refetch",
     ok: /querySel: sel/.test(src),
   },
+  {
+    name: "live refresh cache-bust on drill path",
+    ok: /function traceabilityLiveGet\(path\)/.test(src) && /bagsStatusDrillPath[\s\S]*Date\.now\(\)/.test(src),
+  },
+  {
+    name: "queued silent refresh when tick overlaps fetch",
+    ok: /pendingSilentRefresh/.test(src),
+  },
 ];
 
 let failed = 0;

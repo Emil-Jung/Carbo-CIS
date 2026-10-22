@@ -17,7 +17,13 @@
     var q = ["drill=1"];
     if (statusKey) q.push("status=" + encodeURIComponent(statusKey));
     if (streamKey) q.push("stream=" + encodeURIComponent(streamKey));
+    q.push("_=" + Date.now());
     return "/reports/bags-status?" + q.join("&");
+  }
+
+  function traceabilityLiveGet(path) {
+    var sep = path.indexOf("?") >= 0 ? "&" : "?";
+    return path + sep + "_=" + Date.now();
   }
 
   /** Scanner Create pallet button (bags-lookup). */
@@ -4646,6 +4652,8 @@
 
     var refreshInFlight = false;
 
+    var pendingSilentRefresh = false;
+
 
 
     function findWalvisDispatch(report, dispatchId) {
@@ -4674,13 +4682,25 @@
 
       var evKey = selectedEvent.key || selectedEvent.date;
 
-      if (!evKey) return;
+      var evContainer = (selectedEvent.container_number || "").trim();
 
       for (var i = 0; i < selected.sections.length; i++) {
 
         var sec = selected.sections[i];
 
-        if ((sec.key || sec.date) === evKey) {
+        if (evKey && (sec.key || sec.date) === evKey) {
+
+          selectedEvent = sec;
+
+          return;
+
+        }
+
+        if (
+          selected.key === "in_container" &&
+          evContainer &&
+          (sec.container_number || "").trim() === evContainer
+        ) {
 
           selectedEvent = sec;
 
@@ -4704,7 +4724,9 @@
 
         var hit = await ctx.api.traceability(
 
-          "/reports/bags-status/lookup?serial=" + encodeURIComponent(bagSearch.serial)
+          traceabilityLiveGet(
+            "/reports/bags-status/lookup?serial=" + encodeURIComponent(bagSearch.serial)
+          )
 
         );
 
@@ -4722,7 +4744,7 @@
 
         selected.palletDetail = await ctx.api.traceability(
 
-          "/reports/pallet-detail?serial=" + encodeURIComponent(selected.serial)
+          traceabilityLiveGet("/reports/pallet-detail?serial=" + encodeURIComponent(selected.serial))
 
         );
 
@@ -4734,7 +4756,7 @@
 
       if (wxDrill && wxDrill.querySel) {
 
-        var wxData = await ctx.api.traceability(buildWxDrillQuery(wxDrill.querySel));
+        var wxData = await ctx.api.traceability(traceabilityLiveGet(buildWxDrillQuery(wxDrill.querySel)));
 
         var wxRows = (wxData.drill && wxData.drill.rows) || [];
 
@@ -4778,13 +4800,17 @@
 
       if (needsWalvisStorage) {
 
-        walvisStorageReport = await ctx.api.traceability("/walvis-dispatches/storage-at-walvis-breakdown");
+        walvisStorageReport = await ctx.api.traceability(
+          traceabilityLiveGet("/walvis-dispatches/storage-at-walvis-breakdown")
+        );
 
       }
 
       if (needsWalvisTransit) {
 
-        walvisTransitReport = await ctx.api.traceability("/walvis-dispatches/in-transit-breakdown");
+        walvisTransitReport = await ctx.api.traceability(
+          traceabilityLiveGet("/walvis-dispatches/in-transit-breakdown")
+        );
 
       }
 
@@ -5057,7 +5083,13 @@
 
       if (refreshInFlight) {
 
-        if (opts.silent) return;
+        if (opts.silent) {
+
+          pendingSilentRefresh = true;
+
+          return;
+
+        }
 
       }
 
@@ -5085,9 +5117,9 @@
 
         var results = await Promise.all([
 
-          ctx.api.traceability("/reports/bags-status"),
+          ctx.api.traceability(traceabilityLiveGet("/reports/bags-status")),
 
-          ctx.api.traceability("/reports/bags-weathering").catch(function () { return null; }),
+          ctx.api.traceability(traceabilityLiveGet("/reports/bags-weathering")).catch(function () { return null; }),
 
         ]);
 
@@ -5155,6 +5187,18 @@
       } finally {
 
         refreshInFlight = false;
+
+        if (pendingSilentRefresh) {
+
+          pendingSilentRefresh = false;
+
+          window.setTimeout(function () {
+
+            void refreshReport({ silent: true });
+
+          }, 0);
+
+        }
 
       }
 
