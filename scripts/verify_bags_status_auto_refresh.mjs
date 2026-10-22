@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Static dry-run: Bags Status auto-refresh wiring (no browser).
+ * Static dry-run: Bags Status manual refresh button (no auto countdown).
  * Run: node scripts/verify_bags_status_auto_refresh.mjs
  */
 import fs from "fs";
@@ -9,52 +9,30 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const jsPath = path.join(__dirname, "..", "shell", "modules", "bags_status.js");
+const cssPath = path.join(__dirname, "..", "shell", "styles.css");
 const src = fs.readFileSync(jsPath, "utf8");
+const css = fs.readFileSync(cssPath, "utf8");
 
 const checks = [
   {
-    name: "45 second interval constant",
-    ok: /var BS_AUTO_REFRESH_MS = 45000;/.test(src),
+    name: "floating Refresh button reloads page",
+    ok: /bs-float-refresh-btn/.test(src) && /window\.location\.reload\(\)/.test(src),
   },
   {
-    name: "reloadDrillFromServer defined",
+    name: "auto countdown not started on module load",
+    ok: !/startCountdown\(\);\s*\n\s*await refreshReport/.test(src),
+  },
+  {
+    name: "reloadDrillFromServer defined (initial load still refetches drills)",
     ok: /async function reloadDrillFromServer\(\)/.test(src),
   },
   {
-    name: "events drill refetch (e.g. In storage — AGL)",
+    name: "events drill refetch helper",
     ok: /selected\.mode === "events"/.test(src) && /bagsStatusDrillPath\(selected\.key\)/.test(src),
   },
   {
-    name: "refreshReport awaits drill reload",
-    ok: /await reloadDrillFromServer\(\)/.test(src),
-  },
-  {
-    name: "countdown triggers refresh at zero (not early reset)",
-    ok: /countdownSec === 0/.test(src) && /refreshReport\(\{ silent: true \}\)/.test(src),
-  },
-  {
-    name: "countdown resets only after successful paint",
-    ok: /paint\(\);\s*\n\s*resetCountdown\(\)/.test(src) && !/countdownSec = Math\.round\(BS_AUTO_REFRESH_MS \/ 1000\);\s*\n\s*\}\s*\n\s*updateCountdownText/.test(src),
-  },
-  {
-    name: "updating label while fetch in flight",
-    ok: /refreshInFlight \|\| countdownSec <= 0/.test(src) && /Updating…/.test(src),
-  },
-  {
-    name: "no separate pollTimer interval (single 1s ticker)",
-    ok: !/pollTimer = setInterval/.test(src),
-  },
-  {
-    name: "wx drill stores querySel for refetch",
-    ok: /querySel: sel/.test(src),
-  },
-  {
-    name: "live refresh cache-bust on drill path",
-    ok: /function traceabilityLiveGet\(path\)/.test(src) && /bagsStatusDrillPath[\s\S]*Date\.now\(\)/.test(src),
-  },
-  {
-    name: "queued silent refresh when tick overlaps fetch",
-    ok: /pendingSilentRefresh/.test(src),
+    name: "float refresh button styled fixed",
+    ok: /\.bs-float-refresh-btn/.test(css) && /position:\s*fixed/.test(css),
   },
 ];
 
@@ -70,4 +48,4 @@ if (failed) {
   process.exit(1);
 }
 
-console.log("\nAll checks passed — Bags Status should refresh every 45s including drill views.");
+console.log("\nAll checks passed — Bags Status uses manual floating Refresh (full page reload).");

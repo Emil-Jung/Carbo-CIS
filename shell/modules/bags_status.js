@@ -3000,9 +3000,21 @@
 
 
 
-    var refreshNote = ui.el("p", { class: "bm-refresh-note muted", hidden: true }, [""]);
+    var floatRefreshBtn = ui.el(
+      "button",
+      {
+        type: "button",
+        class: "bs-float-refresh-btn",
+        title: "Reload page",
+        "aria-label": "Reload page",
+        onclick: function () {
+          window.location.reload();
+        },
+      },
+      ["Refresh"]
+    );
 
-    dash.appendChild(refreshNote);
+    dash.appendChild(floatRefreshBtn);
 
     var status = ui.el("p", { class: "bs-dash-loading" }, ["Loading…"]);
 
@@ -5251,8 +5263,6 @@
 
 
     stopTimers();
-
-    startCountdown();
 
     await refreshReport({ reset: true });
 
