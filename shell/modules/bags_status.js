@@ -4654,6 +4654,10 @@
 
     var lastReportUpdatedAt = null;
 
+    var lastLiveRefreshAt = 0;
+
+    var visibilityHandler = null;
+
 
 
     function findWalvisDispatch(report, dispatchId) {
@@ -4676,13 +4680,29 @@
 
 
 
+    function eventClusterKey(ev) {
+
+      if (!ev) return "";
+
+      var k = (ev.key || "").trim();
+
+      if (k) return k;
+
+      var dest = (ev.client_name || ev.container_number || "").trim();
+
+      return (ev.date || "") + "|" + dest;
+
+    }
+
+
+
     function syncSelectedEventFromSections() {
 
       if (!selectedEvent || !selected || !selected.sections) return;
 
       var sections = selected.sections;
 
-      var evKey = (selectedEvent.key || "").trim();
+      var evKey = eventClusterKey(selectedEvent);
 
       var evDate = selectedEvent.date;
 
@@ -4697,6 +4717,14 @@
         var sec = sections[i];
 
         if (evKey && (sec.key || "").trim() === evKey) {
+
+          selectedEvent = sec;
+
+          return;
+
+        }
+
+        if (evKey && eventClusterKey(sec) === evKey) {
 
           selectedEvent = sec;
 
@@ -4733,12 +4761,6 @@
           }
 
         }
-
-      }
-
-      if (statusKey === "storage_agl" || statusKey === "storage_walvisbay" || statusKey === "in_container") {
-
-        selectedEvent = Object.assign({}, selectedEvent, { bags: 0, kg: 0, rows: [], streams: {} });
 
       }
 
@@ -5075,6 +5097,14 @@
 
       }
 
+      if (visibilityHandler) {
+
+        document.removeEventListener("visibilitychange", visibilityHandler);
+
+        visibilityHandler = null;
+
+      }
+
     }
 
 
@@ -5219,6 +5249,8 @@
 
         paint();
 
+        lastLiveRefreshAt = Date.now();
+
         resetCountdown();
 
       } catch (e) {
@@ -5281,6 +5313,20 @@
     stopTimers();
 
     startCountdown();
+
+    visibilityHandler = function () {
+
+      if (document.visibilityState !== "visible" || !container.isConnected || !summary) return;
+
+      var staleMs = BS_AUTO_REFRESH_MS + 2000;
+
+      if (lastLiveRefreshAt && Date.now() - lastLiveRefreshAt < staleMs) return;
+
+      void refreshReport({ silent: true });
+
+    };
+
+    document.addEventListener("visibilitychange", visibilityHandler);
 
     await refreshReport({ reset: true });
 
