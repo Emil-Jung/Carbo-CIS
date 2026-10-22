@@ -10,7 +10,7 @@
 
   CIS.modules = CIS.modules || [];
 
-  var BS_AUTO_REFRESH_MS = 45000;
+  var BS_AUTO_REFRESH_MS = 15000;
 
   /** Drill-down requests — smaller API payload (`drill=1` on Traceability). */
   function bagsStatusDrillPath(statusKey, streamKey) {
@@ -4680,15 +4680,23 @@
 
       if (!selectedEvent || !selected || !selected.sections) return;
 
-      var evKey = selectedEvent.key || selectedEvent.date;
+      var sections = selected.sections;
+
+      var evKey = (selectedEvent.key || "").trim();
+
+      var evDate = selectedEvent.date;
+
+      var evDest = (selectedEvent.client_name || selectedEvent.container_number || "").trim();
 
       var evContainer = (selectedEvent.container_number || "").trim();
 
-      for (var i = 0; i < selected.sections.length; i++) {
+      var statusKey = (selected.key || "").trim();
 
-        var sec = selected.sections[i];
+      for (var i = 0; i < sections.length; i++) {
 
-        if (evKey && (sec.key || sec.date) === evKey) {
+        var sec = sections[i];
+
+        if (evKey && (sec.key || "").trim() === evKey) {
 
           selectedEvent = sec;
 
@@ -4697,7 +4705,7 @@
         }
 
         if (
-          selected.key === "in_container" &&
+          statusKey === "in_container" &&
           evContainer &&
           (sec.container_number || "").trim() === evContainer
         ) {
@@ -4707,6 +4715,30 @@
           return;
 
         }
+
+        if (
+          (statusKey === "storage_agl" || statusKey === "storage_walvisbay") &&
+          evDate &&
+          sec.date === evDate
+        ) {
+
+          var secDest = (sec.client_name || sec.container_number || "").trim();
+
+          if (!evDest || secDest === secDest) {
+
+            selectedEvent = sec;
+
+            return;
+
+          }
+
+        }
+
+      }
+
+      if (statusKey === "storage_agl" || statusKey === "storage_walvisbay" || statusKey === "in_container") {
+
+        selectedEvent = Object.assign({}, selectedEvent, { bags: 0, kg: 0, rows: [], streams: {} });
 
       }
 
