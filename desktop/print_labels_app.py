@@ -208,7 +208,29 @@ class PrintLabelsApi:
         return {"ok": True}
 
 
+def _ensure_print_labels_ico_beside_exe() -> None:
+    """Shortcuts use {app}\\print_labels.ico; robocopy /MIR updates can delete it — restore from bundle."""
+    if not getattr(sys, "frozen", False):
+        return
+    app_dir = os.path.dirname(os.path.abspath(sys.executable))
+    dest = os.path.join(app_dir, "print_labels.ico")
+    if os.path.isfile(dest):
+        return
+    meipass = getattr(sys, "_MEIPASS", "") or ""
+    for src in (
+        os.path.join(app_dir, "_internal", "print_labels.ico"),
+        os.path.join(meipass, "print_labels.ico"),
+    ):
+        if src and os.path.isfile(src):
+            try:
+                shutil.copy2(src, dest)
+            except OSError:
+                pass
+            return
+
+
 def main():
+    _ensure_print_labels_ico_beside_exe()
     shell_dir = _prepare_shell_dir()
     httpd, port = _start_local_server(shell_dir)
     url = f"http://127.0.0.1:{port}/print_labels.html"

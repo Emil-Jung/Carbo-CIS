@@ -36,6 +36,13 @@ if exist "%~dp0assets\print_labels.ico" (
   copy /Y "%~dp0assets\print_labels.ico" "%DEST%\print_labels.ico" >nul
 ) else if exist "%SRC%\print_labels.ico" (
   copy /Y "%SRC%\print_labels.ico" "%DEST%\print_labels.ico" >nul
+) else (
+  echo WARNING: print_labels.ico missing — desktop shortcut icon will be blank until BUILD-PRINT-LABELS.cmd runs.
+)
+if not exist "%DEST%\print_labels.ico" (
+  echo ERROR: Could not place print_labels.ico beside the .exe — run BUILD-PRINT-LABELS.cmd then sync again.
+  pause
+  exit /b 1
 )
 
 for /f "delims=" %%T in ('powershell -NoProfile -Command "(Get-Item '%DEST%\%EXE%').LastWriteTime.ToString('yyyy-MM-dd HH:mm')"') do set "STAMP=%%T"

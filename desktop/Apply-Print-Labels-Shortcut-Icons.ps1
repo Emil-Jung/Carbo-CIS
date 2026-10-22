@@ -38,6 +38,19 @@ if (-not $icon) {
     Write-Error "Missing print_labels.ico in repo and install folder."
 }
 
+$desktop = [Environment]::GetFolderPath("Desktop")
+$desktopLnk = Join-Path $desktop "Carbo Print Labels.lnk"
+if (-not (Test-Path -LiteralPath $desktopLnk)) {
+    $wsh = New-Object -ComObject WScript.Shell
+    $shortcut = $wsh.CreateShortcut($desktopLnk)
+    $shortcut.TargetPath = $installExe
+    $shortcut.WorkingDirectory = $workDir
+    $shortcut.Description = "Carbo Print Labels (Zebra and A4 only)"
+    $shortcut.IconLocation = "$icon,0"
+    $shortcut.Save()
+    Write-Host "Created missing desktop shortcut: $desktopLnk"
+}
+
 $updated = @()
 $paths = @(
     (Join-Path ([Environment]::GetFolderPath("Desktop")) "Carbo Print Labels.lnk"),

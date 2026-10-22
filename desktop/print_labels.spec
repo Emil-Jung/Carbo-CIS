@@ -12,6 +12,9 @@ icon_path = os.path.join(spec_dir, "assets", "print_labels.ico")
 datas = []
 if os.path.isdir(shell_dir):
     datas.append((shell_dir, "shell"))
+if os.path.isfile(icon_path):
+    # Sidecar for Windows shortcuts (desktop / Start menu IconLocation).
+    datas.append((icon_path, "."))
 
 a = Analysis(
     [os.path.join(spec_dir, "print_labels_app.py")],
