@@ -10,6 +10,8 @@
 
   CIS.modules = CIS.modules || [];
 
+  var BS_AUTO_REFRESH_MS = 45000;
+
   /** Drill-down requests — smaller API payload (`drill=1` on Traceability). */
   function bagsStatusDrillPath(statusKey, streamKey) {
     var q = ["drill=1"];
@@ -2998,6 +3000,10 @@
 
 
 
+    var refreshNote = ui.el("p", { class: "bm-refresh-note muted", hidden: true }, [""]);
+
+    dash.appendChild(refreshNote);
+
     var status = ui.el("p", { class: "bs-dash-loading" }, ["Loading…"]);
 
     dash.appendChild(status);
@@ -4640,6 +4646,14 @@
 
     var refreshInFlight = false;
 
+    var pendingSilentRefresh = false;
+
+    var countdownTimer = null;
+
+    var countdownSec = Math.round(BS_AUTO_REFRESH_MS / 1000);
+
+    var lastReportUpdatedAt = null;
+
 
 
     function findWalvisDispatch(report, dispatchId) {
@@ -4976,31 +4990,160 @@
 
 
 
+    function updateCountdownText(opts) {
+
+      opts = opts || {};
+
+      if (!refreshNote || !container.isConnected) return;
+
+      refreshNote.hidden = false;
+
+      var tail = lastReportUpdatedAt ? " · Last updated " + lastReportUpdatedAt : "";
+
+      if (opts.failed) {
+
+        refreshNote.textContent =
+          "Update failed — next try in " + countdownSec + " seconds" + tail;
+
+        return;
+
+      }
+
+      if (refreshInFlight || countdownSec <= 0) {
+
+        refreshNote.textContent = "Updating…" + tail;
+
+        return;
+
+      }
+
+      refreshNote.textContent = "Next update in " + countdownSec + " seconds" + tail;
+
+    }
+
+
+
+    function resetCountdown() {
+
+      countdownSec = Math.round(BS_AUTO_REFRESH_MS / 1000);
+
+      updateCountdownText();
+
+    }
+
+
+
+    function stopTimers() {
+
+      if (countdownTimer) {
+
+        clearInterval(countdownTimer);
+
+        countdownTimer = null;
+
+      }
+
+    }
+
+
+
+    function startCountdown() {
+
+      if (countdownTimer) return;
+
+      resetCountdown();
+
+      countdownTimer = setInterval(function () {
+
+        if (!container.isConnected) {
+
+          stopTimers();
+
+          return;
+
+        }
+
+        if (refreshInFlight) {
+
+          updateCountdownText();
+
+          return;
+
+        }
+
+        if (countdownSec > 0) {
+
+          countdownSec -= 1;
+
+        }
+
+        if (countdownSec === 0) {
+
+          void refreshReport({ silent: true });
+
+        }
+
+        updateCountdownText();
+
+      }, 1000);
+
+    }
+
+
+
     async function refreshReport(opts) {
 
       opts = opts || {};
 
       if (!ctx.api.traceability) {
 
-        status.style.display = "none";
+        if (!opts.silent) {
 
-        body.appendChild(ui.error("Traceability API is not configured in CIS."));
+          status.style.display = "none";
+
+          body.appendChild(ui.error("Traceability API is not configured in CIS."));
+
+        }
 
         return;
 
       }
 
-      if (refreshInFlight) return;
+      if (opts.silent && !summary) return;
+
+      if (refreshInFlight) {
+
+        if (opts.silent) {
+
+          pendingSilentRefresh = true;
+
+          return;
+
+        }
+
+        return;
+
+      }
 
       refreshInFlight = true;
 
-      status.textContent = "Loading…";
+      if (opts.silent) {
 
-      status.style.display = "";
+        countdownSec = 0;
 
-      if (opts.reset) {
+        updateCountdownText();
 
-        body.innerHTML = "";
+      } else {
+
+        status.textContent = "Loading…";
+
+        status.style.display = "";
+
+        if (opts.reset) {
+
+          body.innerHTML = "";
+
+        }
 
       }
 
@@ -5020,6 +5163,8 @@
 
         weathering = results[1];
 
+        lastReportUpdatedAt = fmtReportGenerated(summary.generated_at);
+
         if (selected && selected.mode === "pallet_basket" && summary.pallet_basket) {
           selected.detail = summary.pallet_basket;
         }
@@ -5034,15 +5179,46 @@
 
         }
 
-        status.style.display = "none";
+        if (!opts.silent) {
+
+          status.style.display = "none";
+
+        }
 
         paint();
+
+        resetCountdown();
 
       } catch (e) {
 
         var errMsg = (e && e.message) || String(e || "");
 
+        if (opts.silent && /\b401\b|unauthorized/i.test(errMsg)) {
+
+          stopTimers();
+
+          refreshNote.hidden = false;
+
+          refreshNote.textContent =
+            "Live refresh stopped (sign-in expired). Sign out and sign in, or press F5 — numbers below may be stale.";
+
+          return;
+
+        }
+
+        if (opts.silent) {
+
+          resetCountdown();
+
+          updateCountdownText({ failed: true });
+
+          return;
+
+        }
+
         status.textContent = "";
+
+        refreshNote.hidden = true;
 
         body.innerHTML = "";
 
@@ -5052,11 +5228,27 @@
 
         refreshInFlight = false;
 
+        if (pendingSilentRefresh) {
+
+          pendingSilentRefresh = false;
+
+          window.setTimeout(function () {
+
+            void refreshReport({ silent: true });
+
+          }, 0);
+
+        }
+
       }
 
     }
 
 
+
+    stopTimers();
+
+    startCountdown();
 
     await refreshReport({ reset: true });
 

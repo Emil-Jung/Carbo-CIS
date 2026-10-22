@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * Static dry-run: Bags Status module load wiring (no auto-refresh UI).
- * Run: node scripts/verify_bags_status_auto_refresh.mjs
+ * Bags Status: 45s live refresh on drill views, no floating button.
  */
 import fs from "fs";
 import path from "path";
@@ -12,30 +11,18 @@ const jsPath = path.join(__dirname, "..", "shell", "modules", "bags_status.js");
 const src = fs.readFileSync(jsPath, "utf8");
 
 const checks = [
-  {
-    name: "no floating refresh button",
-    ok: !/bs-float-refresh-btn/.test(src) && !/window\.location\.reload\(\)/.test(src),
-  },
-  {
-    name: "initial refreshReport on module open",
-    ok: /async function refreshReport\(opts\)/.test(src) && /await refreshReport\(\{ reset: true \}\)/.test(src),
-  },
-  {
-    name: "reloadDrillFromServer for drill refetch helper",
-    ok: /async function reloadDrillFromServer\(\)/.test(src),
-  },
+  { name: "45s interval", ok: /BS_AUTO_REFRESH_MS = 45000/.test(src) },
+  { name: "no floating refresh button", ok: !/bs-float-refresh-btn/.test(src) },
+  { name: "reloadDrillFromServer for In storage AGL drill", ok: /selected\.mode === "events"/.test(src) && /bagsStatusDrillPath\(selected\.key\)/.test(src) },
+  { name: "countdown fires refresh at zero", ok: /countdownSec === 0/.test(src) && /refreshReport\(\{ silent: true \}\)/.test(src) },
+  { name: "countdown resets after paint", ok: /paint\(\);\s*\n\s*resetCountdown\(\)/.test(src) },
+  { name: "cache-bust on live GET", ok: /function traceabilityLiveGet/.test(src) },
 ];
 
 let failed = 0;
 for (const c of checks) {
-  const mark = c.ok ? "OK" : "FAIL";
-  console.log(`${mark}  ${c.name}`);
+  console.log((c.ok ? "OK" : "FAIL") + "  " + c.name);
   if (!c.ok) failed += 1;
 }
-
-if (failed) {
-  console.error(`\n${failed} check(s) failed.`);
-  process.exit(1);
-}
-
+if (failed) process.exit(1);
 console.log("\nAll checks passed.");
