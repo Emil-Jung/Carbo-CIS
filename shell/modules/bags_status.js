@@ -2886,11 +2886,9 @@
 
   function containerSectionTimeLabel(section) {
     if (!section) return "";
-    var start = section.first_at ? fmtDateTime(section.first_at, section.first_time) : "";
-    var end = section.last_at ? fmtDateTime(section.last_at, section.last_time) : "";
-    if (start && end && start !== end) return "Loaded " + start + " \u2192 " + end;
-    if (end) return "Last scan " + end;
-    if (section.date) return fmtDayHeading(section.date);
+    var loadDay = (section.loading_date || "").trim();
+    if (loadDay) return "Loaded " + fmtDayHeading(loadDay);
+    if (section.date) return "Loaded " + fmtDayHeading(section.date);
     return "";
   }
 
