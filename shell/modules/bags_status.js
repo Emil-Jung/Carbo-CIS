@@ -4990,13 +4990,33 @@
 
 
 
-    function updateCountdownText() {
+    function updateCountdownText(opts) {
+
+      opts = opts || {};
 
       if (!refreshNote || !container.isConnected) return;
 
       refreshNote.hidden = false;
 
       var tail = lastReportUpdatedAt ? " · Last updated " + lastReportUpdatedAt : "";
+
+      if (opts.failed) {
+
+        refreshNote.textContent =
+          "Update failed — next try in " + countdownSec + " seconds" + tail;
+
+        return;
+
+      }
+
+      if (refreshInFlight || countdownSec <= 0) {
+
+        refreshNote.textContent = "Updating…" + tail;
+
+        return;
+
+      }
+
       refreshNote.textContent = "Next update in " + countdownSec + " seconds" + tail;
 
     }
@@ -5043,13 +5063,23 @@
 
         }
 
-        countdownSec -= 1;
+        if (refreshInFlight) {
 
-        if (countdownSec <= 0) {
+          updateCountdownText();
+
+          return;
+
+        }
+
+        if (countdownSec > 0) {
+
+          countdownSec -= 1;
+
+        }
+
+        if (countdownSec === 0) {
 
           void refreshReport({ silent: true });
-
-          countdownSec = Math.round(BS_AUTO_REFRESH_MS / 1000);
 
         }
 
@@ -5094,6 +5124,14 @@
       }
 
       refreshInFlight = true;
+
+      if (opts.silent) {
+
+        countdownSec = 0;
+
+        updateCountdownText();
+
+      }
 
 
 
@@ -5155,8 +5193,6 @@
 
         resetCountdown();
 
-        startCountdown();
-
       } catch (e) {
 
         var errMsg = (e && e.message) || String(e || "");
@@ -5174,7 +5210,15 @@
 
         }
 
-        if (opts.silent) return;
+        if (opts.silent) {
+
+          resetCountdown();
+
+          updateCountdownText({ failed: true });
+
+          return;
+
+        }
 
         status.textContent = "";
 

@@ -29,8 +29,16 @@ const checks = [
     ok: /await reloadDrillFromServer\(\)/.test(src),
   },
   {
-    name: "countdown triggers refresh (not cosmetic only)",
-    ok: /countdownSec <= 0/.test(src) && /refreshReport\(\{ silent: true \}\)/.test(src),
+    name: "countdown triggers refresh at zero (not early reset)",
+    ok: /countdownSec === 0/.test(src) && /refreshReport\(\{ silent: true \}\)/.test(src),
+  },
+  {
+    name: "countdown resets only after successful paint",
+    ok: /paint\(\);\s*\n\s*resetCountdown\(\)/.test(src) && !/countdownSec = Math\.round\(BS_AUTO_REFRESH_MS \/ 1000\);\s*\n\s*\}\s*\n\s*updateCountdownText/.test(src),
+  },
+  {
+    name: "updating label while fetch in flight",
+    ok: /refreshInFlight \|\| countdownSec <= 0/.test(src) && /Updating…/.test(src),
   },
   {
     name: "no separate pollTimer interval (single 1s ticker)",
