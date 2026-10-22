@@ -2878,7 +2878,17 @@
 
 
 
-  function renderEventCards(sections, ui, onOpen) {
+  function containerSectionTimeLabel(section) {
+    if (!section) return "";
+    var start = section.first_at ? fmtDateTime(section.first_at, section.first_time) : "";
+    var end = section.last_at ? fmtDateTime(section.last_at, section.last_time) : "";
+    if (start && end && start !== end) return "Loaded " + start + " \u2192 " + end;
+    if (end) return "Last scan " + end;
+    if (section.date) return fmtDayHeading(section.date);
+    return "";
+  }
+
+  function renderEventCards(sections, ui, onOpen, cardStyle) {
 
     var wrap = ui.el("div", { class: "bs-dash-status-grid" });
 
@@ -2894,16 +2904,28 @@
 
       });
 
-      var dayLabel = fmtDayHeading(section.date);
+      var dayLabel;
+      if (cardStyle === "container") {
+        var cn = (section.container_number || "").trim();
+        dayLabel = cn || "Container ref missing";
+      } else {
+        dayLabel = fmtDayHeading(section.date);
+      }
       card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [dayLabel]));
 
       card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(section.bags)]));
 
       card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtMass(section.kg)]));
 
-      var dest = section.client_name || section.container_number;
-
-      if (dest) card.appendChild(ui.el("span", { class: "bs-dash-status-card__dest" }, [dest]));
+      if (cardStyle === "container") {
+        var timeLine = containerSectionTimeLabel(section);
+        if (timeLine) {
+          card.appendChild(ui.el("span", { class: "bs-dash-status-card__dest" }, [timeLine]));
+        }
+      } else {
+        var dest = section.client_name || section.container_number;
+        if (dest) card.appendChild(ui.el("span", { class: "bs-dash-status-card__dest" }, [dest]));
+      }
 
       appendStreamSplitFooter(card, section.streams, ui);
 
@@ -3818,16 +3840,30 @@
         if (selectedEvent) {
 
           var dest = selectedEvent.client_name || selectedEvent.container_number;
+          var eventTitle;
+          if (selected.key === "in_container") {
+            var cnTitle = (selectedEvent.container_number || "").trim() || "Container ref missing";
+            var timeTitle = containerSectionTimeLabel(selectedEvent);
+            eventTitle =
+              selected.label +
+              " — " +
+              cnTitle +
+              (timeTitle ? " — " + timeTitle : "") +
+              " — " +
+              selectedEvent.bags +
+              (selectedEvent.bags === 1 ? " bag" : " bags");
+          } else {
+            eventTitle =
+              selected.label +
+              " — " +
+              fmtDayHeading(selectedEvent.date) +
+              (dest ? " — " + dest : "") +
+              " — " +
+              selectedEvent.bags +
+              (selectedEvent.bags === 1 ? " bag" : " bags");
+          }
 
-          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
-
-            selected.label + " — " + fmtDayHeading(selectedEvent.date)
-
-              + (dest ? " — " + dest : "")
-
-              + " — " + selectedEvent.bags + (selectedEvent.bags === 1 ? " bag" : " bags"),
-
-          ]));
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [eventTitle]));
 
           if (!(selectedEvent.rows || []).length) {
 
@@ -3846,13 +3882,16 @@
 
 
 
+        var intoContainerDrill = selected.key === "in_container";
         body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
 
           selected.label + " — " + selected.count + (selected.count === 1 ? " bag" : " bags")
 
             + " across " + selected.sections.length
 
-            + (selected.sections.length === 1 ? " date" : " dates"),
+            + (intoContainerDrill
+              ? (selected.sections.length === 1 ? " container" : " containers")
+              : (selected.sections.length === 1 ? " date" : " dates")),
 
         ]));
 
@@ -3864,7 +3903,9 @@
 
           body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
 
-            "Each date is one cluster — three loads to the same destination on the same day count as one event.",
+            intoContainerDrill
+              ? "Each card is one export container — container number on the card, load times below the count."
+              : "Each date is one cluster — three loads to the same destination on the same day count as one event.",
 
           ]));
 
@@ -3874,7 +3915,7 @@
 
             paint();
 
-          }));
+          }, intoContainerDrill ? "container" : null));
 
         }
 
