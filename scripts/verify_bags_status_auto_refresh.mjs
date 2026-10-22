@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Static dry-run: Bags Status manual refresh button (no auto countdown).
+ * Static dry-run: Bags Status module load wiring (no auto-refresh UI).
  * Run: node scripts/verify_bags_status_auto_refresh.mjs
  */
 import fs from "fs";
@@ -9,30 +9,20 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const jsPath = path.join(__dirname, "..", "shell", "modules", "bags_status.js");
-const cssPath = path.join(__dirname, "..", "shell", "styles.css");
 const src = fs.readFileSync(jsPath, "utf8");
-const css = fs.readFileSync(cssPath, "utf8");
 
 const checks = [
   {
-    name: "floating Refresh refetches report in place",
-    ok: /bs-float-refresh-btn/.test(src) && /refreshReport\(\{\}\)/.test(src) && !/window\.location\.reload\(\)/.test(src),
+    name: "no floating refresh button",
+    ok: !/bs-float-refresh-btn/.test(src) && !/window\.location\.reload\(\)/.test(src),
   },
   {
-    name: "auto countdown not started on module load",
-    ok: !/startCountdown\(\);\s*\n\s*await refreshReport/.test(src),
+    name: "initial refreshReport on module open",
+    ok: /async function refreshReport\(opts\)/.test(src) && /await refreshReport\(\{ reset: true \}\)/.test(src),
   },
   {
-    name: "reloadDrillFromServer defined (initial load still refetches drills)",
+    name: "reloadDrillFromServer for drill refetch helper",
     ok: /async function reloadDrillFromServer\(\)/.test(src),
-  },
-  {
-    name: "events drill refetch helper",
-    ok: /selected\.mode === "events"/.test(src) && /bagsStatusDrillPath\(selected\.key\)/.test(src),
-  },
-  {
-    name: "float refresh button styled fixed",
-    ok: /\.bs-float-refresh-btn/.test(css) && /position:\s*fixed/.test(css),
   },
 ];
 
@@ -48,4 +38,4 @@ if (failed) {
   process.exit(1);
 }
 
-console.log("\nAll checks passed — Bags Status floating Refresh refetches without leaving the module.");
+console.log("\nAll checks passed.");
