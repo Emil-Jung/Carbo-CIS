@@ -131,8 +131,6 @@
             floatNavState.backInFlight = false;
             renderFloatNav();
           });
-        } else {
-          renderFloatNav();
         }
       } catch (e) {
         console.error("goBack secondary handler failed", e);
@@ -186,57 +184,97 @@
     });
   }
 
+  function applyFloatNavScrollRoom(stacked) {
+    floatNavScrollTargets().forEach(function (el) {
+      el.classList.add("has-float-nav");
+      if (stacked) el.classList.add("has-float-nav--stacked");
+    });
+  }
+
+  /** Modules that replace module-content.className must re-apply padding for float nav. */
+  function applyModuleFloatNavPadding(moduleRoot) {
+    const nav = floatNavEl();
+    const el = moduleRoot || document.getElementById("module-content");
+    if (!nav || !el || nav.classList.contains("hidden")) return;
+    const stacked = !!state.activeModuleId && state.activeModuleId !== "dashboard";
+    el.classList.add("has-float-nav");
+    if (stacked) el.classList.add("has-float-nav--stacked");
+  }
+
+  var floatNavClickWired = false;
+
+  function ensureFloatNavButtons(nav) {
+    var homeBtn = nav.querySelector("[data-cis-float-home]");
+    if (!homeBtn) {
+      homeBtn = document.createElement("button");
+      homeBtn.type = "button";
+      homeBtn.className = "cis-float-back-btn cis-float-back-btn--home";
+      homeBtn.dataset.cisFloatHome = "1";
+      homeBtn.textContent = "Main dashboard";
+      homeBtn.title = "Return to the main CIS dashboard";
+      homeBtn.setAttribute("aria-label", "Main dashboard");
+      nav.appendChild(homeBtn);
+    }
+    var backBtn = nav.querySelector("[data-cis-float-back]");
+    if (!backBtn) {
+      backBtn = document.createElement("button");
+      backBtn.type = "button";
+      backBtn.className = "cis-float-back-btn";
+      backBtn.dataset.cisFloatBack = "1";
+      backBtn.textContent = floatBackStepLabel();
+      backBtn.title = "Back one step";
+      backBtn.setAttribute("aria-label", floatBackStepLabel());
+      nav.appendChild(backBtn);
+    }
+    if (!floatNavClickWired) {
+      nav.addEventListener("click", function (e) {
+        if (e.target.closest("[data-cis-float-home]")) {
+          e.preventDefault();
+          floatNavState.secondary = null;
+          goHome();
+          return;
+        }
+        if (e.target.closest("[data-cis-float-back]")) {
+          e.preventDefault();
+          goBack();
+        }
+      });
+      floatNavClickWired = true;
+    }
+  }
+
   function renderFloatNav() {
     const nav = floatNavEl();
     if (!nav) return;
 
     const onDashboard = !state.activeModuleId || state.activeModuleId === "dashboard";
-    nav.innerHTML = "";
-    nav.classList.add("hidden");
-    nav.setAttribute("aria-hidden", "true");
-    clearFloatNavScrollRoom();
 
-    var hasAny = false;
-
-    if (!onDashboard) {
-      const homeBtn = document.createElement("button");
-      homeBtn.type = "button";
-      homeBtn.className = "cis-float-back-btn cis-float-back-btn--home";
-      homeBtn.textContent = "Main dashboard";
-      homeBtn.title = "Return to the main CIS dashboard";
-      homeBtn.setAttribute("aria-label", "Main dashboard");
-      homeBtn.addEventListener("click", function () {
-        floatNavState.secondary = null;
-        goHome();
-      });
-      nav.appendChild(homeBtn);
-
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "cis-float-back-btn";
-      btn.textContent = floatBackStepLabel();
-      btn.title = "Back one step";
-      btn.setAttribute("aria-label", floatBackStepLabel());
-      btn.addEventListener("click", goBack);
-      nav.appendChild(btn);
-      hasAny = true;
+    if (onDashboard) {
+      nav.classList.add("hidden");
+      nav.setAttribute("aria-hidden", "true");
+      clearFloatNavScrollRoom();
+      return;
     }
 
-    if (!hasAny) return;
-
+    ensureFloatNavButtons(nav);
     nav.classList.remove("hidden");
     nav.setAttribute("aria-hidden", "false");
-    floatNavScrollTargets().forEach(function (el) {
-      el.classList.add("has-float-nav");
-      if (!onDashboard) el.classList.add("has-float-nav--stacked");
-    });
+    clearFloatNavScrollRoom();
+    applyFloatNavScrollRoom(true);
   }
 
   CIS.renderFloatNav = renderFloatNav;
+  CIS.applyModuleFloatNavPadding = applyModuleFloatNavPadding;
 
   function setFloatingBack(opts) {
-    if (opts && typeof opts.onClick === "function") {
-      floatNavState.secondary = { label: opts.label, onClick: opts.onClick };
+    var nextClick = opts && typeof opts.onClick === "function" ? opts.onClick : null;
+    var prevClick = floatNavState.secondary && floatNavState.secondary.onClick;
+    if (nextClick === prevClick) {
+      applyModuleFloatNavPadding();
+      return;
+    }
+    if (nextClick) {
+      floatNavState.secondary = { label: opts.label, onClick: nextClick };
     } else {
       floatNavState.secondary = null;
     }
@@ -780,6 +818,7 @@
 
           setFloatingBack: setFloatingBack,
           releaseFloatBackCooldown: releaseFloatBackCooldown,
+          applyModuleFloatNavPadding: applyModuleFloatNavPadding,
 
         });
 

@@ -2949,6 +2949,7 @@
 
     container.innerHTML = "";
     container.className = "module-content bs-dashboard-host";
+    if (ctx.applyModuleFloatNavPadding) ctx.applyModuleFloatNavPadding(container);
 
 
 
@@ -3175,119 +3176,109 @@
       }
     }
 
-    function syncFloatingNav() {
-      if (!ctx.setFloatingBack) return;
+    /** Single stable handler — shell keeps same button DOM; one tap = one drill level up. */
+    function drillBackOneStep() {
       if (navSnapshotBeforeFetch) {
-        ctx.setFloatingBack({
-          onClick: cancelDrillFetchAndRestore,
-        });
-        if (ctx.releaseFloatBackCooldown) ctx.releaseFloatBackCooldown();
+        cancelDrillFetchAndRestore();
         return;
       }
       if (wxDrill) {
-        ctx.setFloatingBack({ onClick: goBackFromWxDrill });
-      } else if (selected) {
+        goBackFromWxDrill();
+        return;
+      }
+      if (selected) {
         if (selected.palletDetail) {
-          ctx.setFloatingBack({
-            onClick: function () {
-              selected.palletDetail = null;
-              selected.serial = null;
-              if (selected.fromBagSearch) {
-                selected = null;
-              }
-              paint();
-            },
-          });
-        } else if (selectedEvent) {
-          ctx.setFloatingBack({
-            onClick: function () {
-              selectedEvent = null;
-              paint();
-            },
-          });
-        } else if (selected.view === "by_location") {
-          ctx.setFloatingBack({
-            onClick: function () {
-              selected.view = "locations";
-              selected.label = selected.parentLabel || "Pallets";
-              selected.sections = null;
-              selected.detail = null;
-              selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
-              paint();
-            },
-          });
-        } else if (selected.view === "by_product") {
-          ctx.setFloatingBack({
-            onClick: function () {
-              selected = null;
-              paint();
-            },
-          });
-        } else if (selected.mode === "walvis_storage_dispatch") {
-          ctx.setFloatingBack({
-            onClick: function () {
-              selected = {
-                key: WALVIS_STORAGE_STATUS,
-                label: "In storage — Carbo Yard",
-                mode: "walvis_storage_hub",
-                walvisReport: walvisStorageReport,
-              };
-              paint();
-            },
-          });
-        } else if (selected.mode === "walvis_unassigned_hub") {
-          ctx.setFloatingBack({
-            onClick: function () {
-              selected = {
-                key: WALVIS_STORAGE_STATUS,
-                label: "In storage — Carbo Yard",
-                mode: "walvis_storage_hub",
-                walvisReport: walvisStorageReport,
-              };
-              paint();
-            },
-          });
-        } else if (selected.mode === "walvis_transit_dispatch") {
-          ctx.setFloatingBack({
-            onClick: function () {
-              selected = {
-                key: WALVIS_TRANSIT_STATUS,
-                label: "In transit — Walvis Bay",
-                mode: "walvis_transit_hub",
-                walvisReport: walvisTransitReport,
-              };
-              paint();
-            },
-          });
-        } else if (selected.mode === "walvis_transit_unassigned_hub") {
-          ctx.setFloatingBack({
-            onClick: function () {
-              selected = {
-                key: WALVIS_TRANSIT_STATUS,
-                label: "In transit — Walvis Bay",
-                mode: "walvis_transit_hub",
-                walvisReport: walvisTransitReport,
-              };
-              paint();
-            },
-          });
-        } else {
-          ctx.setFloatingBack({
-            onClick: function () {
-              selected = null;
-              paint();
-            },
-          });
+          selected.palletDetail = null;
+          selected.serial = null;
+          if (selected.fromBagSearch) {
+            selected = null;
+          }
+          paint();
+          return;
         }
-      } else if (bagSearch && bagSearch.active) {
-        ctx.setFloatingBack({
-          onClick: function () {
-            bagSearch = null;
-            paint();
-          },
-        });
+        if (selectedEvent) {
+          selectedEvent = null;
+          paint();
+          return;
+        }
+        if (selected.view === "by_location") {
+          selected.view = "locations";
+          selected.label = selected.parentLabel || "Pallets";
+          selected.sections = null;
+          selected.detail = null;
+          selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
+          paint();
+          return;
+        }
+        if (selected.view === "by_product") {
+          selected = null;
+          paint();
+          return;
+        }
+        if (selected.mode === "walvis_storage_dispatch") {
+          selected = {
+            key: WALVIS_STORAGE_STATUS,
+            label: "In storage — Carbo Yard",
+            mode: "walvis_storage_hub",
+            walvisReport: walvisStorageReport,
+          };
+          paint();
+          return;
+        }
+        if (selected.mode === "walvis_unassigned_hub") {
+          selected = {
+            key: WALVIS_STORAGE_STATUS,
+            label: "In storage — Carbo Yard",
+            mode: "walvis_storage_hub",
+            walvisReport: walvisStorageReport,
+          };
+          paint();
+          return;
+        }
+        if (selected.mode === "walvis_transit_dispatch") {
+          selected = {
+            key: WALVIS_TRANSIT_STATUS,
+            label: "In transit — Walvis Bay",
+            mode: "walvis_transit_hub",
+            walvisReport: walvisTransitReport,
+          };
+          paint();
+          return;
+        }
+        if (selected.mode === "walvis_transit_unassigned_hub") {
+          selected = {
+            key: WALVIS_TRANSIT_STATUS,
+            label: "In transit — Walvis Bay",
+            mode: "walvis_transit_hub",
+            walvisReport: walvisTransitReport,
+          };
+          paint();
+          return;
+        }
+        selected = null;
+        paint();
+        return;
+      }
+      if (bagSearch && bagSearch.active) {
+        bagSearch = null;
+        paint();
+      }
+    }
+
+    function syncFloatingNav() {
+      if (!ctx.setFloatingBack) return;
+      var inDrill =
+        navSnapshotBeforeFetch ||
+        wxDrill ||
+        selected ||
+        (bagSearch && bagSearch.active);
+      if (inDrill) {
+        ctx.setFloatingBack({ onClick: drillBackOneStep });
       } else {
         ctx.setFloatingBack(null);
+      }
+      if (ctx.applyModuleFloatNavPadding) {
+        ctx.applyModuleFloatNavPadding(container);
       }
       if (ctx.releaseFloatBackCooldown) ctx.releaseFloatBackCooldown();
     }

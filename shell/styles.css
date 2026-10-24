@@ -220,8 +220,11 @@ body {
 
 /* Production /cis/ shell: modules set container.className and wipe has-float-nav */
 .app-view:has(#cis-float-nav:not(.hidden)) #module-content:not(.module-iframe-host):not(.module-quality-host) {
-  padding-bottom: var(--cis-float-nav-clearance);
-  scroll-padding-bottom: var(--cis-float-nav-clearance);
+  padding-bottom: var(--cis-float-nav-clearance-stacked);
+  scroll-padding-bottom: var(--cis-float-nav-clearance-stacked);
+}
+.module-content.bs-dashboard-host {
+  box-sizing: border-box;
 }
 /* Floating ops summary — bottom-right (nav buttons stay bottom-left). */
 .cis-float-ops-panel {
@@ -366,7 +369,8 @@ body {
   position: fixed;
   left: 14px;
   bottom: max(14px, env(safe-area-inset-bottom, 0px));
-  z-index: 900;
+  z-index: 10050;
+  pointer-events: auto;
   display: flex;
   flex-direction: column-reverse;
   align-items: flex-start;
@@ -400,6 +404,8 @@ body {
   width: auto;
   max-width: 100%;
   margin: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   padding: 8px 14px;
   font-size: 0.85rem;
   font-weight: 700;
