@@ -49,6 +49,13 @@
       requires: "traceability.containers",
       icon: "container",
     },
+    traceability_documentation: {
+      id: "traceability_documentation",
+      title: "Traceability Documentation",
+      description: "Container load sheets and EUDR documentation (EU shipments).",
+      requires: "traceability.containers",
+      icon: "labels",
+    },
     label_deployment: {
       id: "label_deployment",
       title: "Bag ID fencing",
@@ -69,6 +76,7 @@
   var HUB_ROWS = [
     ["control_room", "delivery_confirmations"],
     ["pallet_configuration", "walvis_dispatches", "containers"],
+    ["traceability_documentation"],
     ["label_deployment", "manager_override"],
   ];
 
