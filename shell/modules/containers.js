@@ -78,7 +78,10 @@
         ui.el("strong", {}, ["Release for loading"]),
         " activates Bag Walk ",
         ui.el("strong", {}, ["Into container"]),
-        " when a released booking exists (any coast storage or in-transit bag that may load per status rules).",
+        " when a released booking exists (any coast storage or in-transit bag that may load per status rules). ",
+        "Container sheets and EUDR documents are under ",
+        ui.el("strong", {}, ["Traceability Documentation"]),
+        ".",
       ])
     );
 
@@ -183,23 +186,6 @@
       status.className = isError ? "error-box" : "muted";
     }
 
-    async function printManifest(containerId, variant) {
-      try {
-        var data = await ctx.api.traceability(
-          "/containers/" + encodeURIComponent(containerId) + "/manifest"
-        );
-        if (CIS.openContainerManifestPrintDialog) {
-          CIS.openContainerManifestPrintDialog(data, variant);
-        } else if (CIS.printContainerManifest) {
-          CIS.printContainerManifest(data, variant);
-        } else {
-          setStatus("Print module not loaded.", true);
-        }
-      } catch (e) {
-        setStatus("Could not load manifest: " + (e.message || e), true);
-      }
-    }
-
     function fillProductSelect() {
       productSelect.innerHTML = "";
       productSelect.appendChild(ui.el("option", { value: "" }, ["Choose product…"]));
@@ -280,24 +266,6 @@
           "</td>";
 
         var actions = ui.el("td", { class: "ct-actions-cell" });
-        actions.appendChild(
-          ui.el("button", {
-            class: "btn btn-sm",
-            type: "button",
-            onclick: function () {
-              printManifest(c.id, "general");
-            },
-          }, ["Print manifest"])
-        );
-        actions.appendChild(
-          ui.el("button", {
-            class: "btn btn-sm",
-            type: "button",
-            onclick: function () {
-              printManifest(c.id, "eudr");
-            },
-          }, ["Print manifest (EUDR)"])
-        );
         if ((c.status === "booked" || c.status === "loading") && !c.released_for_loading) {
           actions.appendChild(
             ui.el("button", {
