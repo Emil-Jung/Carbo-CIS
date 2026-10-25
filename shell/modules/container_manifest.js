@@ -74,166 +74,7 @@
     return new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Windhoek" });
   }
 
-  function renderMetaGrid(h, sum, loadDate, bookingRef, product, dispatchLine) {
-    return (
-      "<div class=\"cm-meta\">" +
-      "<div><label>DATE</label>" +
-      esc(loadDate) +
-      "</div>" +
-      "<div><label>PRODUCT</label>" +
-      esc(product) +
-      "</div>" +
-      "<div><label>TO</label>" +
-      esc(h.ship_to || "") +
-      "</div>" +
-      "<div><label>CONTAINER</label>" +
-      esc(h.container_number) +
-      "</div>" +
-      "<div><label>BOOKING REF</label>" +
-      esc(bookingRef) +
-      "</div>" +
-      "<div><label>DELIVERY NOTE</label>" +
-      esc(h.delivery_note || "") +
-      "</div>" +
-      "<div><label>TRANSPORTER</label>" +
-      esc(h.transporter || "") +
-      "</div>" +
-      "<div><label>TAG</label>" +
-      esc(h.tag_ref || "") +
-      "</div>" +
-      "<div><label>TARE</label>" +
-      esc(sum.tare_kg != null ? String(sum.tare_kg) : "") +
-      "</div>" +
-      "</div>" +
-      (dispatchLine ? "<p style=\"margin:0 0 8px;font-size:10px;\"><strong>Linked:</strong> " + dispatchLine + "</p>" : "")
-    );
-  }
-
-  function renderLoadingFoot(sum) {
-    return (
-      "<div class=\"cm-foot\">" +
-      "<div class=\"cm-team\"><strong>Loading team</strong><table><thead><tr><th>NR</th><th>Name</th></tr></thead><tbody>" +
-      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        .map(function (n) {
-          return "<tr><td>" + n + "</td><td>&nbsp;</td></tr>";
-        })
-        .join("") +
-      "</tbody></table></div>" +
-      "<div class=\"cm-totals\"><table>" +
-      "<tr><td>QTY BAGS</td><td>" +
-      esc(String(sum.qty_bags != null ? sum.qty_bags : 0)) +
-      "</td></tr>" +
-      "<tr><td>WEIGHT LOADED</td><td>" +
-      esc(String(sum.weight_loaded_kg != null ? sum.weight_loaded_kg : 0)) +
-      "</td></tr>" +
-      "<tr><td>TARE</td><td>" +
-      esc(String(sum.tare_kg != null ? sum.tare_kg : 0)) +
-      "</td></tr>" +
-      "<tr><td>TOTAL</td><td>" +
-      esc(String(sum.total_kg != null ? sum.total_kg : 0)) +
-      "</td></tr>" +
-      "</table></div></div>"
-    );
-  }
-
-  function buildContainerSheetHtml(manifest, printOpts) {
-    var opts = printOpts || {};
-    var h = manifest.header || {};
-    var sum = manifest.summary || {};
-    var lines = manifest.lines || [];
-    var product = h.product_label || h.product_key || "";
-    var sheetDateRaw =
-      opts.sheetDate != null && opts.sheetDate !== ""
-        ? opts.sheetDate
-        : h.load_date || h.expected_ship_date;
-    var loadDate = fmtDate(sheetDateRaw);
-    var bookingRef =
-      opts.bookingRef != null && String(opts.bookingRef).trim() !== ""
-        ? String(opts.bookingRef).trim()
-        : h.booking_ref || "";
-    var dispatchLine = "";
-    if (h.walvis_dispatch_id && h.dispatch_number != null) {
-      dispatchLine =
-        "Walvis dispatch #" +
-        h.dispatch_number +
-        (h.dispatch_truck_registration ? " · " + esc(h.dispatch_truck_registration) : "");
-    }
-
-    var rowsHtml = "";
-    lines.forEach(function (ln) {
-      var origin = "";
-      if (ln.producer_uuid || ln.farm_uuid) {
-        origin =
-          (ln.producer_uuid ? "Producer " + esc(ln.producer_uuid) : "") +
-          (ln.producer_uuid && ln.farm_uuid ? " · " : "") +
-          (ln.farm_uuid ? "Farm " + esc(ln.farm_uuid) : "");
-      }
-      rowsHtml +=
-        "<tr><td class=\"cm-w\">" +
-        esc(String(ln.nr != null ? ln.nr : "")) +
-        "</td><td class=\"cm-bag\">" +
-        esc(ln.bag_identifier || "—") +
-        "</td><td>" +
-        esc(ln.supplier || "—") +
-        "</td><td class=\"cm-stream\">" +
-        esc(ln.product_stream || "—") +
-        "</td><td class=\"cm-fsc\">" +
-        esc(ln.fsc_label || "—") +
-        "</td><td class=\"cm-w\">" +
-        esc(String(ln.weight_kg != null ? ln.weight_kg : "")) +
-        "</td></tr>";
-      if (origin) {
-        rowsHtml +=
-          "<tr class=\"cm-origin-row\"><td></td><td colspan=\"5\" class=\"cm-origin\">" +
-          origin +
-          "</td></tr>";
-      }
-    });
-    if (!lines.length) {
-      rowsHtml = "<tr><td colspan=\"6\" class=\"cm-empty\">No bags currently loaded in this container.</td></tr>";
-    }
-
-    return (
-      "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/><title>Container " +
-      esc(h.container_number) +
-      "</title><style>" +
-      "body{font-family:Arial,Helvetica,sans-serif;font-size:10px;margin:12mm;color:#000;}" +
-      "h1{font-size:14px;margin:0 0 8px;text-align:center;letter-spacing:0.04em;}" +
-      ".cm-meta{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin-bottom:10px;}" +
-      ".cm-meta div{border:1px solid #000;padding:3px 6px;min-height:1.2em;}" +
-      ".cm-meta label{font-weight:700;display:block;font-size:9px;}" +
-      "table.cm-full{width:100%;border-collapse:collapse;margin-bottom:10px;}" +
-      "table.cm-full th,table.cm-full td{border:1px solid #000;padding:2px 4px;vertical-align:top;}" +
-      "table.cm-full th{font-size:9px;background:#f4f4f4;}" +
-      "td.cm-w{text-align:right;white-space:nowrap;}" +
-      "td.cm-bag{font-family:Consolas,monospace;font-size:9px;}" +
-      "tr.cm-origin-row td.cm-origin{font-size:8px;color:#333;padding-left:8px;}" +
-      "td.cm-empty{text-align:center;padding:12px;}" +
-      ".cm-foot{display:grid;grid-template-columns:1fr 220px;gap:12px;margin-top:10px;align-items:start;}" +
-      ".cm-team table{width:100%;border-collapse:collapse;}" +
-      ".cm-team th,.cm-team td{border:1px solid #000;padding:2px 4px;}" +
-      ".cm-totals table{width:100%;border-collapse:collapse;}" +
-      ".cm-totals td{border:1px solid #000;padding:3px 6px;}" +
-      ".cm-totals td:last-child{text-align:right;font-weight:700;}" +
-      "@media print{body{margin:8mm;} tr{page-break-inside:avoid;}}" +
-      "</style></head><body>" +
-      "<h1>CONTAINER LOAD SHEET</h1>" +
-      renderMetaGrid(h, sum, loadDate, bookingRef, product, dispatchLine) +
-      "<table class=\"cm-full\"><thead><tr>" +
-      "<th>NR</th><th>BAG ID</th><th>SUPPLIER</th><th>STREAM</th><th>FSC</th><th>KG</th>" +
-      "</tr></thead><tbody>" +
-      rowsHtml +
-      "</tbody></table>" +
-      renderLoadingFoot(sum) +
-      "<script>window.onload=function(){window.print();};</script>" +
-      "</body></html>"
-    );
-  }
-
   function buildHtml(manifest, variant, printOpts) {
-    if (variant === "container_sheet") {
-      return buildContainerSheetHtml(manifest, printOpts);
-    }
     var opts = printOpts || {};
     var h = manifest.header || {};
     var sum = manifest.summary || {};
@@ -353,13 +194,7 @@
       return;
     }
     w.document.open();
-    var v =
-      variant === "eudr"
-        ? "eudr"
-        : variant === "container_sheet"
-          ? "container_sheet"
-          : "general";
-    w.document.write(buildHtml(manifest, v, printOpts));
+    w.document.write(buildHtml(manifest, variant === "eudr" ? "eudr" : "general", printOpts));
     w.document.close();
   };
 
@@ -375,7 +210,7 @@
     var title = document.createElement("h3");
     title.id = "cmPrintDialogTitle";
     title.textContent =
-      variant === "container_sheet"
+      variant === "documentation"
         ? "Generate container sheet"
         : "Print container manifest";
     dialog.appendChild(title);
@@ -422,7 +257,7 @@
     printBtn.textContent =
       variant === "eudr"
         ? "Print EUDR manifest"
-        : variant === "container_sheet"
+        : variant === "documentation"
           ? "Print container sheet"
           : "Print manifest";
     actions.appendChild(cancelBtn);

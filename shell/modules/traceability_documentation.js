@@ -1,4 +1,4 @@
-/* Traceability Documentation — container sheet and (later) EUDR pack generation. */
+/* Traceability Documentation — container load sheet + EUDR shipment pack (phase 2). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -17,10 +17,19 @@
     return Number(n).toLocaleString();
   }
 
+  function normBooking(ref) {
+    return String(ref || "")
+      .trim()
+      .toLowerCase();
+  }
+
   async function render(container, ctx) {
     var ui = CIS.ui;
     var containers = [];
-    var selectedId = "";
+    var sheetContainerId = "";
+    var eudrMode = "booking";
+    var eudrBookingRef = "";
+    var eudrSelectedIds = {};
 
     container.className = "module-content td-doc-host";
     container.appendChild(
@@ -28,10 +37,13 @@
     );
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
-        "Generate printable traceability documents for export containers. ",
-        "Container loading and dispatch are unchanged — use ",
-        ui.el("strong", {}, ["Containers"]),
-        " for yard operations.",
+        "Three document types: ",
+        ui.el("strong", {}, ["Container sheet"]),
+        " (logistics manifest per FCL — no farm traceability on the page), ",
+        ui.el("strong", {}, ["EUDR due diligence statement"]),
+        " (one shipment, all selected containers), and ",
+        ui.el("strong", {}, ["accompanying location sheet"]),
+        " (producers per container with farm GPS from the register, not EUDR GeoJSON polygons).",
       ])
     );
 
@@ -43,9 +55,6 @@
       statusEl.className = isError ? "error-box td-doc-status" : "muted td-doc-status";
     }
 
-    var pickerSection = ui.el("section", { class: "td-doc-section" });
-    pickerSection.appendChild(ui.el("h3", { class: "ct-containers-section-title" }, ["Select container"]));
-
     var includeClosed = false;
     var toggleClosed = ui.el("button", { class: "btn btn-sm", type: "button" }, [
       "Include shipped and cancelled",
@@ -55,56 +64,10 @@
       toggleClosed.textContent = includeClosed
         ? "Hide shipped and cancelled"
         : "Include shipped and cancelled";
-      paintSelect();
+      paintSheetSelect();
+      paintEudrPickList();
+      paintEudrPreview();
     });
-    pickerSection.appendChild(toggleClosed);
-
-    var select = ui.el("select", { class: "td-doc-select", required: "required" });
-    select.appendChild(ui.el("option", { value: "" }, ["Loading containers…"]));
-    pickerSection.appendChild(
-      ui.el("label", { class: "ct-field td-doc-field" }, [
-        ui.el("span", { class: "ct-field-label" }, ["Container"]),
-        select,
-      ])
-    );
-
-    var preview = ui.el("div", { class: "td-doc-preview muted" }, ["Choose a container to see details."]);
-    pickerSection.appendChild(preview);
-    container.appendChild(pickerSection);
-
-    var sheetSection = ui.el("section", { class: "td-doc-section" });
-    sheetSection.appendChild(
-      ui.el("h3", { class: "ct-containers-section-title" }, ["Standard container sheet"])
-    );
-    sheetSection.appendChild(
-      ui.el("p", { class: "muted" }, [
-        "Accompanies every container regardless of destination. Uses the current loaded bags from Traceability.",
-      ])
-    );
-    var sheetBtn = ui.el("button", {
-      class: "btn",
-      type: "button",
-      disabled: "disabled",
-    }, ["Generate container sheet"]);
-    sheetSection.appendChild(sheetBtn);
-    container.appendChild(sheetSection);
-
-    var eudrSection = ui.el("section", { class: "td-doc-section td-doc-section--eudr" });
-    eudrSection.appendChild(ui.el("h3", { class: "ct-containers-section-title" }, ["EUDR pack"]));
-    eudrSection.appendChild(
-      ui.el("p", { class: "muted" }, [
-        "Optional due-diligence package for EU shipments (statement, shipment summary, producer and farm data, GeoJSON evidence). ",
-        "Coming in phase 2 after the standard container sheet is verified.",
-      ])
-    );
-    var eudrBtn = ui.el("button", {
-      class: "btn btn-sm",
-      type: "button",
-      disabled: "disabled",
-      title: "Phase 2 — not yet available",
-    }, ["Generate EUDR pack (phase 2)"]);
-    eudrSection.appendChild(eudrBtn);
-    container.appendChild(eudrSection);
 
     function visibleList() {
       if (includeClosed) return containers.slice();
@@ -113,23 +76,109 @@
       });
     }
 
-    function selectedContainer() {
-      return containers.find(function (c) {
-        return c.id === selectedId;
+    function uniqueBookingRefs(list) {
+      var seen = {};
+      var out = [];
+      list.forEach(function (c) {
+        var r = String(c.booking_ref || "").trim();
+        if (!r || seen[r]) return;
+        seen[r] = true;
+        out.push(r);
+      });
+      out.sort();
+      return out;
+    }
+
+    function containersForBooking(ref) {
+      var key = normBooking(ref);
+      if (!key) return [];
+      return containers.filter(function (c) {
+        return normBooking(c.booking_ref) === key;
       });
     }
 
-    function paintPreview() {
-      var c = selectedContainer();
+    function eudrResolvedContainers() {
+      if (eudrMode === "booking") {
+        return containersForBooking(eudrBookingRef);
+      }
+      return containers.filter(function (c) {
+        return !!eudrSelectedIds[c.id];
+      });
+    }
+
+    /* —— Container sheet (one FCL) —— */
+    var sheetSection = ui.el("section", { class: "td-doc-section" });
+    sheetSection.appendChild(
+      ui.el("h3", { class: "ct-containers-section-title" }, ["Container sheet"])
+    );
+    sheetSection.appendChild(
+      ui.el("p", { class: "muted" }, [
+        "Standard load manifest for one container (NR · supplier · weight, booking and shipping header). ",
+        "Print one sheet per physical container.",
+      ])
+    );
+    sheetSection.appendChild(toggleClosed);
+
+    var sheetSelect = ui.el("select", { class: "td-doc-select" });
+    sheetSelect.appendChild(ui.el("option", { value: "" }, ["Loading containers…"]));
+    sheetSection.appendChild(
+      ui.el("label", { class: "ct-field td-doc-field" }, [
+        ui.el("span", { class: "ct-field-label" }, ["Container"]),
+        sheetSelect,
+      ])
+    );
+    var sheetPreview = ui.el("div", { class: "td-doc-preview muted" }, [
+      "Choose a container.",
+    ]);
+    sheetSection.appendChild(sheetPreview);
+    var sheetBtn = ui.el("button", {
+      class: "btn",
+      type: "button",
+      disabled: "disabled",
+    }, ["Generate container sheet"]);
+    sheetSection.appendChild(sheetBtn);
+    container.appendChild(sheetSection);
+
+    function paintSheetSelect() {
+      var list = visibleList();
+      var prev = sheetSelect.value;
+      sheetSelect.innerHTML = "";
+      if (!list.length) {
+        sheetSelect.appendChild(ui.el("option", { value: "" }, ["No containers in this view"]));
+        sheetContainerId = "";
+      } else {
+        sheetSelect.appendChild(ui.el("option", { value: "" }, ["Choose container…"]));
+        list.forEach(function (c) {
+          sheetSelect.appendChild(
+            ui.el("option", { value: c.id }, [
+              c.container_number +
+                " (" +
+                (STATUS_LABEL[c.status] || c.status) +
+                ", " +
+                fmt(c.loaded_bags) +
+                " loaded)",
+            ])
+          );
+        });
+        if (prev && list.some(function (c) { return c.id === prev; })) {
+          sheetSelect.value = prev;
+        }
+      }
+      sheetContainerId = sheetSelect.value;
+      paintSheetPreview();
+    }
+
+    function paintSheetPreview() {
+      var c = containers.find(function (x) { return x.id === sheetContainerId; });
       if (!c) {
-        preview.textContent = "Choose a container to see details.";
-        preview.className = "td-doc-preview muted";
+        sheetPreview.textContent = "Choose a container.";
+        sheetPreview.className = "td-doc-preview muted";
         sheetBtn.disabled = true;
         return;
       }
-      preview.innerHTML = "";
-      preview.className = "td-doc-preview";
-      preview.appendChild(
+      sheetPreview.innerHTML = "";
+      sheetPreview.className = "td-doc-preview";
+      sheetPreview.appendChild(
         ui.el("p", {}, [
           ui.el("strong", {}, [c.container_number]),
           " · ",
@@ -138,53 +187,223 @@
           STATUS_LABEL[c.status] || c.status,
         ])
       );
-      preview.appendChild(
+      sheetPreview.appendChild(
         ui.el("p", { class: "muted" }, [
-          "Loaded ",
           fmt(c.loaded_bags),
-          " / ",
-          fmt(c.target_bag_count),
-          " bags",
-          c.ship_to ? " · To: " + c.ship_to : "",
-          c.booking_ref ? " · Booking: " + c.booking_ref : "",
+          " bags loaded · Booking ",
+          c.booking_ref || "—",
+          c.ship_to ? " · To " + c.ship_to : "",
         ])
       );
       sheetBtn.disabled = false;
     }
 
-    function paintSelect() {
-      var list = visibleList();
-      var prev = select.value;
-      select.innerHTML = "";
-      if (!list.length) {
-        select.appendChild(ui.el("option", { value: "" }, ["No containers in this view"]));
-        selectedId = "";
-      } else {
-        select.appendChild(ui.el("option", { value: "" }, ["Choose container…"]));
-        list.forEach(function (c) {
-          var label =
-            c.container_number +
-            " (" +
-            (STATUS_LABEL[c.status] || c.status) +
-            ", " +
-            fmt(c.loaded_bags) +
-            " bags)";
-          select.appendChild(ui.el("option", { value: c.id }, [label]));
-        });
-        if (prev && list.some(function (c) { return c.id === prev; })) {
-          select.value = prev;
-          selectedId = prev;
+    sheetSelect.addEventListener("change", function () {
+      sheetContainerId = sheetSelect.value;
+      paintSheetPreview();
+    });
+
+    sheetBtn.addEventListener("click", async function () {
+      if (!sheetContainerId) return;
+      setStatus("Loading manifest…", false);
+      sheetBtn.disabled = true;
+      try {
+        var manifest = await ctx.api.traceability(
+          "/containers/" + encodeURIComponent(sheetContainerId) + "/manifest"
+        );
+        if (CIS.openContainerManifestPrintDialog) {
+          CIS.openContainerManifestPrintDialog(manifest, "documentation");
+        } else if (CIS.printContainerManifest) {
+          CIS.printContainerManifest(manifest, "documentation");
         } else {
-          selectedId = select.value;
+          setStatus("Print module not loaded.", true);
         }
+        setStatus("", false);
+      } catch (e) {
+        setStatus("Could not load manifest: " + (e.message || e), true);
+      } finally {
+        sheetBtn.disabled = !sheetContainerId;
       }
-      paintPreview();
+    });
+
+    /* —— EUDR shipment selection —— */
+    var eudrSection = ui.el("section", { class: "td-doc-section td-doc-section--eudr" });
+    eudrSection.appendChild(
+      ui.el("h3", { class: "ct-containers-section-title" }, ["EUDR shipment pack"])
+    );
+    eudrSection.appendChild(
+      ui.el("p", { class: "muted" }, [
+        "Select all containers in the same order/shipment. Use the ",
+        ui.el("strong", {}, ["booking ref"]),
+        " from Containers setup, or tick individual FCLs. Generation follows the Carbo EUDR due diligence Word template and the accompanying location Excel layout.",
+      ])
+    );
+
+    var modeBooking = ui.el("input", { type: "radio", name: "td-eudr-mode", value: "booking" });
+    modeBooking.checked = true;
+    var modePick = ui.el("input", { type: "radio", name: "td-eudr-mode", value: "pick" });
+    var modeRow = ui.el("div", { class: "td-doc-mode-row" });
+    modeRow.appendChild(
+      ui.el("label", { class: "td-doc-radio" }, [modeBooking, " By booking / order ref"])
+    );
+    modeRow.appendChild(
+      ui.el("label", { class: "td-doc-radio" }, [modePick, " Select containers"])
+    );
+    eudrSection.appendChild(modeRow);
+
+    var bookingInput = ui.el("input", {
+      type: "text",
+      class: "td-doc-booking-input",
+      placeholder: "e.g. EBKG19038595",
+      autocomplete: "off",
+      list: "td-doc-booking-list",
+    });
+    var bookingDatalist = ui.el("datalist", { id: "td-doc-booking-list" });
+    eudrSection.appendChild(bookingDatalist);
+    var bookingField = ui.el("label", { class: "ct-field td-doc-field td-doc-booking-field" }, [
+      ui.el("span", { class: "ct-field-label" }, ["Booking ref"]),
+      bookingInput,
+    ]);
+    eudrSection.appendChild(bookingField);
+
+    var pickList = ui.el("div", { class: "td-doc-pick-list hidden" });
+    eudrSection.appendChild(pickList);
+
+    var eudrPreview = ui.el("div", { class: "td-doc-preview td-doc-eudr-preview muted" }, [
+      "Select containers for the shipment.",
+    ]);
+    eudrSection.appendChild(eudrPreview);
+
+    var eudrActions = ui.el("div", { class: "td-doc-eudr-actions" });
+    var btnDds = ui.el("button", {
+      class: "btn btn-sm",
+      type: "button",
+      disabled: "disabled",
+      title: "Phase 2",
+    }, ["Due diligence statement"]);
+    var btnLocation = ui.el("button", {
+      class: "btn btn-sm",
+      type: "button",
+      disabled: "disabled",
+      title: "Phase 2",
+    }, ["Accompanying location sheet"]);
+    var btnGeo = ui.el("button", {
+      class: "btn btn-sm",
+      type: "button",
+      disabled: "disabled",
+      title: "Phase 2",
+    }, ["GeoJSON evidence bundle"]);
+    eudrActions.appendChild(btnDds);
+    eudrActions.appendChild(btnLocation);
+    eudrActions.appendChild(btnGeo);
+    eudrSection.appendChild(eudrActions);
+    eudrSection.appendChild(
+      ui.el("p", { class: "muted td-doc-phase-note" }, [
+        "Phase 2: statement covers the whole shipment; location sheet lists each FCL with distinct producers (packed product may mix many farms); GeoJSON files come from the EUDR converter repo, linked by farm.",
+      ])
+    );
+    container.appendChild(eudrSection);
+
+    function setEudrMode(mode) {
+      eudrMode = mode;
+      bookingField.classList.toggle("hidden", mode !== "booking");
+      pickList.classList.toggle("hidden", mode !== "pick");
+      paintEudrPreview();
     }
 
-    select.addEventListener("change", function () {
-      selectedId = select.value;
-      paintPreview();
+    modeBooking.addEventListener("change", function () {
+      if (modeBooking.checked) setEudrMode("booking");
     });
+    modePick.addEventListener("change", function () {
+      if (modePick.checked) setEudrMode("pick");
+    });
+    bookingInput.addEventListener("input", function () {
+      eudrBookingRef = bookingInput.value;
+      paintEudrPreview();
+    });
+
+    function paintBookingDatalist() {
+      bookingDatalist.innerHTML = "";
+      uniqueBookingRefs(containers).forEach(function (r) {
+        bookingDatalist.appendChild(ui.el("option", { value: r }));
+      });
+    }
+
+    function paintEudrPickList() {
+      pickList.innerHTML = "";
+      var list = visibleList();
+      if (!list.length) {
+        pickList.appendChild(ui.el("p", { class: "muted" }, ["No containers to select."]));
+        return;
+      }
+      list.forEach(function (c) {
+        var cb = ui.el("input", { type: "checkbox", value: c.id });
+        cb.checked = !!eudrSelectedIds[c.id];
+        cb.addEventListener("change", function () {
+          if (cb.checked) eudrSelectedIds[c.id] = true;
+          else delete eudrSelectedIds[c.id];
+          paintEudrPreview();
+        });
+        pickList.appendChild(
+          ui.el("label", { class: "td-doc-check-row" }, [
+            cb,
+            " ",
+            c.container_number,
+            " · ",
+            c.booking_ref || "no booking",
+            " · ",
+            fmt(c.loaded_bags),
+            " loaded",
+          ])
+        );
+      });
+    }
+
+    function paintEudrPreview() {
+      var list = eudrResolvedContainers();
+      if (!list.length) {
+        eudrPreview.textContent = "Select containers for the shipment.";
+        eudrPreview.className = "td-doc-preview td-doc-eudr-preview muted";
+        btnDds.disabled = true;
+        btnLocation.disabled = true;
+        btnGeo.disabled = true;
+        return;
+      }
+      eudrPreview.innerHTML = "";
+      eudrPreview.className = "td-doc-preview td-doc-eudr-preview";
+      eudrPreview.appendChild(
+        ui.el("p", {}, [
+          ui.el("strong", {}, [String(list.length)]),
+          list.length === 1 ? " container" : " containers",
+          " in this shipment:",
+        ])
+      );
+      var ul = ui.el("ul", { class: "td-doc-shipment-list" });
+      list.forEach(function (c) {
+        ul.appendChild(
+          ui.el("li", {}, [
+            c.container_number,
+            " — ",
+            STATUS_LABEL[c.status] || c.status,
+            ", ",
+            fmt(c.loaded_bags),
+            " bags",
+            c.ship_to ? ", to " + c.ship_to : "",
+          ])
+        );
+      });
+      eudrPreview.appendChild(ul);
+      eudrPreview.appendChild(
+        ui.el("p", { class: "muted" }, [
+          "Print ",
+          list.length,
+          " separate container sheet(s) for logistics. EUDR statement + location sheet will use this set once phase 2 is enabled.",
+        ])
+      );
+      btnDds.disabled = true;
+      btnLocation.disabled = true;
+      btnGeo.disabled = true;
+    }
 
     async function loadContainers() {
       setStatus("Loading containers…", false);
@@ -194,35 +413,15 @@
         containers.sort(function (a, b) {
           return String(b.created_at || "").localeCompare(String(a.created_at || ""));
         });
-        paintSelect();
+        paintBookingDatalist();
+        paintSheetSelect();
+        paintEudrPickList();
+        paintEudrPreview();
         setStatus("", false);
       } catch (e) {
         setStatus("Could not load containers: " + (e.message || e), true);
       }
     }
-
-    sheetBtn.addEventListener("click", async function () {
-      if (!selectedId) return;
-      setStatus("Loading manifest…", false);
-      sheetBtn.disabled = true;
-      try {
-        var manifest = await ctx.api.traceability(
-          "/containers/" + encodeURIComponent(selectedId) + "/manifest"
-        );
-        if (CIS.openContainerManifestPrintDialog) {
-          CIS.openContainerManifestPrintDialog(manifest, "container_sheet");
-        } else if (CIS.printContainerManifest) {
-          CIS.printContainerManifest(manifest, "container_sheet");
-        } else {
-          setStatus("Print module not loaded.", true);
-        }
-        setStatus("", false);
-      } catch (e) {
-        setStatus("Could not load manifest: " + (e.message || e), true);
-      } finally {
-        sheetBtn.disabled = !selectedId;
-      }
-    });
 
     await loadContainers();
   }
