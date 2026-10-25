@@ -296,7 +296,7 @@
       class: "btn btn-sm",
       type: "button",
       disabled: "disabled",
-    }, ["GeoJSON evidence bundle"]);
+    }, ["GeoJSON bundle (optional)"]);
     eudrActions.appendChild(btnDds);
     eudrActions.appendChild(btnLocation);
     eudrActions.appendChild(btnLocationCsv);
@@ -379,13 +379,15 @@
       if (pack.registry_error) {
         parts.push("Registry: " + pack.registry_error);
       }
-      if (!pack.geojson_dir_configured) {
-        parts.push("GeoJSON directory not configured on server (EUDR_CONVERTED_GEOJSON_DIR).");
-      } else if (pack.geojson_missing && pack.geojson_missing.length) {
+      var gaps = pack.missing_farm_information || [];
+      if (gaps.length) {
         parts.push(
-          String(pack.geojson_missing.length) +
-            " farm GeoJSON file(s) not found — listed in the zip bundle."
+          gaps.length +
+            " producer/farm row(s) with gaps (shown on printed documents — not omitted)."
         );
+      }
+      if (pack.geojson_bundle_available === false) {
+        parts.push("Optional polygon GeoJSON zip is not configured on the server.");
       }
       eudrPackNote.textContent = parts.join(" ");
     }

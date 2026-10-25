@@ -38,6 +38,35 @@
     return fmtDateIso(best) || fmtDateIso(new Date().toISOString().slice(0, 10));
   }
 
+  CIS.formatEudrMissingFarmBlock = function (pack) {
+    var rows = pack.missing_farm_information || [];
+    if (!rows.length) {
+      return "";
+    }
+    var html =
+      "<h3>Farm information gaps (not omitted — review before submission)</h3>" +
+      "<table class=\"gaps\"><thead><tr><th>Supplier / farm</th><th>Containers</th><th>Issue</th></tr></thead><tbody>";
+    rows.forEach(function (row) {
+      var issues = (row.information_gaps || [])
+        .map(function (g) {
+          return esc(g.message || g.code || "");
+        })
+        .join("<br/>");
+      html +=
+        "<tr><td>" +
+        esc(row.supplier_name || "") +
+        "<br/><span class=\"muted\">" +
+        esc(row.farm_display || "") +
+        "</span></td><td>" +
+        esc((row.container_numbers || []).join(", ")) +
+        "</td><td>" +
+        issues +
+        "</td></tr>";
+    });
+    html += "</tbody></table>";
+    return html;
+  };
+
   function openPrintHtml(html, title) {
     var w = window.open("", "_blank", "noopener,noreferrer");
     if (!w) {
@@ -80,7 +109,7 @@
       [
         "Production geolocation",
         f.geolocation_note ||
-          "See accompanying location sheet and GeoJSON files for production places contributing to the selected container(s).",
+          "See accompanying location sheet — farm GPS from the Producers register (homestead coordinates).",
       ],
       ["DDS reference (EU IS)", f.dds_reference || ""],
     ];
@@ -97,15 +126,12 @@
       })
       .join("");
 
-    var missingGeo =
-      pack.geojson_missing && pack.geojson_missing.length
-        ? "<p class=\"warn\"><strong>GeoJSON files not resolved for " +
-          pack.geojson_missing.length +
-          " farm(s).</strong> See MISSING_GEOJSON.txt in the downloaded bundle.</p>"
-        : "";
-
+    var missingBlock = CIS.formatEudrMissingFarmBlock(pack);
+    var missingWarn = missingBlock
+      ? "<p class=\"warn\"><strong>Some farms in this shipment have incomplete register data.</strong> Details below.</p>"
+      : "";
     if (pack.registry_error) {
-      missingGeo +=
+      missingWarn +=
         "<p class=\"warn\">Producer registry was unavailable — farm GPS may be incomplete (" +
         esc(pack.registry_error) +
         ").</p>";
@@ -125,6 +151,9 @@
       "blockquote{font-size:10.5pt;line-height:1.45;margin:8mm 0;padding:4mm 5mm;border-left:3px solid #333;background:#f9f9f9;}" +
       ".sign{margin-top:12mm;}" +
       ".warn{font-size:10pt;color:#7a2e00;background:#fff4e6;padding:3mm;border:1px solid #e6c89a;}" +
+      "table.gaps{width:100%;border-collapse:collapse;font-size:9.5pt;margin:4mm 0;}" +
+      "table.gaps th,table.gaps td{border:1px solid #ccc;padding:2mm;vertical-align:top;}" +
+      "table.gaps .muted{color:#555;font-size:9pt;}" +
       "@media print{body{margin:12mm;}}" +
       "</style></head><body>" +
       "<h1>CARBO NAMIBIA</h1>" +
@@ -136,9 +165,10 @@
       "<ul>" +
       "<li>Container sheet(s) — one per FCL listed above</li>" +
       "<li>Accompanying location sheet — producers and farm GPS per container</li>" +
-      "<li>GeoJSON files — converted production-place files where available on file</li>" +
+      "<li>Optional polygon GeoJSON evidence bundle — when configured on the server</li>" +
       "</ul>" +
-      missingGeo +
+      missingWarn +
+      missingBlock +
       "<h3>Declaration</h3>" +
       "<blockquote>By submitting this due diligence statement the operator confirms that due diligence in accordance with Regulation (EU) 2023/1115 was carried out and that no or only a negligible risk was found that the relevant products do not comply with Article 3, point (a) or (b), of that Regulation.</blockquote>" +
       "<div class=\"sign\">" +
@@ -164,11 +194,16 @@
 
   CIS.buildEudrLocationSheetCsv = function (pack) {
     var lines = [
-      "Container,FCL Number,SUPPLIER NAME,FARM NAME & NR,GPS COORDINATES,Bag count,Weight kg",
+      "Container,FCL Number,SUPPLIER NAME,FARM NAME & NR,GPS COORDINATES,Bag count,Weight kg,Information gaps",
     ];
     (pack.containers || []).forEach(function (c) {
       var fcl = c.container_number || "";
       (c.producers || []).forEach(function (p) {
+        var gapText = (p.information_gaps || [])
+          .map(function (g) {
+            return g.message || g.code || "";
+          })
+          .join("; ");
         lines.push(
           [
             fcl,
@@ -178,6 +213,7 @@
             (p.gps_coordinates || "").replace(/"/g, '""'),
             p.bag_count != null ? String(p.bag_count) : "",
             p.weight_kg != null ? String(p.weight_kg) : "",
+            gapText.replace(/"/g, '""'),
           ]
             .map(function (cell) {
               var s = String(cell);
@@ -226,6 +262,8 @@
       "th,td{border:1px solid #000;padding:3px 4px;vertical-align:top;}" +
       "th{background:#eee;font-size:9px;}" +
       "td.num{text-align:right;}" +
+      "table.gaps{width:100%;border-collapse:collapse;margin-top:8px;font-size:9px;}" +
+      "table.gaps th,table.gaps td{border:1px solid #999;padding:2px 3px;}" +
       "@media print{body{margin:8mm;}}" +
       "</style></head><body>" +
       "<h1>EUDR Accompanying Location Sheet</h1>" +
@@ -240,6 +278,7 @@
       "</tr></thead><tbody>" +
       bodyRows +
       "</tbody></table>" +
+      CIS.formatEudrMissingFarmBlock(pack) +
       "<script>window.onload=function(){window.print();}</script>" +
       "</body></html>"
     );
