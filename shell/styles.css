@@ -2758,12 +2758,12 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   margin-bottom: 14px;
 }
 .cm-print-dialog { max-width: 420px; width: 100%; }
+.cm-print-dialog--wide { max-width: 520px; }
 .cm-print-dialog-hint { margin: 0 0 16px; font-size: 13px; line-height: 1.45; }
 .cm-print-field { margin-bottom: 14px; }
 .cm-print-field input[type="date"],
 .cm-print-field input[type="text"] { width: 100%; }
 .td-doc-section { margin-top: 1.25rem; max-width: 36rem; }
-.td-doc-section--eudr { opacity: 0.92; }
 .td-doc-select { width: 100%; max-width: 28rem; }
 .td-doc-field { display: block; margin-top: 0.75rem; }
 .td-doc-preview { margin-top: 0.75rem; font-size: 0.95rem; }

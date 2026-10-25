@@ -287,25 +287,32 @@
       disabled: "disabled",
       title: "Phase 2",
     }, ["Accompanying location sheet"]);
+    var btnLocationCsv = ui.el("button", {
+      class: "btn btn-sm",
+      type: "button",
+      disabled: "disabled",
+    }, ["Location sheet (CSV)"]);
     var btnGeo = ui.el("button", {
       class: "btn btn-sm",
       type: "button",
       disabled: "disabled",
-      title: "Phase 2",
     }, ["GeoJSON evidence bundle"]);
     eudrActions.appendChild(btnDds);
     eudrActions.appendChild(btnLocation);
+    eudrActions.appendChild(btnLocationCsv);
     eudrActions.appendChild(btnGeo);
     eudrSection.appendChild(eudrActions);
-    eudrSection.appendChild(
-      ui.el("p", { class: "muted td-doc-phase-note" }, [
-        "Phase 2: statement covers the whole shipment; location sheet lists each FCL with distinct producers (packed product may mix many farms); GeoJSON files come from the EUDR converter repo, linked by farm.",
-      ])
-    );
+    var eudrPackNote = ui.el("p", { class: "muted td-doc-phase-note" }, [""]);
+    eudrSection.appendChild(eudrPackNote);
     container.appendChild(eudrSection);
+
+    var cachedPack = null;
+    var cachedPackKey = "";
 
     function setEudrMode(mode) {
       eudrMode = mode;
+      cachedPack = null;
+      cachedPackKey = "";
       bookingField.classList.toggle("hidden", mode !== "booking");
       pickList.classList.toggle("hidden", mode !== "pick");
       paintEudrPreview();
@@ -319,8 +326,69 @@
     });
     bookingInput.addEventListener("input", function () {
       eudrBookingRef = bookingInput.value;
+      cachedPack = null;
+      cachedPackKey = "";
       paintEudrPreview();
     });
+
+    function eudrSelectionBody() {
+      if (eudrMode === "booking") {
+        var ref = bookingInput.value.trim();
+        if (!ref) return null;
+        return { booking_ref: ref };
+      }
+      var ids = Object.keys(eudrSelectedIds);
+      if (!ids.length) return null;
+      return { container_ids: ids };
+    }
+
+    async function fetchEudrPack(forceRefresh) {
+      var body = eudrSelectionBody();
+      if (!body) {
+        throw new Error("Select a booking ref or at least one container.");
+      }
+      var key = JSON.stringify(body);
+      if (!forceRefresh && cachedPack && cachedPackKey === key) {
+        return cachedPack;
+      }
+      var pack = await ctx.api.traceability("/containers/eudr-documentation-pack", {
+        method: "POST",
+        body: body,
+      });
+      cachedPack = pack;
+      cachedPackKey = key;
+      return pack;
+    }
+
+    function paintEudrPackNote(pack) {
+      if (!pack) {
+        eudrPackNote.textContent = "";
+        return;
+      }
+      var parts = [];
+      var ship = pack.shipment || {};
+      parts.push(
+        "Loaded reconciliation: " +
+          fmt(ship.total_bags) +
+          " bags, " +
+          fmt(ship.net_mass_kg) +
+          " kg net across " +
+          fmt(ship.container_count) +
+          " container(s)."
+      );
+      if (pack.registry_error) {
+        parts.push("Registry: " + pack.registry_error);
+      }
+      if (!pack.geojson_dir_configured) {
+        parts.push("GeoJSON directory not configured on server (EUDR_CONVERTED_GEOJSON_DIR).");
+      } else if (pack.geojson_missing && pack.geojson_missing.length) {
+        parts.push(
+          String(pack.geojson_missing.length) +
+            " farm GeoJSON file(s) not found — listed in the zip bundle."
+        );
+      }
+      eudrPackNote.textContent = parts.join(" ");
+    }
 
     function paintBookingDatalist() {
       bookingDatalist.innerHTML = "";
@@ -342,6 +410,8 @@
         cb.addEventListener("change", function () {
           if (cb.checked) eudrSelectedIds[c.id] = true;
           else delete eudrSelectedIds[c.id];
+          cachedPack = null;
+          cachedPackKey = "";
           paintEudrPreview();
         });
         pickList.appendChild(
@@ -366,7 +436,9 @@
         eudrPreview.className = "td-doc-preview td-doc-eudr-preview muted";
         btnDds.disabled = true;
         btnLocation.disabled = true;
+        btnLocationCsv.disabled = true;
         btnGeo.disabled = true;
+        eudrPackNote.textContent = "";
         return;
       }
       eudrPreview.innerHTML = "";
@@ -397,13 +469,91 @@
         ui.el("p", { class: "muted" }, [
           "Print ",
           list.length,
-          " separate container sheet(s) for logistics. EUDR statement + location sheet will use this set once phase 2 is enabled.",
+          " container sheet(s) above for logistics. EUDR documents below use the same selected set.",
         ])
       );
-      btnDds.disabled = true;
-      btnLocation.disabled = true;
-      btnGeo.disabled = true;
+      btnDds.disabled = false;
+      btnLocation.disabled = false;
+      btnLocationCsv.disabled = false;
+      btnGeo.disabled = false;
+      if (cachedPack && cachedPackKey === JSON.stringify(eudrSelectionBody())) {
+        paintEudrPackNote(cachedPack);
+      } else {
+        eudrPackNote.textContent = "";
+      }
     }
+
+    async function withEudrPack(run) {
+      setStatus("Building documentation pack…", false);
+      try {
+        var pack = await fetchEudrPack(false);
+        paintEudrPackNote(pack);
+        await run(pack);
+        setStatus("", false);
+      } catch (e) {
+        var msg = CIS.traceabilityApiErrorMessage
+          ? CIS.traceabilityApiErrorMessage(e)
+          : e.message || String(e);
+        setStatus(msg, true);
+      }
+    }
+
+    btnDds.addEventListener("click", function () {
+      withEudrPack(function (pack) {
+        if (CIS.openEudrDueDiligenceDialog) {
+          CIS.openEudrDueDiligenceDialog(pack);
+        } else if (CIS.printEudrDueDiligence) {
+          CIS.printEudrDueDiligence(pack, {});
+        } else {
+          setStatus("EUDR render module not loaded.", true);
+        }
+      });
+    });
+
+    btnLocation.addEventListener("click", function () {
+      withEudrPack(function (pack) {
+        if (CIS.printEudrLocationSheet) CIS.printEudrLocationSheet(pack);
+        else setStatus("EUDR render module not loaded.", true);
+      });
+    });
+
+    btnLocationCsv.addEventListener("click", function () {
+      withEudrPack(function (pack) {
+        if (CIS.downloadEudrLocationSheetCsv) CIS.downloadEudrLocationSheetCsv(pack);
+        else setStatus("EUDR render module not loaded.", true);
+      });
+    });
+
+    btnGeo.addEventListener("click", function () {
+      var body = eudrSelectionBody();
+      if (!body) return;
+      setStatus("Preparing GeoJSON bundle…", false);
+      btnGeo.disabled = true;
+      (CIS.downloadEudrGeojsonZip
+        ? CIS.downloadEudrGeojsonZip(ctx, body)
+        : Promise.reject(new Error("EUDR render module not loaded."))
+      )
+        .then(function (meta) {
+          var msg = "GeoJSON zip downloaded.";
+          if (meta && meta.missing > 0) {
+            msg += " " + meta.missing + " farm file(s) missing — see MISSING_GEOJSON.txt in the zip.";
+          }
+          setStatus(msg, false);
+          return fetchEudrPack(true);
+        })
+        .then(function (pack) {
+          if (pack) paintEudrPackNote(pack);
+        })
+        .catch(function (e) {
+          var msg = CIS.traceabilityApiErrorMessage
+            ? CIS.traceabilityApiErrorMessage(e)
+            : e.message || String(e);
+          setStatus(msg, true);
+        })
+        .finally(function () {
+          btnGeo.disabled = !eudrResolvedContainers().length;
+        });
+    });
 
     async function loadContainers() {
       setStatus("Loading containers…", false);
