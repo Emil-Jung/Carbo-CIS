@@ -300,13 +300,12 @@
       );
       dialog.appendChild(
         ui.el("p", { class: "muted" }, [
-          "Update booking details while the container has not shipped. Bag assignments and loading history are unchanged.",
+          "Change any fields you need and save — only updated values are sent. Bag assignments and loading history are unchanged.",
         ])
       );
 
       var numberInput = ui.el("input", {
         type: "text",
-        required: "required",
         autocomplete: "off",
         value: containerRow.container_number || "",
       });
@@ -319,7 +318,6 @@
         type: "number",
         min: "1",
         step: "1",
-        required: "required",
         value: String(containerRow.target_bag_count || ""),
       });
       var locationSelect = ui.el("select", {});
@@ -330,7 +328,7 @@
       });
       var loadDateInput = ui.el("input", { type: "date", autocomplete: "off" });
       if (containerRow.load_date) loadDateInput.value = containerRow.load_date;
-      var productSelect = ui.el("select", { required: "required" });
+      var productSelect = ui.el("select", {});
       productSelect.appendChild(ui.el("option", { value: "" }, ["Choose product…"]));
       productOptions.forEach(function (opt) {
         var o = ui.el("option", { value: opt.key }, [opt.label || opt.key]);
@@ -409,37 +407,101 @@
         if (ev.target === backdrop) close();
       });
 
+      function normText(v) {
+        if (v == null) return null;
+        var t = String(v).trim();
+        return t || null;
+      }
+
+      function buildEditPatch() {
+        var patch = {};
+        var number = numberInput.value.trim().toUpperCase();
+        var prevNumber = normText(containerRow.container_number);
+        if (prevNumber) prevNumber = prevNumber.toUpperCase();
+        if (number !== prevNumber) {
+          if (!number) {
+            return { error: "Container number cannot be cleared — enter the full number or cancel." };
+          }
+          patch.container_number = number;
+        }
+
+        var fcl = fclInput.value.trim().toUpperCase() || null;
+        var prevFcl = normText(containerRow.fcl_number);
+        if (prevFcl) prevFcl = prevFcl.toUpperCase();
+        if (fcl !== prevFcl) patch.fcl_number = fcl;
+
+        var countRaw = countInput.value.trim();
+        if (countRaw !== "") {
+          var count = parseInt(countRaw, 10);
+          if (isNaN(count) || count < 1) {
+            return { error: "Bags when full must be a positive number, or leave unchanged." };
+          }
+          if (count !== Number(containerRow.target_bag_count)) {
+            patch.target_bag_count = count;
+          }
+        }
+
+        if (locationSelect.value !== containerRow.location) {
+          patch.location = locationSelect.value;
+        }
+
+        var productKey = productSelect.value;
+        var prevKey = containerRow.product_key || "";
+        if (productKey !== prevKey) {
+          patch.product_key = productKey || null;
+          if (productKey) {
+            var selOpt = productSelect.options[productSelect.selectedIndex];
+            patch.product_label =
+              (selOpt && (selOpt.dataset.label || selOpt.textContent)) || productKey;
+          } else {
+            patch.product_label = null;
+          }
+        }
+
+        var booking = bookingInput.value.trim() || null;
+        if (booking !== normText(containerRow.booking_ref)) patch.booking_ref = booking;
+
+        var shipTo = shipToInput.value.trim() || null;
+        if (shipTo !== normText(containerRow.ship_to)) patch.ship_to = shipTo;
+
+        var deliveryNote = deliveryNoteInput.value.trim() || null;
+        if (deliveryNote !== normText(containerRow.delivery_note)) {
+          patch.delivery_note = deliveryNote;
+        }
+
+        var transporter = transporterInput.value.trim() || null;
+        if (transporter !== normText(containerRow.transporter)) patch.transporter = transporter;
+
+        var shipName = shipNameInput.value.trim() || null;
+        if (shipName !== normText(containerRow.ship_name)) patch.ship_name = shipName;
+
+        var loadDate = loadDateInput.value || null;
+        if (loadDate !== (containerRow.load_date || null)) patch.load_date = loadDate;
+
+        var shipDate = shipDateInput.value || null;
+        if (shipDate !== (containerRow.expected_ship_date || null)) {
+          patch.expected_ship_date = shipDate;
+        }
+
+        return { patch: patch };
+      }
+
       async function save() {
         errEl.hidden = true;
-        var number = numberInput.value.trim().toUpperCase();
-        var count = parseInt(countInput.value, 10);
-        var productKey = productSelect.value;
-        if (!number || !count || count < 1 || !productKey) {
-          errEl.textContent = "Container number, product, and bag target are required.";
+        var built = buildEditPatch();
+        if (built.error) {
+          errEl.textContent = built.error;
           errEl.hidden = false;
           return;
         }
-        var selOpt = productSelect.options[productSelect.selectedIndex];
+        var bodyPayload = built.patch;
+        if (!Object.keys(bodyPayload).length) {
+          errEl.textContent = "No changes to save.";
+          errEl.hidden = false;
+          return;
+        }
         saveBtn.disabled = true;
         try {
-          var bodyPayload = {
-            container_number: number,
-            fcl_number: fclInput.value.trim().toUpperCase() || null,
-            target_bag_count: count,
-            location: locationSelect.value,
-            product_key: productKey,
-            product_label: (selOpt && (selOpt.dataset.label || selOpt.textContent)) || productKey,
-            booking_ref: bookingInput.value.trim() || null,
-            ship_to: shipToInput.value.trim() || null,
-            delivery_note: deliveryNoteInput.value.trim() || null,
-            transporter: transporterInput.value.trim() || null,
-            ship_name: shipNameInput.value.trim() || null,
-          };
-          if (loadDateInput.value) bodyPayload.load_date = loadDateInput.value;
-          else bodyPayload.load_date = null;
-          if (shipDateInput.value) bodyPayload.expected_ship_date = shipDateInput.value;
-          else bodyPayload.expected_ship_date = null;
-
           await ctx.api.traceability(
             "/containers/" + encodeURIComponent(containerRow.id),
             { method: "PATCH", body: bodyPayload }
