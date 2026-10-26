@@ -2806,15 +2806,24 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   left: 0;
   top: 0;
   width: 794px;
-  min-height: 1123px;
   margin: 0;
-  padding: 0;
+  padding: 8mm 7mm;
   background: #fff !important;
   color: #000 !important;
   z-index: 2147483646;
   overflow: visible;
   box-sizing: border-box;
   pointer-events: none;
+}
+.cis-pdf-capture-inner {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+.cis-pdf-capture-inner .cm-sheet-page {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 8mm;
 }
 .td-doc-eudr-actions .btn:disabled {
   opacity: 0.55;

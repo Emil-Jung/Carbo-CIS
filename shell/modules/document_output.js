@@ -85,8 +85,8 @@
   }
 
   var defaultPdfSet = {
-    margin: [8, 8, 8, 8],
-    image: { type: "jpeg", quality: 0.95 },
+    margin: [0, 0, 0, 0],
+    image: { type: "jpeg", quality: 0.96 },
     html2canvas: {
       scale: 2,
       useCORS: true,
@@ -96,8 +96,40 @@
       scrollY: 0,
     },
     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    pagebreak: { mode: ["css", "legacy"] },
+    pagebreak: { mode: ["css", "legacy"], after: ".cm-sheet-page", avoid: "tr" },
   };
+
+  function pdfCaptureTargets(host) {
+    var pages = host.querySelectorAll(".cm-sheet-page");
+    if (pages.length) {
+      return Array.prototype.slice.call(pages);
+    }
+    var inner = host.querySelector(".cis-pdf-capture-inner");
+    return [inner || host];
+  }
+
+  /** One full-size A4 page per .cm-sheet-page — never shrink a tall canvas onto one page. */
+  function savePdfFromCaptureTargets(html2pdf, targets, setOpts) {
+    if (targets.length <= 1) {
+      return html2pdf().set(setOpts).from(targets[0]).save();
+    }
+    var baseOpt = Object.assign({}, setOpts);
+    var filename = baseOpt.filename;
+    baseOpt.filename = undefined;
+    var chain = html2pdf().set(baseOpt).from(targets[0]).toPdf();
+    for (var i = 1; i < targets.length; i++) {
+      chain = chain
+        .get("pdf")
+        .then(function (pdf) {
+          pdf.addPage();
+        })
+        .from(targets[i])
+        .toContainer()
+        .toCanvas()
+        .toPdf();
+    }
+    return chain.set({ filename: filename }).save();
+  }
 
   function showPdfWorkingModal() {
     var backdrop = document.createElement("div");
@@ -194,16 +226,8 @@
       })
       .then(function (html2pdf) {
         if (!captureHost) throw new Error("Could not render document for PDF.");
-        var w = Math.max(captureHost.scrollWidth, captureHost.offsetWidth, 794);
-        var h = Math.max(captureHost.scrollHeight, captureHost.offsetHeight, 400);
-        var canvasOpts = Object.assign({}, setOpts.html2canvas || {}, {
-          windowWidth: w,
-          windowHeight: h,
-          width: w,
-          height: h,
-        });
-        var runOpts = Object.assign({}, setOpts, { html2canvas: canvasOpts });
-        return html2pdf().set(runOpts).from(captureHost).save();
+        var targets = pdfCaptureTargets(captureHost);
+        return savePdfFromCaptureTargets(html2pdf, targets, setOpts);
       })
       .then(function () {
         return { ok: true, filename: safeName };
