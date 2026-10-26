@@ -3408,6 +3408,28 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
+.td-doc-doc-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 0.65rem;
+}
+.td-doc-doc-row .td-doc-sheet-actions { margin-top: 0; }
+.td-doc-doc-label {
+  min-width: 12rem;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cm-eudr-dds-fields {
+  max-width: min(720px, 95vw);
+  max-height: 28vh;
+  overflow: auto;
+}
+.a4-print-preview-overlay__bar {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
 .td-doc-sheet-action-msg { margin-top: 0.5rem; max-width: 36rem; }
 .cm-sheet-preview-overlay { z-index: 10200; }
 .cm-sheet-preview-bar-right {

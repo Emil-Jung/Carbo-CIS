@@ -350,28 +350,74 @@
     ]);
     eudrSection.appendChild(eudrPreview);
 
-    var eudrActions = ui.el("div", { class: "td-doc-eudr-actions" });
-    var btnDds = ui.el("button", {
+    function docActionRow(label, pdfBtn, printBtn) {
+      var row = ui.el("div", { class: "td-doc-doc-row" });
+      row.appendChild(ui.el("span", { class: "td-doc-doc-label" }, [label]));
+      var actions = ui.el("div", { class: "td-doc-sheet-actions" });
+      actions.appendChild(pdfBtn);
+      actions.appendChild(printBtn);
+      row.appendChild(actions);
+      return row;
+    }
+
+    var btnDdsPdf = ui.el("button", {
       class: "btn btn-sm td-doc-eudr-btn",
       type: "button",
-    }, ["Due diligence statement"]);
-    var btnLocation = ui.el("button", {
+    }, ["Download PDF"]);
+    var btnDdsPrint = ui.el("button", {
       class: "btn btn-sm td-doc-eudr-btn",
       type: "button",
-    }, ["Accompanying location sheet"]);
+    }, ["Print"]);
+    var btnLocationPdf = ui.el("button", {
+      class: "btn btn-sm td-doc-eudr-btn",
+      type: "button",
+    }, ["Download PDF"]);
+    var btnLocationPrint = ui.el("button", {
+      class: "btn btn-sm td-doc-eudr-btn",
+      type: "button",
+    }, ["Print"]);
     var btnLocationCsv = ui.el("button", {
       class: "btn btn-sm td-doc-eudr-btn",
       type: "button",
-    }, ["Location sheet (CSV)"]);
+    }, ["Download CSV"]);
     var btnGeo = ui.el("button", {
       class: "btn btn-sm td-doc-eudr-btn",
       type: "button",
-    }, ["GeoJSON bundle (optional)"]);
-    eudrActions.appendChild(btnDds);
-    eudrActions.appendChild(btnLocation);
-    eudrActions.appendChild(btnLocationCsv);
-    eudrActions.appendChild(btnGeo);
+    }, ["Download GeoJSON zip"]);
+
+    var eudrActions = ui.el("div", { class: "td-doc-eudr-actions" });
+    eudrActions.appendChild(
+      docActionRow("Due diligence statement", btnDdsPdf, btnDdsPrint)
+    );
+    eudrActions.appendChild(
+      docActionRow("Accompanying location sheet", btnLocationPdf, btnLocationPrint)
+    );
+    var csvRow = ui.el("div", { class: "td-doc-doc-row" });
+    csvRow.appendChild(
+      ui.el("span", { class: "td-doc-doc-label" }, ["Location sheet (CSV)"])
+    );
+    var csvActions = ui.el("div", { class: "td-doc-sheet-actions" });
+    csvActions.appendChild(btnLocationCsv);
+    csvRow.appendChild(csvActions);
+    eudrActions.appendChild(csvRow);
+    var geoRow = ui.el("div", { class: "td-doc-doc-row" });
+    geoRow.appendChild(
+      ui.el("span", { class: "td-doc-doc-label" }, ["GeoJSON bundle (optional)"])
+    );
+    var geoActions = ui.el("div", { class: "td-doc-sheet-actions" });
+    geoActions.appendChild(btnGeo);
+    geoRow.appendChild(geoActions);
+    eudrActions.appendChild(geoRow);
     eudrSection.appendChild(eudrActions);
+
+    var eudrDocButtons = [
+      btnDdsPdf,
+      btnDdsPrint,
+      btnLocationPdf,
+      btnLocationPrint,
+      btnLocationCsv,
+      btnGeo,
+    ];
     var eudrActionError = ui.el("p", { class: "error-box td-doc-action-error td-doc-action-error--hidden" }, [""]);
     eudrSection.appendChild(eudrActionError);
     var eudrPackNote = ui.el("p", { class: "muted td-doc-phase-note" }, [""]);
@@ -449,7 +495,7 @@
       opts = opts || {};
       var canRun = eudrShipmentCanGenerate();
       var why = eudrActionsDisabledReason();
-      [btnDds, btnLocation, btnLocationCsv, btnGeo].forEach(function (b) {
+      eudrDocButtons.forEach(function (b) {
         b.disabled = !canRun;
         if (canRun) {
           b.removeAttribute("aria-disabled");
@@ -718,7 +764,10 @@
           pack = await fetchEudrPack(false);
         }
         paintEudrPackNote(pack);
-        run(pack);
+        var result = run(pack);
+        if (result && typeof result.then === "function") {
+          await result;
+        }
         setStatus("", false);
         clearEudrActionError();
       } catch (e) {
@@ -736,39 +785,47 @@
       });
     }
 
-    btnDds.addEventListener("click", function () {
-      invokeEudrPack(function (pack) {
-        if (CIS.openEudrDueDiligenceDialog) {
-          CIS.openEudrDueDiligenceDialog(pack);
-        } else if (CIS.printEudrDueDiligence) {
-          CIS.printEudrDueDiligence(pack, {});
-        } else {
-          throw new Error("EUDR render module not loaded.");
-        }
-      }, btnDds);
-    });
+    function wireEudrPdfPrint(pdfBtn, printBtn, downloadFn, previewFn, label) {
+      pdfBtn.addEventListener("click", function () {
+        invokeEudrPack(function (pack) {
+          if (!downloadFn) throw new Error("EUDR render module not loaded.");
+          return downloadFn(pack).then(function (out) {
+            if (!out || !out.ok) throw new Error(label + " PDF was not created.");
+            setStatus("Downloaded " + (out.filename || "PDF") + ".", false);
+          });
+        }, pdfBtn);
+      });
+      printBtn.addEventListener("click", function () {
+        invokeEudrPack(function (pack) {
+          if (!previewFn) throw new Error("EUDR render module not loaded.");
+          return previewFn(pack);
+        }, printBtn);
+      });
+    }
 
-    btnLocation.addEventListener("click", function () {
-      invokeEudrPack(function (pack) {
-        if (CIS.openEudrLocationSheetDialog) {
-          CIS.openEudrLocationSheetDialog(pack);
-        } else if (CIS.printEudrLocationSheet) {
-          CIS.printEudrLocationSheet(pack);
-        } else {
-          throw new Error("EUDR render module not loaded.");
-        }
-      }, btnLocation);
-    });
+    wireEudrPdfPrint(
+      btnDdsPdf,
+      btnDdsPrint,
+      CIS.downloadEudrDueDiligencePdf,
+      CIS.showEudrDueDiligencePreview,
+      "Due diligence"
+    );
+    wireEudrPdfPrint(
+      btnLocationPdf,
+      btnLocationPrint,
+      CIS.downloadEudrLocationSheetPdf,
+      CIS.showEudrLocationSheetPreview,
+      "Location sheet"
+    );
 
     btnLocationCsv.addEventListener("click", function () {
       invokeEudrPack(function (pack) {
-        if (CIS.openEudrLocationCsvDownload) {
-          CIS.openEudrLocationCsvDownload(pack);
-        } else if (CIS.downloadEudrLocationSheetCsv) {
-          CIS.downloadEudrLocationSheetCsv(pack);
-        } else {
+        if (!CIS.downloadEudrLocationSheetCsv) {
           throw new Error("EUDR render module not loaded.");
         }
+        var out = CIS.downloadEudrLocationSheetCsv(pack);
+        if (!out || !out.ok) throw new Error("CSV was not created.");
+        setStatus("Downloaded " + (out.filename || "CSV") + ".", false);
       }, btnLocationCsv);
     });
 

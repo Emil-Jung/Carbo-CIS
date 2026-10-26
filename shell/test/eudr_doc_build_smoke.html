@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>EUDR document build smoke</title>
+</head>
+<body>
+  <pre id="out">Running…</pre>
+  <script src="../modules/eudr_documentation_render.js"></script>
+  <script>
+    (function () {
+      var pack = {
+        shipment: {
+          container_numbers: ["ABCD1234567", "EFGH7654321"],
+          net_mass_kg: 42000,
+          total_bags: 840,
+          booking_ref: "BK-TEST",
+        },
+        containers: [
+          {
+            container_number: "ABCD1234567",
+            producers: [
+              {
+                supplier_name: "Supplier One",
+                farm_display: "Farm 1",
+                gps_coordinates: "-22.1, 17.2",
+                bag_count: 400,
+                weight_kg: 20000,
+              },
+            ],
+          },
+          {
+            container_number: "EFGH7654321",
+            producers: [
+              {
+                supplier_name: "Supplier Two",
+                farm_display: "Farm 2",
+                gps_coordinates: "-22.2, 17.3",
+                bag_count: 440,
+                weight_kg: 22000,
+              },
+            ],
+          },
+        ],
+      };
+      var dds = CIS.buildEudrDueDiligenceHtml(pack, {});
+      var loc = CIS.buildEudrLocationSheetHtml(pack);
+      var csv = CIS.buildEudrLocationSheetCsv(pack);
+      var ok =
+        dds.indexOf("ABCD1234567") !== -1 &&
+        dds.indexOf("EFGH7654321") !== -1 &&
+        dds.indexOf("window.print") === -1 &&
+        dds.indexOf("window.open") === -1 &&
+        loc.indexOf("Supplier Two") !== -1 &&
+        loc.indexOf("window.print") === -1 &&
+        csv.split("\n").length >= 3;
+      document.getElementById("out").textContent = ok
+        ? "PASS: multi-container DDS, location HTML, and CSV."
+        : "FAIL";
+    })();
+  </script>
+</body>
+</html>

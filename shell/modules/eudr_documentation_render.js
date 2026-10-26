@@ -1,4 +1,4 @@
-/* EUDR documentation — print HTML, CSV, and GeoJSON zip download. */
+/* EUDR documentation — PDF, print preview, CSV, and GeoJSON zip download. */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -38,6 +38,21 @@
     return fmtDateIso(best) || fmtDateIso(new Date().toISOString().slice(0, 10));
   }
 
+  function eudrFileSuffix(pack) {
+    var ship = (pack && pack.shipment) || {};
+    var ref = String(ship.booking_ref || "")
+      .trim()
+      .replace(/[^\w.-]+/g, "_")
+      .slice(0, 32);
+    if (ref) return ref;
+    var nums = (ship.container_numbers || []).join("_").replace(/[^\w.-]+/g, "_").slice(0, 56);
+    return nums || "shipment";
+  }
+
+  function eudrPdfFilename(prefix, pack) {
+    return prefix + "_" + eudrFileSuffix(pack) + ".pdf";
+  }
+
   CIS.formatEudrMissingFarmBlock = function (pack) {
     var rows = pack.missing_farm_information || [];
     if (!rows.length) {
@@ -67,27 +82,33 @@
     return html;
   };
 
-  function openPrintHtml(html, title) {
-    var w = window.open("", "_blank", "noopener,noreferrer");
-    if (!w) {
-      throw new Error(
-        "Pop-up blocked — allow pop-ups for CIS in your browser, then try again."
-      );
-    }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    if (title) {
-      try {
-        w.document.title = title;
-      } catch (e) { /* ignore */ }
-    }
-  }
+  CIS.defaultEudrDueDiligenceFields = function (pack) {
+    var first = (pack.containers && pack.containers[0]) || {};
+    var shipDate = defaultShipmentDate(pack);
+    return {
+      client: first.ship_to || "",
+      carbo_ref: "",
+      destination: first.ship_to || "",
+      shipment_date: shipDate,
+      operator: "Carbo Namibia",
+      operator_address: "",
+      eori: "",
+      product: "Hardwood charcoal",
+      hs_code: "4402 — Charcoal, whether or not agglomerated",
+      trade_description: "Hardwood lump charcoal for retail / food-service use",
+      wood_species: "",
+      country: "Namibia",
+      geolocation_note:
+        "See accompanying location sheet — farm GPS from the Producers register (homestead coordinates).",
+      dds_reference: "",
+      signatory: "",
+      statement_date: shipDate,
+    };
+  };
 
   CIS.buildEudrDueDiligenceHtml = function (pack, fields) {
-    var f = fields || {};
+    var f = Object.assign({}, CIS.defaultEudrDueDiligenceFields(pack), fields || {});
     var ship = pack.shipment || {};
-    var containers = pack.containers || [];
     var numbers = (ship.container_numbers || []).join(", ");
     var netMass = ship.net_mass_kg != null ? Number(ship.net_mass_kg).toLocaleString() + " kg" : "—";
 
@@ -107,11 +128,7 @@
       ["Net mass (loaded)", netMass],
       ["Total bags (loaded)", ship.total_bags != null ? String(ship.total_bags) : "—"],
       ["Country of production", f.country || "Namibia"],
-      [
-        "Production geolocation",
-        f.geolocation_note ||
-          "See accompanying location sheet — farm GPS from the Producers register (homestead coordinates).",
-      ],
+      ["Production geolocation", f.geolocation_note || ""],
       ["DDS reference (EU IS)", f.dds_reference || ""],
     ];
 
@@ -184,13 +201,106 @@
       "</p>" +
       "<p>Signature: <span class=\"blank\">&nbsp;</span></p>" +
       "</div>" +
-      "<script>window.onload=function(){window.print();}</script>" +
       "</body></html>"
     );
   };
 
-  CIS.printEudrDueDiligence = function (pack, fields) {
-    openPrintHtml(CIS.buildEudrDueDiligenceHtml(pack, fields), "EUDR Due Diligence Statement");
+  function buildDdsToolbar(pack, fieldApi, onChange) {
+    var defaults = CIS.defaultEudrDueDiligenceFields(pack);
+    var fieldsWrap = document.createElement("div");
+    fieldsWrap.className = "cm-sheet-preview-fields cm-eudr-dds-fields";
+
+    function addInput(labelText, key, placeholder) {
+      var input = document.createElement("input");
+      input.type = "text";
+      input.value = defaults[key] || "";
+      input.placeholder = placeholder || "";
+      input.autocomplete = "off";
+      input.dataset.eudrField = key;
+      var lab = document.createElement("label");
+      lab.className = "cm-sheet-preview-field";
+      var span = document.createElement("span");
+      span.className = "cm-sheet-preview-field-label";
+      span.textContent = labelText;
+      lab.appendChild(span);
+      lab.appendChild(input);
+      fieldsWrap.appendChild(lab);
+      input.addEventListener("change", onChange);
+      input.addEventListener("input", onChange);
+      return input;
+    }
+
+    addInput("Client / internal ref", "client");
+    addInput("Carbo reference", "carbo_ref", "Optional");
+    addInput("Destination", "destination");
+    addInput("Shipment date", "shipment_date");
+    addInput("Wood species", "wood_species");
+    addInput("DDS reference", "dds_reference", "After EU IS submission");
+    addInput("Signatory", "signatory", "Name and function");
+
+    getFields.readFromDom = function () {
+      var out = Object.assign({}, defaults);
+      fieldsWrap.querySelectorAll("[data-eudr-field]").forEach(function (el) {
+        var k = el.dataset.eudrField;
+        if (k) out[k] = el.value.trim();
+      });
+      out.statement_date = out.shipment_date || defaults.statement_date;
+      return out;
+    };
+
+    return fieldsWrap;
+  }
+
+  function requireDocumentOutput() {
+    if (!CIS.downloadHtmlDocumentPdf || !CIS.showHtmlDocumentPreview) {
+      throw new Error("Document output module not loaded.");
+    }
+  }
+
+  CIS.downloadEudrDueDiligencePdf = function (pack, fields) {
+    if (!pack || !(pack.containers || []).length) {
+      return Promise.reject(new Error("No shipment data to export."));
+    }
+    requireDocumentOutput();
+    var html = CIS.buildEudrDueDiligenceHtml(
+      pack,
+      fields || CIS.defaultEudrDueDiligenceFields(pack)
+    );
+    return CIS.downloadHtmlDocumentPdf(html, eudrPdfFilename("EUDR_DueDiligence", pack));
+  };
+
+  CIS.showEudrDueDiligencePreview = function (pack) {
+    if (!pack || !(pack.containers || []).length) {
+      return Promise.reject(new Error("No shipment data to show."));
+    }
+    requireDocumentOutput();
+    var ship = pack.shipment || {};
+    var fieldApi = {};
+    var toolbar = buildDdsToolbar(pack, fieldApi, function () {
+      if (fieldApi.scheduleRefresh) fieldApi.scheduleRefresh();
+    });
+
+    return CIS.showHtmlDocumentPreview({
+      title:
+        "Due diligence — " +
+        ((ship.container_numbers || []).join(", ") || "shipment"),
+      pdfFilename: eudrPdfFilename("EUDR_DueDiligence", pack),
+      toolbar: toolbar,
+      getHtml: function () {
+        return CIS.buildEudrDueDiligenceHtml(pack, fieldApi.readFromDom());
+      },
+      onMount: function (api) {
+        var refreshTimer = null;
+        fieldApi.scheduleRefresh = function () {
+          if (refreshTimer) clearTimeout(refreshTimer);
+          refreshTimer = setTimeout(function () {
+            api.refreshPreview().catch(function (e) {
+              api.showErr(e.message || String(e));
+            });
+          }, 250);
+        };
+      },
+    });
   };
 
   CIS.buildEudrLocationSheetCsv = function (pack) {
@@ -263,8 +373,10 @@
       "th,td{border:1px solid #000;padding:3px 4px;vertical-align:top;}" +
       "th{background:#eee;font-size:9px;}" +
       "td.num{text-align:right;}" +
+      "tr{page-break-inside:avoid;}" +
       "table.gaps{width:100%;border-collapse:collapse;margin-top:8px;font-size:9px;}" +
       "table.gaps th,table.gaps td{border:1px solid #999;padding:2px 3px;}" +
+      "h3{font-size:11px;margin:8px 0 4px;}" +
       "@media print{body{margin:8mm;}}" +
       "</style></head><body>" +
       "<h1>EUDR Accompanying Location Sheet</h1>" +
@@ -280,27 +392,64 @@
       bodyRows +
       "</tbody></table>" +
       CIS.formatEudrMissingFarmBlock(pack) +
-      "<script>window.onload=function(){window.print();}</script>" +
       "</body></html>"
     );
   };
 
+  CIS.downloadEudrLocationSheetPdf = function (pack) {
+    if (!pack || !(pack.containers || []).length) {
+      return Promise.reject(new Error("No shipment data to export."));
+    }
+    requireDocumentOutput();
+    return CIS.downloadHtmlDocumentPdf(
+      CIS.buildEudrLocationSheetHtml(pack),
+      eudrPdfFilename("EUDR_LocationSheet", pack)
+    );
+  };
+
+  CIS.showEudrLocationSheetPreview = function (pack) {
+    if (!pack || !(pack.containers || []).length) {
+      return Promise.reject(new Error("No shipment data to show."));
+    }
+    requireDocumentOutput();
+    var ship = pack.shipment || {};
+    return CIS.showHtmlDocumentPreview({
+      title:
+        "Location sheet — " +
+        ((ship.container_numbers || []).join(", ") || "shipment"),
+      pdfFilename: eudrPdfFilename("EUDR_LocationSheet", pack),
+      getHtml: function () {
+        return CIS.buildEudrLocationSheetHtml(pack);
+      },
+    });
+  };
+
+  /** @deprecated Use showEudrDueDiligencePreview. */
+  CIS.printEudrDueDiligence = function (pack, fields) {
+    return CIS.showEudrDueDiligencePreview(pack);
+  };
+
+  /** @deprecated Use showEudrLocationSheetPreview. */
   CIS.printEudrLocationSheet = function (pack) {
-    openPrintHtml(CIS.buildEudrLocationSheetHtml(pack), "EUDR Location Sheet");
+    return CIS.showEudrLocationSheetPreview(pack);
   };
 
   CIS.downloadEudrLocationSheetCsv = function (pack) {
+    if (!pack || !(pack.containers || []).length) {
+      throw new Error("No shipment data to export.");
+    }
     var csv = CIS.buildEudrLocationSheetCsv(pack);
     var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "eudr-location-sheet.csv";
+    a.download = "EUDR_LocationSheet_" + eudrFileSuffix(pack) + ".csv";
     document.body.appendChild(a);
     a.click();
     setTimeout(function () {
       URL.revokeObjectURL(a.href);
       a.remove();
     }, 500);
+    return { ok: true, filename: a.download };
   };
 
   CIS.downloadEudrGeojsonZip = async function (ctx, body) {
@@ -325,227 +474,33 @@
     var missing = res.headers.get("X-Eudr-Geojson-Missing") || "0";
     var included = res.headers.get("X-Eudr-Geojson-Included") || "0";
     var blob = await res.blob();
+    if (!blob || blob.size === 0) {
+      throw new Error("GeoJSON zip was empty.");
+    }
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "eudr-geojson-bundle.zip";
+    a.download = "EUDR_GeoJSON_bundle.zip";
     document.body.appendChild(a);
     a.click();
     setTimeout(function () {
       URL.revokeObjectURL(a.href);
       a.remove();
     }, 500);
-    return { included: Number(included), missing: Number(missing) };
+    return { ok: true, included: Number(included), missing: Number(missing) };
   };
 
-  function closeEudrModal(backdrop) {
-    if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
-  }
-
-  function createEudrModal(titleText) {
-    var backdrop = document.createElement("div");
-    backdrop.className = "modal-backdrop cm-print-dialog-backdrop";
-    var dialog = document.createElement("div");
-    dialog.className = "modal cm-print-dialog cm-print-dialog--wide";
-    dialog.setAttribute("role", "dialog");
-    var title = document.createElement("h3");
-    title.textContent = titleText;
-    dialog.appendChild(title);
-    backdrop.appendChild(dialog);
-    return { backdrop: backdrop, dialog: dialog, close: function () { closeEudrModal(backdrop); } };
-  }
-
+  /** @deprecated Use showEudrLocationSheetPreview. */
   CIS.openEudrLocationSheetDialog = function (pack) {
-    var ship = pack.shipment || {};
-    var ui = createEudrModal("Accompanying location sheet");
-    var hint = document.createElement("p");
-    hint.className = "muted cm-print-dialog-hint";
-    hint.textContent =
-      "Print opens in a new window. Use Print below (pop-ups must be allowed). Containers: " +
-      (ship.container_numbers || []).join(", ");
-    ui.dialog.appendChild(hint);
-    var actions = document.createElement("div");
-    actions.className = "cm-print-dialog-actions";
-    var cancelBtn = document.createElement("button");
-    cancelBtn.type = "button";
-    cancelBtn.className = "btn btn-sm";
-    cancelBtn.textContent = "Cancel";
-    var printBtn = document.createElement("button");
-    printBtn.type = "button";
-    printBtn.className = "btn";
-    printBtn.textContent = "Print location sheet";
-    actions.appendChild(cancelBtn);
-    actions.appendChild(printBtn);
-    ui.dialog.appendChild(actions);
-    cancelBtn.addEventListener("click", ui.close);
-    ui.backdrop.addEventListener("click", function (e) {
-      if (e.target === ui.backdrop) ui.close();
-    });
-    printBtn.addEventListener("click", function () {
-      try {
-        CIS.printEudrLocationSheet(pack);
-      } catch (e) {
-        alert(e.message || String(e));
-        return;
-      }
-      ui.close();
-    });
-    document.body.appendChild(ui.backdrop);
-    printBtn.focus();
+    return CIS.showEudrLocationSheetPreview(pack);
   };
 
+  /** @deprecated Direct CSV download — no modal. */
   CIS.openEudrLocationCsvDownload = function (pack) {
-    var csv = CIS.buildEudrLocationSheetCsv(pack);
-    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    var url = URL.createObjectURL(blob);
-    var ui = createEudrModal("Location sheet (CSV)");
-    var hint = document.createElement("p");
-    hint.className = "muted cm-print-dialog-hint";
-    hint.textContent =
-      "Your browser may block automatic downloads after loading data. Click Download CSV below.";
-    ui.dialog.appendChild(hint);
-    var link = document.createElement("a");
-    link.className = "btn";
-    link.href = url;
-    link.download = "eudr-location-sheet.csv";
-    link.textContent = "Download CSV";
-    link.style.display = "inline-block";
-    link.style.marginTop = "8px";
-    ui.dialog.appendChild(link);
-    var actions = document.createElement("div");
-    actions.className = "cm-print-dialog-actions";
-    var closeBtn = document.createElement("button");
-    closeBtn.type = "button";
-    closeBtn.className = "btn btn-sm";
-    closeBtn.textContent = "Close";
-    actions.appendChild(closeBtn);
-    ui.dialog.appendChild(actions);
-    closeBtn.addEventListener("click", function () {
-      URL.revokeObjectURL(url);
-      ui.close();
-    });
-    ui.backdrop.addEventListener("click", function (e) {
-      if (e.target === ui.backdrop) {
-        URL.revokeObjectURL(url);
-        ui.close();
-      }
-    });
-    document.body.appendChild(ui.backdrop);
-    link.focus();
+    return CIS.downloadEudrLocationSheetCsv(pack);
   };
 
-  CIS.openEudrDueDiligenceDialog = function (pack, onPrint) {
-    var ship = pack.shipment || {};
-    var first = (pack.containers && pack.containers[0]) || {};
-    var backdrop = document.createElement("div");
-    backdrop.className = "modal-backdrop cm-print-dialog-backdrop";
-    var dialog = document.createElement("div");
-    dialog.className = "modal cm-print-dialog cm-print-dialog--wide";
-    dialog.setAttribute("role", "dialog");
-
-    var title = document.createElement("h3");
-    title.textContent = "Due diligence statement — optional fields";
-    dialog.appendChild(title);
-
-    var hint = document.createElement("p");
-    hint.className = "muted cm-print-dialog-hint";
-    hint.textContent =
-      "Net mass and container list come from Traceability. Fill or adjust any fields below before printing.";
-    dialog.appendChild(hint);
-
-    function field(labelText, inputEl) {
-      var lab = document.createElement("label");
-      lab.className = "ct-field cm-print-field";
-      var span = document.createElement("span");
-      span.className = "ct-field-label";
-      span.textContent = labelText;
-      lab.appendChild(span);
-      lab.appendChild(inputEl);
-      return lab;
-    }
-
-    var client = document.createElement("input");
-    client.type = "text";
-    client.value = first.ship_to || "";
-    dialog.appendChild(field("Client / internal reference", client));
-
-    var carboRef = document.createElement("input");
-    carboRef.type = "text";
-    carboRef.placeholder = "Optional";
-    dialog.appendChild(field("Carbo reference", carboRef));
-
-    var destination = document.createElement("input");
-    destination.type = "text";
-    destination.value = first.ship_to || "";
-    dialog.appendChild(field("Destination", destination));
-
-    var shipDate = document.createElement("input");
-    shipDate.type = "text";
-    shipDate.value = defaultShipmentDate(pack);
-    dialog.appendChild(field("Shipment date (display)", shipDate));
-
-    var wood = document.createElement("input");
-    wood.type = "text";
-    wood.placeholder = "Common and scientific name if known";
-    dialog.appendChild(field("Wood species", wood));
-
-    var dds = document.createElement("input");
-    dds.type = "text";
-    dds.placeholder = "After EU IS submission";
-    dialog.appendChild(field("DDS reference", dds));
-
-    var signatory = document.createElement("input");
-    signatory.type = "text";
-    dialog.appendChild(field("Name and function (signature block)", signatory));
-
-    var summary = document.createElement("p");
-    summary.className = "muted";
-    summary.textContent =
-      "Containers: " +
-      (ship.container_numbers || []).join(", ") +
-      " · Net loaded " +
-      (ship.net_mass_kg != null ? ship.net_mass_kg + " kg" : "—");
-    dialog.appendChild(summary);
-
-    var actions = document.createElement("div");
-    actions.className = "cm-print-dialog-actions";
-    var cancelBtn = document.createElement("button");
-    cancelBtn.type = "button";
-    cancelBtn.className = "btn btn-sm";
-    cancelBtn.textContent = "Cancel";
-    var printBtn = document.createElement("button");
-    printBtn.type = "button";
-    printBtn.className = "btn";
-    printBtn.textContent = "Print statement";
-    actions.appendChild(cancelBtn);
-    actions.appendChild(printBtn);
-    dialog.appendChild(actions);
-
-    function close() {
-      if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
-    }
-
-    cancelBtn.addEventListener("click", close);
-    backdrop.addEventListener("click", function (e) {
-      if (e.target === backdrop) close();
-    });
-    printBtn.addEventListener("click", function () {
-      var fields = {
-        client: client.value.trim(),
-        carbo_ref: carboRef.value.trim(),
-        destination: destination.value.trim(),
-        shipment_date: shipDate.value.trim(),
-        wood_species: wood.value.trim(),
-        dds_reference: dds.value.trim(),
-        signatory: signatory.value.trim(),
-        statement_date: shipDate.value.trim(),
-      };
-      if (onPrint) onPrint(fields);
-      else CIS.printEudrDueDiligence(pack, fields);
-      close();
-    });
-
-    backdrop.appendChild(dialog);
-    document.body.appendChild(backdrop);
-    client.focus();
+  /** @deprecated Use showEudrDueDiligencePreview. */
+  CIS.openEudrDueDiligenceDialog = function (pack) {
+    return CIS.showEudrDueDiligencePreview(pack);
   };
 })();
