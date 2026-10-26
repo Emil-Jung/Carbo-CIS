@@ -943,6 +943,8 @@
 
         else if (k === "disabled") node.disabled = !!attrs[k];
 
+        else if (k === "hidden") node.hidden = !!attrs[k];
+
         else if (k === "readOnly") node.readOnly = !!attrs[k];
 
         else if (k.startsWith("on") && typeof attrs[k] === "function") node.addEventListener(k.slice(2), attrs[k]);

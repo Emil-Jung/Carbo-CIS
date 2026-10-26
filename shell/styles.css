@@ -2777,6 +2777,9 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .td-doc-phase-note { font-size: 0.88rem; max-width: 42rem; }
 .td-doc-booking-select { max-width: 28rem; margin-bottom: 0.35rem; }
 .td-doc-action-error { margin: 0.5rem 0 0; max-width: 42rem; }
+.td-doc-action-error--hidden { display: none !important; }
+.td-doc-eudr-btn--inactive { opacity: 0.45; }
+.td-doc-eudr-btn--inactive:hover { filter: none; }
 
 .cm-print-dialog-actions {
   display: flex;

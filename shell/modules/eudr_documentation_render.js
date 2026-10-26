@@ -70,8 +70,9 @@
   function openPrintHtml(html, title) {
     var w = window.open("", "_blank", "noopener,noreferrer");
     if (!w) {
-      alert("Allow pop-ups to print this document.");
-      return;
+      throw new Error(
+        "Pop-up blocked — allow pop-ups for CIS in your browser, then try again."
+      );
     }
     w.document.open();
     w.document.write(html);

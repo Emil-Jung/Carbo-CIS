@@ -96,19 +96,6 @@
       });
     }
 
-    function getBookingRef() {
-      return String(bookingInput.value || "").trim();
-    }
-
-    function eudrResolvedContainers() {
-      if (eudrMode === "booking") {
-        return containersForBooking(getBookingRef());
-      }
-      return containers.filter(function (c) {
-        return !!eudrSelectedIds[c.id];
-      });
-    }
-
     /* —— Container sheet (one FCL) —— */
     var sheetSection = ui.el("section", { class: "td-doc-section" });
     sheetSection.appendChild(
@@ -276,6 +263,19 @@
     ]);
     eudrSection.appendChild(bookingField);
 
+    function getBookingRef() {
+      return String(bookingInput.value || "").trim();
+    }
+
+    function eudrResolvedContainers() {
+      if (eudrMode === "booking") {
+        return containersForBooking(getBookingRef());
+      }
+      return containers.filter(function (c) {
+        return !!eudrSelectedIds[c.id];
+      });
+    }
+
     var pickList = ui.el("div", { class: "td-doc-pick-list hidden" });
     eudrSection.appendChild(pickList);
 
@@ -286,31 +286,27 @@
 
     var eudrActions = ui.el("div", { class: "td-doc-eudr-actions" });
     var btnDds = ui.el("button", {
-      class: "btn btn-sm",
+      class: "btn btn-sm td-doc-eudr-btn",
       type: "button",
-      disabled: true,
     }, ["Due diligence statement"]);
     var btnLocation = ui.el("button", {
-      class: "btn btn-sm",
+      class: "btn btn-sm td-doc-eudr-btn",
       type: "button",
-      disabled: true,
     }, ["Accompanying location sheet"]);
     var btnLocationCsv = ui.el("button", {
-      class: "btn btn-sm",
+      class: "btn btn-sm td-doc-eudr-btn",
       type: "button",
-      disabled: true,
     }, ["Location sheet (CSV)"]);
     var btnGeo = ui.el("button", {
-      class: "btn btn-sm",
+      class: "btn btn-sm td-doc-eudr-btn",
       type: "button",
-      disabled: true,
     }, ["GeoJSON bundle (optional)"]);
     eudrActions.appendChild(btnDds);
     eudrActions.appendChild(btnLocation);
     eudrActions.appendChild(btnLocationCsv);
     eudrActions.appendChild(btnGeo);
     eudrSection.appendChild(eudrActions);
-    var eudrActionError = ui.el("p", { class: "error-box td-doc-action-error", hidden: true }, [""]);
+    var eudrActionError = ui.el("p", { class: "error-box td-doc-action-error td-doc-action-error--hidden" }, [""]);
     eudrSection.appendChild(eudrActionError);
     var eudrPackNote = ui.el("p", { class: "muted td-doc-phase-note" }, [""]);
     eudrSection.appendChild(eudrPackNote);
@@ -318,6 +314,9 @@
 
     var cachedPack = null;
     var cachedPackKey = "";
+    var packPrefetchTimer = null;
+    var packPrefetchGen = 0;
+    var packLoading = false;
 
     function setEudrMode(mode) {
       eudrMode = mode;
@@ -345,14 +344,62 @@
     }
 
     function clearEudrActionError() {
-      eudrActionError.hidden = true;
       eudrActionError.textContent = "";
+      eudrActionError.classList.add("td-doc-action-error--hidden");
     }
 
     function showEudrActionError(msg) {
       eudrActionError.textContent = msg;
-      eudrActionError.hidden = !msg;
-      if (msg) eudrActionError.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      if (msg) {
+        eudrActionError.classList.remove("td-doc-action-error--hidden");
+        eudrActionError.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      } else {
+        eudrActionError.classList.add("td-doc-action-error--hidden");
+      }
+    }
+
+    function setEudrButtonsReady(ready) {
+      var on = !!ready;
+      [btnDds, btnLocation, btnLocationCsv, btnGeo].forEach(function (b) {
+        b.classList.toggle("td-doc-eudr-btn--inactive", !on);
+        b.removeAttribute("disabled");
+        b.disabled = false;
+      });
+    }
+
+    function schedulePackPrefetch() {
+      if (packPrefetchTimer) clearTimeout(packPrefetchTimer);
+      packPrefetchTimer = setTimeout(function () {
+        prefetchEudrPack();
+      }, 350);
+    }
+
+    async function prefetchEudrPack() {
+      if (!eudrResolvedContainers().length) {
+        eudrPackNote.textContent = "";
+        return;
+      }
+      if (!eudrSelectionBody()) return;
+      var gen = ++packPrefetchGen;
+      packLoading = true;
+      eudrPackNote.textContent = "Loading shipment data from Traceability…";
+      try {
+        var pack = await fetchEudrPack(true);
+        if (gen !== packPrefetchGen) return;
+        paintEudrPackNote(pack);
+        eudrPackNote.textContent =
+          (eudrPackNote.textContent || "") + " Document buttons are ready.";
+        clearEudrActionError();
+      } catch (e) {
+        if (gen !== packPrefetchGen) return;
+        var msg = CIS.traceabilityApiErrorMessage
+          ? CIS.traceabilityApiErrorMessage(e)
+          : e.message || String(e);
+        eudrPackNote.textContent = "";
+        showEudrActionError("Could not load EUDR pack: " + msg);
+      } finally {
+        if (gen === packPrefetchGen) packLoading = false;
+      }
     }
 
     function onBookingRefChanged() {
@@ -361,6 +408,7 @@
       clearEudrActionError();
       syncBookingSelectFromInput();
       paintEudrPreview();
+      schedulePackPrefetch();
     }
 
     bookingSelect.addEventListener("change", function () {
@@ -462,6 +510,7 @@
           cachedPack = null;
           cachedPackKey = "";
           paintEudrPreview();
+          schedulePackPrefetch();
         });
         pickList.appendChild(
           ui.el("label", { class: "td-doc-check-row" }, [
@@ -500,10 +549,7 @@
               : "Select containers for the shipment.";
           eudrPreview.className = "td-doc-preview td-doc-eudr-preview muted";
         }
-        btnDds.disabled = true;
-        btnLocation.disabled = true;
-        btnLocationCsv.disabled = true;
-        btnGeo.disabled = true;
+        setEudrButtonsReady(false);
         eudrPackNote.textContent = "";
         return;
       }
@@ -538,30 +584,31 @@
           " container sheet(s) above for logistics. EUDR documents below use the same selected set.",
         ])
       );
-      btnDds.disabled = false;
-      btnLocation.disabled = false;
-      btnLocationCsv.disabled = false;
-      btnGeo.disabled = false;
+      setEudrButtonsReady(true);
       if (cachedPack && cachedPackKey === JSON.stringify(eudrSelectionBody())) {
         paintEudrPackNote(cachedPack);
-      } else {
+      } else if (!packLoading) {
         eudrPackNote.textContent = "";
+        schedulePackPrefetch();
       }
     }
 
     async function withEudrPack(run, activeBtn) {
+      if (!eudrResolvedContainers().length) {
+        showEudrActionError("Choose a booking or containers for this shipment first.");
+        return;
+      }
       clearEudrActionError();
       setStatus("Building documentation pack…", false);
-      var buttons = [btnDds, btnLocation, btnLocationCsv, btnGeo];
-      var prevLabels = buttons.map(function (b) { return b.textContent; });
-      buttons.forEach(function (b) {
-        b.disabled = true;
-      });
+      var prevLabel = activeBtn ? activeBtn.textContent : "";
       if (activeBtn) activeBtn.textContent = "Loading…";
       try {
-        var pack = await fetchEudrPack(false);
+        var pack = cachedPack;
+        if (!pack || cachedPackKey !== JSON.stringify(eudrSelectionBody())) {
+          pack = await fetchEudrPack(false);
+        }
         paintEudrPackNote(pack);
-        await run(pack);
+        run(pack);
         setStatus("", false);
         clearEudrActionError();
       } catch (e) {
@@ -571,10 +618,7 @@
         setStatus(msg, true);
         showEudrActionError("Could not build EUDR pack: " + msg);
       } finally {
-        buttons.forEach(function (b, i) {
-          b.textContent = prevLabels[i];
-        });
-        paintEudrPreview();
+        if (activeBtn) activeBtn.textContent = prevLabel;
       }
     }
 
@@ -607,8 +651,11 @@
     btnGeo.addEventListener("click", function () {
       var body = eudrSelectionBody();
       if (!body) return;
+      if (!eudrResolvedContainers().length) {
+        showEudrActionError("Choose a booking or containers for this shipment first.");
+        return;
+      }
       setStatus("Preparing GeoJSON bundle…", false);
-      btnGeo.disabled = true;
       (CIS.downloadEudrGeojsonZip
         ? CIS.downloadEudrGeojsonZip(ctx, body)
         : Promise.reject(new Error("EUDR render module not loaded."))
@@ -631,7 +678,7 @@
           setStatus(msg, true);
         })
         .finally(function () {
-          btnGeo.disabled = !eudrResolvedContainers().length;
+          setStatus("", false);
         });
     });
 
