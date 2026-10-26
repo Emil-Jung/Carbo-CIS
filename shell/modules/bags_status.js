@@ -3135,6 +3135,8 @@
     var drillFetchToken = 0;
     /** Nav state to restore when Back is pressed during a drill API fetch. */
     var navSnapshotBeforeFetch = null;
+    /** One entry per forward drill step — Back always pops one level (no mode guessing). */
+    var drillStack = [];
     var walvisStorageReport = null;
     var walvisTransitReport = null;
 
@@ -3204,58 +3206,28 @@
 
 
 
-    function goBackFromWxDrill() {
-      if (wxDrill && wxDrill.slice) {
-        wxDrill.slice = null;
-        paint();
-        return;
+    function cloneNavForStack(state) {
+      var snap = state || captureNavState();
+      try {
+        return JSON.parse(JSON.stringify(snap));
+      } catch (e) {
+        return captureNavState();
       }
-      wxDrillToken += 1;
-      var backTo = wxDrill && wxDrill.backTo;
-      var backDispatch = wxDrill && wxDrill.backDispatch;
-      wxDrill = null;
-      navSnapshotBeforeFetch = null;
-      if (backTo === "walvis_dispatch" && backDispatch) {
-        selected = {
-          key: WALVIS_STORAGE_STATUS,
-          mode: "walvis_storage_dispatch",
-          dispatch: backDispatch,
-          walvisReport: walvisStorageReport,
-        };
-      } else if (backTo === "walvis_transit_dispatch" && backDispatch) {
-        selected = {
-          key: WALVIS_TRANSIT_STATUS,
-          mode: "walvis_transit_dispatch",
-          dispatch: backDispatch,
-          walvisReport: walvisTransitReport,
-        };
-      } else if (backTo === "walvis_unassigned") {
-        selected = {
-          key: "walvis:unassigned",
-          mode: "walvis_unassigned_hub",
-          unassigned: (walvisStorageReport && walvisStorageReport.unassigned) || {},
-          walvisReport: walvisStorageReport,
-        };
-      } else if (backTo === "walvis_transit_unassigned") {
-        selected = {
-          key: "walvis:transit:unassigned",
-          mode: "walvis_transit_unassigned_hub",
-          unassigned: (walvisTransitReport && walvisTransitReport.unassigned) || {},
-          walvisReport: walvisTransitReport,
-        };
-      } else if (backTo === "walvis_transit_hub") {
-        selected = {
-          key: WALVIS_TRANSIT_STATUS,
-          label: "In transit — Walvis Bay",
-          mode: "walvis_transit_hub",
-          walvisReport: walvisTransitReport,
-        };
-      } else if (backTo === "status_buckets") {
-        selectedEvent = null;
-      } else {
-        selected = null;
-        selectedEvent = null;
-      }
+    }
+
+    function pushDrillNav() {
+      drillStack.push(cloneNavForStack(captureNavState()));
+      if (drillStack.length > 48) drillStack.shift();
+    }
+
+    function clearDrillStack() {
+      drillStack.length = 0;
+    }
+
+    /** Sync forward navigation — always records one stack frame before mutating drill state. */
+    function drillNavigate(apply) {
+      pushDrillNav();
+      apply();
       paint();
     }
 
@@ -3269,6 +3241,7 @@
             void runBagSearch(serial);
           },
           function () {
+            clearDrillStack();
             bagSearch = null;
             selected = null;
             wxDrill = null;
@@ -3290,6 +3263,7 @@
         repaintBagSearchBar();
         return;
       }
+      pushDrillNav();
       bagSearch = { active: true, serial: serial, loading: true, error: null };
       selected = null;
       wxDrill = null;
@@ -3346,31 +3320,11 @@
     }
 
     function finishDrillFetch(token) {
-      if (token === drillFetchToken) {
-        navSnapshotBeforeFetch = null;
+      if (token !== drillFetchToken) return;
+      if (navSnapshotBeforeFetch) {
+        drillStack.push(cloneNavForStack(navSnapshotBeforeFetch));
       }
-    }
-
-    function popPackagedStockDrillView() {
-      if (selected.view === "flat_list") {
-        selected.view = "locations";
-        selected.rows = null;
-        if (selected.parentLabel) selected.label = selected.parentLabel;
-        selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
-        return true;
-      }
-      if (selected.view === "by_product" || selected.view === "by_location") {
-        selected.view = "locations";
-        selected.detail = null;
-        selected.sections = null;
-        selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
-        return true;
-      }
-      if (selected.view === "locations") {
-        selected = null;
-        return true;
-      }
-      return false;
+      navSnapshotBeforeFetch = null;
     }
 
     /** Single stable handler — shell keeps same button DOM; one tap = one drill level up. */
@@ -3380,96 +3334,9 @@
         return;
       }
       navSnapshotBeforeFetch = null;
-      if (wxDrill) {
-        goBackFromWxDrill();
-        return;
-      }
-      if (selected) {
-        if (selected.palletDetail) {
-          selected.palletDetail = null;
-          selected.serial = null;
-          if (selected.fromBagSearch) {
-            selected = null;
-          }
-          paint();
-          return;
-        }
-        if (selectedEvent) {
-          selectedEvent = null;
-          paint();
-          return;
-        }
-        if (isPackagedStockDrillMode(selected.mode) && popPackagedStockDrillView()) {
-          paint();
-          return;
-        }
-        if (selected.view === "by_location") {
-          selected.view = "locations";
-          selected.label = selected.parentLabel || "Pallets";
-          selected.sections = null;
-          selected.detail = null;
-          selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
-          paint();
-          return;
-        }
-        if (selected.view === "by_product") {
-          selected = null;
-          paint();
-          return;
-        }
-        if (selected.mode === "walvis_storage_dispatch") {
-          selected = {
-            key: WALVIS_STORAGE_STATUS,
-            label: "In storage — Carbo Yard",
-            mode: "walvis_storage_hub",
-            walvisReport: walvisStorageReport,
-          };
-          paint();
-          return;
-        }
-        if (selected.mode === "walvis_unassigned_hub") {
-          selected = {
-            key: WALVIS_STORAGE_STATUS,
-            label: "In storage — Carbo Yard",
-            mode: "walvis_storage_hub",
-            walvisReport: walvisStorageReport,
-          };
-          paint();
-          return;
-        }
-        if (selected.mode === "walvis_transit_dispatch") {
-          selected = {
-            key: WALVIS_TRANSIT_STATUS,
-            label: "In transit — Walvis Bay",
-            mode: "walvis_transit_hub",
-            walvisReport: walvisTransitReport,
-          };
-          paint();
-          return;
-        }
-        if (selected.mode === "walvis_transit_unassigned_hub") {
-          selected = {
-            key: WALVIS_TRANSIT_STATUS,
-            label: "In transit — Walvis Bay",
-            mode: "walvis_transit_hub",
-            walvisReport: walvisTransitReport,
-          };
-          paint();
-          return;
-        }
-        if (
-          selected.mode === "events" ||
-          selected.mode === "weathering_buckets" ||
-          selected.mode === "pallet_basket" ||
-          selected.mode === "briquette_basket" ||
-          selected.mode === "walvis_storage_hub" ||
-          selected.mode === "walvis_transit_hub"
-        ) {
-          selected = null;
-          paint();
-          return;
-        }
-        selected = null;
+      wxDrillToken += 1;
+      if (drillStack.length) {
+        restoreNavState(drillStack.pop());
         paint();
         return;
       }
@@ -3483,6 +3350,7 @@
       if (!ctx.setFloatingBack) return;
       var inDrill =
         navSnapshotBeforeFetch ||
+        drillStack.length > 0 ||
         wxDrill ||
         selected ||
         (bagSearch && bagSearch.active);
@@ -3552,7 +3420,10 @@
           note: opts.note || null,
           slice: null,
         };
-        navSnapshotBeforeFetch = null;
+        if (navSnapshotBeforeFetch) {
+          drillStack.push(cloneNavForStack(navSnapshotBeforeFetch));
+          navSnapshotBeforeFetch = null;
+        }
         paint();
       } catch (e) {
         if (token !== wxDrillToken) return;
@@ -3677,6 +3548,7 @@
         } else {
 
           body.appendChild(renderWxDrillView(wxDrill, ui, openPalletDetail, function (slice) {
+            pushDrillNav();
             wxDrill.slice = slice;
             paint();
           }));
@@ -3931,7 +3803,7 @@
             ]));
 
             body.appendChild(renderFactoryPalletsDrill(selected.detail, ui, function (bucket) {
-
+              pushDrillNav();
               selectedEvent = {
 
                 key: bucket.product_code,
@@ -3972,7 +3844,7 @@
             ]));
 
             body.appendChild(renderEventCards(selected.sections, ui, function (section) {
-
+              pushDrillNav();
               selectedEvent = section;
 
               paint();
@@ -3984,7 +3856,7 @@
             body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label]));
 
             body.appendChild(renderFactoryPalletsDrill(selected.detail, ui, function (bucket) {
-
+              pushDrillNav();
               selectedEvent = {
 
                 key: bucket.product_code,
@@ -4159,7 +4031,7 @@
           ]));
 
           body.appendChild(renderEventCards(selected.sections, ui, function (section) {
-
+            pushDrillNav();
             selectedEvent = section;
 
             paint();
@@ -4252,6 +4124,8 @@
 
         if (drillFetchCancelled(token)) return;
 
+        finishDrillFetch(token);
+
         if (!selected) {
 
           selected = { label: "Pallet", mode: "pallet_detail", key: "pallet" };
@@ -4269,7 +4143,6 @@
 
         if (!selected.label) selected.label = "Pallet";
 
-        finishDrillFetch(token);
         paint();
 
       } catch (e) {
@@ -4325,6 +4198,8 @@
 
         var locBuckets = buildProductBucketsFromRows(locRows);
 
+        finishDrillFetch(token);
+
         if (locBuckets.length > 1) {
 
           selected = {
@@ -4347,7 +4222,6 @@
 
           };
 
-          finishDrillFetch(token);
           paint();
 
           return;
@@ -4374,7 +4248,6 @@
 
         selected.parentLabel = parent.parentLabel || parent.label || "Pallets";
 
-        finishDrillFetch(token);
         paint();
 
       } catch (e) {
@@ -4424,6 +4297,8 @@
 
         locRows = sortPalletFlattenedRows(locRows);
 
+        finishDrillFetch(token);
+
         showFinishedBriquetteFlatList(
 
           { key: statusKey, label: bucket.label },
@@ -4438,7 +4313,6 @@
 
         selected.parentLabel = parent.parentLabel || parent.label || "Briquettes";
 
-        finishDrillFetch(token);
         paint();
 
       } catch (e) {
@@ -4474,27 +4348,27 @@
 
       if (withStock.length) {
 
-        selected = {
+        drillNavigate(function () {
+          selected = {
 
-          key: st.key,
+            key: st.key,
 
-          label: st.label || "Briquettes",
+            label: st.label || "Briquettes",
 
-          mode: "finished_briquettes",
+            mode: "finished_briquettes",
 
-          view: "locations",
+            view: "locations",
 
-          parentLabel: "Briquettes",
+            parentLabel: "Briquettes",
 
-          parentCount: count,
+            parentCount: count,
 
-          count: count,
+            count: count,
 
-          locationBuckets: withStock,
+            locationBuckets: withStock,
 
-        };
-
-        paint();
+          };
+        });
 
         return;
 
@@ -4516,9 +4390,8 @@
 
         }
 
-        showFinishedBriquetteFlatList(st, sortPalletFlattenedRows(rows), count, null);
-
         finishDrillFetch(token);
+        showFinishedBriquetteFlatList(st, sortPalletFlattenedRows(rows), count, null);
 
       } catch (e) {
 
@@ -4677,27 +4550,27 @@
 
       if (withStock.length) {
 
-        selected = {
+        drillNavigate(function () {
+          selected = {
 
-          key: st.key,
+            key: st.key,
 
-          label: st.label || "Pallets",
+            label: st.label || "Pallets",
 
-          mode: "physical_pallets",
+            mode: "physical_pallets",
 
-          view: "locations",
+            view: "locations",
 
-          parentLabel: "Pallets",
+            parentLabel: "Pallets",
 
-          parentCount: count,
+            parentCount: count,
 
-          count: count,
+            count: count,
 
-          locationBuckets: withStock,
+            locationBuckets: withStock,
 
-        };
-
-        paint();
+          };
+        });
 
         return;
 
@@ -4711,9 +4584,8 @@
 
         if (!container.isConnected || drillFetchCancelled(token)) return;
 
-        showPhysicalPalletByProduct(st, palletData, count);
-
         finishDrillFetch(token);
+        showPhysicalPalletByProduct(st, palletData, count);
 
       } catch (e) {
 
@@ -4733,18 +4605,19 @@
 
 
     async function openWalvisStorageHub(st) {
-      selectedEvent = null;
-      wxDrill = null;
-      selected = {
-        key: WALVIS_STORAGE_STATUS,
-        label: st.label || "In storage — Carbo Yard",
-        mode: "walvis_storage_hub",
-        bulkStatus: st,
-        palletBucket: palletWalvisStorageBucket(summary.pallet_summary),
-        walvisReportLoading: !walvisStorageReport,
-        walvisReport: walvisStorageReport,
-      };
-      paint();
+      drillNavigate(function () {
+        selectedEvent = null;
+        wxDrill = null;
+        selected = {
+          key: WALVIS_STORAGE_STATUS,
+          label: st.label || "In storage — Carbo Yard",
+          mode: "walvis_storage_hub",
+          bulkStatus: st,
+          palletBucket: palletWalvisStorageBucket(summary.pallet_summary),
+          walvisReportLoading: !walvisStorageReport,
+          walvisReport: walvisStorageReport,
+        };
+      });
       if (walvisStorageReport) return;
       try {
         walvisStorageReport = await ctx.api.traceability("/walvis-dispatches/storage-at-walvis-breakdown");
@@ -4764,16 +4637,17 @@
     }
 
     async function openWalvisTransitHub(st) {
-      selectedEvent = null;
-      wxDrill = null;
-      selected = {
-        key: WALVIS_TRANSIT_STATUS,
-        label: st.label || "In transit — Walvis Bay",
-        mode: "walvis_transit_hub",
-        walvisReportLoading: !walvisTransitReport,
-        walvisReport: walvisTransitReport,
-      };
-      paint();
+      drillNavigate(function () {
+        selectedEvent = null;
+        wxDrill = null;
+        selected = {
+          key: WALVIS_TRANSIT_STATUS,
+          label: st.label || "In transit — Walvis Bay",
+          mode: "walvis_transit_hub",
+          walvisReportLoading: !walvisTransitReport,
+          walvisReport: walvisTransitReport,
+        };
+      });
       if (walvisTransitReport) return;
       try {
         walvisTransitReport = await ctx.api.traceability("/walvis-dispatches/in-transit-breakdown");
@@ -4800,6 +4674,7 @@
         var rows = flattenEventRows(data.event_sections || []).filter(function (r) {
           return (r.product_stream || "").toLowerCase() !== "pallet";
         });
+        finishDrillFetch(token);
         selectedEvent = null;
         selected = null;
         wxDrill = {
@@ -4807,7 +4682,6 @@
           rows: rows,
           backTo: "main",
         };
-        finishDrillFetch(token);
         paint();
       } catch (e) {
         if (drillFetchCancelled(token)) return;
@@ -4850,72 +4724,76 @@
       }
 
       if (st.kind === "walvis_transit_pallets" && (st.rows || []).length) {
-        selectedEvent = null;
-        wxDrill = {
-          label: st.label || "Pallets in transit",
-          rows: st.rows || [],
-          backTo: "walvis_transit_hub",
-          view: "pallet_table",
-        };
-        paint();
+        drillNavigate(function () {
+          selectedEvent = null;
+          wxDrill = {
+            label: st.label || "Pallets in transit",
+            rows: st.rows || [],
+            backTo: "walvis_transit_hub",
+            view: "pallet_table",
+          };
+        });
         return;
       }
 
       if (st.kind === "walvis_dispatch_select" && st.dispatch) {
-        selectedEvent = null;
-        wxDrill = null;
-        if (st.transit) {
-          selected = {
-            key: st.key,
-            mode: "walvis_transit_dispatch",
-            dispatch: st.dispatch,
-            walvisReport: walvisTransitReport,
-          };
-        } else {
-          selected = {
-            key: st.key,
-            mode: "walvis_storage_dispatch",
-            dispatch: st.dispatch,
-            walvisReport: walvisStorageReport,
-          };
-        }
-        paint();
+        drillNavigate(function () {
+          selectedEvent = null;
+          wxDrill = null;
+          if (st.transit) {
+            selected = {
+              key: st.key,
+              mode: "walvis_transit_dispatch",
+              dispatch: st.dispatch,
+              walvisReport: walvisTransitReport,
+            };
+          } else {
+            selected = {
+              key: st.key,
+              mode: "walvis_storage_dispatch",
+              dispatch: st.dispatch,
+              walvisReport: walvisStorageReport,
+            };
+          }
+        });
         return;
       }
 
       if (st.kind === "walvis_unassigned" && st.unassigned) {
-        selectedEvent = null;
-        wxDrill = null;
-        if (st.transit) {
-          selected = {
-            key: st.key,
-            mode: "walvis_transit_unassigned_hub",
-            unassigned: st.unassigned,
-            walvisReport: walvisTransitReport,
-          };
-        } else {
-          selected = {
-            key: st.key,
-            mode: "walvis_unassigned_hub",
-            unassigned: st.unassigned,
-            walvisReport: walvisStorageReport,
-          };
-        }
-        paint();
+        drillNavigate(function () {
+          selectedEvent = null;
+          wxDrill = null;
+          if (st.transit) {
+            selected = {
+              key: st.key,
+              mode: "walvis_transit_unassigned_hub",
+              unassigned: st.unassigned,
+              walvisReport: walvisTransitReport,
+            };
+          } else {
+            selected = {
+              key: st.key,
+              mode: "walvis_unassigned_hub",
+              unassigned: st.unassigned,
+              walvisReport: walvisStorageReport,
+            };
+          }
+        });
         return;
       }
 
       if (st.kind === "walvis_dispatch_category") {
-        selectedEvent = null;
-        wxDrill = {
-          label: st.label || "Category",
-          rows: st.rows || [],
-          backTo: st.transit
-            ? (st.dispatch ? "walvis_transit_dispatch" : "walvis_transit_unassigned")
-            : (st.dispatch ? "walvis_dispatch" : "walvis_unassigned"),
-          backDispatch: st.dispatch || null,
-        };
-        paint();
+        drillNavigate(function () {
+          selectedEvent = null;
+          wxDrill = {
+            label: st.label || "Category",
+            rows: st.rows || [],
+            backTo: st.transit
+              ? (st.dispatch ? "walvis_transit_dispatch" : "walvis_transit_unassigned")
+              : (st.dispatch ? "walvis_dispatch" : "walvis_unassigned"),
+            backDispatch: st.dispatch || null,
+          };
+        });
         return;
       }
 
@@ -4928,31 +4806,29 @@
 
         var inStoreBucket = palletInStorageBucket(summary.pallet_summary);
 
-        selectedEvent = null;
+        drillNavigate(function () {
+          selectedEvent = null;
+          wxDrill = null;
+          selected = {
 
-        wxDrill = null;
+            key: st.key,
 
-        selected = {
+            label: st.label || "Pallets in storage",
 
-          key: st.key,
+            mode: "physical_pallets",
 
-          label: st.label || "Pallets in storage",
+            view: "locations",
 
-          mode: "physical_pallets",
+            parentLabel: "Factory storage",
 
-          view: "locations",
+            parentCount: inStoreBucket.bags || 0,
 
-          parentLabel: "Factory storage",
+            count: inStoreBucket.bags || 0,
 
-          parentCount: inStoreBucket.bags || 0,
+            locationBuckets: [inStoreBucket],
 
-          count: inStoreBucket.bags || 0,
-
-          locationBuckets: [inStoreBucket],
-
-        };
-
-        paint();
+          };
+        });
 
         return;
 
@@ -4960,23 +4836,21 @@
 
       if (isPalletBasketTile(st)) {
 
-        selectedEvent = null;
+        drillNavigate(function () {
+          selectedEvent = null;
+          wxDrill = null;
+          selected = {
 
-        wxDrill = null;
+            key: st.key,
 
-        selected = {
+            label: st.label,
 
-          key: st.key,
+            mode: "pallet_basket",
 
-          label: st.label,
+            detail: summary.pallet_basket || { by_product: st.by_product, available_kg: st.kg, pallet_equivalent: st.pallet_equivalent },
 
-          mode: "pallet_basket",
-
-          detail: summary.pallet_basket || { by_product: st.by_product, available_kg: st.kg, pallet_equivalent: st.pallet_equivalent },
-
-        };
-
-        paint();
+          };
+        });
 
         return;
 
@@ -4992,29 +4866,27 @@
 
       if (isBriquetteBasketTile(st)) {
 
-        selectedEvent = null;
+        drillNavigate(function () {
+          selectedEvent = null;
+          wxDrill = null;
+          selected = {
 
-        wxDrill = null;
+            key: st.key,
 
-        selected = {
+            label: st.label,
 
-          key: st.key,
+            mode: "briquette_basket",
 
-          label: st.label,
+            detail: summary.briquette_basket || {
+              available_kg: st.kg,
+              pool_line_count: st.pool_line_count,
+              source_bags: st.bags,
+              pools: st.pools,
+              lines: st.lines,
+            },
 
-          mode: "briquette_basket",
-
-          detail: summary.briquette_basket || {
-            available_kg: st.kg,
-            pool_line_count: st.pool_line_count,
-            source_bags: st.bags,
-            pools: st.pools,
-            lines: st.lines,
-          },
-
-        };
-
-        paint();
+          };
+        });
 
         return;
 
@@ -5044,19 +4916,19 @@
           return;
         }
 
-        selected = {
+        drillNavigate(function () {
+          selected = {
 
-          key: st.key,
+            key: st.key,
 
-          label: st.label,
+            label: st.label,
 
-          mode: "weathering_buckets",
+            mode: "weathering_buckets",
 
-          buckets: wxBucketsForStatus(st.key, weathering),
+            buckets: wxBucketsForStatus(st.key, weathering),
 
-        };
-
-        paint();
+          };
+        });
 
         return;
 
@@ -5088,6 +4960,8 @@
           drillCount += sec.bags || 0;
         });
 
+        finishDrillFetch(token);
+
         selected = {
 
           key: st.key,
@@ -5102,7 +4976,6 @@
 
         };
 
-        finishDrillFetch(token);
         paint();
 
       } catch (e) {
@@ -5706,7 +5579,11 @@
         status.style.display = "";
 
         if (opts.reset) {
-
+          clearDrillStack();
+          navSnapshotBeforeFetch = null;
+          selected = null;
+          selectedEvent = null;
+          wxDrill = null;
           body.innerHTML = "";
 
         }
