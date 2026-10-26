@@ -28,7 +28,6 @@
     var containers = [];
     var sheetContainerId = "";
     var eudrMode = "booking";
-    var eudrBookingRef = "";
     var eudrSelectedIds = {};
 
     container.className = "module-content td-doc-host";
@@ -97,9 +96,13 @@
       });
     }
 
+    function getBookingRef() {
+      return String(bookingInput.value || "").trim();
+    }
+
     function eudrResolvedContainers() {
       if (eudrMode === "booking") {
-        return containersForBooking(eudrBookingRef);
+        return containersForBooking(getBookingRef());
       }
       return containers.filter(function (c) {
         return !!eudrSelectedIds[c.id];
@@ -251,20 +254,34 @@
     );
     eudrSection.appendChild(modeRow);
 
+    var bookingSelect = ui.el("select", { class: "td-doc-select td-doc-booking-select" });
+    bookingSelect.appendChild(
+      ui.el("option", { value: "" }, ["Choose saved booking ref…"])
+    );
     var bookingInput = ui.el("input", {
       type: "text",
       class: "td-doc-booking-input",
       placeholder: "e.g. EBKG19038595",
       autocomplete: "off",
-      list: "td-doc-booking-list",
     });
-    var bookingDatalist = ui.el("datalist", { id: "td-doc-booking-list" });
-    eudrSection.appendChild(bookingDatalist);
+    var applyBookingBtn = ui.el("button", {
+      type: "button",
+      class: "btn btn-sm td-doc-apply-booking",
+    }, ["Apply booking"]);
+    eudrSection.appendChild(
+      ui.el("label", { class: "ct-field td-doc-field" }, [
+        ui.el("span", { class: "ct-field-label" }, ["Saved booking refs"]),
+        bookingSelect,
+      ])
+    );
     var bookingField = ui.el("label", { class: "ct-field td-doc-field td-doc-booking-field" }, [
-      ui.el("span", { class: "ct-field-label" }, ["Booking ref"]),
+      ui.el("span", { class: "ct-field-label" }, ["Booking ref (type or pick above)"]),
       bookingInput,
     ]);
     eudrSection.appendChild(bookingField);
+    var bookingApplyRow = ui.el("div", { class: "td-doc-booking-apply-row" });
+    bookingApplyRow.appendChild(applyBookingBtn);
+    eudrSection.appendChild(bookingApplyRow);
 
     var pickList = ui.el("div", { class: "td-doc-pick-list hidden" });
     eudrSection.appendChild(pickList);
@@ -279,13 +296,11 @@
       class: "btn btn-sm",
       type: "button",
       disabled: "disabled",
-      title: "Phase 2",
     }, ["Due diligence statement"]);
     var btnLocation = ui.el("button", {
       class: "btn btn-sm",
       type: "button",
       disabled: "disabled",
-      title: "Phase 2",
     }, ["Accompanying location sheet"]);
     var btnLocationCsv = ui.el("button", {
       class: "btn btn-sm",
@@ -324,11 +339,40 @@
     modePick.addEventListener("change", function () {
       if (modePick.checked) setEudrMode("pick");
     });
-    bookingInput.addEventListener("input", function () {
-      eudrBookingRef = bookingInput.value;
+    function syncBookingSelectFromInput() {
+      var ref = getBookingRef();
+      var key = normBooking(ref);
+      var match = "";
+      uniqueBookingRefs(containers).forEach(function (r) {
+        if (normBooking(r) === key) match = r;
+      });
+      bookingSelect.value = match || "";
+    }
+
+    function onBookingRefChanged() {
       cachedPack = null;
       cachedPackKey = "";
+      syncBookingSelectFromInput();
       paintEudrPreview();
+    }
+
+    bookingSelect.addEventListener("change", function () {
+      if (bookingSelect.value) {
+        bookingInput.value = bookingSelect.value;
+        onBookingRefChanged();
+      }
+    });
+    bookingInput.addEventListener("input", onBookingRefChanged);
+    bookingInput.addEventListener("change", onBookingRefChanged);
+    bookingInput.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        onBookingRefChanged();
+      }
+    });
+    applyBookingBtn.addEventListener("click", function () {
+      onBookingRefChanged();
+      bookingInput.focus();
     });
 
     function eudrSelectionBody() {
@@ -392,11 +436,17 @@
       eudrPackNote.textContent = parts.join(" ");
     }
 
-    function paintBookingDatalist() {
-      bookingDatalist.innerHTML = "";
+    function paintBookingSelect() {
+      var prev = bookingSelect.value;
+      while (bookingSelect.options.length > 1) bookingSelect.remove(1);
       uniqueBookingRefs(containers).forEach(function (r) {
-        bookingDatalist.appendChild(ui.el("option", { value: r }));
+        bookingSelect.appendChild(ui.el("option", { value: r }, [r]));
       });
+      if (prev && uniqueBookingRefs(containers).indexOf(prev) >= 0) {
+        bookingSelect.value = prev;
+      } else {
+        syncBookingSelectFromInput();
+      }
     }
 
     function paintEudrPickList() {
@@ -434,8 +484,25 @@
     function paintEudrPreview() {
       var list = eudrResolvedContainers();
       if (!list.length) {
-        eudrPreview.textContent = "Select containers for the shipment.";
-        eudrPreview.className = "td-doc-preview td-doc-eudr-preview muted";
+        if (eudrMode === "booking" && getBookingRef()) {
+          eudrPreview.innerHTML = "";
+          eudrPreview.className = "td-doc-preview td-doc-eudr-preview";
+          eudrPreview.appendChild(
+            ui.el("p", { class: "error-box" }, [
+              "No containers use booking ref ",
+              ui.el("strong", {}, [getBookingRef()]),
+              ". Set the same ref on each FCL in ",
+              ui.el("strong", {}, ["Containers"]),
+              " (Set booking ref), then reopen this screen or click Apply booking again.",
+            ])
+          );
+        } else {
+          eudrPreview.textContent =
+            eudrMode === "booking"
+              ? "Choose or type a booking ref, then click Apply booking."
+              : "Select containers for the shipment.";
+          eudrPreview.className = "td-doc-preview td-doc-eudr-preview muted";
+        }
         btnDds.disabled = true;
         btnLocation.disabled = true;
         btnLocationCsv.disabled = true;
@@ -565,7 +632,7 @@
         containers.sort(function (a, b) {
           return String(b.created_at || "").localeCompare(String(a.created_at || ""));
         });
-        paintBookingDatalist();
+        paintBookingSelect();
         paintSheetSelect();
         paintEudrPickList();
         paintEudrPreview();
