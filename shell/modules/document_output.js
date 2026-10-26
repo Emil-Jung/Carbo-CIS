@@ -76,21 +76,40 @@
 
   var defaultPdfSet = {
     margin: [8, 8, 8, 8],
-    image: { type: "jpeg", quality: 0.98 },
+    image: { type: "png", quality: 1 },
     html2canvas: {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: "#ffffff",
+      scrollX: 0,
+      scrollY: 0,
     },
     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
     pagebreak: { mode: ["css", "legacy"] },
   };
 
-  /** Off-screen but paintable — visibility:hidden breaks html2canvas in WebView2 (black PDF). */
+  /** Must stay paintable in WebView2 — visibility:hidden and z-index:-1 yield black captures. */
   var PDF_RENDER_IFRAME_STYLE =
-    "position:fixed;top:0;left:0;width:210mm;height:297mm;margin:0;padding:0;" +
-    "border:0;opacity:0;pointer-events:none;z-index:-1;overflow:hidden;";
+    "position:fixed;top:0;left:0;width:794px;height:1123px;margin:0;padding:0;" +
+    "border:0;opacity:0.01;pointer-events:none;z-index:2147483646;overflow:hidden;";
+
+  function preparePdfRenderDocument(iframe) {
+    var doc = iframe.contentDocument;
+    if (!doc) return null;
+    try {
+      iframe.setAttribute("color-scheme", "light");
+    } catch (e1) { /* ignore */ }
+    var root = doc.documentElement;
+    if (root) {
+      root.style.background = "#ffffff";
+      root.style.colorScheme = "only light";
+    }
+    if (doc.body) {
+      doc.body.style.background = "#ffffff";
+    }
+    return doc.body || root;
+  }
 
   /**
    * @param {string} html full document HTML
@@ -114,7 +133,9 @@
     function afterIframePaint() {
       return new Promise(function (resolve) {
         requestAnimationFrame(function () {
-          requestAnimationFrame(resolve);
+          requestAnimationFrame(function () {
+            setTimeout(resolve, 50);
+          });
         });
       });
     }
@@ -125,9 +146,15 @@
         return ensureHtml2Pdf();
       })
       .then(function (html2pdf) {
-        var body = iframe.contentDocument && iframe.contentDocument.body;
-        if (!body) throw new Error("Could not render document body for PDF.");
-        return html2pdf().set(setOpts).from(body).save();
+        var captureEl = preparePdfRenderDocument(iframe);
+        if (!captureEl) throw new Error("Could not render document body for PDF.");
+        var doc = iframe.contentDocument;
+        var canvasOpts = Object.assign({}, setOpts.html2canvas || {}, {
+          windowWidth: doc && doc.documentElement ? doc.documentElement.scrollWidth : 794,
+          windowHeight: doc && doc.documentElement ? doc.documentElement.scrollHeight : 1123,
+        });
+        var runOpts = Object.assign({}, setOpts, { html2canvas: canvasOpts });
+        return html2pdf().set(runOpts).from(captureEl).save();
       })
       .then(function () {
         return { ok: true, filename: safeName };
