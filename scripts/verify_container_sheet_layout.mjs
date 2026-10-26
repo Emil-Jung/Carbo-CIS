@@ -25,14 +25,15 @@ for (let i = 1; i <= 48; i++) {
 const manifest = {
   header: {
     container_number: "GAOU6688205",
-    product_key: "LF2.5",
-    product_label: "Pallet — LF2.5",
+    fcl_number: "MSCU1234567",
+    product_key: "DOM2.5",
+    product_label: "Pallet — DOM2.5",
     ship_to: "Big-K",
     booking_ref: "EBKG19038595",
     delivery_note: "",
     transporter: "",
-    tag_ref: "",
     tare_kg: 3840,
+    session_loading_date: "2026-10-20",
   },
   summary: { tare_kg: 3840 },
   _sheet_loading_rows: rows,
@@ -59,6 +60,10 @@ const checks = [
   ["gross total loaded+tare", html.includes(String(18576 + 3840))],
   ["4-row totals table", (html.match(/class="cm-total-lbl"/g) || []).length === 4],
   ["continuous NR 31", html.includes(">31<")],
+  ["LOADING DATE heading", html.includes("LOADING DATE")],
+  ["no loading team block", !html.includes("Loading Team")],
+  ["CONTAINER and FCL rows", html.includes("CONTAINER") && html.includes("FCL")],
+  ["loading date from scans", html.includes("20-10-2026")],
 ];
 
 let failed = 0;

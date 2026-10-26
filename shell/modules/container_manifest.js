@@ -56,6 +56,35 @@
     return container || fcl || "Container";
   }
 
+  function windhoekDateIsoFromInstant(iso) {
+    if (!iso) return "";
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleDateString("en-CA", { timeZone: "Africa/Windhoek" });
+    } catch (e) {
+      return "";
+    }
+  }
+
+  /** Loading day from yard scans — first in-container bag timestamp (Windhoek). */
+  function sheetLoadingDateIso(manifest) {
+    var h = (manifest && manifest.header) || {};
+    if (h.session_loading_date) {
+      return String(h.session_loading_date).slice(0, 10);
+    }
+    var rows = (manifest && manifest._sheet_loading_rows) || [];
+    var earliest = "";
+    rows.forEach(function (row) {
+      var stamp = row.status_changed_at || row.recorded_at || "";
+      if (!stamp) return;
+      if (!earliest || String(stamp) < earliest) earliest = String(stamp);
+    });
+    if (earliest) return windhoekDateIsoFromInstant(earliest);
+    if (h.first_loaded_at) return windhoekDateIsoFromInstant(h.first_loaded_at);
+    return "";
+  }
+
   /** Container Load Sheet only — LF2.5 → DOM2.5 display; underlying keys unchanged. */
   function sheetProductDisplay(header) {
     var h = header || {};
@@ -344,11 +373,7 @@
       "table.cm-load td.cm-supplier{font-size:6.5pt;line-height:1.2;word-break:break-all;padding:3px 4px;}" +
       ".cm-side{font-size:8pt;align-self:start;}" +
       ".cm-side-title{font-weight:700;text-align:center;margin:0 0 4px;font-size:8pt;letter-spacing:0.03em;}" +
-      "table.cm-team{width:100%;border-collapse:collapse;table-layout:fixed;}" +
-      "table.cm-team th,table.cm-team td{border:1px solid #000;padding:3px 5px;font-size:7.5pt;height:16px;}" +
-      "table.cm-team th{text-align:center;font-weight:700;}" +
-      "table.cm-team td:first-child{width:7mm;text-align:center;}" +
-      "table.cm-totals{width:100%;border-collapse:collapse;margin-top:8px;border:1px solid #000;table-layout:fixed;}" +
+      "table.cm-totals{width:100%;border-collapse:collapse;margin-top:0;border:1px solid #000;table-layout:fixed;}" +
       "table.cm-totals td{border:1px solid #000;padding:4px 5px;vertical-align:middle;line-height:1.25;}" +
       "table.cm-totals td.cm-total-lbl{font-weight:700;width:58%;font-size:6.5pt;white-space:normal;word-wrap:break-word;padding:4px 5px;}" +
       "table.cm-totals td.cm-total-val{text-align:right;width:42%;font-size:7pt;white-space:nowrap;padding:4px 6px;}" +
@@ -360,11 +385,7 @@
   function renderSheetPage(manifest, variant, printOpts, pageEntries, pageIndex, pageCount, totals) {
     var opts = printOpts || {};
     var h = manifest.header || {};
-    var sheetDateRaw =
-      opts.sheetDate != null && opts.sheetDate !== ""
-        ? opts.sheetDate
-        : h.load_date || h.expected_ship_date;
-    var loadDate = fmtDate(sheetDateRaw);
+    var loadDate = fmtDate(sheetLoadingDateIso(manifest));
     var bookingRef =
       opts.bookingRef != null && String(opts.bookingRef).trim() !== ""
         ? String(opts.bookingRef).trim()
@@ -398,7 +419,7 @@
       "</h1>" +
       eudrBlock +
       (pageIndex === 0
-        ? '<table class="cm-head"><tr><th>DATE</th><th>PRODUCT</th><th>CONSIGNEE</th></tr><tr><td>' +
+        ? '<table class="cm-head"><tr><th>LOADING DATE</th><th>PRODUCT</th><th>CONSIGNEE</th></tr><tr><td>' +
           esc(loadDate) +
           "</td><td>" +
           esc(sheetProductDisplay(h)) +
@@ -413,42 +434,14 @@
       renderLoadColumn(halves.left, leftStartNr) +
       renderLoadColumn(halves.right, rightStartNr) +
       '<div class="cm-side">' +
-      (pageIndex === 0
-        ? '<p class="cm-side-title">Loading Team</p><table class="cm-team"><thead><tr><th>NR</th><th>NAME</th></tr></thead><tbody>' +
-          [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-            .map(function (n) {
-              return "<tr><td>" + n + "</td><td>&nbsp;</td></tr>";
-            })
-            .join("") +
-          "</tbody></table>"
-        : "") +
       totalsBlock +
       "</div></div></section>"
     );
   }
 
-  function defaultSheetDateIso(header) {
-    var h = header || {};
-    var raw = h.load_date || h.expected_ship_date;
-    if (raw) {
-      var s = String(raw);
-      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-    }
-    if (h.released_for_loading_at) {
-      try {
-        var d = new Date(h.released_for_loading_at);
-        if (!isNaN(d.getTime())) {
-          return d.toLocaleDateString("en-CA", { timeZone: "Africa/Windhoek" });
-        }
-      } catch (e) { /* ignore */ }
-    }
-    return new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Windhoek" });
-  }
-
   function defaultPrintOpts(manifest) {
     var h = (manifest && manifest.header) || {};
     return {
-      sheetDate: defaultSheetDateIso(h),
       bookingRef: h.booking_ref || "",
     };
   }
@@ -477,6 +470,7 @@
   CIS.buildContainerManifestHtml = buildHtml;
   CIS.containerSheetLoadingEntries = loadingEntriesFromManifest;
   CIS.containerSheetProductDisplay = sheetProductDisplay;
+  CIS.containerSheetLoadingDateIso = sheetLoadingDateIso;
 
   function sheetVariantKey(variant) {
     return variant === "eudr" ? "eudr" : "general";
@@ -534,10 +528,6 @@
 
     var fields = document.createElement("div");
     fields.className = "cm-sheet-preview-fields";
-    var dateInput = document.createElement("input");
-    dateInput.type = "date";
-    dateInput.value = opts.sheetDate || defaultSheetDateIso(h);
-    dateInput.className = "cm-sheet-preview-date";
     var bookingInput = document.createElement("input");
     bookingInput.type = "text";
     bookingInput.value = opts.bookingRef || "";
@@ -554,12 +544,10 @@
       lab.appendChild(inputEl);
       fields.appendChild(lab);
     }
-    addField("Date", dateInput);
     addField("Booking ref", bookingInput);
 
     function currentOpts() {
       return {
-        sheetDate: dateInput.value,
         bookingRef: bookingInput.value.trim(),
       };
     }
@@ -597,7 +585,6 @@
             });
           }, 200);
         }
-        dateInput.addEventListener("change", scheduleRefresh);
         bookingInput.addEventListener("input", scheduleRefresh);
         bookingInput.addEventListener("change", scheduleRefresh);
       },
