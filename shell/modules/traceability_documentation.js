@@ -381,10 +381,12 @@
       type: "button",
     }, ["Print"]);
     var btnLocationPdf = ui.el("button", {
+      id: "td-doc-location-sheet-pdf",
       class: "btn btn-sm td-doc-eudr-btn",
       type: "button",
     }, ["Download PDF"]);
     var btnLocationPrint = ui.el("button", {
+      id: "td-doc-location-sheet-print",
       class: "btn btn-sm td-doc-eudr-btn",
       type: "button",
     }, ["Print"]);
@@ -404,6 +406,22 @@
     eudrActions.appendChild(
       docActionRow("Accompanying location sheet", btnLocationPdf, btnLocationPrint)
     );
+    var locationSheetMsg = ui.el("p", {
+      id: "td-doc-location-sheet-msg",
+      class: "error-box td-doc-sheet-action-msg td-doc-action-error--hidden",
+    }, [""]);
+    eudrActions.appendChild(locationSheetMsg);
+
+    function setLocationSheetMsg(text) {
+      locationSheetMsg.textContent = text || "";
+      if (text) {
+        locationSheetMsg.classList.remove("td-doc-action-error--hidden");
+        locationSheetMsg.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      } else {
+        locationSheetMsg.classList.add("td-doc-action-error--hidden");
+      }
+    }
+
     var csvRow = ui.el("div", { class: "td-doc-doc-row" });
     csvRow.appendChild(
       ui.el("span", { class: "td-doc-doc-label" }, ["Location sheet (CSV)"])
@@ -815,40 +833,26 @@
       });
     }
 
-    /** Location sheet: server PDF + in-app preview (same HTML); avoids generic EUDR pack status noise. */
-    function runLocationSheetWithPack(activeBtn, run) {
-      if (!eudrResolvedContainers().length) {
-        showEudrActionError("Choose a booking or containers for this shipment first.");
-        return;
+    /** Same flow as container load sheet: modal while loading, then preview or PDF. */
+    async function fetchLocationSheetPack(busy) {
+      if (!eudrShipmentCanGenerate()) {
+        var why = eudrActionsDisabledReason() || "Select a booking ref or containers first.";
+        throw new Error(why);
       }
-      clearEudrActionError();
-      var prevLabel = activeBtn ? activeBtn.textContent : "";
-      if (activeBtn) {
-        activeBtn.disabled = true;
-        activeBtn.textContent = packLoading ? "Loading data…" : "Working…";
+      if (!CIS.buildEudrLocationSheetHtml || !CIS.showEudrLocationSheetPreview) {
+        throw new Error("EUDR location sheet module not loaded — hard-refresh CIS (Ctrl+F5).");
       }
       var bodyKey = JSON.stringify(eudrSelectionBody());
-      var packPromise =
-        cachedPack && cachedPackKey === bodyKey
-          ? Promise.resolve(cachedPack)
-          : fetchEudrPack(false);
-      Promise.resolve(packPromise)
-        .then(function (pack) {
-          paintEudrPackNote(pack);
-          return run(pack);
-        })
-        .then(function () {
-          clearEudrActionError();
-        })
-        .catch(function (e) {
-          var msg = formatEudrError(e);
-          setStatus(msg, true);
-          showEudrActionError(msg);
-        })
-        .finally(function () {
-          syncEudrActionButtons({ skipPrefetch: true });
-          if (activeBtn) activeBtn.textContent = prevLabel;
-        });
+      if (cachedPack && cachedPackKey === bodyKey) {
+        return cachedPack;
+      }
+      if (busy) busy.setMessage("Loading shipment data from Traceability…");
+      var pack = await fetchEudrPack(false);
+      paintEudrPackNote(pack);
+      if (!pack || !(pack.containers || []).length) {
+        throw new Error("Documentation pack returned no container data for this shipment.");
+      }
+      return pack;
     }
 
     wireEudrPdfPrint(
@@ -859,26 +863,61 @@
       "Due diligence"
     );
 
-    btnLocationPdf.addEventListener("click", function () {
-      runLocationSheetWithPack(btnLocationPdf, function (pack) {
+    btnLocationPdf.addEventListener("click", async function () {
+      setLocationSheetMsg("");
+      clearEudrActionError();
+      var prevLabel = btnLocationPdf.textContent;
+      btnLocationPdf.disabled = true;
+      btnLocationPrint.disabled = true;
+      btnLocationPdf.textContent = "Loading…";
+      var busy = showSheetLoadingModal("Preparing accompanying location sheet…");
+      try {
+        var packPdf = await fetchLocationSheetPack(busy);
+        busy.setMessage("Generating PDF…");
         if (!CIS.downloadEudrLocationSheetPdf) {
-          return Promise.reject(new Error("EUDR render module not loaded."));
+          throw new Error("PDF export is not available — hard-refresh CIS (Ctrl+F5).");
         }
-        return CIS.downloadEudrLocationSheetPdf(pack).then(function (out) {
-          if (!out || !out.ok) {
-            throw new Error("Location sheet PDF was not created.");
-          }
-          setStatus("Downloaded " + (out.filename || "PDF") + ".", false);
-        });
-      });
+        var out = await CIS.downloadEudrLocationSheetPdf(packPdf);
+        if (!out || !out.ok) {
+          throw new Error("Location sheet PDF was not created.");
+        }
+        setStatus("Downloaded " + (out.filename || "PDF") + ".", false);
+        clearEudrActionError();
+      } catch (e) {
+        var msgPdf = formatEudrError(e);
+        setLocationSheetMsg("Location sheet PDF failed: " + msgPdf);
+        showEudrActionError(msgPdf);
+        setStatus(msgPdf, true);
+      } finally {
+        busy.close();
+        btnLocationPdf.textContent = prevLabel;
+        syncEudrActionButtons({ skipPrefetch: true });
+      }
     });
-    btnLocationPrint.addEventListener("click", function () {
-      runLocationSheetWithPack(btnLocationPrint, function (pack) {
-        if (!CIS.showEudrLocationSheetPreview) {
-          return Promise.reject(new Error("EUDR render module not loaded."));
-        }
-        return CIS.showEudrLocationSheetPreview(pack, { autoPrintAfterLoad: true });
-      });
+
+    btnLocationPrint.addEventListener("click", async function () {
+      setLocationSheetMsg("");
+      clearEudrActionError();
+      var prevPrintLabel = btnLocationPrint.textContent;
+      btnLocationPdf.disabled = true;
+      btnLocationPrint.disabled = true;
+      btnLocationPrint.textContent = "Loading…";
+      var busyPrint = showSheetLoadingModal("Preparing accompanying location sheet…");
+      try {
+        var packPrint = await fetchLocationSheetPack(busyPrint);
+        busyPrint.close();
+        await CIS.showEudrLocationSheetPreview(packPrint, { autoPrintAfterLoad: true });
+        clearEudrActionError();
+      } catch (e) {
+        var msgPrint = formatEudrError(e);
+        setLocationSheetMsg("Location sheet print failed: " + msgPrint);
+        showEudrActionError(msgPrint);
+        setStatus(msgPrint, true);
+      } finally {
+        busyPrint.close();
+        btnLocationPrint.textContent = prevPrintLabel;
+        syncEudrActionButtons({ skipPrefetch: true });
+      }
     });
 
     btnLocationCsv.addEventListener("click", function () {

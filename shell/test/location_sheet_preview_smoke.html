@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Location sheet preview smoke</title>
+</head>
+<body>
+  <pre id="out">Running…</pre>
+  <script src="../modules/document_output.js"></script>
+  <script src="../modules/eudr_documentation_render.js"></script>
+  <script>
+    (function () {
+      var pack = {
+        shipment: { container_numbers: ["ABCD1234567"], net_mass_kg: 1000 },
+        containers: [
+          {
+            container_number: "ABCD1234567",
+            fcl_number: "FCL-1",
+            producers: [
+              {
+                supplier_name: "S",
+                farm_display: "F1",
+                gps_coordinates: "1, 2",
+                bag_count: 10,
+                weight_kg: 500,
+              },
+            ],
+          },
+        ],
+      };
+      var html = CIS.buildEudrLocationSheetHtml(pack);
+      var previewSrc = CIS.showEudrLocationSheetPreview.toString();
+      var ok =
+        html.indexOf("EUDR Accompanying Location Sheet") !== -1 &&
+        html.indexOf("FCL-1") !== -1 &&
+        previewSrc.indexOf("downloadPdf:") !== -1 &&
+        previewSrc.indexOf("lastRenderedHtml") !== -1;
+      document.getElementById("out").textContent = ok
+        ? "PASS: location HTML + preview uses downloadPdf hook."
+        : "FAIL";
+    })();
+  </script>
+</body>
+</html>

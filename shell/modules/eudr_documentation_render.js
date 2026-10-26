@@ -416,14 +416,31 @@
     }
     requireDocumentOutput();
     var ship = pack.shipment || {};
+    var frozenPack = pack;
+    var lastRenderedHtml = "";
+    var pdfName = eudrPdfFilename("EUDR_LocationSheet", frozenPack);
+
+    function buildHtml() {
+      var html = CIS.buildEudrLocationSheetHtml(frozenPack);
+      if (!html || !String(html).trim()) {
+        throw new Error("Location sheet is empty.");
+      }
+      lastRenderedHtml = html;
+      return html;
+    }
+
     return CIS.showHtmlDocumentPreview({
       title:
         "Location sheet — " +
         ((ship.container_numbers || []).join(", ") || "shipment"),
-      pdfFilename: eudrPdfFilename("EUDR_LocationSheet", pack),
+      pdfFilename: pdfName,
+      closeLabel: "Back",
+      printLabel: "Print…",
       autoPrintAfterLoad: !!options.autoPrintAfterLoad,
-      getHtml: function () {
-        return CIS.buildEudrLocationSheetHtml(pack);
+      getHtml: buildHtml,
+      downloadPdf: function () {
+        var html = lastRenderedHtml || buildHtml();
+        return CIS.downloadHtmlDocumentPdf(html, pdfName);
       },
     });
   };
