@@ -264,10 +264,6 @@
       placeholder: "e.g. EBKG19038595",
       autocomplete: "off",
     });
-    var applyBookingBtn = ui.el("button", {
-      type: "button",
-      class: "btn btn-sm td-doc-apply-booking",
-    }, ["Apply booking"]);
     eudrSection.appendChild(
       ui.el("label", { class: "ct-field td-doc-field" }, [
         ui.el("span", { class: "ct-field-label" }, ["Saved booking refs"]),
@@ -275,13 +271,10 @@
       ])
     );
     var bookingField = ui.el("label", { class: "ct-field td-doc-field td-doc-booking-field" }, [
-      ui.el("span", { class: "ct-field-label" }, ["Booking ref (type or pick above)"]),
+      ui.el("span", { class: "ct-field-label" }, ["Booking ref (or type below)"]),
       bookingInput,
     ]);
     eudrSection.appendChild(bookingField);
-    var bookingApplyRow = ui.el("div", { class: "td-doc-booking-apply-row" });
-    bookingApplyRow.appendChild(applyBookingBtn);
-    eudrSection.appendChild(bookingApplyRow);
 
     var pickList = ui.el("div", { class: "td-doc-pick-list hidden" });
     eudrSection.appendChild(pickList);
@@ -295,28 +288,30 @@
     var btnDds = ui.el("button", {
       class: "btn btn-sm",
       type: "button",
-      disabled: "disabled",
+      disabled: true,
     }, ["Due diligence statement"]);
     var btnLocation = ui.el("button", {
       class: "btn btn-sm",
       type: "button",
-      disabled: "disabled",
+      disabled: true,
     }, ["Accompanying location sheet"]);
     var btnLocationCsv = ui.el("button", {
       class: "btn btn-sm",
       type: "button",
-      disabled: "disabled",
+      disabled: true,
     }, ["Location sheet (CSV)"]);
     var btnGeo = ui.el("button", {
       class: "btn btn-sm",
       type: "button",
-      disabled: "disabled",
+      disabled: true,
     }, ["GeoJSON bundle (optional)"]);
     eudrActions.appendChild(btnDds);
     eudrActions.appendChild(btnLocation);
     eudrActions.appendChild(btnLocationCsv);
     eudrActions.appendChild(btnGeo);
     eudrSection.appendChild(eudrActions);
+    var eudrActionError = ui.el("p", { class: "error-box td-doc-action-error", hidden: true }, [""]);
+    eudrSection.appendChild(eudrActionError);
     var eudrPackNote = ui.el("p", { class: "muted td-doc-phase-note" }, [""]);
     eudrSection.appendChild(eudrPackNote);
     container.appendChild(eudrSection);
@@ -349,9 +344,21 @@
       bookingSelect.value = match || "";
     }
 
+    function clearEudrActionError() {
+      eudrActionError.hidden = true;
+      eudrActionError.textContent = "";
+    }
+
+    function showEudrActionError(msg) {
+      eudrActionError.textContent = msg;
+      eudrActionError.hidden = !msg;
+      if (msg) eudrActionError.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+
     function onBookingRefChanged() {
       cachedPack = null;
       cachedPackKey = "";
+      clearEudrActionError();
       syncBookingSelectFromInput();
       paintEudrPreview();
     }
@@ -359,21 +366,11 @@
     bookingSelect.addEventListener("change", function () {
       if (bookingSelect.value) {
         bookingInput.value = bookingSelect.value;
-        onBookingRefChanged();
       }
+      onBookingRefChanged();
     });
     bookingInput.addEventListener("input", onBookingRefChanged);
     bookingInput.addEventListener("change", onBookingRefChanged);
-    bookingInput.addEventListener("keydown", function (ev) {
-      if (ev.key === "Enter") {
-        ev.preventDefault();
-        onBookingRefChanged();
-      }
-    });
-    applyBookingBtn.addEventListener("click", function () {
-      onBookingRefChanged();
-      bookingInput.focus();
-    });
 
     function eudrSelectionBody() {
       if (eudrMode === "booking") {
@@ -493,13 +490,13 @@
               ui.el("strong", {}, [getBookingRef()]),
               ". Set the same ref on each FCL in ",
               ui.el("strong", {}, ["Containers"]),
-              " (Set booking ref), then reopen this screen or click Apply booking again.",
+              " (Set booking ref), then reopen this screen.",
             ])
           );
         } else {
           eudrPreview.textContent =
             eudrMode === "booking"
-              ? "Choose or type a booking ref, then click Apply booking."
+              ? "Choose a saved booking or type a ref — matching containers appear below."
               : "Select containers for the shipment.";
           eudrPreview.className = "td-doc-preview td-doc-eudr-preview muted";
         }
@@ -552,18 +549,32 @@
       }
     }
 
-    async function withEudrPack(run) {
+    async function withEudrPack(run, activeBtn) {
+      clearEudrActionError();
       setStatus("Building documentation pack…", false);
+      var buttons = [btnDds, btnLocation, btnLocationCsv, btnGeo];
+      var prevLabels = buttons.map(function (b) { return b.textContent; });
+      buttons.forEach(function (b) {
+        b.disabled = true;
+      });
+      if (activeBtn) activeBtn.textContent = "Loading…";
       try {
         var pack = await fetchEudrPack(false);
         paintEudrPackNote(pack);
         await run(pack);
         setStatus("", false);
+        clearEudrActionError();
       } catch (e) {
         var msg = CIS.traceabilityApiErrorMessage
           ? CIS.traceabilityApiErrorMessage(e)
           : e.message || String(e);
         setStatus(msg, true);
+        showEudrActionError("Could not build EUDR pack: " + msg);
+      } finally {
+        buttons.forEach(function (b, i) {
+          b.textContent = prevLabels[i];
+        });
+        paintEudrPreview();
       }
     }
 
@@ -576,21 +587,21 @@
         } else {
           setStatus("EUDR render module not loaded.", true);
         }
-      });
+      }, btnDds);
     });
 
     btnLocation.addEventListener("click", function () {
       withEudrPack(function (pack) {
         if (CIS.printEudrLocationSheet) CIS.printEudrLocationSheet(pack);
         else setStatus("EUDR render module not loaded.", true);
-      });
+      }, btnLocation);
     });
 
     btnLocationCsv.addEventListener("click", function () {
       withEudrPack(function (pack) {
         if (CIS.downloadEudrLocationSheetCsv) CIS.downloadEudrLocationSheetCsv(pack);
         else setStatus("EUDR render module not loaded.", true);
-      });
+      }, btnLocationCsv);
     });
 
     btnGeo.addEventListener("click", function () {

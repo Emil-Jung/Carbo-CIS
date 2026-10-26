@@ -2776,7 +2776,7 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .td-doc-shipment-list { margin: 0.35rem 0 0.5rem 1.25rem; font-size: 0.92rem; }
 .td-doc-phase-note { font-size: 0.88rem; max-width: 42rem; }
 .td-doc-booking-select { max-width: 28rem; margin-bottom: 0.35rem; }
-.td-doc-booking-apply-row { margin: 0.35rem 0 0.75rem; }
+.td-doc-action-error { margin: 0.5rem 0 0; max-width: 42rem; }
 
 .cm-print-dialog-actions {
   display: flex;
