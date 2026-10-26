@@ -33,6 +33,12 @@ const checks = [
     "pick mode API body from resolved containers",
     /container_ids: resolved\.map/.test(td),
   ],
+  [
+    "location buttons sync separate from selection body",
+    /syncLocationSheetActionButtons/.test(td) &&
+      /locationSheetHasContainers/.test(td) &&
+      !/btnLocationPdf,\s*\n\s*btnLocationPrint,\s*\n\s*btnLocationCsv/.test(td),
+  ],
   ["preview downloadPdf hook", /downloadPdf:\s*function/.test(render)],
   ["eudr actions stack layout", /\.td-doc-eudr-actions[\s\S]*flex-direction:\s*column/.test(css)],
 ];

@@ -454,8 +454,6 @@
     var eudrDocButtons = [
       btnDdsPdf,
       btnDdsPrint,
-      btnLocationPdf,
-      btnLocationPrint,
       btnLocationCsv,
       btnGeo,
     ];
@@ -534,6 +532,44 @@
       return "Select at least one container for this shipment.";
     }
 
+    /** Location sheet PDF/Print — enabled from resolved containers only (not eudrSelectionBody). */
+    function locationSheetHasContainers() {
+      syncBookingInputFromSelect();
+      return eudrResolvedContainers().length > 0;
+    }
+
+    function locationSheetDisabledReason() {
+      if (locationSheetHasContainers()) return "";
+      if (eudrMode === "booking") {
+        var ref = getBookingRef();
+        if (!ref) {
+          return "Choose or type a booking ref that matches containers in Traceability.";
+        }
+        return (
+          "No containers use booking ref " +
+          ref +
+          ". Set the same ref on each FCL in Containers, then reopen this screen."
+        );
+      }
+      return "Select at least one container for this shipment.";
+    }
+
+    function syncLocationSheetActionButtons() {
+      var can = locationSheetHasContainers();
+      var why = locationSheetDisabledReason();
+      [btnLocationPdf, btnLocationPrint].forEach(function (b) {
+        b.disabled = !can;
+        if (can) {
+          b.removeAttribute("aria-disabled");
+          b.removeAttribute("title");
+        } else {
+          b.setAttribute("aria-disabled", "true");
+          if (why) b.title = why;
+          else b.removeAttribute("title");
+        }
+      });
+    }
+
     /** DOM disabled only when shipment selection cannot run — not when prefetch is loading or failed. */
     function syncEudrActionButtons(opts) {
       opts = opts || {};
@@ -551,6 +587,7 @@
           else b.removeAttribute("title");
         }
       });
+      syncLocationSheetActionButtons();
       if (!canRun) return;
       if (opts.skipPrefetch) {
         if (cachedPack && cachedPackKey === JSON.stringify(eudrSelectionBody())) {
@@ -856,9 +893,9 @@
 
     /** Same flow as container load sheet: modal while loading, then preview or PDF. */
     async function fetchLocationSheetPack(busy) {
-      if (!eudrShipmentCanGenerate()) {
-        var why = eudrActionsDisabledReason() || "Select a booking ref or containers first.";
-        throw new Error(why);
+      if (!locationSheetHasContainers()) {
+        var whyLoc = locationSheetDisabledReason() || "Select a booking ref or containers first.";
+        throw new Error(whyLoc);
       }
       if (!CIS.buildEudrLocationSheetHtml || !CIS.showEudrLocationSheetPreview) {
         throw new Error("EUDR location sheet module not loaded — hard-refresh CIS (Ctrl+F5).");
