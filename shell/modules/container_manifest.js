@@ -1,15 +1,10 @@
-/* Container load sheet — print layout (general + EUDR placeholder). */
+/* Container load sheet — operational print layout (Traceability Documentation). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
 
-  var cmModuleBase = (function () {
-    try {
-      var cur = document.currentScript;
-      if (cur && cur.src) return cur.src.replace(/[^/]+$/, "");
-    } catch (e) { /* ignore */ }
-    return "";
-  })();
+  var ENTRIES_PER_PAGE = 60;
+  var ROWS_PER_COLUMN = 30;
 
   function esc(s) {
     if (s == null) return "";
@@ -27,41 +22,270 @@
       if (p.length === 3) return p[2] + "-" + p[1] + "-" + p[0];
       var d = new Date(iso);
       if (!isNaN(d.getTime())) {
-        return d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+        return d.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
       }
     } catch (e) { /* ignore */ }
     return String(iso);
   }
 
-  function splitColumns(lines) {
-    var left = [];
-    var right = [];
-    (lines || []).forEach(function (ln, i) {
-      if (i < 30) left.push(ln);
-      else if (i < 60) right.push(ln);
+  /** Container Load Sheet only — LF2.5 → DOM2.5 display; underlying keys unchanged. */
+  function sheetProductDisplay(header) {
+    var h = header || {};
+    var key = String(h.product_key || "").trim();
+    var label = String(h.product_label || "").trim();
+    var keyU = key.toUpperCase();
+
+    if (keyU === "LF2.5" || /\bLF2\.5\b/i.test(label)) {
+      return "DOM2.5 — 2.5 kg retail bag";
+    }
+    if (keyU === "DOM2.5" || /\bDOM2\.5\b/i.test(label)) {
+      if (/2\.5\s*kg/i.test(label)) return label.replace(/\bLF2\.5\b/gi, "DOM2.5");
+      return "DOM2.5 — 2.5 kg retail bag";
+    }
+    if (label) {
+      return label
+        .replace(/^Pallet\s*[—–-]\s*/i, "")
+        .replace(/\bLF2\.5\b/gi, "DOM2.5")
+        .replace(/\bLe Fournaise\b/gi, "DOM2.5");
+    }
+    return key || "";
+  }
+
+  function isPalletStream(line) {
+    return String((line && line.product_stream) || "").trim().toLowerCase() === "pallet";
+  }
+
+  /** Operational loading rows — pallet records only; never bag/producer traceability rows. */
+  function loadingEntriesFromManifest(manifest) {
+    var lines = (manifest && manifest.lines) || [];
+    var pallets = lines.filter(isPalletStream);
+    return pallets.map(function (ln) {
+      var w = ln.weight_kg;
+      if (w == null || w === "" || isNaN(Number(w))) w = "";
+      else w = Math.round(Number(w));
+      return { weight_kg: w };
     });
-    while (left.length < 30) left.push(null);
-    while (right.length < 30) right.push(null);
+  }
+
+  function chunkPages(entries) {
+    var pages = [];
+    if (!entries.length) {
+      pages.push([]);
+      return pages;
+    }
+    for (var i = 0; i < entries.length; i += ENTRIES_PER_PAGE) {
+      pages.push(entries.slice(i, i + ENTRIES_PER_PAGE));
+    }
+    return pages;
+  }
+
+  function splitHalves(pageEntries) {
+    var left = pageEntries.slice(0, ROWS_PER_COLUMN);
+    var right = pageEntries.slice(ROWS_PER_COLUMN, ENTRIES_PER_PAGE);
+    while (left.length < ROWS_PER_COLUMN) left.push(null);
+    while (right.length < ROWS_PER_COLUMN) right.push(null);
     return { left: left, right: right };
   }
 
-  function renderColumn(rows, startNr) {
+  function renderLoadColumn(rows) {
     var html =
-      "<table class=\"cm-col\"><thead><tr><th>NR</th><th>SUPPLIER</th><th>WEIGHT</th></tr></thead><tbody>";
-    for (var i = 0; i < 30; i++) {
+      '<table class="cm-load"><thead><tr><th class="cm-nr">NR</th><th>SUPPLIER</th><th class="cm-w">WEIGHT</th></tr></thead><tbody>';
+    for (var i = 0; i < ROWS_PER_COLUMN; i++) {
       var ln = rows[i];
-      var nr = startNr + i;
+      var nr = i + 1;
+      var weightCell = "&nbsp;";
+      if (ln && ln.weight_kg !== "" && ln.weight_kg != null) {
+        weightCell = esc(String(ln.weight_kg));
+      }
       html +=
-        "<tr><td>" +
-        (ln ? nr : "&nbsp;") +
-        "</td><td>" +
-        (ln ? esc(ln.supplier) : "&nbsp;") +
-        "</td><td class=\"cm-w\">" +
-        (ln ? esc(String(ln.weight_kg)) : "&nbsp;") +
+        "<tr><td class=\"cm-nr\">" +
+        nr +
+        "</td><td>&nbsp;</td><td class=\"cm-w\">" +
+        weightCell +
         "</td></tr>";
     }
     html += "</tbody></table>";
     return html;
+  }
+
+  function computeTotals(manifest, entries) {
+    var sum = (manifest && manifest.summary) || {};
+    var h = (manifest && manifest.header) || {};
+    var tare = sum.tare_kg;
+    var hasTare = tare != null && tare !== "" && !isNaN(Number(tare));
+
+    var weightLoaded = "";
+    if (entries.length) {
+      var wSum = 0;
+      var any = false;
+      entries.forEach(function (e) {
+        if (e.weight_kg !== "" && e.weight_kg != null && !isNaN(Number(e.weight_kg))) {
+          wSum += Number(e.weight_kg);
+          any = true;
+        }
+      });
+      if (any) weightLoaded = String(Math.round(wSum));
+    } else if (entries.length === 0 && (manifest.lines || []).length === 0) {
+      weightLoaded =
+        sum.weight_loaded_kg != null && sum.weight_loaded_kg !== ""
+          ? String(sum.weight_loaded_kg)
+          : "";
+    }
+
+    var qtyBags = "";
+    if (entries.length && entries.length === (manifest.lines || []).filter(isPalletStream).length) {
+      qtyBags = String(entries.length);
+    } else if (!(manifest.lines || []).length) {
+      qtyBags =
+        sum.qty_bags != null && sum.qty_bags !== "" ? String(sum.qty_bags) : "";
+    }
+
+    var grossTotal = "";
+    if (weightLoaded !== "" && hasTare) {
+      grossTotal = String(Math.round(Number(weightLoaded) + Number(tare)));
+    } else if (sum.total_kg != null && entries.length && hasTare) {
+      grossTotal = String(sum.total_kg);
+    }
+
+    return {
+      qty_bags: qtyBags,
+      weight_loaded: weightLoaded,
+      gross_total: grossTotal,
+      bag_total_blank: "",
+    };
+  }
+
+  function detailRow(label, value) {
+    return (
+      '<div class="cm-detail-row">' +
+      '<span class="cm-detail-lbl">' +
+      esc(label) +
+      "</span>" +
+      '<span class="cm-detail-val">' +
+      (value ? esc(value) : "&nbsp;") +
+      "</span></div>"
+    );
+  }
+
+  function sheetStyles() {
+    return (
+      "@page{size:A4 portrait;margin:10mm;}" +
+      "html,body{margin:0;padding:0;background:#fff;color:#000;}" +
+      "body{font-family:Arial,Helvetica,sans-serif;font-size:9pt;line-height:1.2;}" +
+      ".cm-sheet-page{box-sizing:border-box;width:100%;max-width:190mm;margin:0 auto;padding:0;page-break-after:always;}" +
+      ".cm-sheet-page:last-child{page-break-after:auto;}" +
+      "h1.cm-title{font-size:12pt;font-weight:700;text-align:center;margin:0 0 6px;letter-spacing:0.06em;}" +
+      "h2.cm-cont{font-size:9pt;font-weight:700;text-align:center;margin:0 0 8px;}" +
+      "table.cm-head{width:100%;border-collapse:collapse;margin-bottom:6px;table-layout:fixed;}" +
+      "table.cm-head th,table.cm-head td{border:1px solid #000;padding:4px 6px;vertical-align:top;font-size:8pt;}" +
+      "table.cm-head th{width:22%;font-weight:700;text-align:left;background:#fff;}" +
+      "table.cm-head td{min-height:1.4em;}" +
+      ".cm-details{border:1px solid #000;margin-bottom:8px;}" +
+      ".cm-detail-row{display:flex;border-bottom:1px solid #000;min-height:22px;}" +
+      ".cm-detail-row:last-child{border-bottom:0;}" +
+      ".cm-detail-lbl{flex:0 0 28%;font-weight:700;font-size:8pt;padding:3px 6px;border-right:1px solid #000;}" +
+      ".cm-detail-val{flex:1;padding:3px 6px;font-size:9pt;}" +
+      ".cm-main{display:grid;grid-template-columns:1fr 1fr 34mm;gap:4px;align-items:start;}" +
+      "table.cm-load{width:100%;border-collapse:collapse;table-layout:fixed;}" +
+      "table.cm-load th,table.cm-load td{border:1px solid #000;padding:2px 3px;vertical-align:middle;font-size:7.5pt;height:16px;}" +
+      "table.cm-load th{font-weight:700;text-align:center;background:#fff;}" +
+      "table.cm-load td.cm-nr,table.cm-load th.cm-nr{width:7mm;text-align:center;}" +
+      "table.cm-load td.cm-w,table.cm-load th.cm-w{width:11mm;text-align:right;}" +
+      ".cm-side{font-size:8pt;}" +
+      ".cm-side-title{font-weight:700;text-align:center;margin:0 0 3px;font-size:8pt;}" +
+      "table.cm-team{width:100%;border-collapse:collapse;}" +
+      "table.cm-team th,table.cm-team td{border:1px solid #000;padding:2px 3px;font-size:7.5pt;height:14px;}" +
+      "table.cm-team th{text-align:center;font-weight:700;}" +
+      ".cm-totals{margin-top:6px;border:1px solid #000;}" +
+      ".cm-total-row{display:flex;border-bottom:1px solid #000;min-height:18px;}" +
+      ".cm-total-row:last-child{border-bottom:0;}" +
+      ".cm-total-lbl{flex:1;font-weight:700;font-size:7pt;padding:2px 4px;border-right:1px solid #000;}" +
+      ".cm-total-val{flex:0 0 14mm;padding:2px 4px;text-align:right;font-size:8pt;}" +
+      ".cm-eudr{margin:8px 0;padding:6px;border:1px dashed #666;font-size:9pt;}" +
+      "@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}"
+    );
+  }
+
+  function renderSheetPage(manifest, variant, printOpts, pageEntries, pageIndex, pageCount, totals) {
+    var opts = printOpts || {};
+    var h = manifest.header || {};
+    var sheetDateRaw =
+      opts.sheetDate != null && opts.sheetDate !== ""
+        ? opts.sheetDate
+        : h.load_date || h.expected_ship_date;
+    var loadDate = fmtDate(sheetDateRaw);
+    var bookingRef =
+      opts.bookingRef != null && String(opts.bookingRef).trim() !== ""
+        ? String(opts.bookingRef).trim()
+        : h.booking_ref || "";
+    var halves = splitHalves(pageEntries);
+    var continued = pageIndex > 0 ? " (continued)" : "";
+    var eudrBlock =
+      variant === "eudr" && pageIndex === 0
+        ? '<div class="cm-eudr">EUDR manifest — extended fields and layout to be added.</div>'
+        : "";
+
+    var details =
+      detailRow("CONTAINER", h.container_number || "") +
+      detailRow("DELIVERY NOTE", h.delivery_note || "") +
+      detailRow("TRANSPORTER", h.transporter || "") +
+      detailRow("REG", h.tag_ref || "");
+    if (bookingRef) {
+      details += detailRow("BOOKING REF", bookingRef);
+    }
+
+    var totalsBlock =
+      pageIndex === pageCount - 1
+        ? '<div class="cm-totals">' +
+          '<div class="cm-total-row"><span class="cm-total-lbl">QTY BAGS</span><span class="cm-total-val">' +
+          (totals.qty_bags ? esc(totals.qty_bags) : "&nbsp;") +
+          '</span><span class="cm-total-lbl">TOTAL</span><span class="cm-total-val">&nbsp;</span></div>' +
+          '<div class="cm-total-row"><span class="cm-total-lbl">WEIGHT LOADED</span><span class="cm-total-val">' +
+          (totals.weight_loaded ? esc(totals.weight_loaded) : "&nbsp;") +
+          '</span><span class="cm-total-lbl">TOTAL</span><span class="cm-total-val">' +
+          (totals.gross_total ? esc(totals.gross_total) : "&nbsp;") +
+          "</span></div></div>"
+        : "";
+
+    return (
+      '<section class="cm-sheet-page">' +
+      '<h1 class="cm-title">CONTAINER LOAD SHEET' +
+      (variant === "eudr" ? " (EUDR)" : "") +
+      esc(continued) +
+      "</h1>" +
+      eudrBlock +
+      (pageIndex === 0
+        ? '<table class="cm-head"><tr><th>DATE</th><th>PRODUCT</th><th>TO</th></tr><tr><td>' +
+          esc(loadDate) +
+          "</td><td>" +
+          esc(sheetProductDisplay(h)) +
+          "</td><td>" +
+          esc(h.ship_to || "") +
+          "</td></tr></table>" +
+          '<div class="cm-details">' +
+          details +
+          "</div>"
+        : "") +
+      '<div class="cm-main">' +
+      renderLoadColumn(halves.left) +
+      renderLoadColumn(halves.right) +
+      '<div class="cm-side">' +
+      (pageIndex === 0
+        ? '<p class="cm-side-title">Loading Team</p><table class="cm-team"><thead><tr><th>NR</th><th>NAME</th></tr></thead><tbody>' +
+          [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            .map(function (n) {
+              return "<tr><td>" + n + "</td><td>&nbsp;</td></tr>";
+            })
+            .join("") +
+          "</tbody></table>"
+        : "") +
+      totalsBlock +
+      "</div></div></section>"
+    );
   }
 
   function defaultSheetDateIso(header) {
@@ -91,121 +315,29 @@
   }
 
   function buildHtml(manifest, variant, printOpts) {
-    var opts = printOpts || {};
-    var h = manifest.header || {};
-    var sum = manifest.summary || {};
-    var cols = splitColumns(manifest.lines || []);
-    var product = h.product_label || h.product_key || "";
-    var sheetDateRaw =
-      opts.sheetDate != null && opts.sheetDate !== ""
-        ? opts.sheetDate
-        : h.load_date || h.expected_ship_date;
-    var loadDate = fmtDate(sheetDateRaw);
-    var bookingRef =
-      opts.bookingRef != null && String(opts.bookingRef).trim() !== ""
-        ? String(opts.bookingRef).trim()
-        : h.booking_ref || "";
-    var dispatchLine = "";
-    if (h.walvis_dispatch_id && h.dispatch_number != null) {
-      dispatchLine =
-        "Walvis dispatch #" +
-        h.dispatch_number +
-        (h.dispatch_truck_registration ? " · " + esc(h.dispatch_truck_registration) : "");
+    var entries = loadingEntriesFromManifest(manifest);
+    var pages = chunkPages(entries);
+    var totals = computeTotals(manifest, entries);
+    var body = "";
+    for (var p = 0; p < pages.length; p++) {
+      body += renderSheetPage(manifest, variant, printOpts, pages[p], p, pages.length, totals);
     }
 
-    var eudrBlock =
-      variant === "eudr"
-        ? "<div class=\"cm-eudr\">EUDR manifest — extended fields and layout to be added.</div>"
-        : "";
-
+    var title = (manifest.header && manifest.header.container_number) || "Container";
     return (
-      "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/><title>Container " +
-      esc(h.container_number) +
+      "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/><title>" +
+      esc(title) +
       "</title><style>" +
-      "body{font-family:Arial,Helvetica,sans-serif;font-size:11px;margin:12mm;color:#000;}" +
-      "h1{font-size:14px;margin:0 0 8px;text-align:center;letter-spacing:0.04em;}" +
-      ".cm-meta{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin-bottom:10px;}" +
-      ".cm-meta div{border:1px solid #000;padding:3px 6px;min-height:1.2em;}" +
-      ".cm-meta label{font-weight:700;display:block;font-size:9px;}" +
-      ".cm-body{display:grid;grid-template-columns:1fr 1fr;gap:10px;}" +
-      "table.cm-col{width:100%;border-collapse:collapse;}" +
-      "table.cm-col th,table.cm-col td{border:1px solid #000;padding:2px 4px;vertical-align:top;}" +
-      "table.cm-col th{font-size:9px;}" +
-      "td.cm-w{text-align:right;width:3.2em;}" +
-      ".cm-foot{display:grid;grid-template-columns:1fr 220px;gap:12px;margin-top:10px;align-items:start;}" +
-      ".cm-team table{width:100%;border-collapse:collapse;}" +
-      ".cm-team th,.cm-team td{border:1px solid #000;padding:2px 4px;}" +
-      ".cm-totals table{width:100%;border-collapse:collapse;}" +
-      ".cm-totals td{border:1px solid #000;padding:3px 6px;}" +
-      ".cm-totals td:last-child{text-align:right;font-weight:700;}" +
-      ".cm-eudr{margin:8px 0;padding:6px;border:1px dashed #666;font-size:10px;}" +
-      "@media print{body{margin:8mm;}}" +
+      sheetStyles() +
       "</style></head><body>" +
-      "<h1>CONTAINER LOAD SHEET" +
-      (variant === "eudr" ? " (EUDR)" : "") +
-      "</h1>" +
-      eudrBlock +
-      "<div class=\"cm-meta\">" +
-      "<div><label>DATE</label>" +
-      esc(loadDate) +
-      "</div>" +
-      "<div><label>PRODUCT</label>" +
-      esc(product) +
-      "</div>" +
-      "<div><label>TO</label>" +
-      esc(h.ship_to || "") +
-      "</div>" +
-      "<div><label>CONTAINER</label>" +
-      esc(h.container_number) +
-      "</div>" +
-      "<div><label>BOOKING REF</label>" +
-      esc(bookingRef) +
-      "</div>" +
-      "<div><label>DELIVERY NOTE</label>" +
-      esc(h.delivery_note || "") +
-      "</div>" +
-      "<div><label>TRANSPORTER</label>" +
-      esc(h.transporter || "") +
-      "</div>" +
-      "<div><label>TAG</label>" +
-      esc(h.tag_ref || "") +
-      "</div>" +
-      "<div><label>TARE</label>" +
-      esc(sum.tare_kg != null ? String(sum.tare_kg) : "") +
-      "</div>" +
-      "</div>" +
-      (dispatchLine ? "<p style=\"margin:0 0 8px;font-size:10px;\"><strong>Linked:</strong> " + dispatchLine + "</p>" : "") +
-      "<div class=\"cm-body\">" +
-      renderColumn(cols.left, 1) +
-      renderColumn(cols.right, 31) +
-      "</div>" +
-      "<div class=\"cm-foot\">" +
-      "<div class=\"cm-team\"><strong>Loading team</strong><table><thead><tr><th>NR</th><th>Name</th></tr></thead><tbody>" +
-      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        .map(function (n) {
-          return "<tr><td>" + n + "</td><td>&nbsp;</td></tr>";
-        })
-        .join("") +
-      "</tbody></table></div>" +
-      "<div class=\"cm-totals\"><table>" +
-      "<tr><td>QTY BAGS</td><td>" +
-      esc(String(sum.qty_bags != null ? sum.qty_bags : 0)) +
-      "</td></tr>" +
-      "<tr><td>WEIGHT LOADED</td><td>" +
-      esc(String(sum.weight_loaded_kg != null ? sum.weight_loaded_kg : 0)) +
-      "</td></tr>" +
-      "<tr><td>TARE</td><td>" +
-      esc(String(sum.tare_kg != null ? sum.tare_kg : 0)) +
-      "</td></tr>" +
-      "<tr><td>TOTAL</td><td>" +
-      esc(String(sum.total_kg != null ? sum.total_kg : 0)) +
-      "</td></tr>" +
-      "</table></div></div>" +
+      body +
       "</body></html>"
     );
   }
 
   CIS.buildContainerManifestHtml = buildHtml;
+  CIS.containerSheetLoadingEntries = loadingEntriesFromManifest;
+  CIS.containerSheetProductDisplay = sheetProductDisplay;
 
   function sheetVariantKey(variant) {
     return variant === "eudr" ? "eudr" : "general";
@@ -301,7 +433,6 @@
     });
   };
 
-  /** @deprecated Pop-up print — use showContainerSheetPreview or downloadContainerSheetPdf. */
   CIS.printContainerManifest = function (manifest, variant, printOpts) {
     return CIS.showContainerSheetPreview(manifest, variant, printOpts);
   };
