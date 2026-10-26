@@ -177,12 +177,13 @@
     return { left: left, right: right };
   }
 
-  function renderLoadColumn(rows) {
+  function renderLoadColumn(rows, startNr) {
+    var nr0 = startNr || 1;
     var html =
       '<table class="cm-load"><thead><tr><th class="cm-nr">NR</th><th>SUPPLIER</th><th class="cm-w">WEIGHT</th></tr></thead><tbody>';
     for (var i = 0; i < ROWS_PER_COLUMN; i++) {
       var ln = rows[i];
-      var nr = i + 1;
+      var nr = nr0 + i;
       var supplierCell = "&nbsp;";
       var weightCell = "&nbsp;";
       if (ln) {
@@ -202,6 +203,32 @@
     }
     html += "</tbody></table>";
     return html;
+  }
+
+  function renderTotalsBlock(totals) {
+    return (
+      '<table class="cm-totals" aria-label="Summary totals">' +
+      "<tr>" +
+      '<td class="cm-total-lbl">QTY BAGS</td>' +
+      '<td class="cm-total-val">' +
+      (totals.qty_bags ? esc(totals.qty_bags) : "&nbsp;") +
+      "</td>" +
+      '<td class="cm-total-lbl">TOTAL</td>' +
+      '<td class="cm-total-val">' +
+      (totals.qty_total ? esc(totals.qty_total) : "&nbsp;") +
+      "</td>" +
+      "</tr>" +
+      "<tr>" +
+      '<td class="cm-total-lbl">WEIGHT LOADED</td>' +
+      '<td class="cm-total-val">' +
+      (totals.weight_loaded ? esc(totals.weight_loaded) : "&nbsp;") +
+      "</td>" +
+      '<td class="cm-total-lbl">TOTAL</td>' +
+      '<td class="cm-total-val">' +
+      (totals.weight_gross_total ? esc(totals.weight_gross_total) : "&nbsp;") +
+      "</td>" +
+      "</tr></table>"
+    );
   }
 
   function computeTotals(manifest, entries) {
@@ -245,9 +272,9 @@
 
     return {
       qty_bags: qtyBags,
+      qty_total: "",
       weight_loaded: weightLoaded,
-      gross_total: grossTotal,
-      bag_total_blank: "",
+      weight_gross_total: grossTotal,
     };
   }
 
@@ -273,31 +300,31 @@
       "h1.cm-title{font-size:12pt;font-weight:700;text-align:center;margin:0 0 6px;letter-spacing:0.06em;}" +
       "h2.cm-cont{font-size:9pt;font-weight:700;text-align:center;margin:0 0 8px;}" +
       "table.cm-head{width:100%;border-collapse:collapse;margin-bottom:6px;table-layout:fixed;}" +
-      "table.cm-head th,table.cm-head td{border:1px solid #000;padding:4px 6px;vertical-align:top;font-size:8pt;}" +
-      "table.cm-head th{width:22%;font-weight:700;text-align:left;background:#fff;}" +
-      "table.cm-head td{min-height:1.4em;}" +
+      "table.cm-head th,table.cm-head td{border:1px solid #000;padding:5px 8px;vertical-align:middle;font-size:8pt;}" +
+      "table.cm-head th{font-weight:700;text-align:left;background:#fff;width:33.33%;}" +
+      "table.cm-head td{min-height:1.6em;}" +
       ".cm-details{border:1px solid #000;margin-bottom:8px;}" +
-      ".cm-detail-row{display:flex;border-bottom:1px solid #000;min-height:22px;}" +
+      ".cm-detail-row{display:flex;border-bottom:1px solid #000;min-height:24px;align-items:stretch;}" +
       ".cm-detail-row:last-child{border-bottom:0;}" +
-      ".cm-detail-lbl{flex:0 0 28%;font-weight:700;font-size:8pt;padding:3px 6px;border-right:1px solid #000;}" +
-      ".cm-detail-val{flex:1;padding:3px 6px;font-size:9pt;}" +
-      ".cm-main{display:grid;grid-template-columns:1fr 1fr 34mm;gap:4px;align-items:start;}" +
+      ".cm-detail-lbl{flex:0 0 32%;font-weight:700;font-size:8pt;padding:5px 8px;border-right:1px solid #000;}" +
+      ".cm-detail-val{flex:1;padding:5px 8px;font-size:9pt;min-height:1.2em;}" +
+      ".cm-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 46mm;gap:6px;align-items:start;}" +
       "table.cm-load{width:100%;border-collapse:collapse;table-layout:fixed;}" +
-      "table.cm-load th,table.cm-load td{border:1px solid #000;padding:2px 3px;vertical-align:middle;font-size:7.5pt;height:16px;}" +
-      "table.cm-load th{font-weight:700;text-align:center;background:#fff;}" +
-      "table.cm-load td.cm-nr,table.cm-load th.cm-nr{width:7mm;text-align:center;}" +
-      "table.cm-load td.cm-w,table.cm-load th.cm-w{width:11mm;text-align:right;}" +
-      "table.cm-load td.cm-supplier{font-size:6.5pt;line-height:1.15;word-break:break-all;}" +
-      ".cm-side{font-size:8pt;}" +
-      ".cm-side-title{font-weight:700;text-align:center;margin:0 0 3px;font-size:8pt;}" +
-      "table.cm-team{width:100%;border-collapse:collapse;}" +
-      "table.cm-team th,table.cm-team td{border:1px solid #000;padding:2px 3px;font-size:7.5pt;height:14px;}" +
+      "table.cm-load th,table.cm-load td{border:1px solid #000;padding:3px 5px;vertical-align:middle;font-size:7.5pt;height:17px;}" +
+      "table.cm-load th{font-weight:700;text-align:center;background:#fff;padding:4px 5px;}" +
+      "table.cm-load td.cm-nr,table.cm-load th.cm-nr{width:8mm;text-align:center;}" +
+      "table.cm-load td.cm-w,table.cm-load th.cm-w{width:12mm;text-align:right;padding-right:6px;}" +
+      "table.cm-load td.cm-supplier{font-size:6.5pt;line-height:1.2;word-break:break-all;padding:3px 4px;}" +
+      ".cm-side{font-size:8pt;align-self:start;}" +
+      ".cm-side-title{font-weight:700;text-align:center;margin:0 0 4px;font-size:8pt;letter-spacing:0.03em;}" +
+      "table.cm-team{width:100%;border-collapse:collapse;table-layout:fixed;}" +
+      "table.cm-team th,table.cm-team td{border:1px solid #000;padding:3px 5px;font-size:7.5pt;height:16px;}" +
       "table.cm-team th{text-align:center;font-weight:700;}" +
-      ".cm-totals{margin-top:6px;border:1px solid #000;}" +
-      ".cm-total-row{display:flex;border-bottom:1px solid #000;min-height:18px;}" +
-      ".cm-total-row:last-child{border-bottom:0;}" +
-      ".cm-total-lbl{flex:1;font-weight:700;font-size:7pt;padding:2px 4px;border-right:1px solid #000;}" +
-      ".cm-total-val{flex:0 0 14mm;padding:2px 4px;text-align:right;font-size:8pt;}" +
+      "table.cm-team td:first-child{width:7mm;text-align:center;}" +
+      "table.cm-totals{width:100%;border-collapse:collapse;margin-top:8px;border:1px solid #000;table-layout:fixed;}" +
+      "table.cm-totals td{border:1px solid #000;padding:4px 6px;vertical-align:middle;font-size:7.5pt;}" +
+      "table.cm-totals td.cm-total-lbl{font-weight:700;width:38%;white-space:nowrap;}" +
+      "table.cm-totals td.cm-total-val{text-align:right;width:12%;min-width:10mm;white-space:nowrap;padding-right:8px;}" +
       ".cm-eudr{margin:8px 0;padding:6px;border:1px dashed #666;font-size:9pt;}" +
       "@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}"
     );
@@ -326,23 +353,14 @@
       detailRow("CONTAINER", h.container_number || "") +
       detailRow("DELIVERY NOTE", h.delivery_note || "") +
       detailRow("TRANSPORTER", h.transporter || "") +
-      detailRow("REG", h.tag_ref || "");
-    if (bookingRef) {
-      details += detailRow("BOOKING REF", bookingRef);
-    }
+      detailRow("REG", h.tag_ref || "") +
+      detailRow("BOOKING REF", bookingRef || "");
 
-    var totalsBlock =
-      pageIndex === pageCount - 1
-        ? '<div class="cm-totals">' +
-          '<div class="cm-total-row"><span class="cm-total-lbl">QTY BAGS</span><span class="cm-total-val">' +
-          (totals.qty_bags ? esc(totals.qty_bags) : "&nbsp;") +
-          '</span><span class="cm-total-lbl">TOTAL</span><span class="cm-total-val">&nbsp;</span></div>' +
-          '<div class="cm-total-row"><span class="cm-total-lbl">WEIGHT LOADED</span><span class="cm-total-val">' +
-          (totals.weight_loaded ? esc(totals.weight_loaded) : "&nbsp;") +
-          '</span><span class="cm-total-lbl">TOTAL</span><span class="cm-total-val">' +
-          (totals.gross_total ? esc(totals.gross_total) : "&nbsp;") +
-          "</span></div></div>"
-        : "";
+    var pageBase = pageIndex * ENTRIES_PER_PAGE;
+    var leftStartNr = pageBase + 1;
+    var rightStartNr = pageBase + ROWS_PER_COLUMN + 1;
+
+    var totalsBlock = pageIndex === pageCount - 1 ? renderTotalsBlock(totals) : "";
 
     return (
       '<section class="cm-sheet-page">' +
@@ -364,8 +382,8 @@
           "</div>"
         : "") +
       '<div class="cm-main">' +
-      renderLoadColumn(halves.left) +
-      renderLoadColumn(halves.right) +
+      renderLoadColumn(halves.left, leftStartNr) +
+      renderLoadColumn(halves.right, rightStartNr) +
       '<div class="cm-side">' +
       (pageIndex === 0
         ? '<p class="cm-side-title">Loading Team</p><table class="cm-team"><thead><tr><th>NR</th><th>NAME</th></tr></thead><tbody>' +

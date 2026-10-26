@@ -39,17 +39,24 @@
       };
       var html = CIS.buildContainerManifestHtml(manifest, "general", {});
       var entries = CIS.containerSheetLoadingEntries(manifest);
+      var wSum = entries.reduce(function (s, e) {
+        return s + (Number(e.weight_kg) || 0);
+      }, 0);
       var ok =
         html.indexOf("GAOU6688205") !== -1 &&
         html.indexOf("DOM2.5") !== -1 &&
         html.indexOf("LF2.5") === -1 &&
         html.indexOf("Unknown producer") === -1 &&
         html.indexOf("BAG-2026-005659") !== -1 &&
+        html.indexOf("BOOKING REF") !== -1 &&
+        html.indexOf(">31<") !== -1 &&
         entries.length === 48 &&
+        wSum === 48 * 387 &&
+        html.indexOf("18576") !== -1 &&
         html.indexOf("window.print") === -1;
       document.getElementById("out").textContent = ok
-        ? "PASS: 48 bag rows, BAG IDs in sheet, no producer placeholders."
-        : "FAIL entries=" + entries.length;
+        ? "PASS: 48 rows, NR 1–48 (right from 31), sum 18576 kg."
+        : "FAIL entries=" + entries.length + " wSum=" + wSum;
     })();
   </script>
 </body>
