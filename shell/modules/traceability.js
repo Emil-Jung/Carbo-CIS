@@ -52,7 +52,7 @@
     traceability_documentation: {
       id: "traceability_documentation",
       title: "Traceability Documentation",
-      description: "Container load sheets and EUDR documentation (EU shipments).",
+      description: "Container load sheets for logistics.",
       requires: "traceability.containers",
       icon: "labels",
     },
