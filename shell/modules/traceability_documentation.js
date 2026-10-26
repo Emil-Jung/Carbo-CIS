@@ -468,6 +468,8 @@
     var packPrefetchTimer = null;
     var packPrefetchGen = 0;
     var packLoading = false;
+    /** Set in paintEudrPreview — sole source for location PDF/Print enabled state. */
+    var lastPaintedLocationSheetCount = 0;
 
     function setEudrMode(mode) {
       eudrMode = mode;
@@ -554,19 +556,17 @@
       return "Select at least one container for this shipment.";
     }
 
-    function applyLocationSheetButtonState(resolvedCount) {
-      var can =
-        typeof resolvedCount === "number"
-          ? resolvedCount > 0
-          : locationSheetHasContainers();
+    function applyLocationSheetButtonState() {
+      var can = lastPaintedLocationSheetCount > 0;
       var why = can ? "" : locationSheetDisabledReason();
       [btnLocationPdf, btnLocationPrint].forEach(function (b) {
-        b.disabled = !can;
         if (can) {
+          b.disabled = false;
           b.removeAttribute("disabled");
           b.removeAttribute("aria-disabled");
           b.removeAttribute("title");
         } else {
+          b.disabled = true;
           b.setAttribute("aria-disabled", "true");
           if (why) b.title = why;
           else b.removeAttribute("title");
@@ -575,7 +575,7 @@
     }
 
     function syncLocationSheetActionButtons() {
-      applyLocationSheetButtonState(eudrResolvedContainers().length);
+      applyLocationSheetButtonState();
     }
 
     function clearStaleDocBusyOverlays() {
@@ -787,6 +787,7 @@
     function paintEudrPreview() {
       syncBookingInputFromSelect();
       var list = eudrResolvedContainers();
+      lastPaintedLocationSheetCount = list.length;
       if (!list.length) {
         if (eudrMode === "booking" && getBookingRef()) {
           eudrPreview.innerHTML = "";
@@ -808,7 +809,7 @@
           eudrPreview.className = "td-doc-preview td-doc-eudr-preview muted";
         }
         syncEudrActionButtons({ skipPrefetch: true });
-        applyLocationSheetButtonState(0);
+        applyLocationSheetButtonState();
         eudrPackNote.textContent = "";
         return;
       }
@@ -844,7 +845,7 @@
         ])
       );
       syncEudrActionButtons();
-      applyLocationSheetButtonState(list.length);
+      applyLocationSheetButtonState();
     }
 
     function formatEudrError(e) {
@@ -1062,7 +1063,9 @@
       }
     }
 
+    clearStaleDocBusyOverlays();
     await loadContainers();
+    clearStaleDocBusyOverlays();
   }
 
   CIS.modules.push({
