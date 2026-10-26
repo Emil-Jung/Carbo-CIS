@@ -131,6 +131,7 @@
     var shipToInput = ui.el("input", { type: "text", autocomplete: "off" });
     var deliveryNoteInput = ui.el("input", { type: "text", autocomplete: "off" });
     var transporterInput = ui.el("input", { type: "text", autocomplete: "off" });
+    var shipNameInput = ui.el("input", { type: "text", autocomplete: "off" });
     var bookingInput = ui.el("input", { type: "text", placeholder: "Booking ref (optional)", autocomplete: "off" });
     var shipDateInput = ui.el("input", { type: "date", autocomplete: "off" });
     var dispatchSelect = ui.el("select", {});
@@ -152,6 +153,7 @@
     form.appendChild(labelled("Consignee", shipToInput));
     form.appendChild(labelled("Delivery note", deliveryNoteInput));
     form.appendChild(labelled("Shipping line", transporterInput));
+    form.appendChild(labelled("Ship's name", shipNameInput));
     form.appendChild(labelled("Expected ship date", shipDateInput));
     form.appendChild(labelled("Booking ref", bookingInput));
     form.appendChild(labelled("Walvis dispatch (Option A)", dispatchSelect));
@@ -371,6 +373,11 @@
         autocomplete: "off",
         value: containerRow.transporter || "",
       });
+      var shipNameInput = ui.el("input", {
+        type: "text",
+        autocomplete: "off",
+        value: containerRow.ship_name || "",
+      });
       var bookingInput = ui.el("input", {
         type: "text",
         autocomplete: "off",
@@ -400,6 +407,7 @@
       formGrid.appendChild(fieldRow("Consignee", shipToInput));
       formGrid.appendChild(fieldRow("Delivery note", deliveryNoteInput));
       formGrid.appendChild(fieldRow("Shipping line", transporterInput));
+      formGrid.appendChild(fieldRow("Ship's name", shipNameInput));
       formGrid.appendChild(fieldRow("Product", productSelect));
       formGrid.appendChild(fieldRow("Bags when full", countInput));
       formGrid.appendChild(fieldRow("Yard", locationSelect));
@@ -453,6 +461,7 @@
             ship_to: shipToInput.value.trim() || null,
             delivery_note: deliveryNoteInput.value.trim() || null,
             transporter: transporterInput.value.trim() || null,
+            ship_name: shipNameInput.value.trim() || null,
             walvis_dispatch_id: dispatchSelect.value || null,
           };
           if (loadDateInput.value) bodyPayload.load_date = loadDateInput.value;
@@ -707,6 +716,7 @@
           ship_to: shipToInput.value.trim() || null,
           delivery_note: deliveryNoteInput.value.trim() || null,
           transporter: transporterInput.value.trim() || null,
+          ship_name: shipNameInput.value.trim() || null,
         };
         if (shipDateInput.value) bodyPayload.expected_ship_date = shipDateInput.value;
         if (dispatchSelect.value) bodyPayload.walvis_dispatch_id = dispatchSelect.value;
@@ -723,6 +733,7 @@
         deliveryNoteInput.value = "";
         fclInput.value = "";
         transporterInput.value = "";
+        shipNameInput.value = "";
         productSelect.value = "";
         dispatchSelect.value = "";
         await load();

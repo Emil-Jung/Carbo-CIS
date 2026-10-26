@@ -377,6 +377,7 @@
         : "") +
       detailRow("DELIVERY NOTE", h.delivery_note || "") +
       detailRow("SHIPPING LINE", h.transporter || "") +
+      detailRow("SHIP", h.ship_name || "") +
       detailRow("BOOKING REF", bookingRef || "");
 
     var pageBase = pageIndex * ENTRIES_PER_PAGE;
