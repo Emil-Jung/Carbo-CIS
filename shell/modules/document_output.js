@@ -74,9 +74,19 @@
     win.print();
   }
 
+  function afterLayoutPaint() {
+    return new Promise(function (resolve) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          setTimeout(resolve, 80);
+        });
+      });
+    });
+  }
+
   var defaultPdfSet = {
     margin: [8, 8, 8, 8],
-    image: { type: "png", quality: 1 },
+    image: { type: "jpeg", quality: 0.95 },
     html2canvas: {
       scale: 2,
       useCORS: true,
@@ -89,26 +99,73 @@
     pagebreak: { mode: ["css", "legacy"] },
   };
 
-  /** Must stay paintable in WebView2 — visibility:hidden and z-index:-1 yield black captures. */
-  var PDF_RENDER_IFRAME_STYLE =
-    "position:fixed;top:0;left:0;width:794px;height:1123px;margin:0;padding:0;" +
-    "border:0;opacity:0.01;pointer-events:none;z-index:2147483646;overflow:hidden;";
+  function showPdfWorkingModal() {
+    var backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop cis-pdf-working-backdrop";
+    backdrop.setAttribute("role", "dialog");
+    backdrop.setAttribute("aria-busy", "true");
+    var dialog = document.createElement("div");
+    dialog.className = "modal td-doc-busy-dialog";
+    var title = document.createElement("h3");
+    title.className = "cm-print-dialog-title td-doc-busy-title";
+    title.textContent = "Creating PDF";
+    dialog.appendChild(title);
+    var msg = document.createElement("p");
+    msg.className = "td-doc-busy-message";
+    msg.textContent = "Preparing black text on white paper…";
+    dialog.appendChild(msg);
+    backdrop.appendChild(dialog);
+    document.body.appendChild(backdrop);
+    return function closePdfWorkingModal() {
+      if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+    };
+  }
 
-  function preparePdfRenderDocument(iframe) {
-    var doc = iframe.contentDocument;
-    if (!doc) return null;
-    try {
-      iframe.setAttribute("color-scheme", "light");
-    } catch (e1) { /* ignore */ }
-    var root = doc.documentElement;
-    if (root) {
-      root.style.background = "#ffffff";
-      root.style.colorScheme = "only light";
-    }
-    if (doc.body) {
-      doc.body.style.background = "#ffffff";
-    }
-    return doc.body || root;
+  /**
+   * html2canvas in WebView2 often captures black if the node lives in a hidden iframe.
+   * Parse HTML in a scratch iframe, then mount a visible white page on document.body.
+   */
+  function buildVisibleCaptureHost(html) {
+    var scratch = document.createElement("iframe");
+    scratch.setAttribute("title", "PDF layout");
+    scratch.style.cssText =
+      "position:absolute;width:0;height:0;border:0;opacity:0;pointer-events:none;";
+    document.body.appendChild(scratch);
+
+    return writeHtmlToIframe(scratch, html).then(function () {
+      var idoc = scratch.contentDocument;
+      if (!idoc || !idoc.body) {
+        throw new Error("Could not lay out document for PDF.");
+      }
+
+      var host = document.createElement("div");
+      host.className = "cis-pdf-capture-host";
+      host.setAttribute("aria-hidden", "true");
+
+      var guard = document.createElement("style");
+      guard.textContent =
+        ".cis-pdf-capture-host{background:#fff!important;color:#000!important;}" +
+        ".cis-pdf-capture-host,.cis-pdf-capture-host *{color:#000!important;" +
+        "-webkit-print-color-adjust:exact;print-color-adjust:exact;}" +
+        ".cis-pdf-capture-host table th{background:#fff!important;}";
+      host.appendChild(guard);
+
+      var styles = idoc.querySelectorAll("style");
+      for (var i = 0; i < styles.length; i++) {
+        var copy = document.createElement("style");
+        copy.textContent = styles[i].textContent;
+        host.appendChild(copy);
+      }
+
+      var inner = document.createElement("div");
+      inner.className = "cis-pdf-capture-inner";
+      inner.innerHTML = idoc.body.innerHTML;
+      host.appendChild(inner);
+
+      document.body.appendChild(host);
+      if (scratch.parentNode) scratch.parentNode.removeChild(scratch);
+      return host;
+    });
   }
 
   /**
@@ -123,44 +180,39 @@
     var safeName = String(filename || "document.pdf").replace(/[^\w.\- ]+/g, "_");
     if (!/\.pdf$/i.test(safeName)) safeName += ".pdf";
 
-    var iframe = document.createElement("iframe");
-    iframe.setAttribute("title", "PDF render");
-    iframe.style.cssText = PDF_RENDER_IFRAME_STYLE;
-    document.body.appendChild(iframe);
-
     var setOpts = Object.assign({}, defaultPdfSet, pdfSet || {}, { filename: safeName });
+    var closeModal = showPdfWorkingModal();
+    var captureHost = null;
 
-    function afterIframePaint() {
-      return new Promise(function (resolve) {
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () {
-            setTimeout(resolve, 50);
-          });
-        });
-      });
-    }
-
-    return writeHtmlToIframe(iframe, html)
-      .then(afterIframePaint)
+    return buildVisibleCaptureHost(html)
+      .then(function (host) {
+        captureHost = host;
+        return afterLayoutPaint();
+      })
       .then(function () {
         return ensureHtml2Pdf();
       })
       .then(function (html2pdf) {
-        var captureEl = preparePdfRenderDocument(iframe);
-        if (!captureEl) throw new Error("Could not render document body for PDF.");
-        var doc = iframe.contentDocument;
+        if (!captureHost) throw new Error("Could not render document for PDF.");
+        var w = Math.max(captureHost.scrollWidth, captureHost.offsetWidth, 794);
+        var h = Math.max(captureHost.scrollHeight, captureHost.offsetHeight, 400);
         var canvasOpts = Object.assign({}, setOpts.html2canvas || {}, {
-          windowWidth: doc && doc.documentElement ? doc.documentElement.scrollWidth : 794,
-          windowHeight: doc && doc.documentElement ? doc.documentElement.scrollHeight : 1123,
+          windowWidth: w,
+          windowHeight: h,
+          width: w,
+          height: h,
         });
         var runOpts = Object.assign({}, setOpts, { html2canvas: canvasOpts });
-        return html2pdf().set(runOpts).from(captureEl).save();
+        return html2pdf().set(runOpts).from(captureHost).save();
       })
       .then(function () {
         return { ok: true, filename: safeName };
       })
       .finally(function () {
-        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        closeModal();
+        if (captureHost && captureHost.parentNode) {
+          captureHost.parentNode.removeChild(captureHost);
+        }
       });
   };
 
@@ -291,5 +343,6 @@
     writeHtmlToIframe: writeHtmlToIframe,
     invokeNativePrint: invokeNativePrint,
     ensureHtml2Pdf: ensureHtml2Pdf,
+    buildVisibleCaptureHost: buildVisibleCaptureHost,
   };
 })();

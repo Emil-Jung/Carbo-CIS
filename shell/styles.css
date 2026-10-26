@@ -2800,6 +2800,22 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   min-height: 2.75em;
 }
 .td-doc-busy-hint { margin: 0; font-size: 0.85rem; line-height: 1.4; }
+.cis-pdf-working-backdrop { z-index: 2147483647; cursor: wait; }
+.cis-pdf-capture-host {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 794px;
+  min-height: 1123px;
+  margin: 0;
+  padding: 0;
+  background: #fff !important;
+  color: #000 !important;
+  z-index: 2147483646;
+  overflow: visible;
+  box-sizing: border-box;
+  pointer-events: none;
+}
 .td-doc-eudr-actions .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
