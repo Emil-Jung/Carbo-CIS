@@ -31,7 +31,9 @@
       ui.el("p", { class: "module-desc" }, [
         "Operational ",
         ui.el("strong", {}, ["container load sheet"]),
-        " for one FCL — preview, download, or print from the manifest and in-container bags.",
+        " for one FCL, and an editable ",
+        ui.el("strong", {}, ["EUDR Due Diligence Statement"]),
+        " with branded PDF output.",
       ])
     );
 
@@ -274,6 +276,10 @@
     }
 
     await loadContainers();
+
+    if (CIS.mountEudrDdsEditor) {
+      CIS.mountEudrDdsEditor(container, ctx, { ui: ui, containers: containers });
+    }
   }
 
   CIS.modules.push({
@@ -283,7 +289,7 @@
     kind: "lookup",
     order: 18,
     icon: "traceability",
-    description: "Container load sheets for logistics",
+    description: "Container load sheets and EUDR due diligence statements",
     requires: "traceability.containers",
     render: render,
   });
