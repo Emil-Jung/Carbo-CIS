@@ -105,8 +105,13 @@
     var form = ui.el("form", { class: "toolbar ct-form ct-form--container-booking" });
     var numberInput = ui.el("input", {
       type: "text",
-      placeholder: "Container number, e.g. MSCU1234567",
+      placeholder: "Office / booking container ref",
       required: "required",
+      autocomplete: "off",
+    });
+    var fclInput = ui.el("input", {
+      type: "text",
+      placeholder: "Physical FCL, e.g. MSCU1234567 (optional)",
       autocomplete: "off",
     });
     var countInput = ui.el("input", {
@@ -125,8 +130,6 @@
     productSelect.appendChild(ui.el("option", { value: "" }, ["Loading products…"]));
     var shipToInput = ui.el("input", { type: "text", autocomplete: "off" });
     var deliveryNoteInput = ui.el("input", { type: "text", autocomplete: "off" });
-    var tareInput = ui.el("input", { type: "number", min: "0", step: "1", autocomplete: "off" });
-    var tagInput = ui.el("input", { type: "text", autocomplete: "off" });
     var transporterInput = ui.el("input", { type: "text", autocomplete: "off" });
     var bookingInput = ui.el("input", { type: "text", placeholder: "Booking ref (optional)", autocomplete: "off" });
     var shipDateInput = ui.el("input", { type: "date", autocomplete: "off" });
@@ -141,15 +144,14 @@
     }
 
     form.appendChild(labelled("Container number", numberInput));
+    form.appendChild(labelled("FCL number", fclInput));
     form.appendChild(labelled("Load date", loadDateInput));
     form.appendChild(labelled("Product", productSelect));
     form.appendChild(labelled("Bags when full", countInput));
     form.appendChild(labelled("Yard", locationSelect));
-    form.appendChild(labelled("To", shipToInput));
+    form.appendChild(labelled("Consignee", shipToInput));
     form.appendChild(labelled("Delivery note", deliveryNoteInput));
-    form.appendChild(labelled("Tare (kg)", tareInput));
-    form.appendChild(labelled("Tag", tagInput));
-    form.appendChild(labelled("Transporter", transporterInput));
+    form.appendChild(labelled("Shipping line", transporterInput));
     form.appendChild(labelled("Expected ship date", shipDateInput));
     form.appendChild(labelled("Booking ref", bookingInput));
     form.appendChild(labelled("Walvis dispatch (Option A)", dispatchSelect));
@@ -326,6 +328,11 @@
         autocomplete: "off",
         value: containerRow.container_number || "",
       });
+      var fclInput = ui.el("input", {
+        type: "text",
+        autocomplete: "off",
+        value: containerRow.fcl_number || "",
+      });
       var countInput = ui.el("input", {
         type: "number",
         min: "1",
@@ -359,18 +366,6 @@
         autocomplete: "off",
         value: containerRow.delivery_note || "",
       });
-      var tareInput = ui.el("input", {
-        type: "number",
-        min: "0",
-        step: "1",
-        autocomplete: "off",
-        value: containerRow.tare_kg != null ? String(containerRow.tare_kg) : "",
-      });
-      var tagInput = ui.el("input", {
-        type: "text",
-        autocomplete: "off",
-        value: containerRow.tag_ref || "",
-      });
       var transporterInput = ui.el("input", {
         type: "text",
         autocomplete: "off",
@@ -399,13 +394,12 @@
       }
 
       var formGrid = ui.el("div", { class: "cm-edit-container-grid" });
-      formGrid.appendChild(fieldRow("Container / FCL number", numberInput));
+      formGrid.appendChild(fieldRow("Container number", numberInput));
+      formGrid.appendChild(fieldRow("FCL number", fclInput));
       formGrid.appendChild(fieldRow("Booking ref", bookingInput));
-      formGrid.appendChild(fieldRow("To (client / destination)", shipToInput));
+      formGrid.appendChild(fieldRow("Consignee", shipToInput));
       formGrid.appendChild(fieldRow("Delivery note", deliveryNoteInput));
-      formGrid.appendChild(fieldRow("Tare (kg)", tareInput));
-      formGrid.appendChild(fieldRow("Tag (vehicle reg)", tagInput));
-      formGrid.appendChild(fieldRow("Transporter", transporterInput));
+      formGrid.appendChild(fieldRow("Shipping line", transporterInput));
       formGrid.appendChild(fieldRow("Product", productSelect));
       formGrid.appendChild(fieldRow("Bags when full", countInput));
       formGrid.appendChild(fieldRow("Yard", locationSelect));
@@ -450,6 +444,7 @@
         try {
           var bodyPayload = {
             container_number: number,
+            fcl_number: fclInput.value.trim().toUpperCase() || null,
             target_bag_count: count,
             location: locationSelect.value,
             product_key: productKey,
@@ -457,7 +452,6 @@
             booking_ref: bookingInput.value.trim() || null,
             ship_to: shipToInput.value.trim() || null,
             delivery_note: deliveryNoteInput.value.trim() || null,
-            tag_ref: tagInput.value.trim() || null,
             transporter: transporterInput.value.trim() || null,
             walvis_dispatch_id: dispatchSelect.value || null,
           };
@@ -465,8 +459,6 @@
           else bodyPayload.load_date = null;
           if (shipDateInput.value) bodyPayload.expected_ship_date = shipDateInput.value;
           else bodyPayload.expected_ship_date = null;
-          if (tareInput.value !== "") bodyPayload.tare_kg = Number(tareInput.value);
-          else bodyPayload.tare_kg = null;
 
           await ctx.api.traceability(
             "/containers/" + encodeURIComponent(containerRow.id),
@@ -508,7 +500,7 @@
       var table = ui.el("table", { class: "data" });
       table.innerHTML =
         "<thead><tr>" +
-        "<th>Container</th><th>Booking ref</th><th>Product</th><th>Loading date</th><th>Yard</th>" +
+        "<th>Container</th><th>FCL</th><th>Booking ref</th><th>Product</th><th>Loading date</th><th>Yard</th>" +
         "<th>Loaded</th><th>Status</th><th>Released</th><th></th>" +
         "</tr></thead>";
       var tbody = ui.el("tbody");
@@ -517,6 +509,7 @@
         var tr = ui.el("tr");
         tr.innerHTML =
           "<td><strong>" + ui.escape(c.container_number) + "</strong></td>" +
+          "<td>" + ui.escape(c.fcl_number || "—") + "</td>" +
           "<td>" + ui.escape(c.booking_ref || "—") + "</td>" +
           "<td>" + ui.escape(c.product_label || c.product_key || "—") + "</td>" +
           "<td>" + ui.escape(fmtContainerLoadingDate(c)) + "</td>" +
@@ -704,6 +697,7 @@
       try {
         var bodyPayload = {
           container_number: number,
+          fcl_number: fclInput.value.trim().toUpperCase() || null,
           target_bag_count: count,
           location: locationSelect.value,
           load_date: loadDateInput.value,
@@ -712,10 +706,8 @@
           booking_ref: bookingInput.value.trim() || null,
           ship_to: shipToInput.value.trim() || null,
           delivery_note: deliveryNoteInput.value.trim() || null,
-          tag_ref: tagInput.value.trim() || null,
           transporter: transporterInput.value.trim() || null,
         };
-        if (tareInput.value !== "") bodyPayload.tare_kg = Number(tareInput.value);
         if (shipDateInput.value) bodyPayload.expected_ship_date = shipDateInput.value;
         if (dispatchSelect.value) bodyPayload.walvis_dispatch_id = dispatchSelect.value;
         await ctx.api.traceability("/containers", {
@@ -729,8 +721,7 @@
         loadDateInput.value = "";
         shipToInput.value = "";
         deliveryNoteInput.value = "";
-        tareInput.value = "";
-        tagInput.value = "";
+        fclInput.value = "";
         transporterInput.value = "";
         productSelect.value = "";
         dispatchSelect.value = "";

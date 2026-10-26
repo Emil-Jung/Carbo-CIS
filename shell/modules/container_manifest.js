@@ -32,6 +32,17 @@
     return String(iso);
   }
 
+  function sheetFclNumber(header) {
+    var h = header || {};
+    var fcl = (h.fcl_number || "").trim();
+    if (fcl) return fcl;
+    return (h.container_number || "").trim();
+  }
+
+  function sheetBookingContainerRef(header) {
+    return ((header && header.container_number) || "").trim();
+  }
+
   /** Container Load Sheet only — LF2.5 → DOM2.5 display; underlying keys unchanged. */
   function sheetProductDisplay(header) {
     var h = header || {};
@@ -147,8 +158,17 @@
     if (!manifest || !manifest.header) {
       throw new Error("No manifest data for container sheet.");
     }
-    var cn = manifest.header.container_number;
-    var rows = await CIS.fetchInContainerBagRowsForSheet(api, cn);
+    var h = manifest.header;
+    var matchKeys = [
+      sheetFclNumber(h),
+      sheetBookingContainerRef(h),
+    ].filter(function (k) {
+      return !!k;
+    });
+    var rows = [];
+    for (var ki = 0; ki < matchKeys.length && !rows.length; ki++) {
+      rows = await CIS.fetchInContainerBagRowsForSheet(api, matchKeys[ki]);
+    }
     if (!rows.length) {
       rows = loadingEntriesFromManifestLines(manifest).map(function (e) {
         return { serial: e.bag_serial, net_weight_kg: e.weight_kg };
@@ -348,11 +368,15 @@
         ? '<div class="cm-eudr">EUDR manifest — extended fields and layout to be added.</div>'
         : "";
 
+    var fcl = sheetFclNumber(h);
+    var bookingContainer = sheetBookingContainerRef(h);
     var details =
-      detailRow("CONTAINER", h.container_number || "") +
+      detailRow("FCL", fcl || "") +
+      (bookingContainer && bookingContainer !== fcl
+        ? detailRow("CONTAINER", bookingContainer)
+        : "") +
       detailRow("DELIVERY NOTE", h.delivery_note || "") +
-      detailRow("TRANSPORTER", h.transporter || "") +
-      detailRow("REG", h.tag_ref || "") +
+      detailRow("SHIPPING LINE", h.transporter || "") +
       detailRow("BOOKING REF", bookingRef || "");
 
     var pageBase = pageIndex * ENTRIES_PER_PAGE;
@@ -369,7 +393,7 @@
       "</h1>" +
       eudrBlock +
       (pageIndex === 0
-        ? '<table class="cm-head"><tr><th>DATE</th><th>PRODUCT</th><th>TO</th></tr><tr><td>' +
+        ? '<table class="cm-head"><tr><th>DATE</th><th>PRODUCT</th><th>CONSIGNEE</th></tr><tr><td>' +
           esc(loadDate) +
           "</td><td>" +
           esc(sheetProductDisplay(h)) +
@@ -540,7 +564,7 @@
     }
 
     return CIS.showHtmlDocumentPreview({
-      title: "Preview — Container Load Sheet · " + (h.container_number || "FCL"),
+      title: "Preview — Container Load Sheet · " + (sheetFclNumber(h) || "FCL"),
       pdfFilename: sheetPdfFilename(frozenManifest),
       closeLabel: "Back",
       printLabel: "Print",
