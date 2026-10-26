@@ -26,10 +26,8 @@
     { key: "fines_ton", label: "Fines", patchKey: "fines_ton", ton: true },
     { key: "lumpwood_ton", label: "Lumpwood", patchKey: "lumpwood_ton", ton: true },
     { key: "restaurant_ton", label: "Restaurant", patchKey: "restaurant_ton", ton: true },
+    { key: "shortage_on_tonnage", label: "Shortage on Tonnage", readOnly: true, ton: true },
   ];
-
-  var MIN_LOAD_TON = 30;
-  var PENALTY_NAD_PER_TON = 250;
 
   var PCT_FIELDS = [
     { key: "pct_restaurant", label: "% Restaurant" },
@@ -63,7 +61,6 @@
     if (col.ton || col.pct || col.key === "distance_km") return "delivery-conf-td--num";
     if (col.key === "fsc_flag") return "delivery-conf-td--f";
     if (col.key === "remarks") return "delivery-conf-td--remarks";
-    if (col.key === "supplier") return "delivery-conf-td--supplier";
     return "";
   }
 
@@ -80,25 +77,6 @@
   function fmtPct(v) {
     if (v === null || v === undefined || v === "") return "—";
     return num(v).toFixed(2) + "%";
-  }
-
-  function suggestedPenaltyShortageTon(weightTon) {
-    if (weightTon == null || weightTon === "") return null;
-    var w = num(weightTon);
-    var s = MIN_LOAD_TON - w;
-    return s > 0 ? Math.round(s * 1000) / 1000 : 0;
-  }
-
-  function penaltyNad(shortageTon) {
-    if (shortageTon == null || shortageTon === "") return null;
-    var s = num(shortageTon);
-    if (s <= 0) return 0;
-    return Math.round(s * PENALTY_NAD_PER_TON * 100) / 100;
-  }
-
-  function fmtNad(v) {
-    if (v == null || v === "") return "—";
-    return "NAD " + num(v).toFixed(2);
   }
 
   /** Same as Excel Deliveries: each stream ÷ Weight (ton). */
@@ -120,8 +98,8 @@
       num(row.fines_ton) +
       num(row.unburned_wood_ton) +
       num(row.sand_ash_ton);
-    row.sheet_shortage_on_tonnage = num(row.weight_ton) - sum;
-    if (Math.abs(row.sheet_shortage_on_tonnage) < 0.0005) row.sheet_shortage_on_tonnage = 0;
+    row.shortage_on_tonnage = num(row.weight_ton) - sum;
+    if (Math.abs(row.shortage_on_tonnage) < 0.0005) row.shortage_on_tonnage = 0;
     var w = num(row.weight_ton);
     if (w <= 0) {
       return Object.assign({}, row, {
@@ -227,6 +205,10 @@
         ]));
         return;
       }
+      listTableHost.appendChild(ui.el("p", { class: "delivery-conf-tracker-scroll-hint muted" }, [
+        "Wide sheet — scroll horizontally (or trackpad shift-scroll) to reach Remarks and % columns.",
+      ]));
+      var scroll = ui.el("div", { class: "delivery-conf-tracker-scroll delivery-conf-tracker-sheet" });
       var table = ui.el("table", {
         class: "delivery-conf-tracker-table delivery-conf-tracker-table--list deliveries-register-table",
       });
@@ -254,11 +236,8 @@
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      if (CIS.wrapDeliveryTrackerTable) {
-        listTableHost.appendChild(CIS.wrapDeliveryTrackerTable(ui, table));
-      } else {
-        listTableHost.appendChild(table);
-      }
+      scroll.appendChild(table);
+      listTableHost.appendChild(scroll);
     }
 
     async function loadList() {
@@ -294,7 +273,7 @@
         var data = await ctx.api.traceability(
           "/delivery-confirmations/" + encodeURIComponent(intakeId)
         );
-        showDetail(data.row);
+        showDetail(data.row, data.bq_settlement);
         setListMsg("");
       } catch (e) {
         setListMsg(String(e.message || e), true);
@@ -368,6 +347,107 @@
       return grid;
     }
 
+    function appendBqSettlementPanel(ui, host, row, bq) {
+      bq = bq || {};
+      var section = ui.el("section", { class: "delivery-conf-panel delivery-conf-bq-settle" });
+      section.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["BQ direct fines settlement"]));
+      section.appendChild(
+        ui.el("p", { class: "muted" }, [
+          "Confirm how much of this truck's fines went direct to BQ. This is not auto-calculated from digital fines minus bagged fines.",
+        ])
+      );
+
+      function fact(label, val, suffix) {
+        var box = ui.el("div", { class: "delivery-conf-bq-fact" });
+        box.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, [label]));
+        box.appendChild(
+          ui.el("span", { class: "delivery-conf-readonly" }, [
+            val != null && val !== "" ? String(val) + (suffix || "") : "—",
+          ])
+        );
+        return box;
+      }
+
+      var facts = ui.el("div", { class: "delivery-conf-bq-facts" });
+      facts.appendChild(fact("Provisional advance (kg)", bq.provisional_kg, " kg"));
+      facts.appendChild(fact("Digital fines from POST (kg)", bq.digital_fines_kg, " kg"));
+      facts.appendChild(fact("Bagged fines (kg)", bq.bagged_fines_kg, " kg"));
+      facts.appendChild(fact("Consumed from provisional (kg)", bq.consumed_from_provisional_kg, " kg"));
+      facts.appendChild(fact("Remaining provisional pool (kg)", bq.remaining_provisional_kg, " kg"));
+      facts.appendChild(fact("Confirmed direct (kg)", bq.confirmed_direct_fines_kg, " kg"));
+      if (bq.shortfall_kg != null && num(bq.shortfall_kg) > 0) {
+        facts.appendChild(fact("Unresolved shortfall (kg)", bq.shortfall_kg, " kg"));
+      }
+      if (bq.discrepancy_kg != null) {
+        facts.appendChild(fact("Digital − bagged − confirmed (kg)", bq.discrepancy_kg, " kg"));
+      }
+      section.appendChild(facts);
+
+      var settleMsg = ui.el("p", { class: "delivery-conf-msg muted" });
+      var confirmInput = ui.el("input", {
+        class: "delivery-conf-input",
+        type: "number",
+        step: "0.001",
+        min: "0",
+        placeholder: "Confirmed direct fines kg",
+      });
+      if (bq.confirmed_direct_fines_kg != null) {
+        confirmInput.value = String(bq.confirmed_direct_fines_kg);
+      }
+      var settleBtn = ui.el("button", { type: "button", class: "btn-sm delivery-conf-btn-primary" }, [
+        "Confirm direct BQ contribution",
+      ]);
+      var canSettle = !!bq.can_settle && row.office_status !== "complete";
+      if (!canSettle) {
+        confirmInput.readOnly = true;
+        settleBtn.disabled = true;
+        if (bq.provisional_status === "settled" || bq.provisional_status === "shortfall") {
+          settleMsg.textContent =
+            "Settled" +
+            (bq.settled_at ? " · " + formatPosted(bq.settled_at) : "") +
+            (bq.provisional_status === "shortfall" ? " (shortfall flagged)" : "") +
+            ".";
+        } else if (!bq.provisional_kg) {
+          settleMsg.textContent = "No provisional advance was recorded for this intake in Control Room.";
+        }
+      }
+
+      var confirmWrap = ui.el("label", { class: "delivery-conf-field" });
+      confirmWrap.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, ["Confirmed direct fines (kg)"]));
+      confirmWrap.appendChild(confirmInput);
+      section.appendChild(confirmWrap);
+      section.appendChild(settleBtn);
+      section.appendChild(settleMsg);
+      host.appendChild(section);
+
+      settleBtn.addEventListener("click", function () {
+        if (!ctx.api || !ctx.api.traceability) return;
+        var raw = confirmInput.value.trim();
+        var kg = raw === "" ? NaN : num(raw);
+        if (!isFinite(kg) || kg <= 0) {
+          settleMsg.textContent = "Enter confirmed direct fines kg greater than zero.";
+          settleMsg.className = "delivery-conf-msg is-error";
+          return;
+        }
+        settleMsg.textContent = "Saving…";
+        settleMsg.className = "delivery-conf-msg muted";
+        settleBtn.disabled = true;
+        ctx.api
+          .traceability("/delivery-confirmations/" + encodeURIComponent(row.intake_id) + "/bq-settle", {
+            method: "POST",
+            body: { confirmed_direct_fines_kg: kg },
+          })
+          .then(function () {
+            void fetchDetail(row.intake_id);
+          })
+          .catch(function (e) {
+            settleMsg.textContent = String(e.message || e);
+            settleMsg.className = "delivery-conf-msg is-error";
+            settleBtn.disabled = !canSettle;
+          });
+      });
+    }
+
     function closeDetail() {
       listWrap.hidden = false;
       detailHost.hidden = true;
@@ -375,7 +455,7 @@
       void loadList();
     }
 
-    function showDetail(row) {
+    function showDetail(row, bqSettlement) {
       listWrap.hidden = true;
       detailHost.hidden = false;
       detailHost.innerHTML = "";
@@ -388,24 +468,14 @@
         "Intake " + (row.intake_id || "—") + " · Posted " + formatPosted(row.factory_posted_at);
       detailHost.appendChild(meta);
 
+      if (bqSettlement) {
+        appendBqSettlementPanel(ui, detailHost, row, bqSettlement);
+      }
+
       if (!row.factory_weights_saved) {
         detailHost.appendChild(ui.el("p", { class: "delivery-conf-msg is-error" }, [
           "Factory weights are missing — Control Room must POST the capture sheet before PJ can confirm this row.",
         ]));
-      } else if (CIS.validateTrackerTonnes) {
-        var preErr = CIS.validateTrackerTonnes({
-          weight_ton: row.weight_ton,
-          restaurant_ton: row.restaurant_ton,
-          lumpwood_ton: row.lumpwood_ton,
-          fines_ton: row.fines_ton,
-          sand_ash_ton: row.sand_ash_ton,
-          unburned_wood_ton: row.unburned_wood_ton,
-        });
-        if (preErr) {
-          detailHost.appendChild(ui.el("p", { class: "delivery-conf-msg is-error" }, [
-            "Factory weights look wrong — fix tonne columns before Save or mark complete: " + preErr,
-          ]));
-        }
       }
 
       var panel = ui.el("section", { class: "delivery-conf-panel" });
@@ -421,9 +491,12 @@
       panel.appendChild(buildFieldGrid(ui, ROW1, row, inputs, locked));
 
       panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, [
-        "Weights (tonnes, 3 dp) — same as Excel Deliveries; 320 kg = 0.320, not 320. Max ~45 t per truck.",
+        "Weights (t) — pre-filled from factory POST; edit here if the sheet differs (cannot re-POST after next Discharge)",
       ]));
-      panel.appendChild(buildFieldGrid(ui, ROW2, row, tonInputs, locked));
+      var row2Grid = buildFieldGrid(ui, ROW2.filter(function (f) {
+        return f.key !== "shortage_on_tonnage";
+      }), row, tonInputs, locked);
+      panel.appendChild(row2Grid);
 
       if (row.scr1_20_60_ton != null || row.scr2_60_plus_ton != null) {
         panel.appendChild(ui.el("p", { class: "delivery-conf-sheet-hint muted" }, [
@@ -437,18 +510,7 @@
         ]));
       }
 
-      /** True only after PJ saved a value to the database (not the API suggestion). */
-      var shortageLockedByUser = row.penalty_shortage_saved === true;
-      var shortageInput = ui.el("input", {
-        type: "text",
-        class: "delivery-conf-input delivery-conf-input--ton delivery-conf-input--decimal",
-        inputMode: "decimal",
-        autocomplete: "off",
-        placeholder: "0.000",
-      });
-      if (locked) shortageInput.readOnly = true;
-      var shortageNadEl = ui.el("span", { class: "delivery-conf-penalty-nad" }, ["—"]);
-      var shortageHint = ui.el("p", { class: "muted delivery-conf-shortage-hint" }, [""]);
+      var shortageEl = ui.el("div", { class: "delivery-conf-readonly delivery-conf-shortage" });
       var pctWrap = ui.el("div", { class: "delivery-conf-pct-row" });
       var pctEls = {};
       PCT_FIELDS.forEach(function (f) {
@@ -460,67 +522,17 @@
         pctWrap.appendChild(box);
       });
 
-      function currentWeightTon() {
-        var raw = tonInputs.weight_ton && tonInputs.weight_ton.value.trim();
-        if (raw !== "") return num(raw);
-        return row.weight_ton != null ? num(row.weight_ton) : null;
-      }
-
-      function calculatedShortageTon() {
-        return suggestedPenaltyShortageTon(currentWeightTon());
-      }
-
-      function syncShortageInputFromWeight() {
-        if (locked || shortageLockedByUser) {
-          if (shortageLockedByUser && row.shortage_on_tonnage != null) {
-            shortageInput.value = fmtTon(row.shortage_on_tonnage);
-          }
-          return;
-        }
-        var s = calculatedShortageTon();
-        if (s == null && row.suggested_penalty_shortage_ton != null) {
-          s = num(row.suggested_penalty_shortage_ton);
-        }
-        shortageInput.value = s != null ? fmtTon(s) : "";
-      }
-
       function refreshDerived() {
-        syncShortageInputFromWeight();
         var calc = sheetRowFromInputs(tonInputs, row);
-        var w = currentWeightTon();
-        var calculated = calculatedShortageTon();
-        shortageHint.textContent =
-          w != null
-            ? "Auto: max(0, " +
-              MIN_LOAD_TON +
-              " − " +
-              fmtTon(w) +
-              ") = " +
-              (calculated != null ? fmtTon(calculated) + " t" : "—") +
-              (shortageLockedByUser
-                ? " — saved value; edit this box (e.g. 0 for no penalty)."
-                : " — changes with Weight (t). Type 0 for no penalty.")
-            : "Enter Weight (t) to calculate shortage (minimum load " + MIN_LOAD_TON + " t).";
-        var shortageVal =
-          shortageInput.value.trim() !== "" ? num(shortageInput.value) : calculated;
-        shortageNadEl.textContent = fmtNad(penaltyNad(shortageVal));
+        shortageEl.textContent = fmtTon(calc.shortage_on_tonnage);
         PCT_FIELDS.forEach(function (f) {
           pctEls[f.key].textContent = fmtPct(calc[f.key]);
         });
       }
 
-      syncShortageInputFromWeight();
-
       var shortageField = ui.el("label", { class: "delivery-conf-field delivery-conf-field--shortage" });
-      shortageField.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, ["Shortage on Tonnage (t)"]));
-      var shortageRow = ui.el("div", { class: "delivery-conf-shortage-row" });
-      shortageRow.appendChild(shortageInput);
-      shortageRow.appendChild(
-        ui.el("span", { class: "delivery-conf-penalty-nad-label" }, ["Penalty: "])
-      );
-      shortageRow.appendChild(shortageNadEl);
-      shortageField.appendChild(shortageRow);
-      shortageField.appendChild(shortageHint);
+      shortageField.appendChild(ui.el("span", { class: "delivery-conf-field-label" }, ["Shortage on Tonnage"]));
+      shortageField.appendChild(shortageEl);
       panel.appendChild(shortageField);
       panel.appendChild(ui.el("p", { class: "delivery-conf-row-heading" }, ["Percentages (calculated like Excel)"]));
       panel.appendChild(pctWrap);
@@ -536,10 +548,6 @@
 
       Object.keys(tonInputs).forEach(function (k) {
         tonInputs[k].addEventListener("input", refreshDerived);
-      });
-      shortageInput.addEventListener("input", function () {
-        shortageLockedByUser = true;
-        refreshDerived();
       });
       refreshDerived();
 
@@ -597,13 +605,6 @@
           var raw = tonInputs[key].value.trim();
           payload[key] = raw === "" ? null : num(raw);
         });
-        var shRaw = shortageInput.value.trim();
-        if (shRaw !== "") {
-          payload.shortage_on_tonnage = num(shRaw);
-        } else {
-          var autoSh = calculatedShortageTon();
-          payload.shortage_on_tonnage = autoSh != null ? autoSh : null;
-        }
         if (inputs.remarks) payload.remarks = inputs.remarks.value.trim() || null;
         if (markComplete) payload.mark_complete = true;
         return payload;
@@ -611,18 +612,11 @@
 
       async function save(markComplete) {
         if (!ctx.api || !ctx.api.traceability) return;
-        var patch = buildPatch(markComplete);
-        if (CIS.validateTrackerTonnes) {
-          var tonErr = CIS.validateTrackerTonnes(patch);
-          if (tonErr) {
-            setDetailMsg(tonErr, true);
-            return;
-          }
-        }
         setDetailMsg("Saving…");
         saveBtn.disabled = true;
         completeBtn.disabled = true;
         try {
+          var patch = buildPatch(markComplete);
           var res = await ctx.api.traceability(
             "/delivery-confirmations/" + encodeURIComponent(row.intake_id),
             { method: "PATCH", body: patch }
