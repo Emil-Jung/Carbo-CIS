@@ -230,7 +230,7 @@
       return window.confirm(title + "\n\n" + detail + "\n\nContinue?");
     }
 
-    function openSetBookingRefDialog(containerRow, onSaved) {
+    function openBookingRefOnlyDialog(containerRow, onSaved) {
       var backdrop = ui.el("div", { class: "modal-backdrop cm-print-dialog-backdrop" });
       var dialog = ui.el("div", { class: "modal cm-print-dialog" });
       dialog.appendChild(
@@ -240,7 +240,7 @@
       );
       dialog.appendChild(
         ui.el("p", { class: "muted" }, [
-          "Links this container to a shipment booking so Traceability Documentation can load all FCLs in one step (EUDR by booking ref).",
+          "Shipped containers cannot be edited here except booking ref (EUDR / documentation by booking).",
         ])
       );
       var bookingInput = ui.el("input", {
@@ -308,6 +308,185 @@
       bookingInput.select();
     }
 
+    function openEditContainerDialog(containerRow, onSaved) {
+      var backdrop = ui.el("div", { class: "modal-backdrop cm-print-dialog-backdrop" });
+      var dialog = ui.el("div", { class: "modal cm-print-dialog cm-edit-container-dialog" });
+      dialog.appendChild(
+        ui.el("h3", { class: "cm-print-dialog-title" }, ["Edit container"])
+      );
+      dialog.appendChild(
+        ui.el("p", { class: "muted" }, [
+          "Update booking details while the container has not shipped. Bag assignments and loading history are unchanged.",
+        ])
+      );
+
+      var numberInput = ui.el("input", {
+        type: "text",
+        required: "required",
+        autocomplete: "off",
+        value: containerRow.container_number || "",
+      });
+      var countInput = ui.el("input", {
+        type: "number",
+        min: "1",
+        step: "1",
+        required: "required",
+        value: String(containerRow.target_bag_count || ""),
+      });
+      var locationSelect = ui.el("select", {});
+      LOCATIONS.forEach(function (loc) {
+        var opt = ui.el("option", { value: loc.value }, [loc.label]);
+        if (containerRow.location === loc.value) opt.selected = true;
+        locationSelect.appendChild(opt);
+      });
+      var loadDateInput = ui.el("input", { type: "date", autocomplete: "off" });
+      if (containerRow.load_date) loadDateInput.value = containerRow.load_date;
+      var productSelect = ui.el("select", { required: "required" });
+      productSelect.appendChild(ui.el("option", { value: "" }, ["Choose product…"]));
+      productOptions.forEach(function (opt) {
+        var o = ui.el("option", { value: opt.key }, [opt.label || opt.key]);
+        o.dataset.label = opt.label || opt.key;
+        if (opt.key === containerRow.product_key) o.selected = true;
+        productSelect.appendChild(o);
+      });
+      var shipToInput = ui.el("input", {
+        type: "text",
+        autocomplete: "off",
+        value: containerRow.ship_to || "",
+      });
+      var deliveryNoteInput = ui.el("input", {
+        type: "text",
+        autocomplete: "off",
+        value: containerRow.delivery_note || "",
+      });
+      var tareInput = ui.el("input", {
+        type: "number",
+        min: "0",
+        step: "1",
+        autocomplete: "off",
+        value: containerRow.tare_kg != null ? String(containerRow.tare_kg) : "",
+      });
+      var tagInput = ui.el("input", {
+        type: "text",
+        autocomplete: "off",
+        value: containerRow.tag_ref || "",
+      });
+      var transporterInput = ui.el("input", {
+        type: "text",
+        autocomplete: "off",
+        value: containerRow.transporter || "",
+      });
+      var bookingInput = ui.el("input", {
+        type: "text",
+        autocomplete: "off",
+        value: containerRow.booking_ref || "",
+      });
+      var shipDateInput = ui.el("input", { type: "date", autocomplete: "off" });
+      if (containerRow.expected_ship_date) shipDateInput.value = containerRow.expected_ship_date;
+      var dispatchSelect = ui.el("select", {});
+      dispatchSelect.appendChild(ui.el("option", { value: "" }, ["No dispatch link (yard storage only)"]));
+      dispatchOptions.forEach(function (d) {
+        var o = ui.el("option", { value: d.id }, [d.label || d.id]);
+        if (containerRow.walvis_dispatch_id === d.id) o.selected = true;
+        dispatchSelect.appendChild(o);
+      });
+
+      function fieldRow(label, control) {
+        var lab = ui.el("label", { class: "ct-field cm-print-field" });
+        lab.appendChild(ui.el("span", { class: "ct-field-label" }, [label]));
+        lab.appendChild(control);
+        return lab;
+      }
+
+      var formGrid = ui.el("div", { class: "cm-edit-container-grid" });
+      formGrid.appendChild(fieldRow("Container / FCL number", numberInput));
+      formGrid.appendChild(fieldRow("Booking ref", bookingInput));
+      formGrid.appendChild(fieldRow("To (client / destination)", shipToInput));
+      formGrid.appendChild(fieldRow("Delivery note", deliveryNoteInput));
+      formGrid.appendChild(fieldRow("Tare (kg)", tareInput));
+      formGrid.appendChild(fieldRow("Tag (vehicle reg)", tagInput));
+      formGrid.appendChild(fieldRow("Transporter", transporterInput));
+      formGrid.appendChild(fieldRow("Product", productSelect));
+      formGrid.appendChild(fieldRow("Bags when full", countInput));
+      formGrid.appendChild(fieldRow("Yard", locationSelect));
+      formGrid.appendChild(fieldRow("Load date", loadDateInput));
+      formGrid.appendChild(fieldRow("Expected ship date", shipDateInput));
+      formGrid.appendChild(fieldRow("Walvis dispatch (Option A)", dispatchSelect));
+      dialog.appendChild(formGrid);
+
+      var errEl = ui.el("p", { class: "error-box", hidden: true }, [""]);
+      dialog.appendChild(errEl);
+
+      var actions = ui.el("div", { class: "cm-print-dialog-actions" });
+      var cancelBtn = ui.el("button", { type: "button", class: "btn btn-sm" }, ["Cancel"]);
+      var saveBtn = ui.el("button", { type: "button", class: "btn" }, ["Save"]);
+      actions.appendChild(cancelBtn);
+      actions.appendChild(saveBtn);
+      dialog.appendChild(actions);
+      backdrop.appendChild(dialog);
+      document.body.appendChild(backdrop);
+
+      function close() {
+        if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+      }
+
+      cancelBtn.addEventListener("click", close);
+      backdrop.addEventListener("click", function (ev) {
+        if (ev.target === backdrop) close();
+      });
+
+      async function save() {
+        errEl.hidden = true;
+        var number = numberInput.value.trim().toUpperCase();
+        var count = parseInt(countInput.value, 10);
+        var productKey = productSelect.value;
+        if (!number || !count || count < 1 || !productKey) {
+          errEl.textContent = "Container number, product, and bag target are required.";
+          errEl.hidden = false;
+          return;
+        }
+        var selOpt = productSelect.options[productSelect.selectedIndex];
+        saveBtn.disabled = true;
+        try {
+          var bodyPayload = {
+            container_number: number,
+            target_bag_count: count,
+            location: locationSelect.value,
+            product_key: productKey,
+            product_label: (selOpt && (selOpt.dataset.label || selOpt.textContent)) || productKey,
+            booking_ref: bookingInput.value.trim() || null,
+            ship_to: shipToInput.value.trim() || null,
+            delivery_note: deliveryNoteInput.value.trim() || null,
+            tag_ref: tagInput.value.trim() || null,
+            transporter: transporterInput.value.trim() || null,
+            walvis_dispatch_id: dispatchSelect.value || null,
+          };
+          if (loadDateInput.value) bodyPayload.load_date = loadDateInput.value;
+          else bodyPayload.load_date = null;
+          if (shipDateInput.value) bodyPayload.expected_ship_date = shipDateInput.value;
+          else bodyPayload.expected_ship_date = null;
+          if (tareInput.value !== "") bodyPayload.tare_kg = Number(tareInput.value);
+          else bodyPayload.tare_kg = null;
+
+          await ctx.api.traceability(
+            "/containers/" + encodeURIComponent(containerRow.id),
+            { method: "PATCH", body: bodyPayload }
+          );
+          close();
+          if (onSaved) await onSaved();
+        } catch (e) {
+          errEl.textContent = e.message || String(e);
+          errEl.hidden = false;
+          saveBtn.disabled = false;
+        }
+      }
+
+      saveBtn.addEventListener("click", function () {
+        save();
+      });
+      numberInput.focus();
+    }
+
     async function act(containerId, path, payload, describe) {
       if (!window.confirm(describe + "?")) return;
       try {
@@ -349,13 +528,23 @@
           "</td>";
 
         var actions = ui.el("td", { class: "ct-actions-cell" });
-        if (c.status !== "cancelled") {
+        if (c.status === "booked" || c.status === "loading" || c.status === "full") {
           actions.appendChild(
             ui.el("button", {
               class: "btn btn-sm",
               type: "button",
               onclick: function () {
-                openSetBookingRefDialog(c, load);
+                openEditContainerDialog(c, load);
+              },
+            }, ["Edit container"])
+          );
+        } else if (c.status === "dispatched") {
+          actions.appendChild(
+            ui.el("button", {
+              class: "btn btn-sm",
+              type: "button",
+              onclick: function () {
+                openBookingRefOnlyDialog(c, load);
               },
             }, [c.booking_ref ? "Change booking ref" : "Set booking ref"])
           );
