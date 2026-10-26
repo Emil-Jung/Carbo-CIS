@@ -2759,6 +2759,40 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .cm-print-dialog { max-width: 420px; width: 100%; }
 .cm-print-dialog--wide { max-width: 520px; }
+.cm-print-dialog.cm-edit-container-dialog {
+  max-width: min(720px, 96vw);
+  max-height: min(92vh, 720px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cm-edit-container-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 1rem;
+  margin: 0.5rem 0 0.75rem;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-right: 0.25rem;
+}
+.cm-edit-container-grid .cm-print-field {
+  margin-bottom: 0;
+}
+.cm-edit-container-grid .ct-field-label {
+  font-size: 12px;
+}
+.cm-edit-container-grid input,
+.cm-edit-container-grid select {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+@media (max-width: 560px) {
+  .cm-edit-container-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .cm-print-dialog-hint { margin: 0 0 16px; font-size: 13px; line-height: 1.45; }
 .cm-print-field { margin-bottom: 14px; }
 .cm-print-field input[type="date"],
@@ -3467,20 +3501,32 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   font-weight: 600;
 }
 .cm-eudr-dds-fields {
-  max-width: min(720px, 95vw);
-  max-height: 28vh;
-  overflow: auto;
+  max-width: min(960px, 96vw);
 }
 .td-doc-eudr-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
   margin: 0.75rem 0 1rem;
   padding: 0.5rem 0.65rem;
   border: 1px solid var(--border-muted, #ccc);
   border-radius: 6px;
   background: var(--surface-raised, #fafafa);
+  max-height: min(52vh, 520px);
+  overflow-y: auto;
 }
 .td-doc-eudr-field-row {
   display: block;
-  margin-bottom: 0.55rem;
+  margin-bottom: 0;
+  min-width: 0;
+}
+.td-doc-eudr-field-row:has(textarea) {
+  grid-column: 1 / -1;
+}
+@media (max-width: 640px) {
+  .td-doc-eudr-form {
+    grid-template-columns: 1fr;
+  }
 }
 .td-doc-eudr-field-row .ct-field-label {
   display: block;
@@ -3504,6 +3550,7 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   margin-top: 2rem;
   padding-top: 1.25rem;
   border-top: 1px solid var(--border-muted, #ccc);
+  max-width: min(960px, 96vw);
 }
 .td-doc-eudr-mode-row {
   margin: 0.5rem 0 0.75rem;
