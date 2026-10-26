@@ -550,6 +550,9 @@
 
     }
 
+    CIS.traceabilityApiBase =
+      (state.config && state.config.traceabilityApiBase) || "/traceability/api/v1";
+
     if (CIS.syncControlRoomVisibility) CIS.syncControlRoomVisibility(state.config);
 
     if (CIS.shellCache) {

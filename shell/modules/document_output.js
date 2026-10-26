@@ -95,19 +95,6 @@
     });
   }
 
-  function createPdfDocument() {
-    var J = window.jspdf && window.jspdf.jsPDF;
-    if (!J) {
-      throw new Error("PDF engine not ready.");
-    }
-    return new J({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-      compress: false,
-    });
-  }
-
   function pdfCaptureTargetsFromDoc(doc) {
     if (!doc || !doc.body) return [];
     var pages = doc.querySelectorAll(".cm-sheet-page");
@@ -117,52 +104,39 @@
     return [doc.body];
   }
 
-  function elementToCanvas(html2pdf, el) {
-    return html2pdf()
-      .set({
-        html2canvas: PDF_CANVAS_OPTS,
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      })
-      .from(el)
-      .toCanvas();
-  }
-
-  function addCanvasAsPdfPage(pdf, canvas, isFirstPage) {
-    if (!isFirstPage) pdf.addPage();
-    var pageW = pdf.internal.pageSize.getWidth();
-    var pageH = pdf.internal.pageSize.getHeight();
-    var m = PDF_PAGE_MARGIN_MM;
-    var maxW = pageW - 2 * m;
-    var maxH = pageH - 2 * m;
-    var drawW = maxW;
-    var drawH = (canvas.height * drawW) / canvas.width;
-    if (drawH > maxH) {
-      drawH = maxH;
-      drawW = (canvas.width * drawH) / canvas.height;
-    }
-    var x = m + (maxW - drawW) / 2;
-    var y = m;
-    var img = canvas.toDataURL("image/png");
-    pdf.addImage(img, "PNG", x, y, drawW, drawH, undefined, "SLOW");
-  }
+  var CLIENT_PDF_OPT = {
+    margin: [PDF_PAGE_MARGIN_MM, PDF_PAGE_MARGIN_MM, PDF_PAGE_MARGIN_MM, PDF_PAGE_MARGIN_MM],
+    image: { type: "jpeg", quality: 0.96 },
+    html2canvas: PDF_CANVAS_OPTS,
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    pagebreak: { mode: ["css", "legacy"], after: ".cm-sheet-page", avoid: "tr" },
+  };
 
   function savePdfFromDocumentTargets(html2pdf, doc, filename) {
     var targets = pdfCaptureTargetsFromDoc(doc);
     if (!targets.length) {
       return Promise.reject(new Error("Could not render document for PDF."));
     }
-    var pdf = createPdfDocument();
-    var chain = Promise.resolve();
-    targets.forEach(function (el, idx) {
-      chain = chain.then(function () {
-        return elementToCanvas(html2pdf, el).then(function (canvas) {
-          addCanvasAsPdfPage(pdf, canvas, idx === 0);
-        });
-      });
-    });
-    return chain.then(function () {
-      pdf.save(filename);
-    });
+    if (targets.length <= 1) {
+      return html2pdf()
+        .set(Object.assign({}, CLIENT_PDF_OPT, { filename: filename }))
+        .from(targets[0])
+        .save();
+    }
+    var baseOpt = Object.assign({}, CLIENT_PDF_OPT);
+    var chain = html2pdf().set(baseOpt).from(targets[0]).toPdf();
+    for (var i = 1; i < targets.length; i++) {
+      chain = chain
+        .get("pdf")
+        .then(function (pdf) {
+          pdf.addPage();
+        })
+        .from(targets[i])
+        .toContainer()
+        .toCanvas()
+        .toPdf();
+    }
+    return chain.set({ filename: filename }).save();
   }
 
   /** Same layout as print preview — full HTML document inside a paintable iframe. */
@@ -199,52 +173,112 @@
     dialog.appendChild(title);
     var msg = document.createElement("p");
     msg.className = "td-doc-busy-message";
-    msg.textContent = "Generating PDF on Traceability (vector, like other office apps)…";
+    msg.textContent = "Generating PDF on Traceability…";
     dialog.appendChild(msg);
     backdrop.appendChild(dialog);
     document.body.appendChild(backdrop);
-    return function closePdfWorkingModal() {
-      if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+    return {
+      close: function closePdfWorkingModal() {
+        if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+      },
+      setMessage: function (text) {
+        msg.textContent = text || "";
+        msg.className = "td-doc-busy-message";
+      },
+      showError: function (text) {
+        msg.textContent = text || "PDF download failed.";
+        msg.className = "td-doc-busy-message error-box";
+      },
     };
   }
 
   function saveBlobAsDownload(blob, filename) {
+    if (!blob || blob.size < 32) {
+      throw new Error("PDF file was empty.");
+    }
+    if (window.navigator && typeof window.navigator.msSaveOrOpenBlob === "function") {
+      window.navigator.msSaveOrOpenBlob(blob, filename);
+      return;
+    }
+    var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = filename;
+    a.rel = "noopener";
     document.body.appendChild(a);
     a.click();
     setTimeout(function () {
-      URL.revokeObjectURL(a.href);
-      a.remove();
-    }, 500);
+      URL.revokeObjectURL(url);
+      if (a.parentNode) a.parentNode.removeChild(a);
+    }, 3000);
+  }
+
+  function traceabilityApiBaseUrl() {
+    if (CIS.traceabilityApiBase) return CIS.traceabilityApiBase;
+    if (CIS.api && CIS.api.traceability) {
+      return "/traceability/api/v1";
+    }
+    return "/traceability/api/v1";
   }
 
   function downloadPdfViaTraceabilityServer(html, filename) {
-    if (!CIS.api || !CIS.api.traceabilityBlob) {
-      return Promise.reject(new Error("Traceability PDF API is not available."));
+    if (CIS.api && CIS.api.traceabilityBlob) {
+      return CIS.api
+        .traceabilityBlob("/documents/render-html-pdf", {
+          body: { html: html, filename: filename },
+          defaultFilename: filename,
+        })
+        .then(function (res) {
+          if (!res.blob || res.blob.size < 64) {
+            throw new Error("PDF from server was empty.");
+          }
+          var name = res.filename || filename;
+          saveBlobAsDownload(res.blob, name);
+          return { ok: true, filename: name };
+        });
     }
-    return CIS.api
-      .traceabilityBlob("/documents/render-html-pdf", {
-        body: { html: html, filename: filename },
-        defaultFilename: filename,
-      })
-      .then(function (res) {
-        if (!res.blob || res.blob.size < 64) {
-          throw new Error("PDF from server was empty.");
-        }
-        var name = res.filename || filename;
-        saveBlobAsDownload(res.blob, name);
+
+    var base = traceabilityApiBaseUrl();
+    var token = CIS.getToken && CIS.getToken();
+    var headers = {
+      "Content-Type": "application/json",
+      Accept: "application/pdf",
+    };
+    if (token) headers.Authorization = "Bearer " + token;
+
+    return fetch(base + "/documents/render-html-pdf", {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({ html: html, filename: filename }),
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().then(function (text) {
+          var detail = "HTTP " + res.status;
+          if (text) {
+            try {
+              var j = JSON.parse(text);
+              if (j.detail != null) {
+                detail =
+                  typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+              }
+            } catch (e) {
+              detail = text.slice(0, 400);
+            }
+          }
+          var err = new Error(detail);
+          err.status = res.status;
+          throw err;
+        });
+      }
+      var name = filename;
+      var cd = res.headers.get("Content-Disposition") || "";
+      var m = /filename=\"?([^\";]+)\"?/i.exec(cd);
+      if (m && m[1]) name = m[1].trim();
+      return res.blob().then(function (blob) {
+        saveBlobAsDownload(blob, name);
         return { ok: true, filename: name };
       });
-  }
-
-  function htmlFromIframeDocument(iframe) {
-    var doc = iframe.contentDocument;
-    if (!doc || !doc.documentElement) {
-      throw new Error("Print preview is not ready.");
-    }
-    return "<!DOCTYPE html>\n" + doc.documentElement.outerHTML;
+    });
   }
 
   /** Last resort when WeasyPrint is not installed — screenshot-style PDF. */
@@ -289,30 +323,38 @@
     var safeName = String(filename || "document.pdf").replace(/[^\w.\- ]+/g, "_");
     if (!/\.pdf$/i.test(safeName)) safeName += ".pdf";
 
-    var closeModal = showPdfWorkingModal();
+    var modal = showPdfWorkingModal();
 
     return downloadPdfViaTraceabilityServer(html, safeName)
       .catch(function (err) {
-        if (err.status === 503 || err.status === 404) {
-          return downloadPdfClientRaster(html, safeName);
+        if (err.status === 401) {
+          throw new Error("Session expired — sign in again, then retry PDF download.");
         }
-        throw err;
+        modal.setMessage(
+          "Server PDF unavailable — using local export (update Traceability for best quality)…"
+        );
+        return downloadPdfClientRaster(html, safeName);
+      })
+      .catch(function (err) {
+        modal.showError(err.message || String(err));
+        return new Promise(function (resolve, reject) {
+          setTimeout(function () {
+            reject(err);
+          }, 3500);
+        });
       })
       .finally(function () {
-        closeModal();
+        modal.close();
       });
   };
 
-  /**
-   * PDF from the preview iframe (same HTML sent to WeasyPrint on the server).
-   * @param {HTMLIFrameElement} iframe
-   * @param {string} filename
-   */
+  /** @deprecated Use downloadHtmlDocumentPdf(html, filename) with getHtml() from preview. */
   CIS.downloadHtmlDocumentPdfFromPreviewIframe = function (iframe, filename) {
-    if (!iframe) {
+    if (!iframe || !iframe.contentDocument || !iframe.contentDocument.documentElement) {
       return Promise.reject(new Error("Print preview is not ready."));
     }
-    return CIS.downloadHtmlDocumentPdf(htmlFromIframeDocument(iframe), filename);
+    var html = "<!DOCTYPE html>\n" + iframe.contentDocument.documentElement.outerHTML;
+    return CIS.downloadHtmlDocumentPdf(html, filename);
   };
 
   /**
@@ -414,16 +456,13 @@
         pdfBtn.disabled = true;
         var run;
         if (typeof opts.downloadPdf === "function") {
-          run = opts.downloadPdf();
-        } else if (CIS.downloadHtmlDocumentPdfFromPreviewIframe) {
-          run = refreshPreview().then(function () {
-            return CIS.downloadHtmlDocumentPdfFromPreviewIframe(
-              iframe,
-              opts.pdfFilename
-            );
+          run = Promise.resolve().then(function () {
+            return opts.downloadPdf();
           });
         } else {
-          run = CIS.downloadHtmlDocumentPdf(opts.getHtml(), opts.pdfFilename);
+          run = refreshPreview().then(function () {
+            return CIS.downloadHtmlDocumentPdf(opts.getHtml(), opts.pdfFilename);
+          });
         }
         Promise.resolve(run)
           .then(function (out) {
