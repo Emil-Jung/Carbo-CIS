@@ -36,8 +36,12 @@ const checks = [
   [
     "location buttons sync separate from selection body",
     /syncLocationSheetActionButtons/.test(td) &&
-      /locationSheetHasContainers/.test(td) &&
+      /locationSheetReadyToRun/.test(td) &&
       !/btnLocationPdf,\s*\n\s*btnLocationPrint,\s*\n\s*btnLocationCsv/.test(td),
+  ],
+  [
+    "location PDF/Print never DOM-disabled",
+    /Never set disabled/.test(td) && /b\.disabled = false/.test(td),
   ],
   ["preview downloadPdf hook", /downloadPdf:\s*function/.test(render)],
   ["eudr actions stack layout", /\.td-doc-eudr-actions[\s\S]*flex-direction:\s*column/.test(css)],

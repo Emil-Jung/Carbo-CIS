@@ -556,20 +556,31 @@
       return "Select at least one container for this shipment.";
     }
 
+    function visibleShipmentContainerCount() {
+      var ul = eudrPreview.querySelector(".td-doc-shipment-list");
+      if (!ul) return lastPaintedLocationSheetCount;
+      return ul.querySelectorAll("li").length || lastPaintedLocationSheetCount;
+    }
+
+    function locationSheetReadyToRun() {
+      syncBookingInputFromSelect();
+      return visibleShipmentContainerCount() > 0 || locationSheetHasContainers();
+    }
+
+    /** Never set disabled — disabled buttons show not-allowed cursor and block clicks in the browser. */
     function applyLocationSheetButtonState() {
-      var can = lastPaintedLocationSheetCount > 0;
+      var can = locationSheetReadyToRun();
       var why = can ? "" : locationSheetDisabledReason();
       [btnLocationPdf, btnLocationPrint].forEach(function (b) {
+        b.disabled = false;
+        b.removeAttribute("disabled");
+        b.removeAttribute("aria-disabled");
         if (can) {
-          b.disabled = false;
-          b.removeAttribute("disabled");
-          b.removeAttribute("aria-disabled");
+          b.removeAttribute("data-needs-shipment");
           b.removeAttribute("title");
         } else {
-          b.disabled = true;
-          b.setAttribute("aria-disabled", "true");
+          b.setAttribute("data-needs-shipment", "1");
           if (why) b.title = why;
-          else b.removeAttribute("title");
         }
       });
     }
@@ -910,7 +921,7 @@
 
     /** Same flow as container load sheet: modal while loading, then preview or PDF. */
     async function fetchLocationSheetPack(busy) {
-      if (!locationSheetHasContainers()) {
+      if (!locationSheetReadyToRun()) {
         var whyLoc = locationSheetDisabledReason() || "Select a booking ref or containers first.";
         throw new Error(whyLoc);
       }
@@ -940,7 +951,7 @@
 
     btnLocationPdf.addEventListener("click", async function () {
       clearStaleDocBusyOverlays();
-      if (!locationSheetHasContainers()) {
+      if (!locationSheetReadyToRun()) {
         setLocationSheetMsg(locationSheetDisabledReason() || "Select a booking with containers first.");
         return;
       }
@@ -975,7 +986,7 @@
 
     btnLocationPrint.addEventListener("click", async function () {
       clearStaleDocBusyOverlays();
-      if (!locationSheetHasContainers()) {
+      if (!locationSheetReadyToRun()) {
         setLocationSheetMsg(locationSheetDisabledReason() || "Select a booking with containers first.");
         return;
       }

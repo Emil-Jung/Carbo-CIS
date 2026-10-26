@@ -2835,10 +2835,14 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .td-doc-eudr-actions .btn:not(:disabled):hover {
   filter: brightness(1.06);
 }
-#td-doc-location-sheet-pdf:not(:disabled),
-#td-doc-location-sheet-print:not(:disabled) {
+#td-doc-location-sheet-pdf,
+#td-doc-location-sheet-print {
   cursor: pointer;
   pointer-events: auto;
+}
+#td-doc-location-sheet-pdf[data-needs-shipment],
+#td-doc-location-sheet-print[data-needs-shipment] {
+  opacity: 0.55;
 }
 
 .cm-print-dialog-actions {
