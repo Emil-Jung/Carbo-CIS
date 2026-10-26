@@ -77,10 +77,20 @@
   var defaultPdfSet = {
     margin: [8, 8, 8, 8],
     image: { type: "jpeg", quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, logging: false },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+    },
     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
     pagebreak: { mode: ["css", "legacy"] },
   };
+
+  /** Off-screen but paintable — visibility:hidden breaks html2canvas in WebView2 (black PDF). */
+  var PDF_RENDER_IFRAME_STYLE =
+    "position:fixed;top:0;left:0;width:210mm;height:297mm;margin:0;padding:0;" +
+    "border:0;opacity:0;pointer-events:none;z-index:-1;overflow:hidden;";
 
   /**
    * @param {string} html full document HTML
@@ -96,13 +106,21 @@
 
     var iframe = document.createElement("iframe");
     iframe.setAttribute("title", "PDF render");
-    iframe.style.cssText =
-      "position:fixed;left:-9999px;top:0;width:210mm;min-height:297mm;border:0;visibility:hidden;";
+    iframe.style.cssText = PDF_RENDER_IFRAME_STYLE;
     document.body.appendChild(iframe);
 
     var setOpts = Object.assign({}, defaultPdfSet, pdfSet || {}, { filename: safeName });
 
+    function afterIframePaint() {
+      return new Promise(function (resolve) {
+        requestAnimationFrame(function () {
+          requestAnimationFrame(resolve);
+        });
+      });
+    }
+
     return writeHtmlToIframe(iframe, html)
+      .then(afterIframePaint)
       .then(function () {
         return ensureHtml2Pdf();
       })
