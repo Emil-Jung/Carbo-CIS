@@ -1438,6 +1438,8 @@
 
     packaging_outputs: "amber",
 
+    briquette_outputs: "charcoal",
+
   };
 
 
@@ -1616,6 +1618,7 @@
   var DASHBOARD_GROUP_ORDER = [
     "factory",
     "packaging_outputs",
+    "briquette_outputs",
     "in_transit",
     "walvis_bay",
     "closed",
@@ -1657,7 +1660,7 @@
 
       if (st.key === selectedStatus) cls += " bs-dash-status-card--active";
 
-      if (st.kind === "pallet_basket") cls += " bs-dash-status-card--basket";
+      if (st.kind === "pallet_basket" || st.kind === "briquette_basket") cls += " bs-dash-status-card--basket";
 
       if (st.kind === "physical_pallets" || st.kind === "factory_pallets_in_storage") {
         cls += " bs-dash-status-card--pallet bs-dash-status-card--pallet-magenta";
@@ -1668,6 +1671,11 @@
       }
 
       var card = ui.el("button", { class: cls, type: "button", onclick: function () { onSelect(st); } });
+
+      if (st.kind === "finished_briquettes") {
+        card.style.setProperty("--bs-card-accent", BRIQUETTE_CHARCOAL);
+        card.classList.add("bs-dash-status-card--briquette");
+      }
 
       card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [st.label]));
 
@@ -1701,6 +1709,25 @@
               + st.by_product_retired.map(function (row) { return row.product_code; }).join(", "),
           ]));
         }
+
+      } else if (st.kind === "briquette_basket") {
+
+        card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [fmtMass(st.kg)]));
+
+        card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [
+          String(st.pool_line_count != null ? st.pool_line_count : 0)
+            + " pool lines · "
+            + String(st.bags != null ? st.bags : 0)
+            + " stored fines bags",
+        ]));
+
+      } else if (st.kind === "finished_briquettes") {
+
+        card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags || 0)]));
+
+        card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [
+          fmtMass(st.kg) + " · tagged BQ bulk bags in stock",
+        ]));
 
       } else if (st.kind === "physical_pallets") {
 
@@ -2117,6 +2144,12 @@
       headCountText =
         equiv + " pallet-equiv in basket · " + wrapped + " wrapped · " + fmtMass(group.pallet_basket_kg != null ? group.pallet_basket_kg : group.kg);
     }
+    if (group.key === "briquette_outputs") {
+      var bqPool = group.briquette_basket_kg != null ? group.briquette_basket_kg : 0;
+      var bqDone = group.finished_briquette_count != null ? group.finished_briquette_count : 0;
+      headCountText =
+        fmtMass(bqPool) + " in BQ basket · " + bqDone + " finished in stock · " + fmtMass(group.finished_briquette_kg != null ? group.finished_briquette_kg : group.kg);
+    }
     block.appendChild(ui.el("div", { class: "bs-dash-location__head" }, [
 
       ui.el("h3", {}, [group.label]),
@@ -2142,6 +2175,23 @@
           " bulk consume scans · ",
           ui.el("strong", {}, [String(actToday.wraps != null ? actToday.wraps : 0)]),
           " A4 wrap scans (physical pallet BAG IDs). Consume adds to basket; wrap moves basket → Pallets.",
+        ])
+      );
+    }
+
+    if (group.key === "briquette_outputs" && dashboardSummary && dashboardSummary.briquette_activity_today) {
+      var bqToday = dashboardSummary.briquette_activity_today;
+      block.appendChild(
+        ui.el("p", { class: "bs-dash-location__note bs-dash-location__note--compact" }, [
+          "Today (Windhoek): ",
+          ui.el("strong", {}, [String(bqToday.staged_bags != null ? bqToday.staged_bags : 0)]),
+          " fines staged into pool (",
+          fmtMass(bqToday.staged_kg),
+          ") · ",
+          ui.el("strong", {}, [String(bqToday.outputs != null ? bqToday.outputs : 0)]),
+          " Create BQ outputs (",
+          fmtMass(bqToday.output_kg),
+          ").",
         ])
       );
     }
@@ -2297,6 +2347,113 @@
     if (!(b.by_product || []).length && !(b.by_product_retired || []).length) {
 
       wrap.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, ["No material in the pallet basket."]));
+
+    }
+
+    return wrap;
+
+  }
+
+
+
+  function renderBriquetteBasketDrill(basket, ui) {
+
+    var b = basket || {};
+
+    var wrap = ui.el("div", { class: "bs-dash-basket-drill" });
+
+    wrap.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+      "Fines kg waiting in the FSC and non-FSC FIFO pools — drawn when Create BQ is scanned on Bag Walk. "
+        + "Direct truck contributions and staged stored fines both appear here.",
+    ]));
+
+    var dl = ui.el("dl", { class: "bs-dash-basket-dl" });
+
+    [
+
+      ["Available for BQ output", fmtMass(b.available_kg)],
+
+      ["Pool lines", String(b.pool_line_count != null ? b.pool_line_count : (b.lines || []).length)],
+
+      ["Stored fines bags in pool", String(b.source_bags != null ? b.source_bags : 0)],
+
+    ].forEach(function (pair) {
+
+      dl.appendChild(ui.el("dt", {}, [pair[0]]));
+
+      dl.appendChild(ui.el("dd", {}, [pair[1]]));
+
+    });
+
+    wrap.appendChild(dl);
+
+    ["fsc", "non_fsc"].forEach(function (scope) {
+
+      var pool = (b.pools && b.pools[scope]) || {};
+
+      var scopeLabel = scope === "fsc" ? "FSC pool" : "Non-FSC pool";
+
+      var block = ui.el("div", { class: "bs-dash-basket-product-block" });
+
+      block.appendChild(ui.el("h4", {}, [
+        scopeLabel + " · " + fmtMass(pool.available_kg),
+      ]));
+
+      var lines = pool.lines || [];
+
+      if (!lines.length) {
+
+        block.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, ["No kg in this pool."]));
+
+      } else {
+
+        var table = ui.el("table", { class: "bs-dash-table bs-dash-table--compact" });
+
+        var thead = ui.el("thead", {});
+
+        var hr = ui.el("tr", {});
+
+        ["Source", "Remaining", "Original", "Producer"].forEach(function (h) {
+
+          hr.appendChild(ui.el("th", {}, [h]));
+
+        });
+
+        thead.appendChild(hr);
+
+        table.appendChild(thead);
+
+        var tbody = ui.el("tbody", {});
+
+        lines.forEach(function (line) {
+
+          var tr = ui.el("tr", {});
+
+          tr.appendChild(ui.el("td", {}, [line.source_label || "—"]));
+
+          tr.appendChild(ui.el("td", {}, [fmtMass(line.remaining_kg, true)]));
+
+          tr.appendChild(ui.el("td", {}, [fmtMass(line.original_kg, true)]));
+
+          tr.appendChild(ui.el("td", {}, [line.producer_display || "—"]));
+
+          tbody.appendChild(tr);
+
+        });
+
+        table.appendChild(tbody);
+
+        block.appendChild(ui.el("div", { class: "bs-dash-table-wrap" }, [table]));
+
+      }
+
+      wrap.appendChild(block);
+
+    });
+
+    if (!(b.lines || []).length && !(b.pools && (b.pools.fsc || b.pools.non_fsc))) {
+
+      wrap.appendChild(ui.el("p", { class: "bs-dash-empty muted" }, ["No material in the BQ basket."]));
 
     }
 
@@ -2553,6 +2710,18 @@
 
   function isPhysicalPalletsTile(st) {
     return st && (st.kind === "physical_pallets" || st.key === "report:physical_pallets");
+  }
+
+  function isBriquetteBasketTile(st) {
+    return st && (st.kind === "briquette_basket" || st.key === "report:briquette_basket");
+  }
+
+  function isFinishedBriquettesTile(st) {
+    return st && (st.kind === "finished_briquettes" || st.key === "report:finished_briquettes");
+  }
+
+  function isPackagedStockDrillMode(mode) {
+    return mode === "physical_pallets" || mode === "finished_briquettes";
   }
 
   function summarizeStreamCategories(rows) {
@@ -3624,29 +3793,54 @@
 
         }
 
+        if (selected.mode === "briquette_basket") {
+
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label]));
+
+          body.appendChild(renderBriquetteBasketDrill(summary.briquette_basket || selected.detail, ui));
+
+          syncFloatingNav();
+          return;
+
+        }
 
 
-        if (selected.mode === "physical_pallets" && !selectedEvent && !selected.palletDetail) {
+
+        if (isPackagedStockDrillMode(selected.mode) && !selectedEvent && !selected.palletDetail) {
+
+          var isBqStock = selected.mode === "finished_briquettes";
+
+          var stockUnit = isBqStock ? " briquette bulk bag" : " pallet";
+
+          var stockUnits = isBqStock ? " briquette bulk bags" : " pallets";
+
+          var stockRowClick = isBqStock ? null : openPalletDetail;
+
+          var stockBucketOpen = isBqStock ? openBriquetteBucket : openPalletBucket;
 
           if (selected.view === "flat_list") {
 
             body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
 
-              selected.label + " — " + selected.count + (selected.count === 1 ? " pallet" : " pallets"),
+              selected.label + " — " + selected.count + (selected.count === 1 ? stockUnit : stockUnits),
 
             ]));
 
             body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-              "All physical pallet BAG IDs — tap a row for source bulk bags and producer mix (kg and %).",
+              isBqStock
+                ? "Finished briquette BAG IDs in this location."
+                : "All physical pallet BAG IDs — tap a row for source bulk bags and producer mix (kg and %).",
             ]));
 
             if (!(selected.rows || []).length) {
 
-              body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No pallets found."]));
+              body.appendChild(ui.el("p", { class: "bs-dash-empty" }, [
+                isBqStock ? "No briquette bags found." : "No pallets found.",
+              ]));
 
             } else {
 
-              body.appendChild(renderDrillTable(selected.rows, ui, openPalletDetail));
+              body.appendChild(renderDrillTable(selected.rows, ui, stockRowClick));
 
             }
 
@@ -3659,26 +3853,28 @@
 
             body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
 
-              selected.label + " — " + selected.count + (selected.count === 1 ? " pallet" : " pallets"),
+              selected.label + " — " + selected.count + (selected.count === 1 ? stockUnit : stockUnits),
 
             ]));
 
             body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-              "Physical pallet BAG IDs by location — tap a tile, then a BAG ID for source bulk bags and producers.",
+              isBqStock
+                ? "Finished briquette BAG IDs by location — tap a tile for the bag list."
+                : "Physical pallet BAG IDs by location — tap a tile, then a BAG ID for source bulk bags and producers.",
             ]));
 
-            body.appendChild(renderPalletLocationDrill(selected.locationBuckets, ui, openPalletBucket));
+            body.appendChild(renderPalletLocationDrill(selected.locationBuckets, ui, stockBucketOpen));
 
             syncFloatingNav();
             return;
 
           }
 
-          if (selected.view === "by_product") {
+          if (selected.view === "by_product" && !isBqStock) {
 
             body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
 
-              selected.label + " — " + selected.count + (selected.count === 1 ? " pallet" : " pallets"),
+              selected.label + " — " + selected.count + (selected.count === 1 ? stockUnit : stockUnits),
 
             ]));
 
@@ -3717,12 +3913,14 @@
 
             body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
 
-              selected.label + " — " + selected.count + (selected.count === 1 ? " pallet" : " pallets"),
+              selected.label + " — " + selected.count + (selected.count === 1 ? stockUnit : stockUnits),
 
             ]));
 
             body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-              "Tap a pallet BAG ID for source bulk bags and producers.",
+              isBqStock
+                ? "Tap a section for briquette BAG IDs."
+                : "Tap a pallet BAG ID for source bulk bags and producers.",
             ]));
 
             body.appendChild(renderEventCards(selected.sections, ui, function (section) {
@@ -3733,7 +3931,7 @@
 
             }));
 
-          } else {
+          } else if (!isBqStock) {
 
             body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label]));
 
@@ -3768,23 +3966,31 @@
 
 
 
-        if (selected.mode === "physical_pallets" && selectedEvent && !selected.palletDetail) {
+        if (isPackagedStockDrillMode(selected.mode) && selectedEvent && !selected.palletDetail) {
+
+          var isBqEvent = selected.mode === "finished_briquettes";
+
+          var evUnit = isBqEvent ? " briquette bulk bag" : " pallet";
+
+          var evUnits = isBqEvent ? " briquette bulk bags" : " pallets";
 
           body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
 
-            selected.label + " — " + (selectedEvent.client_name || selectedEvent.key || "Pallets")
+            selected.label + " — " + (selectedEvent.client_name || selectedEvent.key || (isBqEvent ? "Briquettes" : "Pallets"))
 
-              + " — " + selectedEvent.bags + (selectedEvent.bags === 1 ? " pallet" : " pallets"),
+              + " — " + selectedEvent.bags + (selectedEvent.bags === 1 ? evUnit : evUnits),
 
           ]));
 
           if (!(selectedEvent.rows || []).length) {
 
-            body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No pallets in this group."]));
+            body.appendChild(ui.el("p", { class: "bs-dash-empty" }, [
+              isBqEvent ? "No briquette bags in this group." : "No pallets in this group.",
+            ]));
 
           } else {
 
-            body.appendChild(renderDrillTable(selectedEvent.rows, ui, openPalletDetail));
+            body.appendChild(renderDrillTable(selectedEvent.rows, ui, isBqEvent ? null : openPalletDetail));
 
           }
 
@@ -4112,6 +4318,149 @@
 
 
 
+    async function openBriquetteBucket(bucket, statusKey) {
+
+      var token = beginDrillFetch(bucket.label || "Briquettes");
+
+      try {
+
+        var data = await ctx.api.traceability(
+
+          bagsStatusDrillPath(statusKey, "briquettes")
+
+        );
+
+        if (drillFetchCancelled(token)) return;
+
+        selectedEvent = null;
+
+        wxDrill = null;
+
+        var parent = selected || {};
+
+        var locRows = flattenPalletSectionRows(data.event_sections || []);
+
+        if (!locRows.length && data.finished_briquettes && data.finished_briquettes.rows) {
+
+          locRows = data.finished_briquettes.rows.slice();
+
+        }
+
+        locRows = sortPalletFlattenedRows(locRows);
+
+        showFinishedBriquetteFlatList(
+
+          { key: statusKey, label: bucket.label },
+
+          locRows,
+
+          locRows.length || data.drill_bag_count || 0,
+
+          bucket.label
+
+        );
+
+        selected.parentLabel = parent.parentLabel || parent.label || "Briquettes";
+
+        finishDrillFetch(token);
+        paint();
+
+      } catch (e) {
+
+        if (drillFetchCancelled(token)) return;
+
+        finishDrillFetch(token);
+        body.innerHTML = "";
+
+        body.appendChild(ui.error("Could not load briquettes: " + (e.message || e)));
+
+        syncFloatingNav();
+
+      }
+
+    }
+
+
+
+    async function openFinishedBriquettesTile(st) {
+
+      selectedEvent = null;
+
+      wxDrill = null;
+
+      var count = st.bags || (summary.briquette_summary && summary.briquette_summary.total && summary.briquette_summary.total.bags) || 0;
+
+      var buckets = (summary.briquette_summary && summary.briquette_summary.buckets) || [];
+
+      var withStock = buckets.filter(function (b) {
+        return (b.bags || 0) > 0;
+      });
+
+      if (withStock.length) {
+
+        selected = {
+
+          key: st.key,
+
+          label: st.label || "Briquettes",
+
+          mode: "finished_briquettes",
+
+          view: "locations",
+
+          parentLabel: "Briquettes",
+
+          parentCount: count,
+
+          count: count,
+
+          locationBuckets: withStock,
+
+        };
+
+        paint();
+
+        return;
+
+      }
+
+      var token = beginDrillFetch(st.label || "Briquettes");
+
+      try {
+
+        var bqData = await ctx.api.traceability(bagsStatusDrillPath(null, "briquettes"));
+
+        if (!container.isConnected || drillFetchCancelled(token)) return;
+
+        var rows = flattenPalletSectionRows(bqData.event_sections || []);
+
+        if (!rows.length && bqData.finished_briquettes && bqData.finished_briquettes.rows) {
+
+          rows = bqData.finished_briquettes.rows.slice();
+
+        }
+
+        showFinishedBriquetteFlatList(st, sortPalletFlattenedRows(rows), count, null);
+
+        finishDrillFetch(token);
+
+      } catch (e) {
+
+        if (drillFetchCancelled(token)) return;
+
+        finishDrillFetch(token);
+        body.innerHTML = "";
+
+        body.appendChild(ui.error("Could not load briquettes: " + (e.message || e)));
+
+        syncFloatingNav();
+
+      }
+
+    }
+
+
+
     function openPhysicalPalletsByProduct(st, detail, count) {
 
       selectedEvent = null;
@@ -4155,6 +4504,32 @@
         view: "flat_list",
 
         parentLabel: productLabel ? "Pallets" : "Bags Status",
+
+        count: (rows || []).length || count || 0,
+
+        rows: rows || [],
+
+      };
+
+      paint();
+
+    }
+
+
+
+    function showFinishedBriquetteFlatList(st, rows, count, productLabel) {
+
+      selected = {
+
+        key: st.key,
+
+        label: productLabel || st.label || "Briquettes",
+
+        mode: "finished_briquettes",
+
+        view: "flat_list",
+
+        parentLabel: productLabel ? "Briquettes" : "Bags Status",
 
         count: (rows || []).length || count || 0,
 
@@ -4534,6 +4909,44 @@
       if (isPhysicalPalletsTile(st)) {
 
         await openPhysicalPalletsTile(st);
+
+        return;
+
+      }
+
+      if (isBriquetteBasketTile(st)) {
+
+        selectedEvent = null;
+
+        wxDrill = null;
+
+        selected = {
+
+          key: st.key,
+
+          label: st.label,
+
+          mode: "briquette_basket",
+
+          detail: summary.briquette_basket || {
+            available_kg: st.kg,
+            pool_line_count: st.pool_line_count,
+            source_bags: st.bags,
+            pools: st.pools,
+            lines: st.lines,
+          },
+
+        };
+
+        paint();
+
+        return;
+
+      }
+
+      if (isFinishedBriquettesTile(st)) {
+
+        await openFinishedBriquettesTile(st);
 
         return;
 
@@ -4963,13 +5376,27 @@
 
       }
 
+      if (selected && selected.mode === "briquette_basket") {
+
+        selected.detail = summary.briquette_basket || selected.detail;
+
+        return;
+
+      }
 
 
-      if (selected && selected.mode === "physical_pallets" && selected.key) {
+
+      if (selected && isPackagedStockDrillMode(selected.mode) && selected.key) {
+
+        var stockStream = selected.mode === "finished_briquettes" ? "briquettes" : "pallet";
+
+        var stockSummary = selected.mode === "finished_briquettes"
+          ? summary.briquette_summary
+          : summary.pallet_summary;
 
         if (selected.view === "locations") {
 
-          var buckets = (summary.pallet_summary && summary.pallet_summary.buckets) || [];
+          var buckets = (stockSummary && stockSummary.buckets) || [];
 
           selected.locationBuckets = buckets.filter(function (b) {
 
@@ -4977,7 +5404,7 @@
 
           });
 
-          var total = summary.pallet_summary && summary.pallet_summary.total;
+          var total = stockSummary && stockSummary.total;
 
           selected.count = (total && total.bags) || selected.count;
 
@@ -4985,11 +5412,17 @@
 
         }
 
-        var palletDrill = await ctx.api.traceability(bagsStatusDrillPath(selected.key, "pallet"));
+        var palletDrill = await ctx.api.traceability(bagsStatusDrillPath(selected.key, stockStream));
 
         if (selected.view === "flat_list") {
 
           var flatRows = sortPalletFlattenedRows(flattenPalletSectionRows(palletDrill.event_sections || []));
+
+          if (!flatRows.length && palletDrill.finished_briquettes && palletDrill.finished_briquettes.rows) {
+
+            flatRows = sortPalletFlattenedRows(palletDrill.finished_briquettes.rows.slice());
+
+          }
 
           selected.rows = flatRows;
 
@@ -5014,6 +5447,12 @@
               });
 
             });
+
+          }
+
+          if (!locRows.length && palletDrill.finished_briquettes && palletDrill.finished_briquettes.rows) {
+
+            locRows = palletDrill.finished_briquettes.rows.slice();
 
           }
 
@@ -5218,6 +5657,10 @@
 
         if (selected && selected.mode === "pallet_basket" && summary.pallet_basket) {
           selected.detail = summary.pallet_basket;
+        }
+
+        if (selected && selected.mode === "briquette_basket" && summary.briquette_basket) {
+          selected.detail = summary.briquette_basket;
         }
 
         try {

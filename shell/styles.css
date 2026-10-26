@@ -1294,6 +1294,7 @@ body {
 }
 .bs-dash-location--blue { border-top-color: #3B82F6; }
 .bs-dash-location--amber { border-top-color: #F59E0B; }
+.bs-dash-location--charcoal { border-top-color: #3D3935; }
 
 .bs-dash-basket-dl {
   display: grid;
@@ -1333,6 +1334,11 @@ body {
 .bs-dash-status-card--pallet-magenta {
   --card-accent: #c2185b;
   border-color: rgba(194, 24, 91, 0.4);
+}
+
+.bs-dash-status-card--briquette {
+  --card-accent: #3D3935;
+  border-color: rgba(61, 57, 53, 0.35);
 }
 
 .bs-dash-status-card--pallet-magenta:hover {
