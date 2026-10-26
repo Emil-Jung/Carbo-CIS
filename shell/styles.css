@@ -1283,6 +1283,34 @@ body {
 .bs-dash-pipeline-key--clock::before { background: #3B82F6; }
 .bs-dash-pipeline-key--ready::before { background: #10B981; }
 
+/* Pallet + BQ production — one row on wide screens */
+.bs-dash-production-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+  align-items: stretch;
+}
+.bs-dash-production-row .bs-dash-location {
+  margin-bottom: 0;
+  min-width: 0;
+  height: 100%;
+}
+.bs-dash-production-row .bs-dash-status-grid {
+  grid-template-columns: 1fr;
+}
+@media (max-width: 1024px) {
+  .bs-dash-production-row {
+    grid-template-columns: 1fr;
+  }
+  .bs-dash-production-row .bs-dash-location {
+    margin-bottom: 0;
+  }
+  .bs-dash-production-row .bs-dash-location:last-child {
+    margin-bottom: 0;
+  }
+}
+
 /* Location sections */
 .bs-dash-location {
   background: #fff;

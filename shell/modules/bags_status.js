@@ -4147,13 +4147,41 @@
 
 
 
-      orderDashboardGroups(
+      var dashGroups = orderDashboardGroups(
         layoutTransitAndWalvisGroups(summary.groups, summary.status_totals)
-      ).forEach(function (group) {
+      );
+
+      var PRODUCTION_ROW_KEYS = { packaging_outputs: true, briquette_outputs: true };
+
+      for (var gi = 0; gi < dashGroups.length; gi += 1) {
+
+        var group = dashGroups[gi];
+
+        var next = dashGroups[gi + 1];
+
+        if (
+          PRODUCTION_ROW_KEYS[group.key]
+          && next
+          && PRODUCTION_ROW_KEYS[next.key]
+        ) {
+
+          var prodRow = ui.el("div", { class: "bs-dash-production-row" });
+
+          prodRow.appendChild(renderGroup(group, ui, null, openStatus, summary));
+
+          prodRow.appendChild(renderGroup(next, ui, null, openStatus, summary));
+
+          body.appendChild(prodRow);
+
+          gi += 1;
+
+          continue;
+
+        }
 
         body.appendChild(renderGroup(group, ui, null, openStatus, summary));
 
-      });
+      }
 
       syncFloatingNav();
     }
