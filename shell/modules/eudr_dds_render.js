@@ -290,7 +290,7 @@
       '</td><td class="eudr-dds-label">Signature:</td><td class="eudr-dds-value">' +
       escapeHtml(cellValue(f, "signature")) +
       "</td></tr></table>" +
-      '<div class="eudr-dds-footer">Reg no: 2005/570<br>Vat no: 4077142-01-5<br>FSC-C114374</div>" +
+      '<div class="eudr-dds-footer">Reg no: 2005/570<br>Vat no: 4077142-01-5<br>FSC-C114374</div>' +
       "</div></div>";
 
     return (
