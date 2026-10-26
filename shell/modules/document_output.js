@@ -199,7 +199,7 @@
     dialog.appendChild(title);
     var msg = document.createElement("p");
     msg.className = "td-doc-busy-message";
-    msg.textContent = "Rendering pages (same layout as preview)…";
+    msg.textContent = "Generating PDF on Traceability (vector, like other office apps)…";
     dialog.appendChild(msg);
     backdrop.appendChild(dialog);
     document.body.appendChild(backdrop);
@@ -208,20 +208,48 @@
     };
   }
 
-  /**
-   * @param {string} html full document HTML
-   * @param {string} filename e.g. "ContainerSheet_ABCD.pdf"
-   */
-  CIS.downloadHtmlDocumentPdf = function (html, filename) {
-    if (!html || !String(html).trim()) {
-      return Promise.reject(new Error("No document content to export."));
+  function saveBlobAsDownload(blob, filename) {
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 500);
+  }
+
+  function downloadPdfViaTraceabilityServer(html, filename) {
+    if (!CIS.api || !CIS.api.traceabilityBlob) {
+      return Promise.reject(new Error("Traceability PDF API is not available."));
     }
-    var safeName = String(filename || "document.pdf").replace(/[^\w.\- ]+/g, "_");
-    if (!/\.pdf$/i.test(safeName)) safeName += ".pdf";
+    return CIS.api
+      .traceabilityBlob("/documents/render-html-pdf", {
+        body: { html: html, filename: filename },
+        defaultFilename: filename,
+      })
+      .then(function (res) {
+        if (!res.blob || res.blob.size < 64) {
+          throw new Error("PDF from server was empty.");
+        }
+        var name = res.filename || filename;
+        saveBlobAsDownload(res.blob, name);
+        return { ok: true, filename: name };
+      });
+  }
 
-    var closeModal = showPdfWorkingModal();
+  function htmlFromIframeDocument(iframe) {
+    var doc = iframe.contentDocument;
+    if (!doc || !doc.documentElement) {
+      throw new Error("Print preview is not ready.");
+    }
+    return "<!DOCTYPE html>\n" + doc.documentElement.outerHTML;
+  }
+
+  /** Last resort when WeasyPrint is not installed — screenshot-style PDF. */
+  function downloadPdfClientRaster(html, filename) {
     var renderIframe = null;
-
     return buildPdfRenderIframe(html)
       .then(function (iframe) {
         renderIframe = iframe;
@@ -237,49 +265,54 @@
         return savePdfFromDocumentTargets(
           html2pdf,
           renderIframe.contentDocument,
-          safeName
+          filename
         );
       })
-      .then(function () {
-        return { ok: true, filename: safeName };
-      })
       .finally(function () {
-        closeModal();
         if (renderIframe && renderIframe.parentNode) {
           renderIframe.parentNode.removeChild(renderIframe);
         }
+      })
+      .then(function () {
+        return { ok: true, filename: filename };
+      });
+  }
+
+  /**
+   * @param {string} html full document HTML
+   * @param {string} filename e.g. "ContainerSheet_ABCD.pdf"
+   */
+  CIS.downloadHtmlDocumentPdf = function (html, filename) {
+    if (!html || !String(html).trim()) {
+      return Promise.reject(new Error("No document content to export."));
+    }
+    var safeName = String(filename || "document.pdf").replace(/[^\w.\- ]+/g, "_");
+    if (!/\.pdf$/i.test(safeName)) safeName += ".pdf";
+
+    var closeModal = showPdfWorkingModal();
+
+    return downloadPdfViaTraceabilityServer(html, safeName)
+      .catch(function (err) {
+        if (err.status === 503 || err.status === 404) {
+          return downloadPdfClientRaster(html, safeName);
+        }
+        throw err;
+      })
+      .finally(function () {
+        closeModal();
       });
   };
 
   /**
-   * PDF from the preview iframe (pixel match to what you see before Print).
+   * PDF from the preview iframe (same HTML sent to WeasyPrint on the server).
    * @param {HTMLIFrameElement} iframe
    * @param {string} filename
    */
   CIS.downloadHtmlDocumentPdfFromPreviewIframe = function (iframe, filename) {
-    if (!iframe || !iframe.contentDocument) {
+    if (!iframe) {
       return Promise.reject(new Error("Print preview is not ready."));
     }
-    var safeName = String(filename || "document.pdf").replace(/[^\w.\- ]+/g, "_");
-    if (!/\.pdf$/i.test(safeName)) safeName += ".pdf";
-    var closeModal = showPdfWorkingModal();
-    return afterLayoutPaint()
-      .then(function () {
-        return ensureHtml2Pdf();
-      })
-      .then(function (html2pdf) {
-        return savePdfFromDocumentTargets(
-          html2pdf,
-          iframe.contentDocument,
-          safeName
-        );
-      })
-      .then(function () {
-        return { ok: true, filename: safeName };
-      })
-      .finally(function () {
-        closeModal();
-      });
+    return CIS.downloadHtmlDocumentPdf(htmlFromIframeDocument(iframe), filename);
   };
 
   /**

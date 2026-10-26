@@ -348,7 +348,50 @@
 
   }
 
-
+  async function apiFetchBlob(base, path, opts) {
+    opts = opts || {};
+    const headers = Object.assign(
+      { "Content-Type": "application/json", Accept: "application/pdf" },
+      opts.headers || {}
+    );
+    if (token()) headers["Authorization"] = "Bearer " + token();
+    const res = await fetch(base + path, {
+      method: opts.method || "POST",
+      headers: headers,
+      body: opts.body != null ? JSON.stringify(opts.body) : undefined,
+    });
+    if (res.status === 401) {
+      const identityBase = state.config && state.config.identityApiBase;
+      if (identityBase && base === identityBase) {
+        doLogout(true);
+        throw new Error("Session expired. Please sign in again.");
+      }
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      let detail = "HTTP " + res.status;
+      if (text) {
+        try {
+          const data = JSON.parse(text);
+          if (data.detail != null) {
+            detail =
+              typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+          }
+        } catch (e) {
+          detail = text.slice(0, 500);
+        }
+      }
+      const err = new Error(detail);
+      err.status = res.status;
+      throw err;
+    }
+    const blob = await res.blob();
+    let filename = opts.defaultFilename || "document.pdf";
+    const cd = res.headers.get("Content-Disposition") || "";
+    const m = /filename=\"?([^\";]+)\"?/i.exec(cd);
+    if (m && m[1]) filename = m[1].trim();
+    return { blob: blob, filename: filename };
+  }
 
   /** Nginx proxies /traceability/api/health → uvicorn /health (not /traceability/health). */
   function traceabilityHealthUrl() {
@@ -421,6 +464,11 @@
     traceability: (path, opts) => {
       const base = (state.config && state.config.traceabilityApiBase) || "/traceability/api/v1";
       return apiFetch(base, path, opts);
+    },
+
+    traceabilityBlob: (path, opts) => {
+      const base = (state.config && state.config.traceabilityApiBase) || "/traceability/api/v1";
+      return apiFetchBlob(base, path, opts);
     },
 
   };
