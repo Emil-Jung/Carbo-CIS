@@ -32,15 +32,28 @@
     return String(iso);
   }
 
-  function sheetFclNumber(header) {
-    var h = header || {};
-    var fcl = (h.fcl_number || "").trim();
-    if (fcl) return fcl;
-    return (h.container_number || "").trim();
-  }
-
   function sheetBookingContainerRef(header) {
     return ((header && header.container_number) || "").trim();
+  }
+
+  function sheetFclOnly(header) {
+    return ((header && header.fcl_number) || "").trim();
+  }
+
+  function sheetBagMatchKeys(header) {
+    var keys = [];
+    var container = sheetBookingContainerRef(header);
+    var fcl = sheetFclOnly(header);
+    if (container) keys.push(container);
+    if (fcl && keys.indexOf(fcl) === -1) keys.push(fcl);
+    return keys;
+  }
+
+  function sheetPreviewLabel(header) {
+    var container = sheetBookingContainerRef(header);
+    var fcl = sheetFclOnly(header);
+    if (container && fcl) return container + " · FCL " + fcl;
+    return container || fcl || "Container";
   }
 
   /** Container Load Sheet only — LF2.5 → DOM2.5 display; underlying keys unchanged. */
@@ -159,12 +172,7 @@
       throw new Error("No manifest data for container sheet.");
     }
     var h = manifest.header;
-    var matchKeys = [
-      sheetFclNumber(h),
-      sheetBookingContainerRef(h),
-    ].filter(function (k) {
-      return !!k;
-    });
+    var matchKeys = sheetBagMatchKeys(h);
     var rows = [];
     for (var ki = 0; ki < matchKeys.length && !rows.length; ki++) {
       rows = await CIS.fetchInContainerBagRowsForSheet(api, matchKeys[ki]);
@@ -368,13 +376,9 @@
         ? '<div class="cm-eudr">EUDR manifest — extended fields and layout to be added.</div>'
         : "";
 
-    var fcl = sheetFclNumber(h);
-    var bookingContainer = sheetBookingContainerRef(h);
     var details =
-      detailRow("FCL", fcl || "") +
-      (bookingContainer && bookingContainer !== fcl
-        ? detailRow("CONTAINER", bookingContainer)
-        : "") +
+      detailRow("CONTAINER", sheetBookingContainerRef(h)) +
+      detailRow("FCL", sheetFclOnly(h)) +
       detailRow("DELIVERY NOTE", h.delivery_note || "") +
       detailRow("SHIPPING LINE", h.transporter || "") +
       detailRow("SHIP", h.ship_name || "") +
@@ -565,7 +569,7 @@
     }
 
     return CIS.showHtmlDocumentPreview({
-      title: "Preview — Container Load Sheet · " + (sheetFclNumber(h) || "FCL"),
+      title: "Preview — Container Load Sheet · " + sheetPreviewLabel(h),
       pdfFilename: sheetPdfFilename(frozenManifest),
       closeLabel: "Back",
       printLabel: "Print",
