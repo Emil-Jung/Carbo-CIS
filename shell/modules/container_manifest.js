@@ -180,7 +180,7 @@
   function renderLoadColumn(rows, startNr) {
     var nr0 = startNr || 1;
     var html =
-      '<table class="cm-load"><thead><tr><th class="cm-nr">NR</th><th>SUPPLIER</th><th class="cm-w">WEIGHT</th></tr></thead><tbody>';
+      '<table class="cm-load"><thead><tr><th class="cm-nr">NR</th><th>ITEMS</th><th class="cm-w">WEIGHT</th></tr></thead><tbody>';
     for (var i = 0; i < ROWS_PER_COLUMN; i++) {
       var ln = rows[i];
       var nr = nr0 + i;
