@@ -2785,6 +2785,21 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .td-doc-booking-select { max-width: 28rem; margin-bottom: 0.35rem; }
 .td-doc-action-error { margin: 0.5rem 0 0; max-width: 42rem; }
 .td-doc-action-error--hidden { display: none !important; }
+.td-doc-busy-backdrop { cursor: wait; }
+.td-doc-busy-dialog {
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+.td-doc-busy-title { margin-bottom: 0.5rem; }
+.td-doc-busy-message {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  min-height: 2.75em;
+}
+.td-doc-busy-hint { margin: 0; font-size: 0.85rem; line-height: 1.4; }
 .td-doc-eudr-actions .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;

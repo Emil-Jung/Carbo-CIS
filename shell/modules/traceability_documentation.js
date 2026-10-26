@@ -202,6 +202,42 @@
       else sheetActionMsg.classList.add("td-doc-action-error--hidden");
     }
 
+    /** Blocking modal while manifest + bag rows load (avoids top-of-page status + double-clicks). */
+    function showSheetLoadingModal(initialMessage) {
+      var backdrop = ui.el("div", {
+        class: "modal-backdrop td-doc-busy-backdrop",
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-busy": "true",
+      });
+      var dialog = ui.el("div", { class: "modal td-doc-busy-dialog" });
+      dialog.appendChild(
+        ui.el("h3", { class: "cm-print-dialog-title td-doc-busy-title" }, [
+          "Preparing container load sheet",
+        ])
+      );
+      var msgEl = ui.el("p", { class: "td-doc-busy-message" }, [
+        initialMessage || "Please wait…",
+      ]);
+      dialog.appendChild(msgEl);
+      dialog.appendChild(
+        ui.el("p", { class: "td-doc-busy-hint muted" }, [
+          "Please wait — the preview opens when loading finishes. Do not click the button again.",
+        ])
+      );
+      backdrop.appendChild(dialog);
+      document.body.appendChild(backdrop);
+
+      return {
+        setMessage: function (text) {
+          msgEl.textContent = text || "";
+        },
+        close: function () {
+          if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+        },
+      };
+    }
+
     async function fetchSheetManifest() {
       if (!sheetContainerId) {
         throw new Error("Choose a container from the list above.");
@@ -220,8 +256,12 @@
     sheetBtnPreview.addEventListener("click", async function () {
       if (!sheetContainerId) return;
       setSheetActionMsg("");
-      setStatus("Loading container data…", false);
+      var prevBtnLabel = sheetBtnPreview.textContent;
       sheetBtnPreview.disabled = true;
+      sheetBtnPreview.textContent = "Loading…";
+      var busy = showSheetLoadingModal(
+        "Loading container manifest from Traceability…"
+      );
       try {
         var manifest = await fetchSheetManifest();
         if (!manifest || !manifest.header) {
@@ -230,7 +270,9 @@
         if (!CIS.prepareContainerSheetManifest || !CIS.showContainerSheetPreview) {
           throw new Error("Container sheet module not loaded.");
         }
-        setStatus("Loading in-container bags (Bags Status source)…", false);
+        busy.setMessage(
+          "Loading in-container bags (same data as Bags Status → Into container)…"
+        );
         manifest = await CIS.prepareContainerSheetManifest(ctx.api, manifest);
         var loadCount = (manifest._sheet_loading_rows || []).length;
         if (!loadCount) {
@@ -238,15 +280,16 @@
             "No in-container bags found for this FCL. Check Bags Status → Into container."
           );
         }
-        setStatus("", false);
+        busy.close();
         await CIS.showContainerSheetPreview(manifest, "documentation");
       } catch (e) {
+        busy.close();
         var msg = e.message || String(e);
-        setStatus("", false);
         setSheetActionMsg("Could not open preview: " + msg);
       } finally {
         if (sheetContainerId) {
           sheetBtnPreview.disabled = false;
+          sheetBtnPreview.textContent = prevBtnLabel;
         }
       }
     });
