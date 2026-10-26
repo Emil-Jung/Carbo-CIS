@@ -180,46 +180,137 @@
       "z-index:0;pointer-events:none}" +
       ".eudr-dds-content{position:relative;z-index:1}" +
       ".eudr-dds-scope-note{font-size:11px;margin:0 0 4mm 11mm;color:#444}" +
-      ".eudr-dds-schedule td{font-size:11px}" +
+      ".eudr-dds-schedule td{font-size:10px;padding:3px 5px}" +
       ".eudr-dds-schedule .eudr-dds-label{width:100%;text-align:center}" +
+      ".eudr-dds-page-break{page-break-after:always}" +
+      ".eudr-dds-cont-page-title{font-size:12px;font-weight:700;margin:0 0 3mm}" +
       "@page{size:A4;margin:0}"
     );
   }
 
-  function renderContainerScheduleTable(scheduleText, scopeSnapshot) {
-    var rows = (scopeSnapshot && scopeSnapshot.containers) || [];
-    if (rows.length) {
-      var html =
-        '<table class="eudr-dds-schedule"><tr>' +
-        '<td class="eudr-dds-label" colspan="4">CONTAINERS IN THIS BOOKING</td></tr>' +
-        '<tr><td class="eudr-dds-label">Container</td><td class="eudr-dds-label">FCL</td>' +
-        '<td class="eudr-dds-label">Destination</td><td class="eudr-dds-label">Loaded mass</td></tr>';
-      rows.forEach(function (r) {
-        var kg = r.net_mass_kg;
-        var kgText = kg != null ? String(kg).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " kg" : "—";
-        html +=
-          "<tr><td class=\"eudr-dds-value\">" +
-          escapeHtml(r.container_number || "—") +
-          "</td><td class=\"eudr-dds-value\">" +
-          escapeHtml(r.fcl_number || "—") +
-          "</td><td class=\"eudr-dds-value\">" +
-          escapeHtml(r.destination || "—") +
-          "</td><td class=\"eudr-dds-value\">" +
-          escapeHtml(kgText) +
-          "</td></tr>";
-      });
-      html += "</table>";
-      return html;
-    }
-    if (scheduleText && scheduleText.trim()) {
+  function formatKgCell(r) {
+    if (r.duplicate_bag_ids && r.duplicate_bag_ids.length) {
       return (
-        '<div class="eudr-dds-section-title">CONTAINERS IN THIS BOOKING</div>' +
-        '<table class="eudr-dds-schedule"><tr><td class="eudr-dds-value">' +
-        nl2br(scheduleText) +
-        "</td></tr></table>"
+        "Unconfirmed — duplicate bag row(s): " +
+        r.duplicate_bag_ids.slice(0, 3).join(", ") +
+        (r.duplicate_bag_ids.length > 3 ? "…" : "")
       );
     }
-    return "";
+    if (r.mass_complete && r.net_mass_kg != null) {
+      return String(r.net_mass_kg).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " kg";
+    }
+    var partial = r.net_mass_kg_display != null ? r.net_mass_kg_display : r.net_mass_kg;
+    if (partial != null) {
+      return (
+        "Incomplete — " +
+        String(partial).replace(/\B(?=(\d{3})+(?!\d))/g, ",") +
+        " kg (" +
+        (r.bags_with_mass != null ? r.bags_with_mass : "?") +
+        "/" +
+        (r.bag_count != null ? r.bag_count : "?") +
+        " bags)"
+      );
+    }
+    return "No net product mass recorded";
+  }
+
+  function renderScheduleTableChunk(rows, opts) {
+    opts = opts || {};
+    var html =
+      '<table class="eudr-dds-schedule"><tr>' +
+      '<td class="eudr-dds-label" colspan="3">CONTAINERS INCLUDED IN THIS BOOKING</td></tr>' +
+      '<tr><td class="eudr-dds-label">Container number</td><td class="eudr-dds-label">FCL</td>' +
+      '<td class="eudr-dds-label">Net product mass</td></tr>';
+    rows.forEach(function (r) {
+      html +=
+        "<tr><td class=\"eudr-dds-value\">" +
+        escapeHtml(r.container_number || "—") +
+        "</td><td class=\"eudr-dds-value\">" +
+        escapeHtml(r.fcl_number || "—") +
+        "</td><td class=\"eudr-dds-value\">" +
+        escapeHtml(formatKgCell(r)) +
+        "</td></tr>";
+    });
+    if (opts.totalLabel) {
+      html +=
+        '<tr><td class="eudr-dds-label" colspan="2">Booking total (net product mass)</td>' +
+        '<td class="eudr-dds-value">' +
+        escapeHtml(opts.totalLabel) +
+        "</td></tr>";
+    }
+    html += "</table>";
+    return html;
+  }
+
+  function renderContainerSchedulePages(scopeSnapshot, logo, wm, bookingRef) {
+    var rows = (scopeSnapshot && scopeSnapshot.containers) || [];
+    if (!rows.length) {
+      return (
+        '<p class="eudr-dds-scope-note">No container rows in frozen scope snapshot.</p>'
+      );
+    }
+    var agg = scopeSnapshot.aggregates || {};
+    var totalLabel = null;
+    if (agg.net_mass_all_containers && agg.net_mass_kg != null) {
+      totalLabel =
+        String(agg.net_mass_kg).replace(/\B(?=(\d{3})+(?!\d))/g, ",") +
+        " kg (complete total)";
+    } else if (agg.net_mass_partial_kg) {
+      totalLabel =
+        String(agg.net_mass_partial_kg).replace(/\B(?=(\d{3})+(?!\d))/g, ",") +
+        " kg (partial — not all containers complete)";
+    }
+    var chunkSize = 22;
+    var chunks = [];
+    for (var i = 0; i < rows.length; i += chunkSize) {
+      chunks.push(rows.slice(i, i + chunkSize));
+    }
+    var out = "";
+    chunks.forEach(function (chunk, idx) {
+      var isLast = idx === chunks.length - 1;
+      if (idx === 0) {
+        out += renderScheduleTableChunk(chunk, isLast ? { totalLabel: totalLabel } : {});
+        return;
+      }
+      out +=
+        '<div class="eudr-dds-page eudr-dds-page-break">' +
+        '<img class="eudr-dds-watermark" alt="" src="' +
+        escapeHtml(wm) +
+        '">' +
+        '<div class="eudr-dds-content">' +
+        '<p class="eudr-dds-cont-page-title">EUDR Due Diligence Statement — Booking ' +
+        escapeHtml(bookingRef || "") +
+        " (container schedule continued)</p>" +
+        renderScheduleTableChunk(chunk, isLast ? { totalLabel: totalLabel } : {}) +
+        '<div class="eudr-dds-footer">Reg no: 2005/570<br>Vat no: 4077142-01-5<br>FSC-C114374</div>' +
+        "</div></div>";
+    });
+    return out;
+  }
+
+  function renderBookingSummaryTable(f, scopeSnapshot) {
+    var n =
+      (scopeSnapshot && scopeSnapshot.container_count) ||
+      (scopeSnapshot && scopeSnapshot.containers && scopeSnapshot.containers.length) ||
+      "—";
+    return (
+      '<table class="eudr-dds-summary"><tr>' +
+      '<td class="eudr-dds-label">Booking reference</td><td class="eudr-dds-value">' +
+      escapeHtml(cellValue(f, "carbo_ref")) +
+      '</td><td class="eudr-dds-label">Client reference</td><td class="eudr-dds-value">' +
+      escapeHtml(cellValue(f, "client")) +
+      "</td></tr><tr>" +
+      '<td class="eudr-dds-label">Destination</td><td class="eudr-dds-value">' +
+      escapeHtml(cellValue(f, "destination")) +
+      '</td><td class="eudr-dds-label">Shipment date</td><td class="eudr-dds-value">' +
+      escapeHtml(cellValue(f, "shipment_date")) +
+      "</td></tr><tr>" +
+      '<td class="eudr-dds-label">Container count</td><td class="eudr-dds-value">' +
+      escapeHtml(String(n)) +
+      '</td><td class="eudr-dds-label">Booking net mass</td><td class="eudr-dds-value">' +
+      escapeHtml(cellValue(f, "net_mass")) +
+      "</td></tr></table>"
+    );
   }
 
   function cellValue(fields, key) {
@@ -266,29 +357,24 @@
       escapeHtml(cellValue(f, "client")) +
       "</p>" +
       (scopeMode === "booking"
-        ? '<p class="eudr-dds-scope-note">This statement covers booking ' +
+        ? renderBookingSummaryTable(f, scopeSnapshot) +
+          renderContainerSchedulePages(
+            scopeSnapshot,
+            logo,
+            wm,
+            cellValue(f, "carbo_ref")
+          )
+        : '<table class="eudr-dds-summary"><tr>' +
+          '<td class="eudr-dds-label">Container number</td><td class="eudr-dds-value">' +
+          escapeHtml(cellValue(f, "container")) +
+          '</td><td class="eudr-dds-label">Carbo reference</td><td class="eudr-dds-value">' +
           escapeHtml(cellValue(f, "carbo_ref")) +
-          (scopeSnapshot && scopeSnapshot.container_count
-            ? " (" + escapeHtml(String(scopeSnapshot.container_count)) + " containers)."
-            : ".") +
-          "</p>"
-        : "") +
-      '<table class="eudr-dds-summary"><tr>' +
-      '<td class="eudr-dds-label">' +
-      (scopeMode === "booking" ? "Scope" : "Container") +
-      '</td><td class="eudr-dds-value">' +
-      escapeHtml(cellValue(f, "container")) +
-      '</td><td class="eudr-dds-label">Carbo Ref.</td><td class="eudr-dds-value">' +
-      escapeHtml(cellValue(f, "carbo_ref")) +
-      "</td></tr><tr>" +
-      '<td class="eudr-dds-label">Destination</td><td class="eudr-dds-value">' +
-      escapeHtml(cellValue(f, "destination")) +
-      '</td><td class="eudr-dds-label">Shipment Date</td><td class="eudr-dds-value">' +
-      escapeHtml(cellValue(f, "shipment_date")) +
-      "</td></tr></table>" +
-      (scopeMode === "booking"
-        ? renderContainerScheduleTable(cellValue(f, "container_schedule"), scopeSnapshot)
-        : "") +
+          "</td></tr><tr>" +
+          '<td class="eudr-dds-label">Destination</td><td class="eudr-dds-value">' +
+          escapeHtml(cellValue(f, "destination")) +
+          '</td><td class="eudr-dds-label">Shipment date</td><td class="eudr-dds-value">' +
+          escapeHtml(cellValue(f, "shipment_date")) +
+          "</td></tr></table>") +
       "<table><tr><td class=\"eudr-dds-label\">Operator</td><td class=\"eudr-dds-value\">" +
       escapeHtml(cellValue(f, "operator")) +
       "</td></tr>" +

@@ -3529,6 +3529,34 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   color: #8a5a00;
   font-size: 12px;
 }
+.td-doc-eudr-drafts {
+  margin: 0.75rem 0 1rem;
+  max-width: min(720px, 96vw);
+}
+.td-doc-eudr-drafts-title {
+  margin: 0 0 0.4rem;
+  font-size: 13px;
+}
+.td-doc-eudr-statement-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+.td-doc-eudr-statement-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border-muted, #ddd);
+}
+.td-doc-eudr-statement-label {
+  font-weight: 600;
+  min-width: 8rem;
+}
+.td-doc-eudr-title-input {
+  max-width: min(720px, 96vw);
+}
 .a4-print-preview-overlay__bar {
   flex-wrap: wrap;
   align-items: flex-start;

@@ -56,6 +56,7 @@
     var containerIds = [];
     var scopeSnapshot = null;
     var assetUrls = null;
+    var statementTitle = "";
 
     var section = ui.el("section", { class: "td-doc-section td-doc-eudr-dds" });
     section.appendChild(
@@ -126,18 +127,33 @@
     var scopeSummary = ui.el("div", { class: "td-doc-eudr-scope-summary muted" });
     section.appendChild(scopeSummary);
 
-    var savedSelect = ui.el("select", { class: "td-doc-select" });
-    savedSelect.appendChild(ui.el("option", { value: "" }, ["New statement (unsaved)"]));
+    var draftsSection = ui.el("div", { class: "td-doc-eudr-drafts" });
+    draftsSection.appendChild(ui.el("h4", { class: "td-doc-eudr-drafts-title" }, ["Saved statements"]));
+    var statementList = ui.el("ul", { class: "td-doc-eudr-statement-list" });
+    draftsSection.appendChild(statementList);
+    var btnCreateNew = ui.el("button", { class: "btn btn-sm", type: "button" }, [
+      "Create new statement",
+    ]);
+    draftsSection.appendChild(btnCreateNew);
+    section.appendChild(draftsSection);
+
+    var titleInput = ui.el("input", {
+      class: "td-doc-eudr-input td-doc-eudr-title-input",
+      type: "text",
+      placeholder: "Statement title / internal reference (e.g. Mobilis draft 2)",
+    });
     section.appendChild(
       ui.el("label", { class: "ct-field td-doc-field" }, [
-        ui.el("span", { class: "ct-field-label" }, ["Saved drafts"]),
-        savedSelect,
+        ui.el("span", { class: "ct-field-label" }, ["Statement title"]),
+        titleInput,
       ])
     );
 
     var formWrap = ui.el("div", { class: "cm-eudr-dds-fields td-doc-eudr-form" });
     var inputs = {};
+    var HIDDEN_KEYS = { container_schedule: true };
     (CIS.EUDR_DDS_FIELD_KEYS || []).forEach(function (key) {
+      if (HIDDEN_KEYS[key]) return;
       var control;
       if (MULTILINE[key]) {
         control = ui.el("textarea", {
@@ -159,12 +175,15 @@
           : "Unsaved new statement.";
       });
       inputs[key] = control;
-      formWrap.appendChild(
-        ui.el("label", { class: "ct-field td-doc-eudr-field-row" }, [
-          ui.el("span", { class: "ct-field-label" }, [FIELD_LABELS[key] || key]),
-          control,
-        ])
-      );
+      var row = ui.el("label", {
+        class: "ct-field td-doc-eudr-field-row",
+        "data-eudr-field": key,
+      }, [
+        ui.el("span", { class: "ct-field-label" }, [FIELD_LABELS[key] || key]),
+        control,
+      ]);
+      inputs[key + "__row"] = row;
+      formWrap.appendChild(row);
     });
     section.appendChild(formWrap);
 
@@ -177,7 +196,7 @@
     var btnLoadSuggested = ui.el("button", { class: "btn btn-sm", type: "button" }, [
       "Load suggested fields",
     ]);
-    var btnSave = ui.el("button", { class: "btn", type: "button" }, ["Save statement"]);
+    var btnSave = ui.el("button", { class: "btn", type: "button" }, ["Save new statement"]);
     var btnPreview = ui.el("button", { class: "btn", type: "button" }, ["Preview statement"]);
     var btnPdf = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Download PDF"]);
     var btnPrint = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Print"]);
@@ -199,13 +218,77 @@
       (CIS.EUDR_DDS_FIELD_KEYS || []).forEach(function (key) {
         if (inputs[key]) inputs[key].value = fields[key] == null ? "" : fields[key];
       });
+      titleInput.value = statementTitle || "";
+      paintModeFieldVisibility();
+    }
+
+    function paintModeFieldVisibility() {
+      var containerRow = inputs.container__row;
+      if (containerRow) {
+        containerRow.style.display = mode === MODE_SINGLE ? "" : "none";
+      }
+      if (inputs.carbo_ref__row) {
+        var lab = inputs.carbo_ref__row.querySelector(".ct-field-label");
+        if (lab) {
+          lab.textContent =
+            mode === MODE_BOOKING ? "Booking reference (on document)" : "Carbo reference";
+        }
+      }
+    }
+
+    function updateSaveButtonLabel() {
+      btnSave.textContent = statementId ? "Update saved statement" : "Save new statement";
     }
 
     function resetEditorSelection() {
       statementId = "";
-      savedSelect.value = "";
+      statementTitle = "";
       fields = CIS.eudrDdsDefaultFields();
       paintFields();
+      updateSaveButtonLabel();
+      paintStatementList([]);
+    }
+
+    function paintStatementList(list) {
+      statementList.innerHTML = "";
+      if (!list.length) {
+        statementList.appendChild(
+          ui.el("li", { class: "muted" }, ["No saved statements for this selection yet."])
+        );
+        return;
+      }
+      list.forEach(function (s) {
+        var li = ui.el("li", { class: "td-doc-eudr-statement-item" });
+        var label =
+          (s.title || "").trim() ||
+          (s.fields && s.fields.client) ||
+          ("Draft " + String(s.id || "").slice(0, 8));
+        var meta =
+          (s.status || "draft") +
+          " · " +
+          (s.updated_at || "").replace("T", " ").slice(0, 16);
+        var openBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Open"]);
+        openBtn.addEventListener("click", function () {
+          openStatementById(s.id);
+        });
+        li.appendChild(ui.el("span", { class: "td-doc-eudr-statement-label" }, [label]));
+        li.appendChild(ui.el("span", { class: "muted td-doc-eudr-statement-meta" }, [meta]));
+        li.appendChild(openBtn);
+        statementList.appendChild(li);
+      });
+    }
+
+    async function openStatementById(id) {
+      if (!id) return;
+      setActionMsg("");
+      try {
+        var rec = await ctx.api.traceability(
+          "/containers/eudr-dds-statements/" + encodeURIComponent(id)
+        );
+        applyRecord(rec);
+      } catch (e) {
+        setActionMsg("Could not open statement: " + (e.message || e));
+      }
     }
 
     function paintScopeSummary() {
@@ -294,6 +377,7 @@
       bookingRef = rec.booking_ref || "";
       containerIds = (rec.container_ids || []).slice();
       scopeSnapshot = rec.scope_snapshot || null;
+      statementTitle = (rec && rec.title) || "";
       fields = Object.assign(CIS.eudrDdsDefaultFields(), (rec && rec.fields) || {});
 
       if (mode === MODE_BOOKING) {
@@ -308,9 +392,10 @@
 
       paintFields();
       paintScopeSummary();
+      updateSaveButtonLabel();
       if (statementId) {
         saveState.textContent =
-          "Saved " +
+          "Editing saved statement · " +
           (rec.status || "draft") +
           " · " +
           mode +
@@ -320,16 +405,20 @@
     }
 
     async function refreshSavedList() {
-      savedSelect.innerHTML = "";
-      savedSelect.appendChild(ui.el("option", { value: "" }, ["New statement (unsaved)"]));
       var query = "";
       if (mode === MODE_BOOKING) {
-        if (!bookingRef) return;
+        if (!bookingRef) {
+          paintStatementList([]);
+          return;
+        }
         query =
           "/containers/eudr-dds-statements?booking_ref=" +
           encodeURIComponent(bookingRef);
       } else {
-        if (!containerId) return;
+        if (!containerId) {
+          paintStatementList([]);
+          return;
+        }
         query =
           "/containers/eudr-dds-statements?container_id=" +
           encodeURIComponent(containerId);
@@ -337,18 +426,7 @@
       try {
         var data = await ctx.api.traceability(query);
         var list = (data && data.statements) || [];
-        list.forEach(function (s) {
-          var label =
-            (s.scope_mode || "single") +
-            " · " +
-            (s.status || "draft") +
-            " · " +
-            (s.updated_at || "").slice(0, 10);
-          savedSelect.appendChild(ui.el("option", { value: s.id }, [label]));
-        });
-        if (statementId && list.some(function (s) { return s.id === statementId; })) {
-          savedSelect.value = statementId;
-        }
+        paintStatementList(list);
       } catch (e) {
         setActionMsg("Could not list saved statements: " + (e.message || e));
       }
@@ -393,6 +471,7 @@
       mode = newMode;
       applyModeUi();
       resetEditorSelection();
+      updateSaveButtonLabel();
       containerId = "";
       bookingRef = "";
       containerIds = [];
@@ -440,23 +519,31 @@
       }
     });
 
-    savedSelect.addEventListener("change", async function () {
-      var id = savedSelect.value;
-      if (!id) {
-        resetEditorSelection();
-        paintScopeSummary();
-        saveState.textContent = "New statement (not saved yet).";
+    btnCreateNew.addEventListener("click", function () {
+      if (
+        statementId &&
+        !window.confirm(
+          "Create a new statement? Unsaved edits to the current draft will be lost unless you saved them."
+        )
+      ) {
         return;
       }
+      resetEditorSelection();
+      scopeSnapshot = null;
+      containerIds = [];
+      paintScopeSummary();
       setActionMsg("");
-      try {
-        var rec = await ctx.api.traceability(
-          "/containers/eudr-dds-statements/" + encodeURIComponent(id)
-        );
-        applyRecord(rec);
-      } catch (e) {
-        setActionMsg("Could not open statement: " + (e.message || e));
-      }
+      saveState.textContent =
+        mode === MODE_BOOKING
+          ? "New statement — load suggested fields, then Save new statement."
+          : "New statement — choose container and load suggested fields.";
+    });
+
+    titleInput.addEventListener("input", function () {
+      statementTitle = titleInput.value;
+      saveState.textContent = statementId
+        ? "Unsaved changes — use Update saved statement."
+        : "Unsaved new statement.";
     });
 
     btnLoadSuggested.addEventListener("click", async function () {
@@ -515,6 +602,7 @@
           container_ids: containerIds,
           scope_snapshot: scopeSnapshot,
           fields: fields,
+          title: (statementTitle || "").trim(),
           status: "draft",
         };
         var rec;
@@ -531,7 +619,7 @@
         }
         applyRecord(rec);
         await refreshSavedList();
-        savedSelect.value = statementId;
+        updateSaveButtonLabel();
       } catch (e) {
         var msg = e.message || String(e);
         if (/column .* does not exist/i.test(msg) || /scope_mode/i.test(msg)) {
@@ -585,6 +673,7 @@
 
     applyModeUi();
     paintFields();
+    updateSaveButtonLabel();
     populateBookingSelect();
   };
 })();
