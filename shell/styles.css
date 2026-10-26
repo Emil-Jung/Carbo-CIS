@@ -2779,7 +2779,8 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   gap: 0.35rem;
   margin: 0.75rem 0 1.25rem;
   position: relative;
-  z-index: 1;
+  /* Above .cis-float-ops-panel (900) so PDF/Print receive clicks at page bottom */
+  z-index: 902;
 }
 .td-doc-eudr-actions .td-doc-doc-row {
   flex: 0 0 auto;

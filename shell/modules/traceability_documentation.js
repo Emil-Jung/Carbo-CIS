@@ -554,12 +554,16 @@
       return "Select at least one container for this shipment.";
     }
 
-    function syncLocationSheetActionButtons() {
-      var can = locationSheetHasContainers();
-      var why = locationSheetDisabledReason();
+    function applyLocationSheetButtonState(resolvedCount) {
+      var can =
+        typeof resolvedCount === "number"
+          ? resolvedCount > 0
+          : locationSheetHasContainers();
+      var why = can ? "" : locationSheetDisabledReason();
       [btnLocationPdf, btnLocationPrint].forEach(function (b) {
         b.disabled = !can;
         if (can) {
+          b.removeAttribute("disabled");
           b.removeAttribute("aria-disabled");
           b.removeAttribute("title");
         } else {
@@ -567,6 +571,16 @@
           if (why) b.title = why;
           else b.removeAttribute("title");
         }
+      });
+    }
+
+    function syncLocationSheetActionButtons() {
+      applyLocationSheetButtonState(eudrResolvedContainers().length);
+    }
+
+    function clearStaleDocBusyOverlays() {
+      document.querySelectorAll(".td-doc-busy-backdrop, .cis-pdf-working-backdrop").forEach(function (el) {
+        if (el.parentNode) el.parentNode.removeChild(el);
       });
     }
 
@@ -794,6 +808,7 @@
           eudrPreview.className = "td-doc-preview td-doc-eudr-preview muted";
         }
         syncEudrActionButtons({ skipPrefetch: true });
+        applyLocationSheetButtonState(0);
         eudrPackNote.textContent = "";
         return;
       }
@@ -829,6 +844,7 @@
         ])
       );
       syncEudrActionButtons();
+      applyLocationSheetButtonState(list.length);
     }
 
     function formatEudrError(e) {
@@ -922,7 +938,11 @@
     );
 
     btnLocationPdf.addEventListener("click", async function () {
-      if (btnLocationPdf.disabled) return;
+      clearStaleDocBusyOverlays();
+      if (!locationSheetHasContainers()) {
+        setLocationSheetMsg(locationSheetDisabledReason() || "Select a booking with containers first.");
+        return;
+      }
       setLocationSheetMsg("");
       clearEudrActionError();
       var prevLabel = btnLocationPdf.textContent;
@@ -953,7 +973,11 @@
     });
 
     btnLocationPrint.addEventListener("click", async function () {
-      if (btnLocationPrint.disabled) return;
+      clearStaleDocBusyOverlays();
+      if (!locationSheetHasContainers()) {
+        setLocationSheetMsg(locationSheetDisabledReason() || "Select a booking with containers first.");
+        return;
+      }
       setLocationSheetMsg("");
       clearEudrActionError();
       var prevPrintLabel = btnLocationPrint.textContent;
