@@ -2792,6 +2792,7 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .td-doc-eudr-actions .btn:not(:disabled) {
   opacity: 1;
+  cursor: pointer;
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
   color: #1a1200;
 }

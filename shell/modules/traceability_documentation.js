@@ -165,6 +165,7 @@
         sheetPreview.textContent = "Choose a container.";
         sheetPreview.className = "td-doc-preview muted";
         sheetBtn.disabled = true;
+        sheetBtn.title = "Choose a container from the list above.";
         return;
       }
       sheetPreview.innerHTML = "";
@@ -187,6 +188,7 @@
         ])
       );
       sheetBtn.disabled = false;
+      sheetBtn.removeAttribute("title");
     }
 
     sheetSelect.addEventListener("change", function () {
@@ -359,16 +361,54 @@
       }
     }
 
-    function setEudrButtonsReady(ready) {
-      var on = !!ready;
+    function eudrShipmentCanGenerate() {
+      return eudrResolvedContainers().length > 0 && !!eudrSelectionBody();
+    }
+
+    function eudrActionsDisabledReason() {
+      if (eudrShipmentCanGenerate()) return "";
+      if (eudrMode === "booking") {
+        var ref = getBookingRef();
+        if (!ref) {
+          return "Choose or type a booking ref that matches containers in Traceability.";
+        }
+        return (
+          "No containers use booking ref " +
+          ref +
+          ". Set the same ref on each FCL in Containers, then reopen this screen."
+        );
+      }
+      return "Select at least one container for this shipment.";
+    }
+
+    /** DOM disabled only when shipment selection cannot run — not when prefetch is loading or failed. */
+    function syncEudrActionButtons(opts) {
+      opts = opts || {};
+      var canRun = eudrShipmentCanGenerate();
+      var why = eudrActionsDisabledReason();
       [btnDds, btnLocation, btnLocationCsv, btnGeo].forEach(function (b) {
-        b.disabled = !on;
-        if (on) {
+        b.disabled = !canRun;
+        if (canRun) {
           b.removeAttribute("aria-disabled");
+          b.removeAttribute("title");
         } else {
           b.setAttribute("aria-disabled", "true");
+          if (why) b.title = why;
+          else b.removeAttribute("title");
         }
       });
+      if (!canRun) return;
+      if (opts.skipPrefetch) {
+        if (cachedPack && cachedPackKey === JSON.stringify(eudrSelectionBody())) {
+          paintEudrPackNote(cachedPack);
+        }
+        return;
+      }
+      if (cachedPack && cachedPackKey === JSON.stringify(eudrSelectionBody())) {
+        paintEudrPackNote(cachedPack);
+      } else if (!packLoading) {
+        schedulePackPrefetch();
+      }
     }
 
     function schedulePackPrefetch() {
@@ -402,7 +442,10 @@
         eudrPackNote.textContent = "";
         showEudrActionError("Could not load EUDR pack: " + msg);
       } finally {
-        if (gen === packPrefetchGen) packLoading = false;
+        if (gen === packPrefetchGen) {
+          packLoading = false;
+          syncEudrActionButtons({ skipPrefetch: true });
+        }
       }
     }
 
@@ -553,7 +596,7 @@
               : "Select containers for the shipment.";
           eudrPreview.className = "td-doc-preview td-doc-eudr-preview muted";
         }
-        setEudrButtonsReady(false);
+        syncEudrActionButtons({ skipPrefetch: true });
         eudrPackNote.textContent = "";
         return;
       }
@@ -588,13 +631,7 @@
           " container sheet(s) above for logistics. EUDR documents below use the same selected set.",
         ])
       );
-      setEudrButtonsReady(true);
-      if (cachedPack && cachedPackKey === JSON.stringify(eudrSelectionBody())) {
-        paintEudrPackNote(cachedPack);
-      } else if (!packLoading) {
-        eudrPackNote.textContent = "";
-        schedulePackPrefetch();
-      }
+      syncEudrActionButtons();
     }
 
     function formatEudrError(e) {
