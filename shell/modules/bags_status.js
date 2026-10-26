@@ -3214,6 +3214,7 @@
       var backTo = wxDrill && wxDrill.backTo;
       var backDispatch = wxDrill && wxDrill.backDispatch;
       wxDrill = null;
+      navSnapshotBeforeFetch = null;
       if (backTo === "walvis_dispatch" && backDispatch) {
         selected = {
           key: WALVIS_STORAGE_STATUS,
@@ -3249,6 +3250,11 @@
           mode: "walvis_transit_hub",
           walvisReport: walvisTransitReport,
         };
+      } else if (backTo === "status_buckets") {
+        selectedEvent = null;
+      } else {
+        selected = null;
+        selectedEvent = null;
       }
       paint();
     }
@@ -3345,12 +3351,35 @@
       }
     }
 
+    function popPackagedStockDrillView() {
+      if (selected.view === "flat_list") {
+        selected.view = "locations";
+        selected.rows = null;
+        if (selected.parentLabel) selected.label = selected.parentLabel;
+        selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
+        return true;
+      }
+      if (selected.view === "by_product" || selected.view === "by_location") {
+        selected.view = "locations";
+        selected.detail = null;
+        selected.sections = null;
+        selected.count = selected.parentCount != null ? selected.parentCount : selected.count;
+        return true;
+      }
+      if (selected.view === "locations") {
+        selected = null;
+        return true;
+      }
+      return false;
+    }
+
     /** Single stable handler — shell keeps same button DOM; one tap = one drill level up. */
     function drillBackOneStep() {
       if (navSnapshotBeforeFetch) {
         cancelDrillFetchAndRestore();
         return;
       }
+      navSnapshotBeforeFetch = null;
       if (wxDrill) {
         goBackFromWxDrill();
         return;
@@ -3367,6 +3396,10 @@
         }
         if (selectedEvent) {
           selectedEvent = null;
+          paint();
+          return;
+        }
+        if (isPackagedStockDrillMode(selected.mode) && popPackagedStockDrillView()) {
           paint();
           return;
         }
@@ -3421,6 +3454,18 @@
             mode: "walvis_transit_hub",
             walvisReport: walvisTransitReport,
           };
+          paint();
+          return;
+        }
+        if (
+          selected.mode === "events" ||
+          selected.mode === "weathering_buckets" ||
+          selected.mode === "pallet_basket" ||
+          selected.mode === "briquette_basket" ||
+          selected.mode === "walvis_storage_hub" ||
+          selected.mode === "walvis_transit_hub"
+        ) {
+          selected = null;
           paint();
           return;
         }
@@ -3489,7 +3534,10 @@
 
       try {
         var data = await ctx.api.traceability(buildWxDrillQuery(sel));
-        if (token !== wxDrillToken) return;
+        if (token !== wxDrillToken) {
+          navSnapshotBeforeFetch = null;
+          return;
+        }
         var wxRows = (data.drill && data.drill.rows) || [];
         if (selected && isFactoryStorageBagStatus(selected.key)) {
           wxRows = wxRows.filter(function (r) {
