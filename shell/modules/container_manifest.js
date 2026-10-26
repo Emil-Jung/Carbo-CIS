@@ -55,21 +55,107 @@
     return key || "";
   }
 
-  function isPalletStream(line) {
-    return String((line && line.product_stream) || "").trim().toLowerCase() === "pallet";
+  /** Match Bags Status → Into container drill sort (see bags_status.js). */
+  function sheetBagSortKey(row) {
+    if (!row) return "";
+    return String(row.status_changed_at || row.recorded_at || "");
   }
 
-  /** Operational loading rows — pallet records only; never bag/producer traceability rows. */
-  function loadingEntriesFromManifest(manifest) {
-    var lines = (manifest && manifest.lines) || [];
-    var pallets = lines.filter(isPalletStream);
-    return pallets.map(function (ln) {
-      var w = ln.weight_kg;
-      if (w == null || w === "" || isNaN(Number(w))) w = "";
-      else w = Math.round(Number(w));
-      return { weight_kg: w };
-    });
+  function sortSheetBagRows(rows) {
+    var list = (rows || []).slice();
+    if (window.CIS_BS_DRILL_SORT_NEWEST_FIRST === true) {
+      list.sort(function (a, b) {
+        var da = sheetBagSortKey(a);
+        var db = sheetBagSortKey(b);
+        if (da !== db) return db.localeCompare(da);
+        return String(b.serial || "").localeCompare(String(a.serial || ""));
+      });
+    } else {
+      list.sort(function (a, b) {
+        var da = sheetBagSortKey(a);
+        var db = sheetBagSortKey(b);
+        if (da !== db) return String(da).localeCompare(String(db));
+        return String(a.serial || "").localeCompare(String(b.serial || ""));
+      });
+    }
+    return list;
   }
+
+  function normalizeLoadingWeight(w) {
+    if (w == null || w === "" || isNaN(Number(w))) return "";
+    return Math.round(Number(w));
+  }
+
+  function bagRowToLoadingEntry(row) {
+    var serial = String((row && (row.serial || row.bag_identifier)) || "").trim();
+    if (!serial || /^unknown producer/i.test(serial)) return null;
+    return {
+      bag_serial: serial,
+      weight_kg: normalizeLoadingWeight(
+        row.net_weight_kg != null ? row.net_weight_kg : row.weight_kg
+      ),
+    };
+  }
+
+  function loadingEntriesFromManifestLines(manifest) {
+    var lines = (manifest && manifest.lines) || [];
+    return lines
+      .map(function (ln) {
+        return bagRowToLoadingEntry({
+          serial: ln.bag_identifier,
+          net_weight_kg: ln.weight_kg,
+        });
+      })
+      .filter(Boolean);
+  }
+
+  /** Same bag list as Bags Status → In Container (drill rows), attached on manifest by prepare step. */
+  function loadingEntriesFromManifest(manifest) {
+    var rows = (manifest && manifest._sheet_loading_rows) || [];
+    if (rows.length) {
+      return sortSheetBagRows(rows)
+        .map(bagRowToLoadingEntry)
+        .filter(Boolean);
+    }
+    return loadingEntriesFromManifestLines(manifest);
+  }
+
+  /**
+   * Bags Status drill API — one section per container, rows[].serial + net_weight_kg.
+   * @param {object} api CIS ctx.api with traceability()
+   */
+  CIS.fetchInContainerBagRowsForSheet = async function (api, containerNumber) {
+    var cn = String(containerNumber || "").trim();
+    if (!cn) return [];
+    if (!api || typeof api.traceability !== "function") {
+      throw new Error("Traceability API is not available.");
+    }
+    var data = await api.traceability(
+      "/reports/bags-status?drill=1&status=" + encodeURIComponent("in_container") + "&_=" + Date.now()
+    );
+    var sections = (data && data.event_sections) || [];
+    for (var i = 0; i < sections.length; i++) {
+      var sec = sections[i];
+      if ((sec.container_number || "").trim() === cn) {
+        return sec.rows || [];
+      }
+    }
+    return [];
+  };
+
+  CIS.prepareContainerSheetManifest = async function (api, manifest) {
+    if (!manifest || !manifest.header) {
+      throw new Error("No manifest data for container sheet.");
+    }
+    var cn = manifest.header.container_number;
+    var rows = await CIS.fetchInContainerBagRowsForSheet(api, cn);
+    if (!rows.length) {
+      rows = loadingEntriesFromManifestLines(manifest).map(function (e) {
+        return { serial: e.bag_serial, net_weight_kg: e.weight_kg };
+      });
+    }
+    return Object.assign({}, manifest, { _sheet_loading_rows: rows });
+  };
 
   function chunkPages(entries) {
     var pages = [];
@@ -97,14 +183,20 @@
     for (var i = 0; i < ROWS_PER_COLUMN; i++) {
       var ln = rows[i];
       var nr = i + 1;
+      var supplierCell = "&nbsp;";
       var weightCell = "&nbsp;";
-      if (ln && ln.weight_kg !== "" && ln.weight_kg != null) {
-        weightCell = esc(String(ln.weight_kg));
+      if (ln) {
+        if (ln.bag_serial) supplierCell = esc(ln.bag_serial);
+        if (ln.weight_kg !== "" && ln.weight_kg != null) {
+          weightCell = esc(String(ln.weight_kg));
+        }
       }
       html +=
         "<tr><td class=\"cm-nr\">" +
         nr +
-        "</td><td>&nbsp;</td><td class=\"cm-w\">" +
+        "</td><td class=\"cm-supplier\">" +
+        supplierCell +
+        "</td><td class=\"cm-w\">" +
         weightCell +
         "</td></tr>";
     }
@@ -137,9 +229,9 @@
     }
 
     var qtyBags = "";
-    if (entries.length && entries.length === (manifest.lines || []).filter(isPalletStream).length) {
+    if (entries.length) {
       qtyBags = String(entries.length);
-    } else if (!(manifest.lines || []).length) {
+    } else if (!(manifest.lines || []).length && !(manifest._sheet_loading_rows || []).length) {
       qtyBags =
         sum.qty_bags != null && sum.qty_bags !== "" ? String(sum.qty_bags) : "";
     }
@@ -195,6 +287,7 @@
       "table.cm-load th{font-weight:700;text-align:center;background:#fff;}" +
       "table.cm-load td.cm-nr,table.cm-load th.cm-nr{width:7mm;text-align:center;}" +
       "table.cm-load td.cm-w,table.cm-load th.cm-w{width:11mm;text-align:right;}" +
+      "table.cm-load td.cm-supplier{font-size:6.5pt;line-height:1.15;word-break:break-all;}" +
       ".cm-side{font-size:8pt;}" +
       ".cm-side-title{font-weight:700;text-align:center;margin:0 0 3px;font-size:8pt;}" +
       "table.cm-team{width:100%;border-collapse:collapse;}" +

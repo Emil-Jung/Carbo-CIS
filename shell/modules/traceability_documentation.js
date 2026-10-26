@@ -220,15 +220,23 @@
     sheetBtnPreview.addEventListener("click", async function () {
       if (!sheetContainerId) return;
       setSheetActionMsg("");
-      setStatus("Loading manifest…", false);
+      setStatus("Loading container data…", false);
       sheetBtnPreview.disabled = true;
       try {
         var manifest = await fetchSheetManifest();
         if (!manifest || !manifest.header) {
           throw new Error("Manifest did not return container header data.");
         }
-        if (!CIS.showContainerSheetPreview) {
+        if (!CIS.prepareContainerSheetManifest || !CIS.showContainerSheetPreview) {
           throw new Error("Container sheet module not loaded.");
+        }
+        setStatus("Loading in-container bags (Bags Status source)…", false);
+        manifest = await CIS.prepareContainerSheetManifest(ctx.api, manifest);
+        var loadCount = (manifest._sheet_loading_rows || []).length;
+        if (!loadCount) {
+          throw new Error(
+            "No in-container bags found for this FCL. Check Bags Status → Into container."
+          );
         }
         setStatus("", false);
         await CIS.showContainerSheetPreview(manifest, "documentation");

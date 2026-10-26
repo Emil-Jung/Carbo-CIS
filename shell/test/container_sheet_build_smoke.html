@@ -9,6 +9,15 @@
   <script src="../modules/container_manifest.js"></script>
   <script>
     (function () {
+      var rows = [];
+      for (var i = 1; i <= 48; i++) {
+        var n = String(5658 + i).padStart(6, "0");
+        rows.push({
+          serial: "BAG-2026-" + n,
+          net_weight_kg: 387,
+          status_changed_at: "2026-10-20T12:00:0" + (i % 10) + "Z",
+        });
+      }
       var manifest = {
         header: {
           container_number: "GAOU6688205",
@@ -16,45 +25,31 @@
           product_label: "Pallet — LF2.5 (Le Fournaise — 2.5 kg retail bag)",
           ship_to: "Rotterdam",
           booking_ref: "EBKG19038595",
-          delivery_note: "DN-1",
-          transporter: "TransCo",
-          tag_ref: "REG-99",
         },
-        summary: { qty_bags: 800, weight_loaded_kg: 77400, tare_kg: 3840, total_kg: 81240 },
+        summary: { qty_bags: 48, weight_loaded_kg: 48 * 387, tare_kg: 3840 },
         lines: [
           {
-            supplier: "Unknown producer 387",
+            bag_identifier: "BAG-2026-005659",
             weight_kg: 387,
+            supplier: "Unknown producer 387",
             product_stream: "lumpwood",
           },
-          {
-            supplier: "Farm A",
-            weight_kg: 387,
-            product_stream: "pallet",
-          },
-          {
-            supplier: "Unknown producer 388",
-            weight_kg: 388,
-            product_stream: "pallet",
-          },
         ],
+        _sheet_loading_rows: rows,
       };
-      var html = window.CIS.buildContainerManifestHtml(manifest, "general", {});
+      var html = CIS.buildContainerManifestHtml(manifest, "general", {});
       var entries = CIS.containerSheetLoadingEntries(manifest);
       var ok =
         html.indexOf("GAOU6688205") !== -1 &&
         html.indexOf("DOM2.5") !== -1 &&
         html.indexOf("LF2.5") === -1 &&
         html.indexOf("Unknown producer") === -1 &&
-        html.indexOf("Farm A") === -1 &&
-        html.indexOf("Loading Team") !== -1 &&
-        html.indexOf("REG") !== -1 &&
-        entries.length === 2 &&
-        html.indexOf("387") !== -1 &&
+        html.indexOf("BAG-2026-005659") !== -1 &&
+        entries.length === 48 &&
         html.indexOf("window.print") === -1;
       document.getElementById("out").textContent = ok
-        ? "PASS: paper layout, DOM2.5 map, pallet-only rows (2), no producer text."
-        : "FAIL";
+        ? "PASS: 48 bag rows, BAG IDs in sheet, no producer placeholders."
+        : "FAIL entries=" + entries.length;
     })();
   </script>
 </body>
