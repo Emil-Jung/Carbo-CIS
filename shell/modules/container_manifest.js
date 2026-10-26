@@ -212,29 +212,30 @@
       '<td class="cm-total-lbl">QTY BAGS</td>' +
       '<td class="cm-total-val">' +
       (totals.qty_bags ? esc(totals.qty_bags) : "&nbsp;") +
-      "</td>" +
+      "</td></tr>" +
+      "<tr>" +
       '<td class="cm-total-lbl">TOTAL</td>' +
       '<td class="cm-total-val">' +
       (totals.qty_total ? esc(totals.qty_total) : "&nbsp;") +
-      "</td>" +
-      "</tr>" +
+      "</td></tr>" +
       "<tr>" +
       '<td class="cm-total-lbl">WEIGHT LOADED</td>' +
       '<td class="cm-total-val">' +
       (totals.weight_loaded ? esc(totals.weight_loaded) : "&nbsp;") +
-      "</td>" +
+      "</td></tr>" +
+      "<tr>" +
       '<td class="cm-total-lbl">TOTAL</td>' +
       '<td class="cm-total-val">' +
       (totals.weight_gross_total ? esc(totals.weight_gross_total) : "&nbsp;") +
-      "</td>" +
-      "</tr></table>"
+      "</td></tr></table>"
     );
   }
 
   function computeTotals(manifest, entries) {
     var sum = (manifest && manifest.summary) || {};
     var h = (manifest && manifest.header) || {};
-    var tare = sum.tare_kg;
+    var tareRaw = sum.tare_kg != null && sum.tare_kg !== "" ? sum.tare_kg : h.tare_kg;
+    var tare = tareRaw;
     var hasTare = tare != null && tare !== "" && !isNaN(Number(tare));
 
     var weightLoaded = "";
@@ -266,8 +267,6 @@
     var grossTotal = "";
     if (weightLoaded !== "" && hasTare) {
       grossTotal = String(Math.round(Number(weightLoaded) + Number(tare)));
-    } else if (sum.total_kg != null && entries.length && hasTare) {
-      grossTotal = String(sum.total_kg);
     }
 
     return {
@@ -322,9 +321,9 @@
       "table.cm-team th{text-align:center;font-weight:700;}" +
       "table.cm-team td:first-child{width:7mm;text-align:center;}" +
       "table.cm-totals{width:100%;border-collapse:collapse;margin-top:8px;border:1px solid #000;table-layout:fixed;}" +
-      "table.cm-totals td{border:1px solid #000;padding:4px 6px;vertical-align:middle;font-size:7.5pt;}" +
-      "table.cm-totals td.cm-total-lbl{font-weight:700;width:38%;white-space:nowrap;}" +
-      "table.cm-totals td.cm-total-val{text-align:right;width:12%;min-width:10mm;white-space:nowrap;padding-right:8px;}" +
+      "table.cm-totals td{border:1px solid #000;padding:4px 5px;vertical-align:middle;line-height:1.25;}" +
+      "table.cm-totals td.cm-total-lbl{font-weight:700;width:58%;font-size:6.5pt;white-space:normal;word-wrap:break-word;padding:4px 5px;}" +
+      "table.cm-totals td.cm-total-val{text-align:right;width:42%;font-size:7pt;white-space:nowrap;padding:4px 6px;}" +
       ".cm-eudr{margin:8px 0;padding:6px;border:1px dashed #666;font-size:9pt;}" +
       "@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}"
     );
