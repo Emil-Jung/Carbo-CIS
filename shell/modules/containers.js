@@ -79,9 +79,13 @@
         " activates Bag Walk ",
         ui.el("strong", {}, ["Into container"]),
         " when a released booking exists (any coast storage or in-transit bag that may load per status rules). ",
-        "Container sheets and EUDR documents are under ",
+        "Set ",
+        ui.el("strong", {}, ["Booking ref"]),
+        " when preloading, or later with ",
+        ui.el("strong", {}, ["Set booking ref"]),
+        " on an existing row (including after loading is closed or shipped) so ",
         ui.el("strong", {}, ["Traceability Documentation"]),
-        ".",
+        " can pick all containers in one booking.",
       ])
     );
 
@@ -226,6 +230,84 @@
       return window.confirm(title + "\n\n" + detail + "\n\nContinue?");
     }
 
+    function openSetBookingRefDialog(containerRow, onSaved) {
+      var backdrop = ui.el("div", { class: "modal-backdrop cm-print-dialog-backdrop" });
+      var dialog = ui.el("div", { class: "modal cm-print-dialog" });
+      dialog.appendChild(
+        ui.el("h3", { class: "cm-print-dialog-title" }, [
+          "Booking ref — " + containerRow.container_number,
+        ])
+      );
+      dialog.appendChild(
+        ui.el("p", { class: "muted" }, [
+          "Links this container to a shipment booking so Traceability Documentation can load all FCLs in one step (EUDR by booking ref).",
+        ])
+      );
+      var bookingInput = ui.el("input", {
+        type: "text",
+        placeholder: "e.g. EBKG19038595",
+        autocomplete: "off",
+        value: containerRow.booking_ref || "",
+      });
+      var lab = ui.el("label", { class: "ct-field cm-print-field" });
+      lab.appendChild(ui.el("span", { class: "ct-field-label" }, ["Booking ref"]));
+      lab.appendChild(bookingInput);
+      dialog.appendChild(lab);
+
+      var errEl = ui.el("p", { class: "error-box", hidden: true }, [""]);
+      dialog.appendChild(errEl);
+
+      var actions = ui.el("div", { class: "cm-print-dialog-actions" });
+      var cancelBtn = ui.el("button", { type: "button", class: "btn btn-sm" }, ["Cancel"]);
+      var saveBtn = ui.el("button", { type: "button", class: "btn" }, ["Save"]);
+      actions.appendChild(cancelBtn);
+      actions.appendChild(saveBtn);
+      dialog.appendChild(actions);
+      backdrop.appendChild(dialog);
+      document.body.appendChild(backdrop);
+
+      function close() {
+        if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+      }
+
+      cancelBtn.addEventListener("click", close);
+      backdrop.addEventListener("click", function (ev) {
+        if (ev.target === backdrop) close();
+      });
+
+      async function save() {
+        errEl.hidden = true;
+        saveBtn.disabled = true;
+        try {
+          await ctx.api.traceability(
+            "/containers/" + encodeURIComponent(containerRow.id),
+            {
+              method: "PATCH",
+              body: { booking_ref: bookingInput.value.trim() || null },
+            }
+          );
+          close();
+          if (onSaved) await onSaved();
+        } catch (e) {
+          errEl.textContent = e.message || String(e);
+          errEl.hidden = false;
+          saveBtn.disabled = false;
+        }
+      }
+
+      saveBtn.addEventListener("click", function () {
+        save();
+      });
+      bookingInput.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          save();
+        }
+      });
+      bookingInput.focus();
+      bookingInput.select();
+    }
+
     async function act(containerId, path, payload, describe) {
       if (!window.confirm(describe + "?")) return;
       try {
@@ -247,7 +329,7 @@
       var table = ui.el("table", { class: "data" });
       table.innerHTML =
         "<thead><tr>" +
-        "<th>Container</th><th>Product</th><th>Loading date</th><th>Yard</th>" +
+        "<th>Container</th><th>Booking ref</th><th>Product</th><th>Loading date</th><th>Yard</th>" +
         "<th>Loaded</th><th>Status</th><th>Released</th><th></th>" +
         "</tr></thead>";
       var tbody = ui.el("tbody");
@@ -256,6 +338,7 @@
         var tr = ui.el("tr");
         tr.innerHTML =
           "<td><strong>" + ui.escape(c.container_number) + "</strong></td>" +
+          "<td>" + ui.escape(c.booking_ref || "—") + "</td>" +
           "<td>" + ui.escape(c.product_label || c.product_key || "—") + "</td>" +
           "<td>" + ui.escape(fmtContainerLoadingDate(c)) + "</td>" +
           "<td>" + ui.escape(c.location_display) + "</td>" +
@@ -266,6 +349,17 @@
           "</td>";
 
         var actions = ui.el("td", { class: "ct-actions-cell" });
+        if (c.status !== "cancelled") {
+          actions.appendChild(
+            ui.el("button", {
+              class: "btn btn-sm",
+              type: "button",
+              onclick: function () {
+                openSetBookingRefDialog(c, load);
+              },
+            }, [c.booking_ref ? "Change booking ref" : "Set booking ref"])
+          );
+        }
         if ((c.status === "booked" || c.status === "loading") && !c.released_for_loading) {
           actions.appendChild(
             ui.el("button", {
