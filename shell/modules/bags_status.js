@@ -2463,6 +2463,31 @@
 
 
 
+  function formatProvenanceForPallet(val) {
+    if (val == null) return "Unavailable";
+    var s = String(val).trim();
+    if (!s || s === "—") return "Unavailable";
+    return s;
+  }
+
+  /** Match Bag Walk lookup — serial, kg, FSC, producer, farm, pallet share %. */
+  function formatPalletSourceAllocationBlock(alloc) {
+    var a = alloc || {};
+    var head = (a.serial || "—") + " · " + fmtMass(a.kg, true);
+    if (a.fsc_status && a.fsc_status !== "—") {
+      head += " · " + a.fsc_status;
+    }
+    var lines = [head];
+    lines.push(
+      "Producer: " + formatProvenanceForPallet(a.producer_name || a.producer_display)
+    );
+    lines.push("Farm: " + formatProvenanceForPallet(a.farm_display));
+    if (a.pct != null && !isNaN(Number(a.pct))) {
+      lines.push("Pallet share: " + a.pct + "%");
+    }
+    return lines;
+  }
+
   function renderPalletDetailDrill(serial, detail, ui) {
 
     var p = (detail && detail.pallet) || detail || {};
@@ -2499,6 +2524,28 @@
 
     });
 
+    if (p.producer_contribution_summary) {
+      dl.appendChild(ui.el("dt", {}, ["Producer contribution"]));
+      dl.appendChild(ui.el("dd", {}, [p.producer_contribution_summary]));
+    } else if (p.producers && p.producers.length > 1) {
+      var mixLine = p.producers
+        .map(function (pr) {
+          return (
+            (pr.display || "—") +
+            " · " +
+            (pr.pct != null ? pr.pct + "%" : "—") +
+            " · " +
+            fmtMass(pr.kg, true)
+          );
+        })
+        .join("; ");
+      dl.appendChild(ui.el("dt", {}, ["Producer contribution"]));
+      dl.appendChild(ui.el("dd", {}, [mixLine]));
+    } else if (p.producer_display) {
+      dl.appendChild(ui.el("dt", {}, ["Producer"]));
+      dl.appendChild(ui.el("dd", {}, [p.producer_display]));
+    }
+
     wrap.appendChild(dl);
 
     if (p.mixed_producers) {
@@ -2512,19 +2559,25 @@
     var allocs = p.source_allocations || [];
     if (allocs.length || (p.input_bags || []).length) {
 
-      wrap.appendChild(ui.el("h4", {}, ["Source bulk bag BAG IDs"]));
+      wrap.appendChild(ui.el("h4", {}, ["Source bulk bags (Bag Walk detail)"]));
 
       var blist = ui.el("ul", { class: "bs-dash-pallet-sources" });
 
       if (allocs.length) {
-        allocs.forEach(function (a) {
-          var line = (a.serial || "—") + " · " + fmtMass(a.kg, true);
-          if (a.fsc_status && a.fsc_status !== "—") line += " · " + a.fsc_status;
-          blist.appendChild(ui.el("li", {}, [line]));
+        allocs.forEach(function (a, idx) {
+          var item = ui.el("li", { class: "bs-dash-pallet-source-item" });
+          formatPalletSourceAllocationBlock(a).forEach(function (line, lineIdx) {
+            item.appendChild(
+              ui.el("div", {
+                class: lineIdx === 0 ? "bs-dash-pallet-source-item__head" : "bs-dash-pallet-source-item__sub",
+              }, [line])
+            );
+          });
+          blist.appendChild(item);
         });
       } else {
         p.input_bags.forEach(function (s) {
-          blist.appendChild(ui.el("li", {}, [s]));
+          blist.appendChild(ui.el("li", { class: "bs-dash-pallet-source-item" }, [s]));
         });
       }
 
