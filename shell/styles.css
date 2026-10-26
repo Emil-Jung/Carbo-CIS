@@ -2785,8 +2785,19 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .td-doc-booking-select { max-width: 28rem; margin-bottom: 0.35rem; }
 .td-doc-action-error { margin: 0.5rem 0 0; max-width: 42rem; }
 .td-doc-action-error--hidden { display: none !important; }
-.td-doc-eudr-btn--inactive { opacity: 0.45; }
-.td-doc-eudr-btn--inactive:hover { filter: none; }
+.td-doc-eudr-actions .btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
+.td-doc-eudr-actions .btn:not(:disabled) {
+  opacity: 1;
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #1a1200;
+}
+.td-doc-eudr-actions .btn:not(:disabled):hover {
+  filter: brightness(1.06);
+}
 
 .cm-print-dialog-actions {
   display: flex;

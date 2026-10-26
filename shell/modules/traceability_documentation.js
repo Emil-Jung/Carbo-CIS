@@ -362,9 +362,12 @@
     function setEudrButtonsReady(ready) {
       var on = !!ready;
       [btnDds, btnLocation, btnLocationCsv, btnGeo].forEach(function (b) {
-        b.classList.toggle("td-doc-eudr-btn--inactive", !on);
-        b.removeAttribute("disabled");
-        b.disabled = false;
+        b.disabled = !on;
+        if (on) {
+          b.removeAttribute("aria-disabled");
+        } else {
+          b.setAttribute("aria-disabled", "true");
+        }
       });
     }
 
