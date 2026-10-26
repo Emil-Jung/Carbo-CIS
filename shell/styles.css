@@ -3402,6 +3402,46 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   background: #fff;
 }
 
+.td-doc-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.td-doc-sheet-action-msg { margin-top: 0.5rem; max-width: 36rem; }
+.cm-sheet-preview-overlay { z-index: 10200; }
+.cm-sheet-preview-bar-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  justify-content: flex-end;
+}
+.cm-sheet-preview-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: flex-end;
+}
+.cm-sheet-preview-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.cm-sheet-preview-field-label { color: var(--muted); font-size: 11px; }
+.cm-sheet-preview-date,
+.cm-sheet-preview-booking {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.cm-sheet-preview-booking { min-width: 10rem; }
+.cm-sheet-preview-error { margin: 0 14px 8px; max-width: 48rem; }
+
 .bag-labels-preview {
   display: flex;
   gap: 20px;

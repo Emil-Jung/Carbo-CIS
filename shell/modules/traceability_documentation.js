@@ -122,12 +122,24 @@
       "Choose a container.",
     ]);
     sheetSection.appendChild(sheetPreview);
-    var sheetBtn = ui.el("button", {
+    var sheetActions = ui.el("div", { class: "td-doc-sheet-actions" });
+    var sheetBtnPdf = ui.el("button", {
       class: "btn",
       type: "button",
       disabled: "disabled",
-    }, ["Generate container sheet"]);
-    sheetSection.appendChild(sheetBtn);
+    }, ["Download PDF"]);
+    var sheetBtnPrint = ui.el("button", {
+      class: "btn btn-sm",
+      type: "button",
+      disabled: "disabled",
+    }, ["Print"]);
+    sheetActions.appendChild(sheetBtnPdf);
+    sheetActions.appendChild(sheetBtnPrint);
+    sheetSection.appendChild(sheetActions);
+    var sheetActionMsg = ui.el("p", {
+      class: "error-box td-doc-sheet-action-msg td-doc-action-error--hidden",
+    }, [""]);
+    sheetSection.appendChild(sheetActionMsg);
     container.appendChild(sheetSection);
 
     function paintSheetSelect() {
@@ -164,8 +176,10 @@
       if (!c) {
         sheetPreview.textContent = "Choose a container.";
         sheetPreview.className = "td-doc-preview muted";
-        sheetBtn.disabled = true;
-        sheetBtn.title = "Choose a container from the list above.";
+        sheetBtnPdf.disabled = true;
+        sheetBtnPrint.disabled = true;
+        sheetBtnPdf.title = "Choose a container from the list above.";
+        sheetBtnPrint.title = "Choose a container from the list above.";
         return;
       }
       sheetPreview.innerHTML = "";
@@ -187,35 +201,84 @@
           c.ship_to ? " · To " + c.ship_to : "",
         ])
       );
-      sheetBtn.disabled = false;
-      sheetBtn.removeAttribute("title");
+      sheetBtnPdf.disabled = false;
+      sheetBtnPrint.disabled = false;
+      sheetBtnPdf.removeAttribute("title");
+      sheetBtnPrint.removeAttribute("title");
+    }
+
+    function setSheetActionMsg(text) {
+      sheetActionMsg.textContent = text || "";
+      if (text) sheetActionMsg.classList.remove("td-doc-action-error--hidden");
+      else sheetActionMsg.classList.add("td-doc-action-error--hidden");
+    }
+
+    async function fetchSheetManifest() {
+      if (!sheetContainerId) {
+        throw new Error("Choose a container from the list above.");
+      }
+      return await ctx.api.traceability(
+        "/containers/" + encodeURIComponent(sheetContainerId) + "/manifest"
+      );
     }
 
     sheetSelect.addEventListener("change", function () {
       sheetContainerId = sheetSelect.value;
+      setSheetActionMsg("");
       paintSheetPreview();
     });
 
-    sheetBtn.addEventListener("click", async function () {
+    sheetBtnPdf.addEventListener("click", async function () {
       if (!sheetContainerId) return;
+      setSheetActionMsg("");
       setStatus("Loading manifest…", false);
-      sheetBtn.disabled = true;
+      sheetBtnPdf.disabled = true;
+      sheetBtnPrint.disabled = true;
       try {
-        var manifest = await ctx.api.traceability(
-          "/containers/" + encodeURIComponent(sheetContainerId) + "/manifest"
-        );
-        if (CIS.openContainerManifestPrintDialog) {
-          CIS.openContainerManifestPrintDialog(manifest, "documentation");
-        } else if (CIS.printContainerManifest) {
-          CIS.printContainerManifest(manifest, "documentation");
-        } else {
-          setStatus("Print module not loaded.", true);
+        var manifest = await fetchSheetManifest();
+        if (!CIS.downloadContainerSheetPdf) {
+          throw new Error("Container sheet module not loaded.");
+        }
+        setStatus("Building PDF…", false);
+        var out = await CIS.downloadContainerSheetPdf(manifest, "documentation");
+        if (!out || !out.ok) {
+          throw new Error("PDF was not created.");
+        }
+        setStatus("Downloaded " + out.filename + ".", false);
+      } catch (e) {
+        var msg = e.message || String(e);
+        setStatus("", false);
+        setSheetActionMsg("Could not download PDF: " + msg);
+      } finally {
+        if (sheetContainerId) {
+          sheetBtnPdf.disabled = false;
+          sheetBtnPrint.disabled = false;
+        }
+      }
+    });
+
+    sheetBtnPrint.addEventListener("click", async function () {
+      if (!sheetContainerId) return;
+      setSheetActionMsg("");
+      setStatus("Loading manifest…", false);
+      sheetBtnPdf.disabled = true;
+      sheetBtnPrint.disabled = true;
+      try {
+        var manifest = await fetchSheetManifest();
+        if (!CIS.showContainerSheetPreview) {
+          throw new Error("Container sheet module not loaded.");
         }
         setStatus("", false);
+        await CIS.showContainerSheetPreview(manifest, "documentation");
       } catch (e) {
-        setStatus("Could not load manifest: " + (e.message || e), true);
+        var msg = e.message || String(e);
+        setStatus("", false);
+        setSheetActionMsg("Could not open print preview: " + msg);
       } finally {
-        sheetBtn.disabled = !sheetContainerId;
+        if (sheetContainerId) {
+          sheetBtnPdf.disabled = false;
+          sheetBtnPrint.disabled = false;
+        }
       }
     });
 

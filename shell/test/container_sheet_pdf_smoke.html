@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Container sheet PDF smoke</title>
+</head>
+<body>
+  <button type="button" id="go">Download PDF</button>
+  <p id="out"></p>
+  <script src="../modules/container_manifest.js"></script>
+  <script>
+    document.getElementById("go").addEventListener("click", function () {
+      var out = document.getElementById("out");
+      out.textContent = "Working…";
+      var manifest = {
+        header: { container_number: "TESTU1234567", product_label: "Lumpwood", ship_to: "Rotterdam" },
+        summary: { qty_bags: 1, weight_loaded_kg: 50, tare_kg: 2200, total_kg: 2250 },
+        lines: [{ supplier: "Farm A", weight_kg: 50 }],
+      };
+      CIS.downloadContainerSheetPdf(manifest, "general")
+        .then(function (r) {
+          out.textContent = r && r.ok ? "PASS: " + r.filename : "FAIL: no ok result";
+        })
+        .catch(function (e) {
+          out.textContent = "FAIL: " + (e.message || e);
+        });
+    });
+  </script>
+</body>
+</html>

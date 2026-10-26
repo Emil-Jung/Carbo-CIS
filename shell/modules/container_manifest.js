@@ -3,6 +3,15 @@
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
 
+  var html2pdfLoadPromise = null;
+  var cmModuleBase = (function () {
+    try {
+      var cur = document.currentScript;
+      if (cur && cur.src) return cur.src.replace(/[^/]+$/, "");
+    } catch (e) { /* ignore */ }
+    return "";
+  })();
+
   function esc(s) {
     if (s == null) return "";
     return String(s)
@@ -74,18 +83,29 @@
     return new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Windhoek" });
   }
 
+  function defaultPrintOpts(manifest) {
+    var h = (manifest && manifest.header) || {};
+    return {
+      sheetDate: defaultSheetDateIso(h),
+      bookingRef: h.booking_ref || "",
+    };
+  }
+
   function buildHtml(manifest, variant, printOpts) {
     var opts = printOpts || {};
     var h = manifest.header || {};
     var sum = manifest.summary || {};
     var cols = splitColumns(manifest.lines || []);
     var product = h.product_label || h.product_key || "";
-    var sheetDateRaw = opts.sheetDate != null && opts.sheetDate !== "" ? opts.sheetDate : (h.load_date || h.expected_ship_date);
+    var sheetDateRaw =
+      opts.sheetDate != null && opts.sheetDate !== ""
+        ? opts.sheetDate
+        : h.load_date || h.expected_ship_date;
     var loadDate = fmtDate(sheetDateRaw);
     var bookingRef =
       opts.bookingRef != null && String(opts.bookingRef).trim() !== ""
         ? String(opts.bookingRef).trim()
-        : (h.booking_ref || "");
+        : h.booking_ref || "";
     var dispatchLine = "";
     if (h.walvis_dispatch_id && h.dispatch_number != null) {
       dispatchLine =
@@ -182,110 +202,281 @@
       esc(String(sum.total_kg != null ? sum.total_kg : 0)) +
       "</td></tr>" +
       "</table></div></div>" +
-      "<script>window.onload=function(){window.print();};</script>" +
       "</body></html>"
     );
   }
 
-  CIS.printContainerManifest = function (manifest, variant, printOpts) {
-    var w = window.open("", "_blank", "noopener,noreferrer");
-    if (!w) {
-      alert("Allow pop-ups to print the container manifest.");
-      return;
+  CIS.buildContainerManifestHtml = buildHtml;
+
+  function sheetVariantKey(variant) {
+    return variant === "eudr" ? "eudr" : "general";
+  }
+
+  function sheetPdfFilename(manifest) {
+    var num = ((manifest && manifest.header && manifest.header.container_number) || "container")
+      .replace(/[^\w.-]+/g, "_")
+      .slice(0, 40);
+    return "ContainerSheet_" + num + ".pdf";
+  }
+
+  function vendorScriptUrl(name) {
+    if (cmModuleBase) {
+      return cmModuleBase.replace(/modules\/$/, "vendor/") + name;
     }
-    w.document.open();
-    w.document.write(buildHtml(manifest, variant === "eudr" ? "eudr" : "general", printOpts));
-    w.document.close();
+    try {
+      var link = document.querySelector('script[src*="container_manifest.js"]');
+      if (link && link.src) {
+        return link.src.replace(/modules\/[^/]+$/, "vendor/") + name;
+      }
+    } catch (e) { /* ignore */ }
+    var root = "/cis/";
+    try {
+      if (document.location && document.location.pathname) {
+        root = document.location.pathname.replace(/\/?index\.html?$/, "/");
+        if (!root.endsWith("/")) root += "/";
+      }
+    } catch (e2) { /* ignore */ }
+    return root + "vendor/" + name;
+  }
+
+  function ensureHtml2Pdf() {
+    if (window.html2pdf) return Promise.resolve(window.html2pdf);
+    if (html2pdfLoadPromise) return html2pdfLoadPromise;
+    html2pdfLoadPromise = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = vendorScriptUrl("html2pdf.bundle.min.js");
+      s.async = true;
+      s.onload = function () {
+        if (window.html2pdf) resolve(window.html2pdf);
+        else reject(new Error("PDF library failed to initialize."));
+      };
+      s.onerror = function () {
+        reject(new Error("Could not load PDF export library (vendor/html2pdf.bundle.min.js)."));
+      };
+      document.head.appendChild(s);
+    });
+    return html2pdfLoadPromise;
+  }
+
+  function writeHtmlToIframe(iframe, html) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var win = iframe.contentWindow;
+        if (!win) {
+          reject(new Error("Could not render container sheet preview."));
+          return;
+        }
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        resolve(win);
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  function invokeNativePrint(iframe) {
+    var win = iframe.contentWindow;
+    if (!win) throw new Error("Print preview is not ready.");
+    win.focus();
+    win.print();
+  }
+
+  CIS.downloadContainerSheetPdf = function (manifest, variant, printOpts) {
+    if (!manifest || !manifest.header) {
+      return Promise.reject(new Error("No manifest data to export."));
+    }
+    var opts = Object.assign({}, defaultPrintOpts(manifest), printOpts || {});
+    var html = buildHtml(manifest, sheetVariantKey(variant), opts);
+    var iframe = document.createElement("iframe");
+    iframe.setAttribute("title", "Container sheet PDF render");
+    iframe.style.cssText =
+      "position:fixed;left:-9999px;top:0;width:210mm;height:297mm;border:0;visibility:hidden;";
+    document.body.appendChild(iframe);
+    return writeHtmlToIframe(iframe, html)
+      .then(function () {
+        return ensureHtml2Pdf();
+      })
+      .then(function (html2pdf) {
+        var body = iframe.contentDocument && iframe.contentDocument.body;
+        if (!body) throw new Error("Could not render sheet body for PDF.");
+        return html2pdf()
+          .set({
+            margin: [8, 8, 8, 8],
+            filename: sheetPdfFilename(manifest),
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          })
+          .from(body)
+          .save();
+      })
+      .then(function () {
+        return { ok: true, filename: sheetPdfFilename(manifest) };
+      })
+      .finally(function () {
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      });
+  };
+
+  CIS.showContainerSheetPreview = function (manifest, variant, printOpts) {
+    if (!manifest || !manifest.header) {
+      return Promise.reject(new Error("No manifest data to show."));
+    }
+    var opts = Object.assign({}, defaultPrintOpts(manifest), printOpts || {});
+    var h = manifest.header || {};
+
+    return new Promise(function (resolve) {
+      var overlay = document.createElement("div");
+      overlay.className = "a4-print-preview-overlay cm-sheet-preview-overlay";
+      var bar = document.createElement("div");
+      bar.className = "a4-print-preview-overlay__bar";
+      var title = document.createElement("span");
+      title.className = "a4-print-preview-overlay__title";
+      title.textContent =
+        "Container sheet — " + (h.container_number || "FCL");
+
+      var fields = document.createElement("div");
+      fields.className = "cm-sheet-preview-fields";
+      var dateInput = document.createElement("input");
+      dateInput.type = "date";
+      dateInput.value = opts.sheetDate || defaultSheetDateIso(h);
+      dateInput.className = "cm-sheet-preview-date";
+      var bookingInput = document.createElement("input");
+      bookingInput.type = "text";
+      bookingInput.value = opts.bookingRef || "";
+      bookingInput.placeholder = "Booking ref";
+      bookingInput.autocomplete = "off";
+      bookingInput.className = "cm-sheet-preview-booking";
+      var dateLab = document.createElement("label");
+      dateLab.className = "cm-sheet-preview-field";
+      var dateSpan = document.createElement("span");
+      dateSpan.className = "cm-sheet-preview-field-label";
+      dateSpan.textContent = "Date";
+      dateLab.appendChild(dateSpan);
+      dateLab.appendChild(dateInput);
+      var bookLab = document.createElement("label");
+      bookLab.className = "cm-sheet-preview-field";
+      var bookSpan = document.createElement("span");
+      bookSpan.className = "cm-sheet-preview-field-label";
+      bookSpan.textContent = "Booking ref";
+      bookLab.appendChild(bookSpan);
+      bookLab.appendChild(bookingInput);
+      fields.appendChild(dateLab);
+      fields.appendChild(bookLab);
+
+      var msg = document.createElement("p");
+      msg.className = "error-box cm-sheet-preview-error";
+      msg.hidden = true;
+
+      var actions = document.createElement("div");
+      actions.className = "a4-print-preview-overlay__actions";
+      var pdfBtn = document.createElement("button");
+      pdfBtn.type = "button";
+      pdfBtn.className = "btn btn-sm";
+      pdfBtn.textContent = "Download PDF";
+      var printBtn = document.createElement("button");
+      printBtn.type = "button";
+      printBtn.className = "btn btn-sm";
+      printBtn.textContent = "Print…";
+      var closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.className = "btn-ghost btn-sm";
+      closeBtn.textContent = "Close";
+      actions.appendChild(pdfBtn);
+      actions.appendChild(printBtn);
+      actions.appendChild(closeBtn);
+
+      var barRight = document.createElement("div");
+      barRight.className = "cm-sheet-preview-bar-right";
+      barRight.appendChild(fields);
+      barRight.appendChild(actions);
+
+      bar.appendChild(title);
+      bar.appendChild(barRight);
+
+      var frameWrap = document.createElement("div");
+      frameWrap.className = "a4-print-preview-overlay__frame";
+      var iframe = document.createElement("iframe");
+      iframe.setAttribute("title", "Container load sheet preview");
+      frameWrap.appendChild(iframe);
+      overlay.appendChild(bar);
+      overlay.appendChild(msg);
+      overlay.appendChild(frameWrap);
+      document.body.appendChild(overlay);
+
+      function currentOpts() {
+        return {
+          sheetDate: dateInput.value,
+          bookingRef: bookingInput.value.trim(),
+        };
+      }
+
+      function refreshPreview() {
+        msg.hidden = true;
+        var html = buildHtml(manifest, sheetVariantKey(variant), currentOpts());
+        return writeHtmlToIframe(iframe, html);
+      }
+
+      function close() {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        resolve();
+      }
+
+      function showErr(text) {
+        msg.textContent = text || "Operation failed.";
+        msg.hidden = !text;
+      }
+
+      closeBtn.addEventListener("click", close);
+      var refreshTimer = null;
+      function scheduleRefresh() {
+        if (refreshTimer) clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(function () {
+          refreshPreview().catch(function (e) {
+            showErr(e.message || String(e));
+          });
+        }, 200);
+      }
+      dateInput.addEventListener("change", scheduleRefresh);
+      bookingInput.addEventListener("change", scheduleRefresh);
+
+      printBtn.addEventListener("click", function () {
+        showErr("");
+        refreshPreview()
+          .then(function () {
+            invokeNativePrint(iframe);
+          })
+          .catch(function (e) {
+            showErr(e.message || String(e));
+          });
+      });
+
+      pdfBtn.addEventListener("click", function () {
+        showErr("");
+        pdfBtn.disabled = true;
+        CIS.downloadContainerSheetPdf(manifest, variant, currentOpts())
+          .catch(function (e) {
+            showErr(e.message || String(e));
+          })
+          .finally(function () {
+            pdfBtn.disabled = false;
+          });
+      });
+
+      refreshPreview().catch(function (e) {
+        showErr(e.message || String(e));
+      });
+    });
+  };
+
+  /** @deprecated Pop-up print — use showContainerSheetPreview or downloadContainerSheetPdf. */
+  CIS.printContainerManifest = function (manifest, variant, printOpts) {
+    return CIS.showContainerSheetPreview(manifest, variant, printOpts);
   };
 
   CIS.openContainerManifestPrintDialog = function (manifest, variant) {
-    var h = (manifest && manifest.header) || {};
-    var backdrop = document.createElement("div");
-    backdrop.className = "modal-backdrop cm-print-dialog-backdrop";
-    var dialog = document.createElement("div");
-    dialog.className = "modal cm-print-dialog";
-    dialog.setAttribute("role", "dialog");
-    dialog.setAttribute("aria-labelledby", "cmPrintDialogTitle");
-
-    var title = document.createElement("h3");
-    title.id = "cmPrintDialogTitle";
-    title.textContent =
-      variant === "documentation"
-        ? "Generate container sheet"
-        : "Print container manifest";
-    dialog.appendChild(title);
-
-    var hint = document.createElement("p");
-    hint.className = "muted cm-print-dialog-hint";
-    hint.textContent =
-      "Choose the date and booking reference shown on the load sheet (defaults from this container booking).";
-    dialog.appendChild(hint);
-
-    function field(labelText, inputEl) {
-      var lab = document.createElement("label");
-      lab.className = "ct-field cm-print-field";
-      var span = document.createElement("span");
-      span.className = "ct-field-label";
-      span.textContent = labelText;
-      lab.appendChild(span);
-      lab.appendChild(inputEl);
-      return lab;
-    }
-
-    var dateInput = document.createElement("input");
-    dateInput.type = "date";
-    dateInput.required = true;
-    dateInput.value = defaultSheetDateIso(h);
-    dialog.appendChild(field("Sheet date", dateInput));
-
-    var bookingInput = document.createElement("input");
-    bookingInput.type = "text";
-    bookingInput.placeholder = "e.g. EBKG19038595";
-    bookingInput.autocomplete = "off";
-    bookingInput.value = h.booking_ref || "";
-    dialog.appendChild(field("Booking ref", bookingInput));
-
-    var actions = document.createElement("div");
-    actions.className = "cm-print-dialog-actions";
-    var cancelBtn = document.createElement("button");
-    cancelBtn.type = "button";
-    cancelBtn.className = "btn btn-sm";
-    cancelBtn.textContent = "Cancel";
-    var printBtn = document.createElement("button");
-    printBtn.type = "button";
-    printBtn.className = "btn";
-    printBtn.textContent =
-      variant === "eudr"
-        ? "Print EUDR manifest"
-        : variant === "documentation"
-          ? "Print container sheet"
-          : "Print manifest";
-    actions.appendChild(cancelBtn);
-    actions.appendChild(printBtn);
-    dialog.appendChild(actions);
-
-    function close() {
-      if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
-    }
-
-    cancelBtn.addEventListener("click", close);
-    backdrop.addEventListener("click", function (e) {
-      if (e.target === backdrop) close();
-    });
-    printBtn.addEventListener("click", function () {
-      if (!dateInput.value) {
-        dateInput.focus();
-        return;
-      }
-      CIS.printContainerManifest(manifest, variant, {
-        sheetDate: dateInput.value,
-        bookingRef: bookingInput.value.trim(),
-      });
-      close();
-    });
-
-    backdrop.appendChild(dialog);
-    document.body.appendChild(backdrop);
-    dateInput.focus();
+    return CIS.showContainerSheetPreview(manifest, variant, defaultPrintOpts(manifest));
   };
 })();

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Container sheet build smoke</title>
+</head>
+<body>
+  <p id="out">Running…</p>
+  <script src="../modules/container_manifest.js"></script>
+  <script>
+    (function () {
+      var manifest = {
+        header: {
+          container_number: "TESTU1234567",
+          product_label: "Lumpwood",
+          ship_to: "Rotterdam",
+          booking_ref: "BK-999",
+        },
+        summary: { qty_bags: 2, weight_loaded_kg: 100, tare_kg: 2200, total_kg: 2300 },
+        lines: [{ supplier: "Farm A", weight_kg: 50 }, { supplier: "Farm B", weight_kg: 50 }],
+      };
+      var html = window.CIS.buildContainerManifestHtml(manifest, "general", {});
+      var ok =
+        html.indexOf("TESTU1234567") !== -1 &&
+        html.indexOf("Farm A") !== -1 &&
+        html.indexOf("window.print") === -1 &&
+        html.indexOf("window.open") === -1;
+      document.getElementById("out").textContent = ok
+        ? "PASS: HTML contains container data, no pop-up/auto-print."
+        : "FAIL";
+    })();
+  </script>
+</body>
+</html>
