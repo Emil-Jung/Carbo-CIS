@@ -90,7 +90,6 @@
     );
 
     var productOptions = [];
-    var dispatchOptions = [];
 
     var addSection = ui.el("section", { class: "ct-containers-add-section" });
     addSection.appendChild(
@@ -134,8 +133,6 @@
     var shipNameInput = ui.el("input", { type: "text", autocomplete: "off" });
     var bookingInput = ui.el("input", { type: "text", placeholder: "Booking ref (optional)", autocomplete: "off" });
     var shipDateInput = ui.el("input", { type: "date", autocomplete: "off" });
-    var dispatchSelect = ui.el("select", {});
-    dispatchSelect.appendChild(ui.el("option", { value: "" }, ["No dispatch link (yard storage only)"]));
 
     function labelled(text, control) {
       return ui.el("label", { class: "ct-field" }, [
@@ -156,13 +153,6 @@
     form.appendChild(labelled("Ship's name", shipNameInput));
     form.appendChild(labelled("Expected ship date", shipDateInput));
     form.appendChild(labelled("Booking ref", bookingInput));
-    form.appendChild(labelled("Walvis dispatch (Option A)", dispatchSelect));
-    form.appendChild(
-      ui.el("p", { class: "muted ct-form-hint" }, [
-        "Link a dispatch to load bags from that truck manifest (in transit or Walvis/AGL storage). ",
-        "Leave unlinked for yard-only loading.",
-      ])
-    );
     form.appendChild(ui.el("button", { class: "btn", type: "submit" }, ["Add container"]));
     addSection.appendChild(form);
 
@@ -204,13 +194,6 @@
       });
     }
 
-    function fillDispatchSelect() {
-      while (dispatchSelect.options.length > 1) dispatchSelect.remove(1);
-      dispatchOptions.forEach(function (d) {
-        dispatchSelect.appendChild(ui.el("option", { value: d.id }, [d.label || d.id]));
-      });
-    }
-
     async function loadOptions() {
       try {
         var prod = await ctx.api.traceability("/containers/product-options");
@@ -222,11 +205,8 @@
           productOptions.push(o);
         });
         fillProductSelect();
-        var disp = await ctx.api.traceability("/containers/dispatch-link-options");
-        dispatchOptions = disp.dispatches || [];
-        fillDispatchSelect();
       } catch (e) {
-        setStatus("Could not load product/dispatch options: " + (e.message || e), true);
+        setStatus("Could not load product options: " + (e.message || e), true);
       }
     }
 
@@ -385,13 +365,6 @@
       });
       var shipDateInput = ui.el("input", { type: "date", autocomplete: "off" });
       if (containerRow.expected_ship_date) shipDateInput.value = containerRow.expected_ship_date;
-      var dispatchSelect = ui.el("select", {});
-      dispatchSelect.appendChild(ui.el("option", { value: "" }, ["No dispatch link (yard storage only)"]));
-      dispatchOptions.forEach(function (d) {
-        var o = ui.el("option", { value: d.id }, [d.label || d.id]);
-        if (containerRow.walvis_dispatch_id === d.id) o.selected = true;
-        dispatchSelect.appendChild(o);
-      });
 
       function fieldRow(label, control) {
         var lab = ui.el("label", { class: "ct-field cm-print-field" });
@@ -413,7 +386,6 @@
       formGrid.appendChild(fieldRow("Yard", locationSelect));
       formGrid.appendChild(fieldRow("Load date", loadDateInput));
       formGrid.appendChild(fieldRow("Expected ship date", shipDateInput));
-      formGrid.appendChild(fieldRow("Walvis dispatch (Option A)", dispatchSelect));
       dialog.appendChild(formGrid);
 
       var errEl = ui.el("p", { class: "error-box", hidden: true }, [""]);
@@ -462,7 +434,6 @@
             delivery_note: deliveryNoteInput.value.trim() || null,
             transporter: transporterInput.value.trim() || null,
             ship_name: shipNameInput.value.trim() || null,
-            walvis_dispatch_id: dispatchSelect.value || null,
           };
           if (loadDateInput.value) bodyPayload.load_date = loadDateInput.value;
           else bodyPayload.load_date = null;
@@ -719,7 +690,6 @@
           ship_name: shipNameInput.value.trim() || null,
         };
         if (shipDateInput.value) bodyPayload.expected_ship_date = shipDateInput.value;
-        if (dispatchSelect.value) bodyPayload.walvis_dispatch_id = dispatchSelect.value;
         await ctx.api.traceability("/containers", {
           method: "POST",
           body: bodyPayload,
@@ -735,7 +705,6 @@
         transporterInput.value = "";
         shipNameInput.value = "";
         productSelect.value = "";
-        dispatchSelect.value = "";
         await load();
       } catch (e) {
         setStatus("Could not add container: " + (e.message || e), true);
