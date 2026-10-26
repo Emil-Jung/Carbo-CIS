@@ -5,6 +5,17 @@
 
   var html2pdfLoadPromise = null;
 
+  var PDF_CANVAS_OPTS = {
+    scale: 2.5,
+    useCORS: true,
+    logging: false,
+    backgroundColor: "#ffffff",
+    scrollX: 0,
+    scrollY: 0,
+  };
+
+  var PDF_PAGE_MARGIN_MM = 10;
+
   function shellVendorUrl(name) {
     try {
       var cur = document.currentScript;
@@ -78,57 +89,101 @@
     return new Promise(function (resolve) {
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
-          setTimeout(resolve, 80);
+          setTimeout(resolve, 100);
         });
       });
     });
   }
 
-  var defaultPdfSet = {
-    margin: [0, 0, 0, 0],
-    image: { type: "jpeg", quality: 0.96 },
-    html2canvas: {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: "#ffffff",
-      scrollX: 0,
-      scrollY: 0,
-    },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    pagebreak: { mode: ["css", "legacy"], after: ".cm-sheet-page", avoid: "tr" },
-  };
+  function createPdfDocument() {
+    var J = window.jspdf && window.jspdf.jsPDF;
+    if (!J) {
+      throw new Error("PDF engine not ready.");
+    }
+    return new J({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+      compress: false,
+    });
+  }
 
-  function pdfCaptureTargets(host) {
-    var pages = host.querySelectorAll(".cm-sheet-page");
+  function pdfCaptureTargetsFromDoc(doc) {
+    if (!doc || !doc.body) return [];
+    var pages = doc.querySelectorAll(".cm-sheet-page");
     if (pages.length) {
       return Array.prototype.slice.call(pages);
     }
-    var inner = host.querySelector(".cis-pdf-capture-inner");
-    return [inner || host];
+    return [doc.body];
   }
 
-  /** One full-size A4 page per .cm-sheet-page — never shrink a tall canvas onto one page. */
-  function savePdfFromCaptureTargets(html2pdf, targets, setOpts) {
-    if (targets.length <= 1) {
-      return html2pdf().set(setOpts).from(targets[0]).save();
+  function elementToCanvas(html2pdf, el) {
+    return html2pdf()
+      .set({
+        html2canvas: PDF_CANVAS_OPTS,
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      })
+      .from(el)
+      .toCanvas();
+  }
+
+  function addCanvasAsPdfPage(pdf, canvas, isFirstPage) {
+    if (!isFirstPage) pdf.addPage();
+    var pageW = pdf.internal.pageSize.getWidth();
+    var pageH = pdf.internal.pageSize.getHeight();
+    var m = PDF_PAGE_MARGIN_MM;
+    var maxW = pageW - 2 * m;
+    var maxH = pageH - 2 * m;
+    var drawW = maxW;
+    var drawH = (canvas.height * drawW) / canvas.width;
+    if (drawH > maxH) {
+      drawH = maxH;
+      drawW = (canvas.width * drawH) / canvas.height;
     }
-    var baseOpt = Object.assign({}, setOpts);
-    var filename = baseOpt.filename;
-    baseOpt.filename = undefined;
-    var chain = html2pdf().set(baseOpt).from(targets[0]).toPdf();
-    for (var i = 1; i < targets.length; i++) {
-      chain = chain
-        .get("pdf")
-        .then(function (pdf) {
-          pdf.addPage();
-        })
-        .from(targets[i])
-        .toContainer()
-        .toCanvas()
-        .toPdf();
+    var x = m + (maxW - drawW) / 2;
+    var y = m;
+    var img = canvas.toDataURL("image/png");
+    pdf.addImage(img, "PNG", x, y, drawW, drawH, undefined, "SLOW");
+  }
+
+  function savePdfFromDocumentTargets(html2pdf, doc, filename) {
+    var targets = pdfCaptureTargetsFromDoc(doc);
+    if (!targets.length) {
+      return Promise.reject(new Error("Could not render document for PDF."));
     }
-    return chain.set({ filename: filename }).save();
+    var pdf = createPdfDocument();
+    var chain = Promise.resolve();
+    targets.forEach(function (el, idx) {
+      chain = chain.then(function () {
+        return elementToCanvas(html2pdf, el).then(function (canvas) {
+          addCanvasAsPdfPage(pdf, canvas, idx === 0);
+        });
+      });
+    });
+    return chain.then(function () {
+      pdf.save(filename);
+    });
+  }
+
+  /** Same layout as print preview — full HTML document inside a paintable iframe. */
+  function buildPdfRenderIframe(html) {
+    var iframe = document.createElement("iframe");
+    iframe.className = "cis-pdf-render-iframe";
+    iframe.setAttribute("title", "PDF render");
+    document.body.appendChild(iframe);
+    return writeHtmlToIframe(iframe, html).then(function () {
+      var doc = iframe.contentDocument;
+      if (doc && doc.documentElement) {
+        doc.documentElement.style.background = "#ffffff";
+        doc.documentElement.style.colorScheme = "only light";
+      }
+      if (doc && doc.body) {
+        doc.body.style.background = "#ffffff";
+        doc.body.style.margin = "0";
+        doc.body.style.webkitFontSmoothing = "antialiased";
+      }
+      return iframe;
+    });
   }
 
   function showPdfWorkingModal() {
@@ -144,7 +199,7 @@
     dialog.appendChild(title);
     var msg = document.createElement("p");
     msg.className = "td-doc-busy-message";
-    msg.textContent = "Preparing black text on white paper…";
+    msg.textContent = "Rendering pages (same layout as preview)…";
     dialog.appendChild(msg);
     backdrop.appendChild(dialog);
     document.body.appendChild(backdrop);
@@ -154,89 +209,76 @@
   }
 
   /**
-   * html2canvas in WebView2 often captures black if the node lives in a hidden iframe.
-   * Parse HTML in a scratch iframe, then mount a visible white page on document.body.
-   */
-  function buildVisibleCaptureHost(html) {
-    var scratch = document.createElement("iframe");
-    scratch.setAttribute("title", "PDF layout");
-    scratch.style.cssText =
-      "position:absolute;width:0;height:0;border:0;opacity:0;pointer-events:none;";
-    document.body.appendChild(scratch);
-
-    return writeHtmlToIframe(scratch, html).then(function () {
-      var idoc = scratch.contentDocument;
-      if (!idoc || !idoc.body) {
-        throw new Error("Could not lay out document for PDF.");
-      }
-
-      var host = document.createElement("div");
-      host.className = "cis-pdf-capture-host";
-      host.setAttribute("aria-hidden", "true");
-
-      var guard = document.createElement("style");
-      guard.textContent =
-        ".cis-pdf-capture-host{background:#fff!important;color:#000!important;}" +
-        ".cis-pdf-capture-host,.cis-pdf-capture-host *{color:#000!important;" +
-        "-webkit-print-color-adjust:exact;print-color-adjust:exact;}" +
-        ".cis-pdf-capture-host table th{background:#fff!important;}";
-      host.appendChild(guard);
-
-      var styles = idoc.querySelectorAll("style");
-      for (var i = 0; i < styles.length; i++) {
-        var copy = document.createElement("style");
-        copy.textContent = styles[i].textContent;
-        host.appendChild(copy);
-      }
-
-      var inner = document.createElement("div");
-      inner.className = "cis-pdf-capture-inner";
-      inner.innerHTML = idoc.body.innerHTML;
-      host.appendChild(inner);
-
-      document.body.appendChild(host);
-      if (scratch.parentNode) scratch.parentNode.removeChild(scratch);
-      return host;
-    });
-  }
-
-  /**
    * @param {string} html full document HTML
    * @param {string} filename e.g. "ContainerSheet_ABCD.pdf"
-   * @param {object} [pdfSet] html2pdf .set() overrides
    */
-  CIS.downloadHtmlDocumentPdf = function (html, filename, pdfSet) {
+  CIS.downloadHtmlDocumentPdf = function (html, filename) {
     if (!html || !String(html).trim()) {
       return Promise.reject(new Error("No document content to export."));
     }
     var safeName = String(filename || "document.pdf").replace(/[^\w.\- ]+/g, "_");
     if (!/\.pdf$/i.test(safeName)) safeName += ".pdf";
 
-    var setOpts = Object.assign({}, defaultPdfSet, pdfSet || {}, { filename: safeName });
     var closeModal = showPdfWorkingModal();
-    var captureHost = null;
+    var renderIframe = null;
 
-    return buildVisibleCaptureHost(html)
-      .then(function (host) {
-        captureHost = host;
+    return buildPdfRenderIframe(html)
+      .then(function (iframe) {
+        renderIframe = iframe;
         return afterLayoutPaint();
       })
       .then(function () {
         return ensureHtml2Pdf();
       })
       .then(function (html2pdf) {
-        if (!captureHost) throw new Error("Could not render document for PDF.");
-        var targets = pdfCaptureTargets(captureHost);
-        return savePdfFromCaptureTargets(html2pdf, targets, setOpts);
+        if (!renderIframe || !renderIframe.contentDocument) {
+          throw new Error("Could not render document for PDF.");
+        }
+        return savePdfFromDocumentTargets(
+          html2pdf,
+          renderIframe.contentDocument,
+          safeName
+        );
       })
       .then(function () {
         return { ok: true, filename: safeName };
       })
       .finally(function () {
         closeModal();
-        if (captureHost && captureHost.parentNode) {
-          captureHost.parentNode.removeChild(captureHost);
+        if (renderIframe && renderIframe.parentNode) {
+          renderIframe.parentNode.removeChild(renderIframe);
         }
+      });
+  };
+
+  /**
+   * PDF from the preview iframe (pixel match to what you see before Print).
+   * @param {HTMLIFrameElement} iframe
+   * @param {string} filename
+   */
+  CIS.downloadHtmlDocumentPdfFromPreviewIframe = function (iframe, filename) {
+    if (!iframe || !iframe.contentDocument) {
+      return Promise.reject(new Error("Print preview is not ready."));
+    }
+    var safeName = String(filename || "document.pdf").replace(/[^\w.\- ]+/g, "_");
+    if (!/\.pdf$/i.test(safeName)) safeName += ".pdf";
+    var closeModal = showPdfWorkingModal();
+    return afterLayoutPaint()
+      .then(function () {
+        return ensureHtml2Pdf();
+      })
+      .then(function (html2pdf) {
+        return savePdfFromDocumentTargets(
+          html2pdf,
+          iframe.contentDocument,
+          safeName
+        );
+      })
+      .then(function () {
+        return { ok: true, filename: safeName };
+      })
+      .finally(function () {
+        closeModal();
       });
   };
 
@@ -245,7 +287,7 @@
    * @param {string} opts.title overlay title
    * @param {function} opts.getHtml () => html string
    * @param {string} opts.pdfFilename
-   * @param {function} [opts.downloadPdf] optional (getHtml) => Promise — defaults to downloadHtmlDocumentPdf
+   * @param {function} [opts.downloadPdf] optional () => Promise
    * @param {HTMLElement} [opts.toolbar] optional fields row in the bar
    * @param {string} [opts.closeLabel] e.g. "Back"
    * @param {string} [opts.printLabel] e.g. "Print"
@@ -337,10 +379,19 @@
 
       pdfBtn.addEventListener("click", function () {
         pdfBtn.disabled = true;
-        var run =
-          typeof opts.downloadPdf === "function"
-            ? opts.downloadPdf()
-            : CIS.downloadHtmlDocumentPdf(opts.getHtml(), opts.pdfFilename);
+        var run;
+        if (typeof opts.downloadPdf === "function") {
+          run = opts.downloadPdf();
+        } else if (CIS.downloadHtmlDocumentPdfFromPreviewIframe) {
+          run = refreshPreview().then(function () {
+            return CIS.downloadHtmlDocumentPdfFromPreviewIframe(
+              iframe,
+              opts.pdfFilename
+            );
+          });
+        } else {
+          run = CIS.downloadHtmlDocumentPdf(opts.getHtml(), opts.pdfFilename);
+        }
         Promise.resolve(run)
           .then(function (out) {
             if (out && out.ok === false) throw new Error("PDF was not created.");
@@ -358,7 +409,7 @@
       });
 
       if (typeof opts.onMount === "function") {
-        opts.onMount({ refreshPreview: refreshPreview, showErr: showErr });
+        opts.onMount({ refreshPreview: refreshPreview, showErr: showErr, iframe: iframe });
       }
     });
   };
@@ -367,6 +418,6 @@
     writeHtmlToIframe: writeHtmlToIframe,
     invokeNativePrint: invokeNativePrint,
     ensureHtml2Pdf: ensureHtml2Pdf,
-    buildVisibleCaptureHost: buildVisibleCaptureHost,
+    buildPdfRenderIframe: buildPdfRenderIframe,
   };
 })();

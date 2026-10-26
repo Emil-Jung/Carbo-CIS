@@ -572,6 +572,12 @@
         return html;
       },
       downloadPdf: function () {
+        if (CIS.downloadHtmlDocumentPdfFromPreviewIframe) {
+          return CIS.downloadHtmlDocumentPdfFromPreviewIframe(
+            iframe,
+            sheetPdfFilename(frozenManifest)
+          );
+        }
         var html = lastRenderedHtml || buildCurrentHtml();
         return CIS.downloadContainerSheetPdfFromHtml(html, frozenManifest);
       },
