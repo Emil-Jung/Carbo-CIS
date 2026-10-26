@@ -159,7 +159,7 @@
     form.appendChild(ui.el("div", { class: "ct-field" }, [
       ui.el("span", { class: "ct-field-label" }, ["Products for this shift"]),
       ui.el("p", { class: "muted packaging-shift-field-hint" }, [
-        "Example: tick only LF2.5 — scanners offer LF2.5 only, not the full pallet catalog.",
+        "Example: tick only DOM2.5 — scanners offer DOM2.5 only, not the full pallet catalog.",
       ]),
       productHost,
     ]));

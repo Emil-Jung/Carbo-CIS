@@ -211,7 +211,7 @@
         return wrap;
       }
 
-      el.appendChild(field("Product code", codeInput, isEdit ? "Code cannot be changed." : "Letters, digits, dot, dash — e.g. CH10, LF2.5"));
+      el.appendChild(field("Product code", codeInput, isEdit ? "Code cannot be changed." : "Letters, digits, dot, dash — e.g. CH10, DOM2.5"));
       el.appendChild(field("Name", nameInput));
       el.appendChild(field("Client", clientInput, "Optional — e.g. Big-K England"));
       el.appendChild(field("Retail bag weight (kg)", retailInput));
