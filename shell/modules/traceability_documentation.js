@@ -341,8 +341,19 @@
     ]);
     eudrSection.appendChild(bookingField);
 
+    function syncBookingInputFromSelect() {
+      var sel = String(bookingSelect.value || "").trim();
+      var typed = String(bookingInput.value || "").trim();
+      if (sel && !typed) {
+        bookingInput.value = sel;
+      }
+    }
+
+    /** Booking ref from typed field or saved dropdown (both must drive the same shipment). */
     function getBookingRef() {
-      return String(bookingInput.value || "").trim();
+      var typed = String(bookingInput.value || "").trim();
+      if (typed) return typed;
+      return String(bookingSelect.value || "").trim();
     }
 
     function eudrResolvedContainers() {
@@ -501,7 +512,10 @@
     }
 
     function eudrShipmentCanGenerate() {
-      return eudrResolvedContainers().length > 0 && !!eudrSelectionBody();
+      syncBookingInputFromSelect();
+      var resolved = eudrResolvedContainers();
+      if (!resolved.length) return false;
+      return !!eudrSelectionBody();
     }
 
     function eudrActionsDisabledReason() {
@@ -523,6 +537,7 @@
     /** DOM disabled only when shipment selection cannot run — not when prefetch is loading or failed. */
     function syncEudrActionButtons(opts) {
       opts = opts || {};
+      syncBookingInputFromSelect();
       var canRun = eudrShipmentCanGenerate();
       var why = eudrActionsDisabledReason();
       eudrDocButtons.forEach(function (b) {
@@ -608,13 +623,17 @@
 
     function eudrSelectionBody() {
       if (eudrMode === "booking") {
-        var ref = bookingInput.value.trim();
+        var ref = getBookingRef();
         if (!ref) return null;
         return { booking_ref: ref };
       }
-      var ids = Object.keys(eudrSelectedIds);
-      if (!ids.length) return null;
-      return { container_ids: ids };
+      var resolved = eudrResolvedContainers();
+      if (!resolved.length) return null;
+      return {
+        container_ids: resolved.map(function (c) {
+          return c.id;
+        }),
+      };
     }
 
     async function fetchEudrPack(forceRefresh) {
@@ -675,6 +694,7 @@
       });
       if (prev && uniqueBookingRefs(containers).indexOf(prev) >= 0) {
         bookingSelect.value = prev;
+        syncBookingInputFromSelect();
       } else {
         syncBookingSelectFromInput();
       }
@@ -714,6 +734,7 @@
     }
 
     function paintEudrPreview() {
+      syncBookingInputFromSelect();
       var list = eudrResolvedContainers();
       if (!list.length) {
         if (eudrMode === "booking" && getBookingRef()) {
@@ -864,11 +885,10 @@
     );
 
     btnLocationPdf.addEventListener("click", async function () {
+      if (btnLocationPdf.disabled) return;
       setLocationSheetMsg("");
       clearEudrActionError();
       var prevLabel = btnLocationPdf.textContent;
-      btnLocationPdf.disabled = true;
-      btnLocationPrint.disabled = true;
       btnLocationPdf.textContent = "Loading…";
       var busy = showSheetLoadingModal("Preparing accompanying location sheet…");
       try {
@@ -896,11 +916,10 @@
     });
 
     btnLocationPrint.addEventListener("click", async function () {
+      if (btnLocationPrint.disabled) return;
       setLocationSheetMsg("");
       clearEudrActionError();
       var prevPrintLabel = btnLocationPrint.textContent;
-      btnLocationPdf.disabled = true;
-      btnLocationPrint.disabled = true;
       btnLocationPrint.textContent = "Loading…";
       var busyPrint = showSheetLoadingModal("Preparing accompanying location sheet…");
       try {

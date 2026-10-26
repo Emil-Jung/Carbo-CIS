@@ -24,6 +24,15 @@ const checks = [
   ["Print click uses preview", /showEudrLocationSheetPreview\(packPrint, \{ autoPrintAfterLoad: true \}/.test(td)],
   ["in-row error element", /td-doc-location-sheet-msg/.test(td)],
   ["fetchLocationSheetPack helper", /async function fetchLocationSheetPack/.test(td)],
+  [
+    "booking ref from select or input",
+    /function getBookingRef\(\)[\s\S]*bookingSelect\.value/.test(td) &&
+      /syncBookingInputFromSelect/.test(td),
+  ],
+  [
+    "pick mode API body from resolved containers",
+    /container_ids: resolved\.map/.test(td),
+  ],
   ["preview downloadPdf hook", /downloadPdf:\s*function/.test(render)],
   ["eudr actions stack layout", /\.td-doc-eudr-actions[\s\S]*flex-direction:\s*column/.test(css)],
 ];
