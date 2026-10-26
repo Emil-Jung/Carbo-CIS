@@ -2772,7 +2772,14 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .td-doc-radio { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.95rem; }
 .td-doc-pick-list { max-height: 14rem; overflow: auto; border: 1px solid var(--border, #ccc); padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
 .td-doc-check-row { display: block; margin: 0.25rem 0; font-size: 0.9rem; }
-.td-doc-eudr-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.75rem 0; }
+.td-doc-eudr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1.25rem;
+  position: relative;
+  z-index: 1;
+}
 .td-doc-shipment-list { margin: 0.35rem 0 0.5rem 1.25rem; font-size: 0.92rem; }
 .td-doc-phase-note { font-size: 0.88rem; max-width: 42rem; }
 .td-doc-booking-select { max-width: 28rem; margin-bottom: 0.35rem; }
@@ -2808,6 +2815,7 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.65);
+  z-index: 10100;
   display: flex;
   /* flex-start + margin:auto on the dialog centres it when it fits and lets it
      grow past the viewport when it does not, instead of clipping the top. */

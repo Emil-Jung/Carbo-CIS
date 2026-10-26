@@ -337,6 +337,102 @@
     return { included: Number(included), missing: Number(missing) };
   };
 
+  function closeEudrModal(backdrop) {
+    if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+  }
+
+  function createEudrModal(titleText) {
+    var backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop cm-print-dialog-backdrop";
+    var dialog = document.createElement("div");
+    dialog.className = "modal cm-print-dialog cm-print-dialog--wide";
+    dialog.setAttribute("role", "dialog");
+    var title = document.createElement("h3");
+    title.textContent = titleText;
+    dialog.appendChild(title);
+    backdrop.appendChild(dialog);
+    return { backdrop: backdrop, dialog: dialog, close: function () { closeEudrModal(backdrop); } };
+  }
+
+  CIS.openEudrLocationSheetDialog = function (pack) {
+    var ship = pack.shipment || {};
+    var ui = createEudrModal("Accompanying location sheet");
+    var hint = document.createElement("p");
+    hint.className = "muted cm-print-dialog-hint";
+    hint.textContent =
+      "Print opens in a new window. Use Print below (pop-ups must be allowed). Containers: " +
+      (ship.container_numbers || []).join(", ");
+    ui.dialog.appendChild(hint);
+    var actions = document.createElement("div");
+    actions.className = "cm-print-dialog-actions";
+    var cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "btn btn-sm";
+    cancelBtn.textContent = "Cancel";
+    var printBtn = document.createElement("button");
+    printBtn.type = "button";
+    printBtn.className = "btn";
+    printBtn.textContent = "Print location sheet";
+    actions.appendChild(cancelBtn);
+    actions.appendChild(printBtn);
+    ui.dialog.appendChild(actions);
+    cancelBtn.addEventListener("click", ui.close);
+    ui.backdrop.addEventListener("click", function (e) {
+      if (e.target === ui.backdrop) ui.close();
+    });
+    printBtn.addEventListener("click", function () {
+      try {
+        CIS.printEudrLocationSheet(pack);
+      } catch (e) {
+        alert(e.message || String(e));
+        return;
+      }
+      ui.close();
+    });
+    document.body.appendChild(ui.backdrop);
+    printBtn.focus();
+  };
+
+  CIS.openEudrLocationCsvDownload = function (pack) {
+    var csv = CIS.buildEudrLocationSheetCsv(pack);
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var ui = createEudrModal("Location sheet (CSV)");
+    var hint = document.createElement("p");
+    hint.className = "muted cm-print-dialog-hint";
+    hint.textContent =
+      "Your browser may block automatic downloads after loading data. Click Download CSV below.";
+    ui.dialog.appendChild(hint);
+    var link = document.createElement("a");
+    link.className = "btn";
+    link.href = url;
+    link.download = "eudr-location-sheet.csv";
+    link.textContent = "Download CSV";
+    link.style.display = "inline-block";
+    link.style.marginTop = "8px";
+    ui.dialog.appendChild(link);
+    var actions = document.createElement("div");
+    actions.className = "cm-print-dialog-actions";
+    var closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "btn btn-sm";
+    closeBtn.textContent = "Close";
+    actions.appendChild(closeBtn);
+    ui.dialog.appendChild(actions);
+    closeBtn.addEventListener("click", function () {
+      URL.revokeObjectURL(url);
+      ui.close();
+    });
+    ui.backdrop.addEventListener("click", function (e) {
+      if (e.target === ui.backdrop) {
+        URL.revokeObjectURL(url);
+        ui.close();
+      }
+    });
+    document.body.appendChild(ui.backdrop);
+    link.focus();
+  };
+
   CIS.openEudrDueDiligenceDialog = function (pack, onPrint) {
     var ship = pack.shipment || {};
     var first = (pack.containers && pack.containers[0]) || {};

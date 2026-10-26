@@ -31,6 +31,7 @@
     var eudrSelectedIds = {};
 
     container.className = "module-content td-doc-host";
+    if (ctx.applyModuleFloatNavPadding) ctx.applyModuleFloatNavPadding(container);
     container.appendChild(
       ui.el("h2", { class: "module-title" }, ["Traceability Documentation"])
     );
@@ -593,6 +594,12 @@
       }
     }
 
+    function formatEudrError(e) {
+      return CIS.traceabilityApiErrorMessage
+        ? CIS.traceabilityApiErrorMessage(e)
+        : e.message || String(e);
+    }
+
     async function withEudrPack(run, activeBtn) {
       if (!eudrResolvedContainers().length) {
         showEudrActionError("Choose a booking or containers for this shipment first.");
@@ -612,9 +619,7 @@
         setStatus("", false);
         clearEudrActionError();
       } catch (e) {
-        var msg = CIS.traceabilityApiErrorMessage
-          ? CIS.traceabilityApiErrorMessage(e)
-          : e.message || String(e);
+        var msg = formatEudrError(e);
         setStatus(msg, true);
         showEudrActionError("Could not build EUDR pack: " + msg);
       } finally {
@@ -622,29 +627,45 @@
       }
     }
 
+    function invokeEudrPack(run, activeBtn) {
+      void withEudrPack(run, activeBtn).catch(function (e) {
+        showEudrActionError("Unexpected error: " + formatEudrError(e));
+      });
+    }
+
     btnDds.addEventListener("click", function () {
-      withEudrPack(function (pack) {
+      invokeEudrPack(function (pack) {
         if (CIS.openEudrDueDiligenceDialog) {
           CIS.openEudrDueDiligenceDialog(pack);
         } else if (CIS.printEudrDueDiligence) {
           CIS.printEudrDueDiligence(pack, {});
         } else {
-          setStatus("EUDR render module not loaded.", true);
+          throw new Error("EUDR render module not loaded.");
         }
       }, btnDds);
     });
 
     btnLocation.addEventListener("click", function () {
-      withEudrPack(function (pack) {
-        if (CIS.printEudrLocationSheet) CIS.printEudrLocationSheet(pack);
-        else setStatus("EUDR render module not loaded.", true);
+      invokeEudrPack(function (pack) {
+        if (CIS.openEudrLocationSheetDialog) {
+          CIS.openEudrLocationSheetDialog(pack);
+        } else if (CIS.printEudrLocationSheet) {
+          CIS.printEudrLocationSheet(pack);
+        } else {
+          throw new Error("EUDR render module not loaded.");
+        }
       }, btnLocation);
     });
 
     btnLocationCsv.addEventListener("click", function () {
-      withEudrPack(function (pack) {
-        if (CIS.downloadEudrLocationSheetCsv) CIS.downloadEudrLocationSheetCsv(pack);
-        else setStatus("EUDR render module not loaded.", true);
+      invokeEudrPack(function (pack) {
+        if (CIS.openEudrLocationCsvDownload) {
+          CIS.openEudrLocationCsvDownload(pack);
+        } else if (CIS.downloadEudrLocationSheetCsv) {
+          CIS.downloadEudrLocationSheetCsv(pack);
+        } else {
+          throw new Error("EUDR render module not loaded.");
+        }
       }, btnLocationCsv);
     });
 
@@ -672,10 +693,9 @@
           if (pack) paintEudrPackNote(pack);
         })
         .catch(function (e) {
-          var msg = CIS.traceabilityApiErrorMessage
-            ? CIS.traceabilityApiErrorMessage(e)
-            : e.message || String(e);
+          var msg = formatEudrError(e);
           setStatus(msg, true);
+          showEudrActionError(msg);
         })
         .finally(function () {
           setStatus("", false);
