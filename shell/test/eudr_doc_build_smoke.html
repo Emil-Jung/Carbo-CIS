@@ -19,6 +19,7 @@
         containers: [
           {
             container_number: "ABCD1234567",
+            fcl_number: "FCL-ABCD",
             producers: [
               {
                 supplier_name: "Supplier One",
@@ -52,6 +53,7 @@
         dds.indexOf("window.print") === -1 &&
         dds.indexOf("window.open") === -1 &&
         loc.indexOf("Supplier Two") !== -1 &&
+        loc.indexOf("FCL-ABCD") !== -1 &&
         loc.indexOf("window.print") === -1 &&
         csv.split("\n").length >= 3;
       document.getElementById("out").textContent = ok

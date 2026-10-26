@@ -815,6 +815,42 @@
       });
     }
 
+    /** Location sheet: server PDF + in-app preview (same HTML); avoids generic EUDR pack status noise. */
+    function runLocationSheetWithPack(activeBtn, run) {
+      if (!eudrResolvedContainers().length) {
+        showEudrActionError("Choose a booking or containers for this shipment first.");
+        return;
+      }
+      clearEudrActionError();
+      var prevLabel = activeBtn ? activeBtn.textContent : "";
+      if (activeBtn) {
+        activeBtn.disabled = true;
+        activeBtn.textContent = packLoading ? "Loading data…" : "Working…";
+      }
+      var bodyKey = JSON.stringify(eudrSelectionBody());
+      var packPromise =
+        cachedPack && cachedPackKey === bodyKey
+          ? Promise.resolve(cachedPack)
+          : fetchEudrPack(false);
+      Promise.resolve(packPromise)
+        .then(function (pack) {
+          paintEudrPackNote(pack);
+          return run(pack);
+        })
+        .then(function () {
+          clearEudrActionError();
+        })
+        .catch(function (e) {
+          var msg = formatEudrError(e);
+          setStatus(msg, true);
+          showEudrActionError(msg);
+        })
+        .finally(function () {
+          syncEudrActionButtons({ skipPrefetch: true });
+          if (activeBtn) activeBtn.textContent = prevLabel;
+        });
+    }
+
     wireEudrPdfPrint(
       btnDdsPdf,
       btnDdsPrint,
@@ -822,13 +858,28 @@
       CIS.showEudrDueDiligencePreview,
       "Due diligence"
     );
-    wireEudrPdfPrint(
-      btnLocationPdf,
-      btnLocationPrint,
-      CIS.downloadEudrLocationSheetPdf,
-      CIS.showEudrLocationSheetPreview,
-      "Location sheet"
-    );
+
+    btnLocationPdf.addEventListener("click", function () {
+      runLocationSheetWithPack(btnLocationPdf, function (pack) {
+        if (!CIS.downloadEudrLocationSheetPdf) {
+          return Promise.reject(new Error("EUDR render module not loaded."));
+        }
+        return CIS.downloadEudrLocationSheetPdf(pack).then(function (out) {
+          if (!out || !out.ok) {
+            throw new Error("Location sheet PDF was not created.");
+          }
+          setStatus("Downloaded " + (out.filename || "PDF") + ".", false);
+        });
+      });
+    });
+    btnLocationPrint.addEventListener("click", function () {
+      runLocationSheetWithPack(btnLocationPrint, function (pack) {
+        if (!CIS.showEudrLocationSheetPreview) {
+          return Promise.reject(new Error("EUDR render module not loaded."));
+        }
+        return CIS.showEudrLocationSheetPreview(pack, { autoPrintAfterLoad: true });
+      });
+    });
 
     btnLocationCsv.addEventListener("click", function () {
       invokeEudrPack(function (pack) {

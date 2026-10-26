@@ -308,7 +308,8 @@
       "Container,FCL Number,SUPPLIER NAME,FARM NAME & NR,GPS COORDINATES,Bag count,Weight kg,Information gaps",
     ];
     (pack.containers || []).forEach(function (c) {
-      var fcl = c.container_number || "";
+      var container = c.container_number || "";
+      var fcl = (c.fcl_number || c.container_number || "").trim() || container;
       (c.producers || []).forEach(function (p) {
         var gapText = (p.information_gaps || [])
           .map(function (g) {
@@ -317,7 +318,7 @@
           .join("; ");
         lines.push(
           [
-            fcl,
+            container,
             fcl,
             (p.supplier_name || "").replace(/"/g, '""'),
             (p.farm_display || "").replace(/"/g, '""'),
@@ -340,11 +341,12 @@
   CIS.buildEudrLocationSheetHtml = function (pack) {
     var bodyRows = "";
     (pack.containers || []).forEach(function (c) {
-      var fcl = esc(c.container_number || "");
+      var container = esc(c.container_number || "");
+      var fcl = esc((c.fcl_number || c.container_number || "").trim());
       (c.producers || []).forEach(function (p) {
         bodyRows +=
           "<tr><td>" +
-          fcl +
+          container +
           "</td><td>" +
           fcl +
           "</td><td>" +
@@ -407,7 +409,8 @@
     );
   };
 
-  CIS.showEudrLocationSheetPreview = function (pack) {
+  CIS.showEudrLocationSheetPreview = function (pack, options) {
+    options = options || {};
     if (!pack || !(pack.containers || []).length) {
       return Promise.reject(new Error("No shipment data to show."));
     }
@@ -418,6 +421,7 @@
         "Location sheet — " +
         ((ship.container_numbers || []).join(", ") || "shipment"),
       pdfFilename: eudrPdfFilename("EUDR_LocationSheet", pack),
+      autoPrintAfterLoad: !!options.autoPrintAfterLoad,
       getHtml: function () {
         return CIS.buildEudrLocationSheetHtml(pack);
       },

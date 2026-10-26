@@ -366,6 +366,7 @@
    * @param {HTMLElement} [opts.toolbar] optional fields row in the bar
    * @param {string} [opts.closeLabel] e.g. "Back"
    * @param {string} [opts.printLabel] e.g. "Print"
+   * @param {boolean} [opts.autoPrintAfterLoad] invoke iframe print after first render
    */
   CIS.showHtmlDocumentPreview = function (opts) {
     opts = opts || {};
@@ -476,9 +477,17 @@
           });
       });
 
-      refreshPreview().catch(function (e) {
-        showErr(e.message || String(e));
-      });
+      refreshPreview()
+        .then(function () {
+          if (opts.autoPrintAfterLoad) {
+            return afterLayoutPaint().then(function () {
+              invokeNativePrint(iframe);
+            });
+          }
+        })
+        .catch(function (e) {
+          showErr(e.message || String(e));
+        });
 
       if (typeof opts.onMount === "function") {
         opts.onMount({ refreshPreview: refreshPreview, showErr: showErr, iframe: iframe });
