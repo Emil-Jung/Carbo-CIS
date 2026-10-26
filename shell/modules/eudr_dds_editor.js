@@ -1,12 +1,16 @@
-/* EUDR Due Diligence Statement — CIS editor (Phase 1). */
+/* EUDR Due Diligence Statement — CIS editor (Phase 2: booking + single). */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
 
+  var MODE_BOOKING = "booking";
+  var MODE_SINGLE = "single";
+
   var FIELD_LABELS = {
     client: "Client (internal reference)",
-    container: "Container number",
-    carbo_ref: "Carbo reference",
+    container: "Scope / container (on document)",
+    container_schedule: "Container schedule (text fallback for PDF)",
+    carbo_ref: "Carbo reference / booking ref",
     destination: "Destination",
     shipment_date: "Shipment date",
     operator: "Operator",
@@ -35,23 +39,23 @@
     geolocation: true,
     dds_reference: true,
     container_sheet: true,
+    container_schedule: true,
     geojson: true,
     traceability_record: true,
   };
 
-  /**
-   * @param {HTMLElement} container
-   * @param {object} ctx
-   * @param {{ containers: object[], ui: object }} shared
-   */
   CIS.mountEudrDdsEditor = function (container, ctx, shared) {
     var ui = shared.ui || CIS.ui;
     var containers = shared.containers || [];
+
+    var mode = MODE_BOOKING;
     var fields = CIS.eudrDdsDefaultFields();
     var statementId = "";
     var containerId = "";
+    var bookingRef = "";
+    var containerIds = [];
+    var scopeSnapshot = null;
     var assetUrls = null;
-    var dirty = false;
 
     var section = ui.el("section", { class: "td-doc-section td-doc-eudr-dds" });
     section.appendChild(
@@ -61,15 +65,45 @@
     );
     section.appendChild(
       ui.el("p", { class: "muted" }, [
-        "Edit the due diligence statement for one container, save a draft, then preview or download a branded PDF.",
+        "Prepare a due diligence statement by ",
+        ui.el("strong", {}, ["booking reference"]),
+        " (default) or a ",
+        ui.el("strong", {}, ["single container"]),
+        ", then save, preview, or download PDF.",
       ])
     );
 
     var saveState = ui.el("p", { class: "muted td-doc-eudr-save-state" }, [
-      "No statement loaded.",
+      "Choose a booking or container.",
     ]);
     section.appendChild(saveState);
 
+    var modeRow = ui.el("div", { class: "td-doc-doc-row td-doc-eudr-mode-row" });
+    var modeBooking = ui.el("label", { class: "td-doc-eudr-mode-opt" }, [
+      ui.el("input", { type: "radio", name: "eudr-dds-mode", value: MODE_BOOKING, checked: "checked" }),
+      " Booking reference",
+    ]);
+    var modeSingle = ui.el("label", { class: "td-doc-eudr-mode-opt" }, [
+      ui.el("input", { type: "radio", name: "eudr-dds-mode", value: MODE_SINGLE }),
+      " Single container",
+    ]);
+    modeRow.appendChild(modeBooking);
+    modeRow.appendChild(modeSingle);
+    section.appendChild(modeRow);
+
+    var bookingPanel = ui.el("div", { class: "td-doc-eudr-mode-panel" });
+    var bookingSelect = ui.el("select", { class: "td-doc-select" });
+    bookingSelect.appendChild(ui.el("option", { value: "" }, ["Choose booking ref…"]));
+    bookingPanel.appendChild(
+      ui.el("label", { class: "ct-field td-doc-field" }, [
+        ui.el("span", { class: "ct-field-label" }, ["Booking reference"]),
+        bookingSelect,
+      ])
+    );
+
+    var singlePanel = ui.el("div", {
+      class: "td-doc-eudr-mode-panel td-doc-eudr-mode-panel--hidden",
+    });
     var containerSelect = ui.el("select", { class: "td-doc-select" });
     containerSelect.appendChild(ui.el("option", { value: "" }, ["Choose container…"]));
     containers.forEach(function (c) {
@@ -79,35 +113,36 @@
         ])
       );
     });
-
-    var savedSelect = ui.el("select", { class: "td-doc-select" });
-    savedSelect.appendChild(
-      ui.el("option", { value: "" }, ["New statement (unsaved)"])
+    singlePanel.appendChild(
+      ui.el("label", { class: "ct-field td-doc-field" }, [
+        ui.el("span", { class: "ct-field-label" }, ["Container"]),
+        containerSelect,
+      ])
     );
 
+    section.appendChild(bookingPanel);
+    section.appendChild(singlePanel);
+
+    var scopeSummary = ui.el("div", { class: "td-doc-eudr-scope-summary muted" });
+    section.appendChild(scopeSummary);
+
+    var savedSelect = ui.el("select", { class: "td-doc-select" });
+    savedSelect.appendChild(ui.el("option", { value: "" }, ["New statement (unsaved)"]));
     section.appendChild(
-      ui.el("div", { class: "td-doc-doc-row" }, [
-        ui.el("label", { class: "ct-field td-doc-field" }, [
-          ui.el("span", { class: "ct-field-label" }, ["Container"]),
-          containerSelect,
-        ]),
-        ui.el("label", { class: "ct-field td-doc-field" }, [
-          ui.el("span", { class: "ct-field-label" }, ["Saved drafts"]),
-          savedSelect,
-        ]),
+      ui.el("label", { class: "ct-field td-doc-field" }, [
+        ui.el("span", { class: "ct-field-label" }, ["Saved drafts"]),
+        savedSelect,
       ])
     );
 
     var formWrap = ui.el("div", { class: "cm-eudr-dds-fields td-doc-eudr-form" });
     var inputs = {};
-
     (CIS.EUDR_DDS_FIELD_KEYS || []).forEach(function (key) {
-      var label = FIELD_LABELS[key] || key;
       var control;
       if (MULTILINE[key]) {
         control = ui.el("textarea", {
           class: "td-doc-eudr-input",
-          rows: MULTILINE[key] === true ? "3" : "2",
+          rows: key === "container_schedule" ? "5" : "3",
           "data-field": key,
         });
       } else {
@@ -118,7 +153,6 @@
         });
       }
       control.addEventListener("input", function () {
-        dirty = true;
         fields[key] = control.value;
         saveState.textContent = statementId
           ? "Unsaved changes — use Save statement."
@@ -127,7 +161,7 @@
       inputs[key] = control;
       formWrap.appendChild(
         ui.el("label", { class: "ct-field td-doc-eudr-field-row" }, [
-          ui.el("span", { class: "ct-field-label" }, [label]),
+          ui.el("span", { class: "ct-field-label" }, [FIELD_LABELS[key] || key]),
           control,
         ])
       );
@@ -167,48 +201,149 @@
       });
     }
 
+    function resetEditorSelection() {
+      statementId = "";
+      savedSelect.value = "";
+      fields = CIS.eudrDdsDefaultFields();
+      paintFields();
+    }
+
+    function paintScopeSummary() {
+      scopeSummary.innerHTML = "";
+      if (!scopeSnapshot || !scopeSnapshot.containers || !scopeSnapshot.containers.length) {
+        scopeSummary.textContent =
+          mode === MODE_BOOKING
+            ? "Select a booking, then load suggested fields to list every container in that booking."
+            : "Select a container and load suggested fields.";
+        return;
+      }
+      var n = scopeSnapshot.container_count || scopeSnapshot.containers.length;
+      scopeSummary.appendChild(
+        ui.el("p", {}, [
+          ui.el("strong", {}, [String(n)]),
+          " container(s) in scope",
+          scopeSnapshot.booking_ref
+            ? " · Booking " + scopeSnapshot.booking_ref
+            : "",
+        ])
+      );
+      var conflicts = scopeSnapshot.conflicts || {};
+      var conflictKeys = Object.keys(conflicts);
+      if (conflictKeys.length) {
+        scopeSummary.appendChild(
+          ui.el("p", { class: "td-doc-eudr-conflicts" }, [
+            "Differs by container: " +
+              conflictKeys
+                .map(function (k) {
+                  return k + " (" + (conflicts[k] || []).join("; ") + ")";
+                })
+                .join(" · "),
+          ])
+        );
+      }
+      var table = ui.el("table", { class: "data td-doc-eudr-scope-table" });
+      table.innerHTML =
+        "<thead><tr><th>Container</th><th>FCL</th><th>Destination</th><th>Loaded mass</th></tr></thead>";
+      var tbody = ui.el("tbody");
+      scopeSnapshot.containers.forEach(function (r) {
+        var tr = ui.el("tr");
+        var kg = r.net_mass_kg;
+        tr.innerHTML =
+          "<td>" +
+          ui.escape(r.container_number || "—") +
+          "</td><td>" +
+          ui.escape(r.fcl_number || "—") +
+          "</td><td>" +
+          ui.escape(r.destination || "—") +
+          "</td><td>" +
+          (kg != null ? ui.escape(String(kg) + " kg") : "—") +
+          "</td>";
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      scopeSummary.appendChild(table);
+      if (statementId) {
+        scopeSummary.appendChild(
+          ui.el("p", { class: "muted" }, [
+            "Frozen scope from when this statement was saved — live booking data may have changed.",
+          ])
+        );
+      }
+    }
+
+    function applyModeUi() {
+      var isBooking = mode === MODE_BOOKING;
+      bookingPanel.classList.toggle("td-doc-eudr-mode-panel--hidden", !isBooking);
+      singlePanel.classList.toggle("td-doc-eudr-mode-panel--hidden", isBooking);
+      modeBooking.querySelector("input").checked = isBooking;
+      modeSingle.querySelector("input").checked = !isBooking;
+    }
+
+    function getScopeOpts() {
+      return {
+        scopeMode: mode,
+        scopeSnapshot: scopeSnapshot,
+      };
+    }
+
     function applyRecord(rec) {
       statementId = rec && rec.id ? rec.id : "";
-      containerId = (rec && rec.container_id) || containerId;
+      mode = rec.scope_mode === MODE_SINGLE ? MODE_SINGLE : MODE_BOOKING;
+      applyModeUi();
+      containerId = rec.container_id || "";
+      bookingRef = rec.booking_ref || "";
+      containerIds = (rec.container_ids || []).slice();
+      scopeSnapshot = rec.scope_snapshot || null;
       fields = Object.assign(CIS.eudrDdsDefaultFields(), (rec && rec.fields) || {});
-      if (containerId) containerSelect.value = containerId;
+
+      if (mode === MODE_BOOKING) {
+        containerId = "";
+        containerSelect.value = "";
+        if (bookingRef) bookingSelect.value = bookingRef;
+      } else {
+        bookingRef = "";
+        bookingSelect.value = "";
+        if (containerId) containerSelect.value = containerId;
+      }
+
       paintFields();
-      dirty = false;
+      paintScopeSummary();
       if (statementId) {
         saveState.textContent =
           "Saved " +
           (rec.status || "draft") +
+          " · " +
+          mode +
           " · updated " +
           (rec.updated_at || "").replace("T", " ").slice(0, 19);
-      } else {
-        saveState.textContent = "New statement (not saved yet).";
       }
     }
 
     async function refreshSavedList() {
-      if (!containerId) {
-        savedSelect.innerHTML = "";
-        savedSelect.appendChild(
-          ui.el("option", { value: "" }, ["New statement (unsaved)"])
-        );
-        return;
+      savedSelect.innerHTML = "";
+      savedSelect.appendChild(ui.el("option", { value: "" }, ["New statement (unsaved)"]));
+      var query = "";
+      if (mode === MODE_BOOKING) {
+        if (!bookingRef) return;
+        query =
+          "/containers/eudr-dds-statements?booking_ref=" +
+          encodeURIComponent(bookingRef);
+      } else {
+        if (!containerId) return;
+        query =
+          "/containers/eudr-dds-statements?container_id=" +
+          encodeURIComponent(containerId);
       }
       try {
-        var data = await ctx.api.traceability(
-          "/containers/eudr-dds-statements?container_id=" +
-            encodeURIComponent(containerId)
-        );
+        var data = await ctx.api.traceability(query);
         var list = (data && data.statements) || [];
-        savedSelect.innerHTML = "";
-        savedSelect.appendChild(
-          ui.el("option", { value: "" }, ["New statement (unsaved)"])
-        );
         list.forEach(function (s) {
           var label =
+            (s.scope_mode || "single") +
+            " · " +
             (s.status || "draft") +
             " · " +
-            (s.updated_at || "").slice(0, 10) +
-            (s.fields && s.fields.client ? " · " + s.fields.client : "");
+            (s.updated_at || "").slice(0, 10);
           savedSelect.appendChild(ui.el("option", { value: s.id }, [label]));
         });
         if (statementId && list.some(function (s) { return s.id === statementId; })) {
@@ -219,38 +354,97 @@
       }
     }
 
+    async function populateBookingSelect() {
+      bookingSelect.innerHTML = "";
+      bookingSelect.appendChild(ui.el("option", { value: "" }, ["Choose booking ref…"]));
+      try {
+        var data = await ctx.api.traceability("/containers/eudr-dds-booking-refs");
+        var list = (data && data.bookings) || [];
+        list.forEach(function (b) {
+          bookingSelect.appendChild(
+            ui.el("option", { value: b.booking_ref }, [
+              b.booking_ref + " (" + b.container_count + " containers)",
+            ])
+          );
+        });
+      } catch (e) {
+        var seen = {};
+        containers.forEach(function (c) {
+          var ref = (c.booking_ref || "").trim();
+          if (!ref || seen[ref]) return;
+          seen[ref] = true;
+          bookingSelect.appendChild(ui.el("option", { value: ref }, [ref]));
+        });
+      }
+    }
+
     async function ensureAssets() {
       if (assetUrls) return assetUrls;
-      if (!CIS.prepareEudrDdsAssetUrls) {
-        throw new Error("EUDR render module not loaded.");
-      }
       assetUrls = await CIS.prepareEudrDdsAssetUrls();
       return assetUrls;
     }
 
     function getDocumentHtml() {
-      if (!CIS.buildEudrDdsDocumentHtml) {
-        throw new Error("EUDR render module not loaded.");
-      }
-      return CIS.buildEudrDdsDocumentHtml(fields, assetUrls || undefined);
+      return CIS.buildEudrDdsDocumentHtml(fields, assetUrls || undefined, getScopeOpts());
     }
+
+    function onModeChange(newMode) {
+      if (newMode === mode) return;
+      mode = newMode;
+      applyModeUi();
+      resetEditorSelection();
+      containerId = "";
+      bookingRef = "";
+      containerIds = [];
+      scopeSnapshot = null;
+      bookingSelect.value = "";
+      containerSelect.value = "";
+      setActionMsg("");
+      paintScopeSummary();
+      saveState.textContent =
+        mode === MODE_BOOKING
+          ? "Choose a booking reference."
+          : "Choose a container.";
+    }
+
+    modeBooking.querySelector("input").addEventListener("change", function () {
+      if (this.checked) onModeChange(MODE_BOOKING);
+    });
+    modeSingle.querySelector("input").addEventListener("change", function () {
+      if (this.checked) onModeChange(MODE_SINGLE);
+    });
+
+    bookingSelect.addEventListener("change", async function () {
+      bookingRef = bookingSelect.value;
+      resetEditorSelection();
+      containerIds = [];
+      scopeSnapshot = null;
+      setActionMsg("");
+      paintScopeSummary();
+      await refreshSavedList();
+      if (bookingRef) {
+        saveState.textContent = "Load suggested fields for this booking.";
+      }
+    });
 
     containerSelect.addEventListener("change", async function () {
       containerId = containerSelect.value;
-      statementId = "";
-      savedSelect.value = "";
+      resetEditorSelection();
+      containerIds = [];
+      scopeSnapshot = null;
       setActionMsg("");
+      paintScopeSummary();
       await refreshSavedList();
-      if (!containerId) return;
-      saveState.textContent = "Choose Load suggested fields or open a saved draft.";
+      if (containerId) {
+        saveState.textContent = "Load suggested fields for this container.";
+      }
     });
 
     savedSelect.addEventListener("change", async function () {
       var id = savedSelect.value;
       if (!id) {
-        statementId = "";
-        fields = CIS.eudrDdsDefaultFields();
-        paintFields();
+        resetEditorSelection();
+        paintScopeSummary();
         saveState.textContent = "New statement (not saved yet).";
         return;
       }
@@ -266,19 +460,30 @@
     });
 
     btnLoadSuggested.addEventListener("click", async function () {
-      if (!containerId) {
-        setActionMsg("Choose a container first.");
-        return;
-      }
       setActionMsg("");
       btnLoadSuggested.disabled = true;
       try {
-        var data = await ctx.api.traceability(
-          "/containers/" + encodeURIComponent(containerId) + "/eudr-dds-defaults"
-        );
-        fields = Object.assign(CIS.eudrDdsDefaultFields(), (data && data.fields) || {});
-        dirty = true;
+        if (mode === MODE_BOOKING) {
+          if (!bookingRef) throw new Error("Choose a booking reference first.");
+          var bData = await ctx.api.traceability(
+            "/containers/eudr-dds-booking-defaults?booking_ref=" +
+              encodeURIComponent(bookingRef)
+          );
+          fields = Object.assign(CIS.eudrDdsDefaultFields(), (bData && bData.fields) || {});
+          containerIds = (bData && bData.container_ids) || [];
+          scopeSnapshot = (bData && bData.scope_snapshot) || null;
+        } else {
+          if (!containerId) throw new Error("Choose a container first.");
+          var cData = await ctx.api.traceability(
+            "/containers/" + encodeURIComponent(containerId) + "/eudr-dds-defaults"
+          );
+          fields = Object.assign(CIS.eudrDdsDefaultFields(), (cData && cData.fields) || {});
+          containerIds = (cData && cData.container_ids) || [containerId];
+          scopeSnapshot = (cData && cData.scope_snapshot) || null;
+        }
+        statementId = "";
         paintFields();
+        paintScopeSummary();
         saveState.textContent = "Suggested fields loaded — review and Save statement.";
       } catch (e) {
         setActionMsg("Could not load suggested fields: " + (e.message || e));
@@ -288,15 +493,27 @@
     });
 
     btnSave.addEventListener("click", async function () {
-      if (!containerId) {
+      if (mode === MODE_BOOKING && !bookingRef) {
+        setActionMsg("Choose a booking reference before saving.");
+        return;
+      }
+      if (mode === MODE_SINGLE && !containerId) {
         setActionMsg("Choose a container before saving.");
+        return;
+      }
+      if (!containerIds.length && !scopeSnapshot) {
+        setActionMsg("Load suggested fields first so container scope is captured.");
         return;
       }
       setActionMsg("");
       btnSave.disabled = true;
       try {
         var payload = {
-          container_id: containerId,
+          scope_mode: mode,
+          booking_ref: mode === MODE_BOOKING ? bookingRef : null,
+          container_id: mode === MODE_SINGLE ? containerId : null,
+          container_ids: containerIds,
+          scope_snapshot: scopeSnapshot,
           fields: fields,
           status: "draft",
         };
@@ -315,12 +532,10 @@
         applyRecord(rec);
         await refreshSavedList();
         savedSelect.value = statementId;
-        saveState.textContent = "Saved draft · " + (rec.updated_at || "").slice(0, 19);
       } catch (e) {
         var msg = e.message || String(e);
-        if (/relation .* does not exist/i.test(msg) || /ct_eudr_dds/i.test(msg)) {
-          msg +=
-            " (Database migration 054_ct_eudr_dds_statement may not be applied on this server.)";
+        if (/column .* does not exist/i.test(msg) || /scope_mode/i.test(msg)) {
+          msg += " (Apply migration 055_ct_eudr_dds_scope on Traceability DB.)";
         }
         setActionMsg("Save failed: " + msg);
       } finally {
@@ -332,10 +547,7 @@
       setActionMsg("");
       try {
         await ensureAssets();
-        if (!CIS.showHtmlDocumentPreview) {
-          throw new Error("Document preview module not loaded.");
-        }
-        var filename = CIS.buildEudrDdsPdfFilename(fields);
+        var filename = CIS.buildEudrDdsPdfFilename(fields, getScopeOpts());
         await CIS.showHtmlDocumentPreview({
           title: "EUDR Due Diligence Statement",
           frameClassName: "a4-print-preview-overlay__frame cm-container-sheet-preview-frame",
@@ -353,12 +565,8 @@
       }
     }
 
-    btnPreview.addEventListener("click", function () {
-      openPreview(false);
-    });
-    btnPrint.addEventListener("click", function () {
-      openPreview(true);
-    });
+    btnPreview.addEventListener("click", function () { openPreview(false); });
+    btnPrint.addEventListener("click", function () { openPreview(true); });
     btnPdf.addEventListener("click", async function () {
       setActionMsg("");
       btnPdf.disabled = true;
@@ -366,7 +574,7 @@
         await ensureAssets();
         await CIS.downloadHtmlDocumentPdf(
           getDocumentHtml(),
-          CIS.buildEudrDdsPdfFilename(fields)
+          CIS.buildEudrDdsPdfFilename(fields, getScopeOpts())
         );
       } catch (e) {
         setActionMsg("PDF failed: " + (e.message || e));
@@ -375,6 +583,8 @@
       }
     });
 
+    applyModeUi();
     paintFields();
+    populateBookingSelect();
   };
 })();

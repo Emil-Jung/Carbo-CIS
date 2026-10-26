@@ -3505,6 +3505,30 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   padding-top: 1.25rem;
   border-top: 1px solid var(--border-muted, #ccc);
 }
+.td-doc-eudr-mode-row {
+  margin: 0.5rem 0 0.75rem;
+  gap: 1.25rem;
+}
+.td-doc-eudr-mode-opt {
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.td-doc-eudr-mode-panel--hidden {
+  display: none;
+}
+.td-doc-eudr-scope-summary {
+  margin: 0.75rem 0 1rem;
+  max-width: min(900px, 96vw);
+}
+.td-doc-eudr-scope-table {
+  margin-top: 0.5rem;
+  font-size: 12px;
+}
+.td-doc-eudr-conflicts {
+  color: #8a5a00;
+  font-size: 12px;
+}
 .a4-print-preview-overlay__bar {
   flex-wrap: wrap;
   align-items: flex-start;

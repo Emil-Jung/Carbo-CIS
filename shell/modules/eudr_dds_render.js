@@ -18,6 +18,7 @@
   CIS.EUDR_DDS_FIELD_KEYS = [
     "client",
     "container",
+    "container_schedule",
     "carbo_ref",
     "destination",
     "shipment_date",
@@ -50,6 +51,7 @@
     return {
       client: "",
       container: "",
+      container_schedule: "",
       carbo_ref: "",
       destination: "",
       shipment_date: today,
@@ -177,8 +179,47 @@
       ".eudr-dds-watermark{position:absolute;right:10mm;bottom:17mm;width:33mm;opacity:.11;" +
       "z-index:0;pointer-events:none}" +
       ".eudr-dds-content{position:relative;z-index:1}" +
+      ".eudr-dds-scope-note{font-size:11px;margin:0 0 4mm 11mm;color:#444}" +
+      ".eudr-dds-schedule td{font-size:11px}" +
+      ".eudr-dds-schedule .eudr-dds-label{width:100%;text-align:center}" +
       "@page{size:A4;margin:0}"
     );
+  }
+
+  function renderContainerScheduleTable(scheduleText, scopeSnapshot) {
+    var rows = (scopeSnapshot && scopeSnapshot.containers) || [];
+    if (rows.length) {
+      var html =
+        '<table class="eudr-dds-schedule"><tr>' +
+        '<td class="eudr-dds-label" colspan="4">CONTAINERS IN THIS BOOKING</td></tr>' +
+        '<tr><td class="eudr-dds-label">Container</td><td class="eudr-dds-label">FCL</td>' +
+        '<td class="eudr-dds-label">Destination</td><td class="eudr-dds-label">Loaded mass</td></tr>';
+      rows.forEach(function (r) {
+        var kg = r.net_mass_kg;
+        var kgText = kg != null ? String(kg).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " kg" : "—";
+        html +=
+          "<tr><td class=\"eudr-dds-value\">" +
+          escapeHtml(r.container_number || "—") +
+          "</td><td class=\"eudr-dds-value\">" +
+          escapeHtml(r.fcl_number || "—") +
+          "</td><td class=\"eudr-dds-value\">" +
+          escapeHtml(r.destination || "—") +
+          "</td><td class=\"eudr-dds-value\">" +
+          escapeHtml(kgText) +
+          "</td></tr>";
+      });
+      html += "</table>";
+      return html;
+    }
+    if (scheduleText && scheduleText.trim()) {
+      return (
+        '<div class="eudr-dds-section-title">CONTAINERS IN THIS BOOKING</div>' +
+        '<table class="eudr-dds-schedule"><tr><td class="eudr-dds-value">' +
+        nl2br(scheduleText) +
+        "</td></tr></table>"
+      );
+    }
+    return "";
   }
 
   function cellValue(fields, key) {
@@ -190,10 +231,14 @@
   /**
    * @param {object} fields
    * @param {{ logoSrc?: string, watermarkSrc?: string }} assets
+   * @param {{ scopeMode?: string, scopeSnapshot?: object }} scope
    */
-  CIS.buildEudrDdsDocumentHtml = function (fields, assets) {
+  CIS.buildEudrDdsDocumentHtml = function (fields, assets, scope) {
     assets = assets || {};
+    scope = scope || {};
     var f = fields || {};
+    var scopeMode = scope.scopeMode || "single";
+    var scopeSnapshot = scope.scopeSnapshot || null;
     var logo = assets.logoSrc || shellAssetUrl("eudr-letterhead-logo.png");
     var wm = assets.watermarkSrc || shellAssetUrl("eudr-watermark.png");
     var opAddr = cellValue(f, "operator_address");
@@ -220,8 +265,18 @@
       '<p class="eudr-dds-subtitle">Internal reference – Client: ' +
       escapeHtml(cellValue(f, "client")) +
       "</p>" +
+      (scopeMode === "booking"
+        ? '<p class="eudr-dds-scope-note">This statement covers booking ' +
+          escapeHtml(cellValue(f, "carbo_ref")) +
+          (scopeSnapshot && scopeSnapshot.container_count
+            ? " (" + escapeHtml(String(scopeSnapshot.container_count)) + " containers)."
+            : ".") +
+          "</p>"
+        : "") +
       '<table class="eudr-dds-summary"><tr>' +
-      '<td class="eudr-dds-label">Container</td><td class="eudr-dds-value">' +
+      '<td class="eudr-dds-label">' +
+      (scopeMode === "booking" ? "Scope" : "Container") +
+      '</td><td class="eudr-dds-value">' +
       escapeHtml(cellValue(f, "container")) +
       '</td><td class="eudr-dds-label">Carbo Ref.</td><td class="eudr-dds-value">' +
       escapeHtml(cellValue(f, "carbo_ref")) +
@@ -231,6 +286,9 @@
       '</td><td class="eudr-dds-label">Shipment Date</td><td class="eudr-dds-value">' +
       escapeHtml(cellValue(f, "shipment_date")) +
       "</td></tr></table>" +
+      (scopeMode === "booking"
+        ? renderContainerScheduleTable(cellValue(f, "container_schedule"), scopeSnapshot)
+        : "") +
       "<table><tr><td class=\"eudr-dds-label\">Operator</td><td class=\"eudr-dds-value\">" +
       escapeHtml(cellValue(f, "operator")) +
       "</td></tr>" +
@@ -303,9 +361,13 @@
     );
   };
 
-  CIS.buildEudrDdsPdfFilename = function (fields) {
-    var cn = (fields && fields.container) || "container";
-    var safe = String(cn).replace(/[^\w.\-]+/g, "_").slice(0, 40);
+  CIS.buildEudrDdsPdfFilename = function (fields, scope) {
+    scope = scope || {};
+    var base =
+      scope.scopeMode === "booking" && fields && fields.carbo_ref
+        ? fields.carbo_ref
+        : (fields && fields.container) || "container";
+    var safe = String(base).replace(/[^\w.\-]+/g, "_").slice(0, 40);
     return "EUDR_DDS_" + safe + ".pdf";
   };
 })();
