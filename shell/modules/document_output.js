@@ -126,6 +126,8 @@
    * @param {string} opts.pdfFilename
    * @param {function} [opts.downloadPdf] optional (getHtml) => Promise — defaults to downloadHtmlDocumentPdf
    * @param {HTMLElement} [opts.toolbar] optional fields row in the bar
+   * @param {string} [opts.closeLabel] e.g. "Back"
+   * @param {string} [opts.printLabel] e.g. "Print"
    */
   CIS.showHtmlDocumentPreview = function (opts) {
     opts = opts || {};
@@ -155,11 +157,11 @@
       var printBtn = document.createElement("button");
       printBtn.type = "button";
       printBtn.className = "btn btn-sm";
-      printBtn.textContent = "Print…";
+      printBtn.textContent = opts.printLabel || "Print…";
       var closeBtn = document.createElement("button");
       closeBtn.type = "button";
       closeBtn.className = "btn-ghost btn-sm";
-      closeBtn.textContent = "Close";
+      closeBtn.textContent = opts.closeLabel || "Close";
       actions.appendChild(pdfBtn);
       actions.appendChild(printBtn);
       actions.appendChild(closeBtn);
@@ -173,7 +175,8 @@
       bar.appendChild(barRight);
 
       var frameWrap = document.createElement("div");
-      frameWrap.className = "a4-print-preview-overlay__frame";
+      frameWrap.className =
+        opts.frameClassName || "a4-print-preview-overlay__frame";
       var iframe = document.createElement("iframe");
       iframe.setAttribute("title", "Document print preview");
       frameWrap.appendChild(iframe);
@@ -213,11 +216,10 @@
 
       pdfBtn.addEventListener("click", function () {
         pdfBtn.disabled = true;
-        var html = opts.getHtml();
         var run =
           typeof opts.downloadPdf === "function"
-            ? opts.downloadPdf(html)
-            : CIS.downloadHtmlDocumentPdf(html, opts.pdfFilename);
+            ? opts.downloadPdf()
+            : CIS.downloadHtmlDocumentPdf(opts.getHtml(), opts.pdfFilename);
         Promise.resolve(run)
           .then(function (out) {
             if (out && out.ok === false) throw new Error("PDF was not created.");

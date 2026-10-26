@@ -104,8 +104,7 @@
     );
     sheetSection.appendChild(
       ui.el("p", { class: "muted" }, [
-        "Standard load manifest for one container (NR · supplier · weight, booking and shipping header). ",
-        "Print one sheet per physical container.",
+        "Operational container load sheet for one FCL. Select a container, preview the form, then download or print.",
       ])
     );
     sheetSection.appendChild(toggleClosed);
@@ -123,18 +122,12 @@
     ]);
     sheetSection.appendChild(sheetPreview);
     var sheetActions = ui.el("div", { class: "td-doc-sheet-actions" });
-    var sheetBtnPdf = ui.el("button", {
+    var sheetBtnPreview = ui.el("button", {
       class: "btn",
       type: "button",
       disabled: "disabled",
-    }, ["Download PDF"]);
-    var sheetBtnPrint = ui.el("button", {
-      class: "btn btn-sm",
-      type: "button",
-      disabled: "disabled",
-    }, ["Print"]);
-    sheetActions.appendChild(sheetBtnPdf);
-    sheetActions.appendChild(sheetBtnPrint);
+    }, ["Preview Container Load Sheet"]);
+    sheetActions.appendChild(sheetBtnPreview);
     sheetSection.appendChild(sheetActions);
     var sheetActionMsg = ui.el("p", {
       class: "error-box td-doc-sheet-action-msg td-doc-action-error--hidden",
@@ -176,10 +169,8 @@
       if (!c) {
         sheetPreview.textContent = "Choose a container.";
         sheetPreview.className = "td-doc-preview muted";
-        sheetBtnPdf.disabled = true;
-        sheetBtnPrint.disabled = true;
-        sheetBtnPdf.title = "Choose a container from the list above.";
-        sheetBtnPrint.title = "Choose a container from the list above.";
+        sheetBtnPreview.disabled = true;
+        sheetBtnPreview.title = "Choose a container from the list above.";
         return;
       }
       sheetPreview.innerHTML = "";
@@ -201,10 +192,8 @@
           c.ship_to ? " · To " + c.ship_to : "",
         ])
       );
-      sheetBtnPdf.disabled = false;
-      sheetBtnPrint.disabled = false;
-      sheetBtnPdf.removeAttribute("title");
-      sheetBtnPrint.removeAttribute("title");
+      sheetBtnPreview.disabled = false;
+      sheetBtnPreview.removeAttribute("title");
     }
 
     function setSheetActionMsg(text) {
@@ -228,43 +217,16 @@
       paintSheetPreview();
     });
 
-    sheetBtnPdf.addEventListener("click", async function () {
+    sheetBtnPreview.addEventListener("click", async function () {
       if (!sheetContainerId) return;
       setSheetActionMsg("");
       setStatus("Loading manifest…", false);
-      sheetBtnPdf.disabled = true;
-      sheetBtnPrint.disabled = true;
+      sheetBtnPreview.disabled = true;
       try {
         var manifest = await fetchSheetManifest();
-        if (!CIS.downloadContainerSheetPdf) {
-          throw new Error("Container sheet module not loaded.");
+        if (!manifest || !manifest.header) {
+          throw new Error("Manifest did not return container header data.");
         }
-        setStatus("Building PDF…", false);
-        var out = await CIS.downloadContainerSheetPdf(manifest, "documentation");
-        if (!out || !out.ok) {
-          throw new Error("PDF was not created.");
-        }
-        setStatus("Downloaded " + out.filename + ".", false);
-      } catch (e) {
-        var msg = e.message || String(e);
-        setStatus("", false);
-        setSheetActionMsg("Could not download PDF: " + msg);
-      } finally {
-        if (sheetContainerId) {
-          sheetBtnPdf.disabled = false;
-          sheetBtnPrint.disabled = false;
-        }
-      }
-    });
-
-    sheetBtnPrint.addEventListener("click", async function () {
-      if (!sheetContainerId) return;
-      setSheetActionMsg("");
-      setStatus("Loading manifest…", false);
-      sheetBtnPdf.disabled = true;
-      sheetBtnPrint.disabled = true;
-      try {
-        var manifest = await fetchSheetManifest();
         if (!CIS.showContainerSheetPreview) {
           throw new Error("Container sheet module not loaded.");
         }
@@ -273,11 +235,10 @@
       } catch (e) {
         var msg = e.message || String(e);
         setStatus("", false);
-        setSheetActionMsg("Could not open print preview: " + msg);
+        setSheetActionMsg("Could not open preview: " + msg);
       } finally {
         if (sheetContainerId) {
-          sheetBtnPdf.disabled = false;
-          sheetBtnPrint.disabled = false;
+          sheetBtnPreview.disabled = false;
         }
       }
     });

@@ -3432,6 +3432,20 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .td-doc-sheet-action-msg { margin-top: 0.5rem; max-width: 36rem; }
 .cm-sheet-preview-overlay { z-index: 10200; }
+.cm-container-sheet-preview-frame {
+  background: #e8e8e8;
+  padding: 12px;
+  overflow: auto;
+}
+.cm-container-sheet-preview-frame iframe {
+  display: block;
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  margin: 0 auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  background: #fff;
+}
 .cm-sheet-preview-bar-right {
   display: flex;
   flex-wrap: wrap;

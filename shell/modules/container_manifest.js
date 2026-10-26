@@ -362,10 +362,23 @@
     if (!CIS.downloadHtmlDocumentPdf) {
       return Promise.reject(new Error("Document output module not loaded."));
     }
-    return CIS.downloadHtmlDocumentPdf(
+    return CIS.downloadContainerSheetPdfFromHtml(
       sheetHtml(manifest, variant, printOpts),
-      sheetPdfFilename(manifest)
+      manifest
     );
+  };
+
+  CIS.downloadContainerSheetPdfFromHtml = function (html, manifest) {
+    if (!html || !String(html).trim()) {
+      return Promise.reject(new Error("No document content to export."));
+    }
+    if (!manifest || !manifest.header) {
+      return Promise.reject(new Error("No manifest data to export."));
+    }
+    if (!CIS.downloadHtmlDocumentPdf) {
+      return Promise.reject(new Error("Document output module not loaded."));
+    }
+    return CIS.downloadHtmlDocumentPdf(html, sheetPdfFilename(manifest));
   };
 
   CIS.showContainerSheetPreview = function (manifest, variant, printOpts) {
@@ -375,8 +388,10 @@
     if (!CIS.showHtmlDocumentPreview) {
       return Promise.reject(new Error("Document output module not loaded."));
     }
-    var opts = Object.assign({}, defaultPrintOpts(manifest), printOpts || {});
-    var h = manifest.header || {};
+    var frozenManifest = manifest;
+    var opts = Object.assign({}, defaultPrintOpts(frozenManifest), printOpts || {});
+    var h = frozenManifest.header || {};
+    var lastRenderedHtml = "";
 
     var fields = document.createElement("div");
     fields.className = "cm-sheet-preview-fields";
@@ -410,12 +425,28 @@
       };
     }
 
+    function buildCurrentHtml() {
+      return sheetHtml(frozenManifest, sheetVariantKey(variant), currentOpts());
+    }
+
     return CIS.showHtmlDocumentPreview({
-      title: "Container sheet — " + (h.container_number || "FCL"),
-      pdfFilename: sheetPdfFilename(manifest),
+      title: "Preview — Container Load Sheet · " + (h.container_number || "FCL"),
+      pdfFilename: sheetPdfFilename(frozenManifest),
+      closeLabel: "Back",
+      printLabel: "Print",
       toolbar: fields,
+      frameClassName: "a4-print-preview-overlay__frame cm-container-sheet-preview-frame",
       getHtml: function () {
-        return sheetHtml(manifest, variant, currentOpts());
+        var html = buildCurrentHtml();
+        if (!html || !String(html).trim()) {
+          throw new Error("Container sheet is empty.");
+        }
+        lastRenderedHtml = html;
+        return html;
+      },
+      downloadPdf: function () {
+        var html = lastRenderedHtml || buildCurrentHtml();
+        return CIS.downloadContainerSheetPdfFromHtml(html, frozenManifest);
       },
       onMount: function (api) {
         var refreshTimer = null;
@@ -428,8 +459,11 @@
           }, 200);
         }
         dateInput.addEventListener("change", scheduleRefresh);
+        bookingInput.addEventListener("input", scheduleRefresh);
         bookingInput.addEventListener("change", scheduleRefresh);
       },
+    }).then(function () {
+      return { closed: true };
     });
   };
 
