@@ -2694,6 +2694,13 @@ a.btn-launch-secondary {
 /* ---- Shared module UI ---- */
 h2.module-title { margin: 0 0 4px; color: var(--gold-bright); }
 p.module-desc { margin: 0 0 20px; color: var(--muted); }
+.cis-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 16px 0;
+}
 
 .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
 .bs-summary-row {

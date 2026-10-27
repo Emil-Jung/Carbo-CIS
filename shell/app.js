@@ -1026,6 +1026,45 @@
 
     },
 
+    /**
+     * Standard module chrome — same title/desc pattern on every tile screen.
+     * @param {string} title
+     * @param {string} [description]
+     */
+    moduleHeader(title, description) {
+      const wrap = document.createDocumentFragment();
+      wrap.appendChild(this.el("h2", { class: "module-title" }, [title]));
+      if (description) {
+        wrap.appendChild(this.el("p", { class: "module-desc" }, [description]));
+      }
+      return wrap;
+    },
+
+    /**
+     * Standard button — primary (gold) or ghost; md or sm. Use instead of ad-hoc classes.
+     * @param {string} label
+     * @param {{ variant?: 'primary'|'ghost', size?: 'md'|'sm', onClick?: function, disabled?: boolean, submit?: boolean, class?: string }} [opts]
+     */
+    button(label, opts) {
+      opts = opts || {};
+      const variant = opts.variant === "ghost" ? "ghost" : "primary";
+      const parts = variant === "ghost" ? ["btn-ghost"] : ["btn"];
+      if (opts.size === "sm") parts.push("btn-sm");
+      if (opts.class) parts.push(opts.class);
+      const attrs = {
+        type: opts.submit ? "submit" : "button",
+        class: parts.join(" "),
+      };
+      if (opts.disabled) attrs.disabled = true;
+      if (typeof opts.onClick === "function") attrs.onclick = opts.onClick;
+      return this.el("button", attrs, [label]);
+    },
+
+    /** Horizontal row for Save / Cancel / export — same spacing everywhere. */
+    actionsRow(children) {
+      return this.el("div", { class: "cis-actions-row" }, children || []);
+    },
+
     escape(s) {
 
       return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>

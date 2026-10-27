@@ -1,0 +1,36 @@
+---
+description: CIS shell — shared UI patterns (buttons, headers, errors, actions)
+alwaysApply: true
+---
+
+# CIS UI — one vocabulary
+
+Modules are separate files, but **users see one product**. Match existing modules to these rules; **new code must follow them**. Do not invent parallel button or back patterns.
+
+## Build with `CIS.ui`
+
+- **DOM:** `CIS.ui.el(tag, attrs, children)` — not raw `createElement` for interactive controls unless there is no alternative.
+- **Title block:** `CIS.ui.moduleHeader(title, description)` → `h2.module-title` + `p.module-desc`.
+- **Buttons:** `CIS.ui.button(label, { variant, size, onClick })` only:
+  - **Primary action** (Save, Add, Confirm): `variant: "primary"` (default), usually `size: "sm"` in forms.
+  - **Secondary** (Cancel, Export, Open): `variant: "ghost"`, `size: "sm"`.
+  - Do **not** add new `*-btn-primary` or one-off gold button classes — extend `styles.css` `.btn` / `.btn-ghost` if a third tier is truly needed.
+- **Button groups:** `CIS.ui.actionsRow([btn1, btn2, …])` — class `cis-actions-row`.
+- **Errors:** `CIS.ui.error(message)` → `error-box`.
+
+## Navigation (see `cis-navigation.mdc`)
+
+- **Back** is only the float control + `ctx.setFloatingBack` for drills. No in-page “← Back to …” links.
+
+## Module layout
+
+- Root host: `container.className = "module-content"` (add a scoped host class only when the module needs theme isolation, e.g. `bs-dashboard-host`).
+- **Tiles / KPI cards** that navigate: follow Bags Status / dashboard card patterns (`button` type, clear label + value + subtext) — do not mix `<div onclick>` and `<button>` for the same role.
+
+## Legacy
+
+- Older modules may use `delivery-conf-btn-primary`, inline styles, or raw `class: "btn"`. When touching that file for other work, migrate touched buttons to `CIS.ui.button` in the same PR.
+
+## Deploy
+
+- Shell UI changes: bump `shellRev` in `config.json` and `CIS_BOOT_SHELL_REV` in `index.html` (or run `scripts/bump_cis_shell_rev.ps1`), then `deploy_on_server.sh` on bkweb3.
