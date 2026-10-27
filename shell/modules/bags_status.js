@@ -3376,8 +3376,8 @@
       if (token !== drillFetchToken) return;
       if (navSnapshotBeforeFetch) {
         drillStack.push(cloneNavForStack(navSnapshotBeforeFetch));
+        navSnapshotBeforeFetch = null;
       }
-      navSnapshotBeforeFetch = null;
     }
 
     /** Single stable handler — shell keeps same button DOM; one tap = one drill level up. */
@@ -3393,8 +3393,41 @@
         paint();
         return;
       }
+      /* Stack empty but still in a drill (stale fetch, refresh edge case, or missed push). */
+      if (wxDrill && wxDrill.slice) {
+        wxDrill.slice = null;
+        paint();
+        return;
+      }
+      if (wxDrill) {
+        wxDrill = null;
+        paint();
+        return;
+      }
+      if (selected && selected.palletDetail) {
+        selected.palletDetail = null;
+        selected.serial = null;
+        if (selected.fromBagSearch) {
+          selected = null;
+          selectedEvent = null;
+        }
+        paint();
+        return;
+      }
+      if (selected && selectedEvent) {
+        selectedEvent = null;
+        paint();
+        return;
+      }
+      if (selected) {
+        selected = null;
+        selectedEvent = null;
+        paint();
+        return;
+      }
       if (bagSearch && bagSearch.active) {
         bagSearch = null;
+        repaintBagSearchBar();
         paint();
       }
     }
