@@ -3,7 +3,26 @@
 **Purpose:** Set up **Git + Carbo-CIS** on a Windows PC at Carbo, build **`CarboPrintLabels-Setup.exe`**, and install on label-station PCs.  
 **Paste the block in §1 into a new Cursor chat on that PC** so the agent knows the goal and constraints.
 
-Last updated: 2026-10-27 (align with `origin/master` after pull).
+Last updated: 2026-10-27 (no-VPN / Git-only plant workflow).
+
+---
+
+## 0. No VPN on the manager PC — use Git only
+
+The manager PC **does not** reach bkweb3 over VPN/SSH. That is fine. Use a **two-step pipeline**:
+
+| Step | Where | VPN? | What |
+|------|--------|------|------|
+| **A. Publish source** | Home / dev PC (you) | Yes, when deploying server | `git push` to GitHub — **Carbo-CIS** `master` |
+| **B. Build & install** | Manager PC at Carbo | **No** | `git pull` from GitHub → build installer → **USB or LAN copy** to label PCs |
+
+**Manager PC must NOT rely on:** SSH to `192.168.89.101`, `scp`, `deploy_on_server.sh`, or downloading the installer from bkweb3.
+
+**Manager PC DOES use:** **GitHub** (HTTPS) — same as any public Git host; no Carbo VPN required.
+
+**Label PCs after install:** Print Labels still calls **`https://bkweb3.bigk.co.uk`** for sign-in and bag IDs. On the **plant/office network**, that is usually reachable **without VPN** (normal HTTPS). If sign-in fails, check browser access to `https://bkweb3.bigk.co.uk/cis/` from that PC — that is a network/firewall issue, not Git.
+
+**Installer never goes through Git.** After `git pull`, you **build** `CarboPrintLabels-Setup-<version>.exe` locally and copy the file to each station.
 
 ---
 
@@ -19,11 +38,12 @@ You are helping set up the Carbo manager/build PC and release **Carbo Print Labe
 4. Produce `desktop\installer\Output\CarboPrintLabels-Setup-<version>.exe` and install it on each label PC (or copy via USB).
 
 ## Important facts
+- **This PC has NO VPN.** Do not use SSH/scp to bkweb3. Workflow: **git pull → build installer → copy .exe to label PCs** (USB or shared folder).
 - **Print Labels is NOT updated by CIS web deploy on bkweb3.** The UI ships inside **CarboPrintLabels-Setup.exe**. See `desktop/DEPLOY-PRINT-LABELS-INSTALLER.md`.
-- The **`.exe` installer is gitignored**; only **source** is in Git. You must **build** on Windows.
-- Label PCs need **network** to bkweb3 for login and bag ID APIs (`https://bkweb3.bigk.co.uk/...`). VPN may be required off-site.
-- Default Zebra LAN in CIS config: **192.168.8.73:9100** (`shell/config.json` → `zebraPrinterHost` / `zebraPrinterPort`). Plant LAN may differ — confirm with IT.
-- **Do not** commit `.env`, passwords, or `encryption notes.txt`. **Do not** force-push `master`.
+- The **`.exe` installer is gitignored**; only **source** is in Git. You must **build** on Windows after every `git pull` that changes Print Labels.
+- Label PCs need **HTTPS** to `https://bkweb3.bigk.co.uk` for login and bag IDs (typically works on Carbo office/plant LAN without VPN).
+- Default Zebra LAN: **192.168.8.73:9100** — confirm at the plant.
+- **Do not** commit `.env`, passwords, or build outputs. **Do not** force-push `master`.
 
 ## Repo path (adjust drive letter)
 Use one stable folder, e.g. `D:\Carbo\Carbo-CIS` or `G:\My Coding Projects\Carbo-CIS`.
@@ -128,15 +148,12 @@ cd D:\Carbo\Carbo-CIS\desktop
 4. Start **Carbo Print Labels** from Start menu → sign in with **normal CIS user** (same as web CIS).
 5. **One-time on each label PC:** follow **`desktop/PRINT-LABELS-OPERATOR.md`** (Zebra LAN, label stock size, test print).
 
-**Optional — same installer on bkweb3 download link** (VPN + SSH):
+**Distribution without VPN (normal at Carbo):**
 
-```powershell
-scp "D:\Carbo\Carbo-CIS\desktop\installer\Output\CarboPrintLabels-Setup-1.6.17.exe" `
-  bkweb3dev@192.168.89.101:/opt/carbo/cis/app/CarboPrintLabels-Setup.exe
-```
+- Copy `desktop\installer\Output\CarboPrintLabels-Setup-<version>.exe` to a **USB stick** or **Windows file share**, then run on each label PC.
+- Use the **same .exe file** on all label stations so versions stay matched.
 
-Then browsers can use: `https://bkweb3.bigk.co.uk/cis/app/CarboPrintLabels-Setup.exe`  
-(Replace version in filename with your built file; server name must stay **`CarboPrintLabels-Setup.exe`**.)
+**Optional (dev PC with VPN only):** upload the same `.exe` to bkweb3 so others can download from CIS — **not required** if you install from USB/share. See `desktop/DEPLOY-PRINT-LABELS-INSTALLER.md` §3.
 
 ---
 
@@ -161,7 +178,22 @@ If you later set up a **full dev PC** at Carbo, these are the usual clones (all 
 | `Carbo-Identity` | `master` | Login & permissions |
 | `Carbo-Production` | `main` | Production API |
 
-Server deploy (VPN): SSH `bkweb3dev@192.168.89.101`, paths under `/opt/carbo/`. **Print Labels plant rollout does not require server deploy** — only the installer on PCs.
+**Server deploy** (SSH/VPN — **not on manager PC**): only from a dev machine that can reach bkweb3. **Print Labels rollout at Carbo = Git pull + local build + copy installer.**
+
+---
+
+## 8b. Dev PC (with VPN) — before the manager pulls
+
+When you change Print Labels or CIS shell on the dev PC:
+
+```powershell
+cd "G:\My Coding Projects\Carbo-CIS"
+git add …   # intentional files only
+git commit -m "…"
+git push origin master
+```
+
+Tell the manager: **“Pull and rebuild Print Labels.”** They run §4–§6; no server access needed.
 
 ---
 
@@ -169,7 +201,8 @@ Server deploy (VPN): SSH `bkweb3dev@192.168.89.101`, paths under `/opt/carbo/`. 
 
 | Symptom | Check |
 |---------|--------|
-| Sign-in fails | VPN? `https://bkweb3.bigk.co.uk/cis/` reachable in browser? |
+| Sign-in fails | From that PC, open `https://bkweb3.bigk.co.uk/cis/` in Edge (VPN **not** required on plant LAN). If blocked, fix firewall/DNS with IT — not Git. |
+| `git pull` fails | GitHub login/token; internet on manager PC |
 | No bag IDs / print run errors | Traceability API on server; user needs label-print permission in Identity |
 | Zebra won’t print | `SETUP-ZEBRA-LAN.ps1` as Admin; port **9100**; printer queue **Zebra ZT231 LAN** |
 | App UI old but login works | Old installer — rebuild and reinstall **CarboPrintLabels-Setup.exe** on that PC |
