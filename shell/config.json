@@ -26,5 +26,5 @@
   "zebraPrinterPort": 9100,
   "zebraLabelStockDefault": "6128",
   "zebraLabelStockStandardOnly": true,
-  "shellRev": "20261021-module-block-layout"
+  "shellRev": "20261027-shell-cache-contain"
 }

@@ -684,8 +684,12 @@
       verEl.textContent = vt;
     }
 
-    if (CIS.shellCache && state.config && state.config.shellRev) {
-      CIS.shellCache.startShellRevWatch(state.config.shellRev);
+    if (CIS.shellCache) {
+      CIS.shellCache.startShellRevWatch(
+        (CIS.shellCache.bootRev && CIS.shellCache.bootRev()) ||
+          (state.config && state.config.shellRev) ||
+          ""
+      );
     }
 
     setupUpdateButton();
