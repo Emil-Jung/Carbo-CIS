@@ -14,6 +14,7 @@
   "traceabilityKioskUrl": "/traceability/kiosk/",
   "controlRoomUrl": "/cis/control-room/",
   "controlRoomLive": true,
+  "walvisDispatchLive": false,
   "controlRoomRev": "20261009-cr6",
   "bagStockUrl": "/traceability/supervisor/",
   "traceabilityApiBase": "/traceability/api/v1",
@@ -26,5 +27,5 @@
   "zebraPrinterPort": 9100,
   "zebraLabelStockDefault": "6128",
   "zebraLabelStockStandardOnly": true,
-  "shellRev": "20261027-ui-contract"
+  "shellRev": "20261027-walvis-dispatch-parked"
 }

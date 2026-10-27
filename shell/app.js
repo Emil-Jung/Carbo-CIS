@@ -554,6 +554,7 @@
       (state.config && state.config.traceabilityApiBase) || "/traceability/api/v1";
 
     if (CIS.syncControlRoomVisibility) CIS.syncControlRoomVisibility(state.config);
+    if (CIS.syncWalvisDispatchVisibility) CIS.syncWalvisDispatchVisibility(state.config);
 
     if (CIS.shellCache) {
       if (await CIS.shellCache.applyFreshShellIfRequested()) return;

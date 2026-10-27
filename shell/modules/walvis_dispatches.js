@@ -1525,6 +1525,15 @@
     await renderList(container, ctx);
   }
 
+  function syncWalvisDispatchVisibility(cfg) {
+    var mod = (CIS.modules || []).find(function (m) {
+      return m.id === "walvis_dispatches";
+    });
+    if (mod) mod.inactive = !(cfg && cfg.walvisDispatchLive === true);
+  }
+
+  CIS.syncWalvisDispatchVisibility = syncWalvisDispatchVisibility;
+
   CIS.modules.push({
     id: "walvis_dispatches",
     title: "Walvis Bay Dispatch",
@@ -1532,6 +1541,7 @@
     icon: "traceability",
     description: "Truck loads GF → Walvis — manifest vs received",
     requires: "traceability.walvis_dispatch",
+    inactive: true,
     render: render,
   });
 })();

@@ -107,8 +107,14 @@
     return true;
   }
 
-  function appendHubTile(ui, rowEl, opt) {
+  function hubOptionVisible(opt, cfg) {
     if (!opt || opt.hubHidden || !optionAllowed(opt)) return false;
+    if (opt.id === "walvis_dispatches" && !(cfg && cfg.walvisDispatchLive === true)) return false;
+    return true;
+  }
+
+  function appendHubTile(ui, rowEl, opt, cfg) {
+    if (!hubOptionVisible(opt, cfg)) return false;
     var mod = (CIS.modules || []).find(function (m) {
       return m.id === opt.id;
     });
@@ -152,7 +158,7 @@
     HUB_ROWS.forEach(function (rowIds) {
       var row = ui.el("div", { class: "traceability-hub-row" });
       rowIds.forEach(function (id) {
-        if (appendHubTile(ui, row, OPTIONS[id])) shown += 1;
+        if (appendHubTile(ui, row, OPTIONS[id], ctx && ctx.config)) shown += 1;
       });
       if (row.childNodes.length) rowsHost.appendChild(row);
     });
