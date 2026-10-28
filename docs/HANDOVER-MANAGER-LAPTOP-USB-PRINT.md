@@ -1,72 +1,37 @@
-# Manager laptop — Print Labels only (no Git, USB Zebra)
+# Manager laptop — Print Labels USB pack (dev copy)
 
-Use this when the manager PC **does not** clone Carbo-CIS. Copy **`CarboPrintLabels-Setup.exe`** on a USB stick (built on the dev PC), install once, print with the Zebra on **USB**.
+**Manager-facing guide:** `docs/MANAGER-PRINT-LABELS-INSTALL.md` (copy to Dropbox as **`INSTALL.md`**).  
+Handover folder `Carbo-Exchange\Carbo-Print-Labels\` should contain only:
 
----
-
-## A. Dev PC (you) — put files on USB
-
-1. Build (if you do not already have a fresh installer):
-
-   ```powershell
-   cd "G:\My Coding Projects\Carbo-CIS\desktop"
-   .\BUILD-PRINT-LABELS.cmd
-   .\BUILD-PRINT-LABELS-INSTALLER.cmd
-   ```
-
-2. Copy to USB:
-
-   - `desktop\installer\Output\CarboPrintLabels-Setup-<version>.exe`
-   - This file: `docs\HANDOVER-MANAGER-LAPTOP-USB-PRINT.md` (optional)
-
-No VPN or bkweb3 needed to build. The `.exe` is **not** in GitHub — only you can produce it on a machine that has the repo.
+- `CarboPrintLabels-Setup.exe`
+- `INSTALL.md` (same content as `MANAGER-PRINT-LABELS-INSTALL.md`)
 
 ---
 
-## B. Manager laptop — install app
+## Dev PC — build and copy to USB / Dropbox
 
-1. Plug USB → run **`CarboPrintLabels-Setup.exe`** (admin if Windows asks).
-2. Start **Carbo Print Labels** from the Start menu.
-3. Sign in with a normal **CIS user** that has **label print** permission.
-4. Confirm the laptop can open **`https://bkweb3.bigk.co.uk/cis/`** in a browser (plant network; VPN not required). Without that, bag IDs will not load.
+```powershell
+cd "G:\My Coding Projects\Carbo-CIS\desktop"
+.\BUILD-PRINT-LABELS.cmd
+.\BUILD-PRINT-LABELS-INSTALLER.cmd
+```
 
----
+Copy to the handover folder:
 
-## C. Zebra ZT231 — USB (LAN not used)
+- `desktop\installer\Output\CarboPrintLabels-Setup.exe` (or rename the versioned output to this name)
+- Copy **`docs/MANAGER-PRINT-LABELS-INSTALL.md`** → **`INSTALL.md`**; update the version line if the app version changed
 
-1. Connect Zebra to the laptop with **USB**.
-2. Windows: **Settings → Printers & scanners** — let the driver install (or use Zebra’s driver if prompted).
-3. Note the **exact printer name** in Windows (e.g. `ZDesigner ZT231-203dpi ZPL` or `ZTC ZT231-203dpi ZPL`).
-4. In **Carbo Print Labels → Printer**:
-   - **Zebra label stock:** **61 × 28 mm (standard)** unless using old small rolls (54 × 25 mm).
-   - Use **Windows printer name** (not “network IP” mode).
-   - Select the **USB** queue from the dropdown.
-5. Print a **small test** (quantity **1**) before a large run.
-6. **Leave USB connected** while printing. If the cable is unplugged, the Windows queue often shows **Offline** — that is normal for USB.
-
-You do **not** need `SETUP-ZEBRA-LAN.ps1` for this workflow.
+The `.exe` is **not** in GitHub — build on a machine that has the repo.
 
 ---
 
-## D. Daily printing (manager)
+## Manager PC (summary)
 
-1. Open app → sign in.
-2. Choose **Zebra** (not A4 pallet unless needed).
-3. Enter quantity → **Continue** → confirm → **Print**.
-4. For a failed batch, use **Reprint labels** for the missing Bag IDs.
+Full steps (Zebra driver, app, test print): see **`INSTALL.md`** in the USB folder.
 
----
+1. Run **`CarboPrintLabels-Setup.exe`**
+2. Install **ZDesigner / ZPL** driver for **ZT231** (USB) — see INSTALL.md Step 2
+3. App: **Windows printer name**, stock **61 × 28 mm**, test print quantity **1**
+4. Network: **https://bkweb3.bigk.co.uk/cis/** must load in a browser
 
-## E. If something fails
-
-| Problem | What to try |
-|---------|-------------|
-| Cannot sign in | Open `https://bkweb3.bigk.co.uk/cis/` in Edge; fix Wi‑Fi/LAN with IT |
-| No permission to print | Identity admin grants label-print access for that login |
-| Zebra not in dropdown | USB plugged in; check Printers & scanners; reboot app |
-| Print job errors | Wrong stock size selected; try Test print; reselect Windows printer |
-| App looks old | Install a newer `CarboPrintLabels-Setup.exe` from USB (over install) |
-
----
-
-*No Git on the manager laptop. Updates = new `.exe` on USB from the dev PC.*
+No Git on the manager laptop. Updates = new installer from dev.
