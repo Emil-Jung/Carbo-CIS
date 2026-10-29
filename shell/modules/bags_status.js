@@ -2006,8 +2006,49 @@
     );
   }
 
+  function inTransitLoadDayCards(days) {
+    return (days || []).map(function (d) {
+      var day = d.day || "unknown";
+      return {
+        key: "transit:load_day:" + day,
+        kind: "walvis_transit_load_day",
+        label: day === "unknown" ? "Unknown load date" : fmtDate(day),
+        bags: d.bags || 0,
+        kg: d.kg || 0,
+        streams: d.streams || {},
+        loadDay: day,
+      };
+    });
+  }
+
+  function renderInTransitLoadDayTiles(parent, days, ui, onSelect, heading) {
+    if (!days || !days.length) return;
+    parent.appendChild(
+      ui.el("h4", { class: "bs-dash-location__subhead" }, [
+        heading || "By load date (GF in-transit scan)",
+      ])
+    );
+    parent.appendChild(
+      ui.el("p", { class: "bs-dash-drill-note bs-dash-location__note--compact" }, [
+        "Windhoek calendar day when each bag was scanned onto the Walvis Bay truck.",
+      ])
+    );
+    appendStatusCards(
+      parent,
+      inTransitLoadDayCards(days),
+      ui,
+      null,
+      onSelect,
+      "bs-dash-status-grid--inline"
+    );
+  }
+
   function renderWalvisTransitDispatchHub(parent, report, ui, onSelect) {
-    report = report || { dispatches: [], unassigned: {}, pallets: {} };
+    report = report || { dispatches: [], unassigned: {}, pallets: {}, by_load_day: [] };
+    var loadDays = report.by_load_day || [];
+    if (loadDays.length) {
+      renderInTransitLoadDayTiles(parent, loadDays, ui, onSelect);
+    }
     parent.appendChild(
       ui.el("p", { class: "bs-dash-drill-note" }, [
         "One tile per truck dispatch — tap a dispatch for product categories, then the bag list for that truck only.",
@@ -2234,6 +2275,20 @@
     } else {
 
       appendStatusCards(block, group.statuses || [], ui, selectedStatus, onSelect);
+
+      if (
+        group.key === "in_transit" &&
+        dashboardSummary &&
+        dashboardSummary.in_transit_by_load_day &&
+        dashboardSummary.in_transit_by_load_day.length
+      ) {
+        renderInTransitLoadDayTiles(
+          block,
+          dashboardSummary.in_transit_by_load_day,
+          ui,
+          onSelect
+        );
+      }
 
     }
 
@@ -3616,6 +3671,19 @@
 
       if (wxDrill) {
 
+        if (wxDrill.loading) {
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [wxDrill.label || "In transit"]));
+          body.appendChild(renderDrillLoading("Loading bags for this load date…", ui));
+          syncFloatingNav();
+          return;
+        }
+        if (wxDrill.error) {
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [wxDrill.label || "In transit"]));
+          body.appendChild(ui.error(wxDrill.error));
+          syncFloatingNav();
+          return;
+        }
+
         var wxRows = wxDrill.rows || [];
         var wxPalletList =
           !wxDrill.slice &&
@@ -4766,6 +4834,47 @@
       }
     }
 
+    async function openWalvisTransitLoadDay(st) {
+      var loadDay = st.loadDay || "unknown";
+      drillNavigate(function () {
+        selectedEvent = null;
+        selected = null;
+        wxDrill = {
+          label:
+            (loadDay === "unknown" ? "In transit — unknown load date" : "In transit — loaded " + fmtDate(loadDay)),
+          rows: [],
+          loading: true,
+          backTo: st.backTo || "main",
+        };
+      });
+      try {
+        if (!walvisTransitReport) {
+          walvisTransitReport = await ctx.api.traceability("/walvis-dispatches/in-transit-breakdown");
+        }
+        var section = (walvisTransitReport.by_load_day || []).find(function (d) {
+          return (d.day || "unknown") === loadDay;
+        });
+        var rows = (section && section.rows) || [];
+        var allPallets = rows.length && rows.every(function (r) {
+          return String(r.product_stream || "").toLowerCase() === "pallet";
+        });
+        if (!wxDrill || wxDrill.loading !== true) return;
+        wxDrill.loading = false;
+        wxDrill.rows = rows;
+        wxDrill.view = allPallets ? "pallet_table" : undefined;
+        if (!rows.length) {
+          wxDrill.note = "No bags found for this load date (counts may have changed).";
+        }
+        paint();
+      } catch (e) {
+        if (wxDrill && wxDrill.loading) {
+          wxDrill.loading = false;
+          wxDrill.error = e.message || String(e);
+          paint();
+        }
+      }
+    }
+
     async function openWalvisBulkDrill() {
       var token = beginDrillFetch("Bulk bags — Carbo Yard");
       try {
@@ -4820,6 +4929,12 @@
 
       if (st.key === WALVIS_TRANSIT_STATUS) {
         await openWalvisTransitHub(st);
+        return;
+      }
+
+      if (st.kind === "walvis_transit_load_day") {
+        st.backTo = selected && selected.mode === "walvis_transit_hub" ? "walvis_transit_hub" : "main";
+        await openWalvisTransitLoadDay(st);
         return;
       }
 
