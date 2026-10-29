@@ -27,5 +27,5 @@
   "zebraPrinterPort": 9100,
   "zebraLabelStockDefault": "6128",
   "zebraLabelStockStandardOnly": true,
-  "shellRev": "20261027-walvis-dispatch-parked"
+  "shellRev": "20261029-packing-plant-back"
 }

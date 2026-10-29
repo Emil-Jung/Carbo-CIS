@@ -3380,7 +3380,7 @@
       }
     }
 
-    /** Single stable handler — shell keeps same button DOM; one tap = one drill level up. */
+    /** One tap = one drill level up (status → events → bag list → pallet detail). */
     function drillBackOneStep() {
       if (navSnapshotBeforeFetch) {
         cancelDrillFetchAndRestore();
@@ -3388,12 +3388,22 @@
       }
       navSnapshotBeforeFetch = null;
       wxDrillToken += 1;
-      if (drillStack.length) {
-        restoreNavState(drillStack.pop());
+
+      if (selected && selected.palletDetail) {
+        if (drillStack.length) {
+          restoreNavState(drillStack.pop());
+        } else {
+          selected.palletDetail = null;
+          selected.serial = null;
+          if (selected.fromBagSearch) {
+            selected = null;
+            selectedEvent = null;
+          }
+        }
         paint();
         return;
       }
-      /* Stack empty but still in a drill (stale fetch, refresh edge case, or missed push). */
+
       if (wxDrill && wxDrill.slice) {
         wxDrill.slice = null;
         paint();
@@ -3404,27 +3414,31 @@
         paint();
         return;
       }
-      if (selected && selected.palletDetail) {
-        selected.palletDetail = null;
-        selected.serial = null;
-        if (selected.fromBagSearch) {
+
+      if (selected && selectedEvent) {
+        selectedEvent = null;
+        if (drillStack.length) drillStack.pop();
+        paint();
+        return;
+      }
+
+      if (selected) {
+        if (drillStack.length) {
+          restoreNavState(drillStack.pop());
+        } else {
           selected = null;
           selectedEvent = null;
         }
         paint();
         return;
       }
-      if (selected && selectedEvent) {
-        selectedEvent = null;
+
+      if (drillStack.length) {
+        restoreNavState(drillStack.pop());
         paint();
         return;
       }
-      if (selected) {
-        selected = null;
-        selectedEvent = null;
-        paint();
-        return;
-      }
+
       if (bagSearch && bagSearch.active) {
         bagSearch = null;
         repaintBagSearchBar();
