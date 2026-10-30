@@ -2842,8 +2842,20 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .ct-containers-add-status {
   margin: 12px 0 0;
 }
-.ct-containers-list-section > .btn-sm {
+.ct-containers-list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
   margin-bottom: 14px;
+}
+.ct-containers-list-header .ct-containers-section-title {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 12rem;
+}
+.ct-containers-closed-btn {
+  margin-left: auto;
 }
 .cm-print-dialog { max-width: 420px; width: 100%; }
 .cm-print-dialog--wide { max-width: 520px; }

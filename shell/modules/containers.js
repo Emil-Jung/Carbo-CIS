@@ -68,7 +68,16 @@
   async function render(container, ctx) {
     var ui = CIS.ui;
     var rows = [];
-    var showClosed = false;
+    /** "active" | "closed" — closed is shipped + cancelled only (separate list). */
+    var listView = "active";
+
+    function isActiveContainer(c) {
+      return c.status !== "dispatched" && c.status !== "cancelled";
+    }
+
+    function isClosedContainer(c) {
+      return c.status === "dispatched" || c.status === "cancelled";
+    }
 
     container.className = "module-content ct-containers-host";
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Containers"]));
@@ -161,23 +170,50 @@
     container.appendChild(addSection);
 
     var listSection = ui.el("section", { class: "ct-containers-list-section" });
-    listSection.appendChild(
-      ui.el("h3", { class: "ct-containers-section-title" }, ["Booked containers"])
-    );
+    var listHeader = ui.el("div", { class: "ct-containers-list-header" });
+    var listTitle = ui.el("h3", { class: "ct-containers-section-title" }, ["Active containers"]);
+    listHeader.appendChild(listTitle);
 
-    var toggle = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Show shipped and cancelled"]);
-    toggle.addEventListener("click", function () {
-      showClosed = !showClosed;
-      toggle.textContent = showClosed
-        ? "Hide shipped and cancelled"
-        : "Show shipped and cancelled";
+    var openClosedBtn = ui.el("button", {
+      class: "btn btn-sm ct-containers-closed-btn",
+      type: "button",
+    }, ["Shipped and cancelled…"]);
+    openClosedBtn.addEventListener("click", function () {
+      listView = "closed";
+      syncListChrome();
       paint();
     });
-    listSection.appendChild(toggle);
+    listHeader.appendChild(openClosedBtn);
+
+    var backActiveBtn = ui.el("button", {
+      class: "btn btn-sm",
+      type: "button",
+      hidden: true,
+    }, ["← Active containers"]);
+    backActiveBtn.addEventListener("click", function () {
+      listView = "active";
+      syncListChrome();
+      paint();
+    });
+    listHeader.appendChild(backActiveBtn);
+
+    listSection.appendChild(listHeader);
 
     var body = ui.el("div", { class: "ct-containers-list-body" });
     listSection.appendChild(body);
     container.appendChild(listSection);
+
+    function syncListChrome() {
+      var closedView = listView === "closed";
+      addSection.hidden = closedView;
+      listTitle.textContent = closedView ? "Shipped and cancelled" : "Active containers";
+      openClosedBtn.hidden = closedView;
+      backActiveBtn.hidden = !closedView;
+      var closedCount = rows.filter(isClosedContainer).length;
+      openClosedBtn.textContent = closedCount
+        ? "Shipped and cancelled (" + closedCount + ")…"
+        : "Shipped and cancelled…";
+    }
 
     function setStatus(text, isError) {
       status.textContent = text || "";
@@ -698,12 +734,19 @@
     }
 
     function paint() {
+      syncListChrome();
       body.innerHTML = "";
       var list = rows.filter(function (c) {
-        return showClosed || (c.status !== "dispatched" && c.status !== "cancelled");
+        return listView === "closed" ? isClosedContainer(c) : isActiveContainer(c);
       });
       if (!list.length) {
-        body.appendChild(ui.el("p", { class: "muted" }, ["No containers yet. Add the next booking above."]));
+        body.appendChild(
+          ui.el("p", { class: "muted" }, [
+            listView === "closed"
+              ? "No shipped or cancelled containers on record."
+              : "No active containers. Add the next booking above.",
+          ])
+        );
         return;
       }
       body.appendChild(renderTable(list));
