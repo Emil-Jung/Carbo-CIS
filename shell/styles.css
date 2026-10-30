@@ -1632,6 +1632,14 @@ body {
   color: #2563EB;
   font-weight: 600;
 }
+.bs-dash-status-card__product {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #047857;
+  letter-spacing: 0.02em;
+}
 
 .bs-dash-event-fines-split {
   display: block;

@@ -3222,6 +3222,10 @@
       card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtMass(section.kg)]));
 
       if (cardStyle === "container") {
+        var productRef = (section.product_display || "").trim();
+        if (productRef) {
+          card.appendChild(ui.el("span", { class: "bs-dash-status-card__product" }, [productRef]));
+        }
         var timeLine = containerSectionTimeLabel(section);
         if (timeLine) {
           card.appendChild(ui.el("span", { class: "bs-dash-status-card__dest" }, [timeLine]));
@@ -4158,10 +4162,12 @@
           if (selected.key === "in_container") {
             var cnTitle = (selectedEvent.container_number || "").trim() || "Container ref missing";
             var timeTitle = containerSectionTimeLabel(selectedEvent);
+            var prodTitle = (selectedEvent.product_display || "").trim();
             eventTitle =
               selected.label +
               " — " +
               cnTitle +
+              (prodTitle ? " — " + prodTitle : "") +
               (timeTitle ? " — " + timeTitle : "") +
               " — " +
               selectedEvent.bags +
