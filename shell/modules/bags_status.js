@@ -13,12 +13,18 @@
   var BS_AUTO_REFRESH_MS = 30000;
 
   /** Drill-down requests — smaller API payload (`drill=1` on Traceability). */
-  function bagsStatusDrillPath(statusKey, streamKey) {
+  function bagsStatusDrillPath(statusKey, streamKey, opts) {
+    opts = opts || {};
     var q = ["drill=1"];
     if (statusKey) q.push("status=" + encodeURIComponent(statusKey));
     if (streamKey) q.push("stream=" + encodeURIComponent(streamKey));
+    if (opts.fsc) q.push("fsc=" + encodeURIComponent(opts.fsc));
     q.push("_=" + Date.now());
     return "/reports/bags-status?" + q.join("&");
+  }
+
+  function isSoldFinesErongoTile(st) {
+    return st && (st.kind === "sold_fines_erongo_fsc" || st.kind === "sold_fines_erongo_non_fsc");
   }
 
   function traceabilityLiveGet(path) {
@@ -1670,11 +1676,19 @@
         cls += " bs-dash-status-card--ch10-historical";
       }
 
+      if (isSoldFinesErongoTile(st)) {
+        cls += " bs-dash-status-card--sold-fines-erongo";
+      }
+
       var card = ui.el("button", { class: cls, type: "button", onclick: function () { onSelect(st); } });
 
       if (st.kind === "finished_briquettes") {
         card.style.setProperty("--bs-card-accent", BRIQUETTE_CHARCOAL);
         card.classList.add("bs-dash-status-card--briquette");
+      }
+
+      if (isSoldFinesErongoTile(st)) {
+        card.style.setProperty("--bs-card-accent", STREAM_COLORS.fines);
       }
 
       card.appendChild(ui.el("span", { class: "bs-dash-status-card__label" }, [st.label]));
@@ -5113,6 +5127,42 @@
 
         return;
 
+      }
+
+      if (isSoldFinesErongoTile(st)) {
+        var fscKey = st.kind === "sold_fines_erongo_fsc" ? "fsc" : "non_fsc";
+        var tokenSf = beginDrillFetch(st.label || "Sold fines");
+        try {
+          var sfData = await ctx.api.traceability(
+            bagsStatusDrillPath("sold", "fines", { fsc: fscKey })
+          );
+          if (drillFetchCancelled(tokenSf)) return;
+          finishDrillFetch(tokenSf);
+          var sfSections = sfData.event_sections || [];
+          var sfCount = 0;
+          sfSections.forEach(function (sec) {
+            sfCount += sec.bags || 0;
+          });
+          drillNavigate(function () {
+            selectedEvent = null;
+            wxDrill = null;
+            selected = {
+              key: st.key,
+              label: st.label,
+              mode: "events",
+              count: sfCount,
+              eventSections: sfSections,
+              note:
+                "Fines sold to Erongo (biofuel). FSC vs non-FSC split for End of life reporting.",
+            };
+          });
+        } catch (err) {
+          finishDrillFetch(tokenSf);
+          if (!drillFetchCancelled(tokenSf)) {
+            ctx.ui && ctx.ui.toast && ctx.ui.toast(String(err.message || err), "error");
+          }
+        }
+        return;
       }
 
       if (WX_BUCKET_STATUS[st.key] && weathering) {
