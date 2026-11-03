@@ -18,6 +18,7 @@
   var FSC_BAG_POLICIES = [
     { value: "fsc_only", label: "FSC only (FSC bulk only)" },
     { value: "non_fsc_only", label: "Non-FSC only (non-FSC bulk only)" },
+    { value: "mixed", label: "Mix FSC (FSC and non-FSC bulk on same SKU)" },
   ];
 
   function fscPolicyLabel(code) {
@@ -190,7 +191,9 @@
         prodPackInput.value =
           product.production_pack_weight_kg != null ? String(product.production_pack_weight_kg) : "";
         fscSel.value =
-          product.fsc_bag_policy === "fsc_only" || product.fsc_bag_policy === "non_fsc_only"
+          product.fsc_bag_policy === "fsc_only" ||
+          product.fsc_bag_policy === "non_fsc_only" ||
+          product.fsc_bag_policy === "mixed"
             ? product.fsc_bag_policy
             : "non_fsc_only";
       } else {
@@ -235,7 +238,7 @@
         field(
           "Source bags (FSC)",
           fscSel,
-          "Which bulk bags may be scanned into this SKU at the packing plant. LF lines are typically FSC only."
+          "Which bulk bags may be scanned into this SKU. Mix FSC allows both FSC and non-FSC bulk on one SKU (LF* lines stay FSC only)."
         )
       );
       if (isEdit) {
@@ -271,7 +274,7 @@
       el.addEventListener("submit", function (ev) {
         ev.preventDefault();
         if (!fscSel.value) {
-          setStatus("Choose source bags: FSC only or Non-FSC only (never mixed on one SKU).", true);
+          setStatus("Choose source bags: FSC only, Non-FSC only, or Mix FSC.", true);
           fscSel.focus();
           return;
         }

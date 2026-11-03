@@ -6,6 +6,7 @@
   var POLL_MS = 30000;
 
   var OPS_DRAG_LS = "cis_float_ops_position_v1";
+  var OPS_MIN_LS = "cis_float_ops_minimized_v1";
   var drag = {
     panel: null,
     active: false,
@@ -29,6 +30,39 @@
     return (
       '<button type="button" class="cis-float-ops-drag-handle" aria-label="Drag to move this panel">' +
       "Drag to move</button>"
+    );
+  }
+
+  function opsMinimizedLoad() {
+    try {
+      return localStorage.getItem(OPS_MIN_LS) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function setOpsMinimized(min) {
+    var panel = document.getElementById("cis-float-ops");
+    var next = !!min;
+    try {
+      localStorage.setItem(OPS_MIN_LS, next ? "1" : "0");
+    } catch (e) {}
+    if (panel) panel.classList.toggle("cis-float-ops-panel--minimized", next);
+  }
+
+  function opsCardHead(titleText, activeCount) {
+    var countHtml =
+      activeCount > 0
+        ? ' <span class="cis-float-ops-active-count">(' + activeCount + " active)</span>"
+        : "";
+    return (
+      '<div class="cis-float-ops-card__head">' +
+      '<div class="cis-float-ops-card__title">' +
+      esc(titleText) +
+      countHtml +
+      "</div>" +
+      '<button type="button" class="cis-float-ops-minimize-btn" aria-label="Minimize active operations" title="Collapse to one line">Minimize</button>' +
+      "</div>"
     );
   }
 
@@ -149,6 +183,24 @@
     var t = e.target;
     if (!t || !t.closest) return false;
     return !!t.closest(".cis-float-ops-drag-handle, .cis-float-ops-card__title");
+  }
+
+  function ensureOpsPanelMinimize(panel) {
+    if (!panel || panel.dataset.opsMinWire === "1") return;
+    panel.dataset.opsMinWire = "1";
+    panel.addEventListener("click", function (e) {
+      if (e.target.closest(".cis-float-ops-minimize-btn")) {
+        e.preventDefault();
+        e.stopPropagation();
+        setOpsMinimized(true);
+        return;
+      }
+      if (!panel.classList.contains("cis-float-ops-panel--minimized")) return;
+      if (e.target.closest(".cis-float-ops-card__head, .cis-float-ops-card__title")) {
+        e.preventDefault();
+        setOpsMinimized(false);
+      }
+    });
   }
 
   function ensureOpsPanelDrag(panel) {
@@ -323,7 +375,7 @@
     if (state.error) {
       state.floatEl.innerHTML =
         opsCardOpen("cis-float-ops-card--error") +
-        '<div class="cis-float-ops-card__title">Active operations</div>' +
+        opsCardHead("Active operations", 0) +
         '<p class="cis-float-ops-card__body">' +
         esc(state.error) +
         "</p></div>";
@@ -333,7 +385,7 @@
     if (!state.last) {
       state.floatEl.innerHTML =
         opsCardOpen("cis-float-ops-card--idle") +
-        '<div class="cis-float-ops-card__title">Active operations</div>' +
+        opsCardHead("Active operations", 0) +
         '<p class="cis-float-ops-card__body cis-float-ops-card__muted">Loading…</p></div>';
       return;
     }
@@ -342,14 +394,14 @@
     if (!items.length) {
       state.floatEl.innerHTML =
         opsCardOpen("cis-float-ops-card--idle") +
-        '<div class="cis-float-ops-card__title">Active operations</div>' +
+        opsCardHead("Active operations", 0) +
         '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active sieving, packaging, Walvis load, or container loading.</p></div>';
       return;
     }
 
     state.floatEl.innerHTML =
       opsCardOpen("cis-float-ops-card--active") +
-      '<div class="cis-float-ops-card__title">Active operations</div>' +
+      opsCardHead("Active operations", items.length) +
       items.map(function (it) {
         return it.html;
       }).join("") +
@@ -370,6 +422,8 @@
       state.floatEl = wrap;
     }
     ensureOpsPanelDrag(panel);
+    ensureOpsPanelMinimize(panel);
+    panel.classList.toggle("cis-float-ops-panel--minimized", opsMinimizedLoad());
     renderFloatContent();
   }
 

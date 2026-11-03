@@ -17,6 +17,7 @@
   /* Fixed gold Back button (left) — keep last lines of module lists readable */
   --cis-float-nav-clearance: calc(env(safe-area-inset-bottom, 0px) + 14px + 8.5rem + 32px);
   --cis-float-nav-clearance-stacked: calc(env(safe-area-inset-bottom, 0px) + 14px + 11.5rem + 32px);
+  --cis-float-nav-clearance-minimized: calc(env(safe-area-inset-bottom, 0px) + 14px + 2.85rem + 16px);
 }
 
 * { box-sizing: border-box; }
@@ -217,9 +218,15 @@ body {
   padding-bottom: var(--cis-float-nav-clearance-stacked);
   scroll-padding-bottom: var(--cis-float-nav-clearance-stacked);
 }
+.module-content.has-float-nav--minimized:not(.module-iframe-host):not(.module-quality-host),
+.workspace-module.has-float-nav--minimized,
+.app-view:has(#cis-float-nav.cis-float-nav--minimized:not(.hidden)) #module-content:not(.module-iframe-host):not(.module-quality-host) {
+  padding-bottom: var(--cis-float-nav-clearance-minimized);
+  scroll-padding-bottom: var(--cis-float-nav-clearance-minimized);
+}
 
 /* Production /cis/ shell: modules set container.className and wipe has-float-nav */
-.app-view:has(#cis-float-nav:not(.hidden)) #module-content:not(.module-iframe-host):not(.module-quality-host) {
+.app-view:has(#cis-float-nav:not(.hidden):not(.cis-float-nav--minimized)) #module-content:not(.module-iframe-host):not(.module-quality-host):not(.has-float-nav--minimized) {
   padding-bottom: var(--cis-float-nav-clearance-stacked);
   scroll-padding-bottom: var(--cis-float-nav-clearance-stacked);
 }
@@ -364,6 +371,69 @@ body {
 .cis-float-ops-item .cis-float-ops-card__meta {
   margin: 0;
 }
+.cis-float-ops-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.cis-float-ops-card__head .cis-float-ops-card__title {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+.cis-float-ops-minimize-btn {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 3px 8px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #1a1200;
+  cursor: pointer;
+  touch-action: manipulation;
+  background: rgba(26, 18, 0, 0.12);
+  border: 1px solid rgba(26, 18, 0, 0.28);
+  border-radius: 5px;
+}
+.cis-float-ops-minimize-btn:hover {
+  background: rgba(26, 18, 0, 0.2);
+}
+.cis-float-ops-active-count {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  opacity: 0.95;
+}
+.cis-float-ops-panel--minimized .cis-float-ops-drag-handle,
+.cis-float-ops-panel--minimized .cis-float-ops-item,
+.cis-float-ops-panel--minimized .cis-float-ops-card__body,
+.cis-float-ops-panel--minimized .cis-float-ops-minimize-btn {
+  display: none !important;
+}
+.cis-float-ops-panel--minimized .cis-float-ops-card {
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.cis-float-ops-panel--minimized .cis-float-ops-card__head {
+  margin-bottom: 0;
+  cursor: pointer;
+}
+.cis-float-ops-panel--minimized .cis-float-ops-card__title {
+  cursor: pointer;
+  padding-right: 0;
+}
+.cis-float-ops-panel--minimized .cis-float-ops-card__title::after {
+  content: " · tap to expand";
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
 
 .cis-float-nav {
   position: fixed;
@@ -379,6 +449,46 @@ body {
 }
 .cis-float-nav.hidden {
   display: none;
+}
+.cis-float-nav__actions {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 100%;
+}
+.cis-float-nav--minimized .cis-float-nav__actions {
+  display: none;
+}
+.cis-float-nav__peek {
+  display: none;
+  padding: 7px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  max-width: 100%;
+}
+.cis-float-nav--minimized .cis-float-nav__peek {
+  display: inline-flex;
+}
+.cis-float-nav__minimize {
+  align-self: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1a1200;
+  cursor: pointer;
+  touch-action: manipulation;
+  background: rgba(26, 18, 0, 0.12);
+  border: 1px solid rgba(26, 18, 0, 0.28);
+  border-radius: 6px;
+}
+.cis-float-nav__minimize:hover {
+  background: rgba(26, 18, 0, 0.2);
 }
 
 /* Launcher tiles (Maintenance Manager, Producers office, etc.) — vertical stack, not a flex row. */
@@ -688,6 +798,18 @@ body {
 }
 .module-content.bs-dashboard-host tr.wdsl-row--master-revert td.wdsl-movement--master-revert {
   color: #6D28D9;
+}
+.module-content.bs-dashboard-host tr.wdsl-row--typed td.wdsl-capture--typed {
+  color: #B45309;
+  font-weight: 700;
+}
+.module-content.bs-dashboard-host .wdsl-capture {
+  white-space: nowrap;
+  font-size: 12px;
+}
+.module-content.bs-dashboard-host .wdsl-scanner {
+  font-size: 12px;
+  max-width: 10rem;
 }
 .module-content.bs-dashboard-host .wdsl-balance-panel {
   margin-bottom: 16px;
@@ -2856,6 +2978,22 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 }
 .ct-containers-closed-btn {
   margin-left: auto;
+}
+.ct-containers-list-section > .btn-sm,
+.ct-containers-shipped-toggle {
+  margin-top: 18px;
+  margin-bottom: 14px;
+}
+.ct-containers-shipped-section {
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 2px solid var(--border);
+}
+.ct-containers-shipped-section[hidden] {
+  display: none !important;
+}
+.ct-containers-list-body--shipped .data tbody tr {
+  opacity: 0.92;
 }
 .cm-print-dialog { max-width: 420px; width: 100%; }
 .cm-print-dialog--wide { max-width: 520px; }
