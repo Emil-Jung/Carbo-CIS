@@ -5580,6 +5580,22 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
 .pallet-config-workspace {
   grid-template-columns: minmax(260px, 400px) minmax(300px, 1fr);
 }
+/* Product catalog scrolls with the main CIS module pane — no inner scroll box. */
+.pallet-config-host .pallet-config-list,
+.pallet-config-host .pallet-config-list-panel {
+  max-height: none;
+  overflow: visible;
+}
+.pallet-config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.pallet-config-host .packing-floor-table-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+  max-height: none;
+}
 .pallet-config-form .ct-field { margin-bottom: 0.55rem; }
 .pallet-config-form .pallet-config-hint {
   display: block;

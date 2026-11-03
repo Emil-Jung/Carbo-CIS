@@ -91,7 +91,7 @@
         ]),
       ])
     );
-    var listHost = ui.el("div", { class: "walvis-dispatch-list-col pallet-config-list" });
+    var listHost = ui.el("div", { class: "pallet-config-list" });
     listPanel.appendChild(listHost);
 
     formPanel.appendChild(
