@@ -21,34 +21,13 @@
   const state = { config: null, token: null, user: null, permissions: [], activeModuleId: null };
   CIS._state = state;
 
-  const FLOAT_NAV_MIN_LS = "cis_float_nav_minimized_v1";
-
   const floatNavState = {
     secondary: null,
     backInFlight: false,
     /** Ignore duplicate tile taps while the same module render is in flight. */
     moduleOpenInFlight: null,
     moduleOpenSeq: 0,
-    minimized: false,
   };
-
-  function floatNavMinimizedLoad() {
-    try {
-      return localStorage.getItem(FLOAT_NAV_MIN_LS) === "1";
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function setFloatNavMinimized(min) {
-    floatNavState.minimized = !!min;
-    try {
-      localStorage.setItem(FLOAT_NAV_MIN_LS, floatNavState.minimized ? "1" : "0");
-    } catch (e) {}
-    renderFloatNav();
-  }
-
-  floatNavState.minimized = floatNavMinimizedLoad();
   const navStack = ["dashboard"];
 
   /** No-op — kept so modules may still call after async drill paint. */
@@ -207,11 +186,9 @@
   }
 
   function applyFloatNavScrollRoom(stacked) {
-    const minimized = !!floatNavState.minimized;
     floatNavScrollTargets().forEach(function (el) {
       el.classList.add("has-float-nav");
-      if (stacked && !minimized) el.classList.add("has-float-nav--stacked");
-      if (minimized) el.classList.add("has-float-nav--minimized");
+      if (stacked) el.classList.add("has-float-nav--stacked");
     });
   }
 
@@ -221,10 +198,8 @@
     const el = moduleRoot || document.getElementById("module-content");
     if (!nav || !el || nav.classList.contains("hidden")) return;
     const stacked = !!state.activeModuleId && state.activeModuleId !== "dashboard";
-    const minimized = !!floatNavState.minimized;
     el.classList.add("has-float-nav");
-    if (stacked && !minimized) el.classList.add("has-float-nav--stacked");
-    if (minimized) el.classList.add("has-float-nav--minimized");
+    if (stacked) el.classList.add("has-float-nav--stacked");
   }
 
   var floatNavClickWired = false;
@@ -243,32 +218,12 @@
   }
 
   function ensureFloatNavButtons(nav) {
+    nav.classList.remove("cis-float-nav--minimized");
+    nav.querySelectorAll("[data-cis-float-peek], [data-cis-float-minimize]").forEach(function (el) {
+      el.remove();
+    });
+
     var actions = ensureFloatNavActions(nav);
-
-    var peekBtn = nav.querySelector("[data-cis-float-peek]");
-    if (!peekBtn) {
-      peekBtn = document.createElement("button");
-      peekBtn.type = "button";
-      peekBtn.className = "cis-float-nav__peek cis-float-back-btn";
-      peekBtn.dataset.cisFloatPeek = "1";
-      peekBtn.textContent = "Navigation";
-      peekBtn.title = "Show Main dashboard and Back";
-      peekBtn.setAttribute("aria-label", "Expand navigation");
-      peekBtn.setAttribute("aria-expanded", "false");
-      nav.insertBefore(peekBtn, actions);
-    }
-
-    var minBtn = nav.querySelector("[data-cis-float-minimize]");
-    if (!minBtn) {
-      minBtn = document.createElement("button");
-      minBtn.type = "button";
-      minBtn.className = "cis-float-nav__minimize";
-      minBtn.dataset.cisFloatMinimize = "1";
-      minBtn.textContent = "Minimize";
-      minBtn.title = "Collapse to a single line";
-      minBtn.setAttribute("aria-label", "Minimize navigation");
-      actions.appendChild(minBtn);
-    }
 
     var homeBtn = nav.querySelector("[data-cis-float-home]");
     if (!homeBtn) {
@@ -294,17 +249,6 @@
     }
     if (!floatNavClickWired) {
       nav.addEventListener("click", function (e) {
-        if (e.target.closest("[data-cis-float-peek]")) {
-          e.preventDefault();
-          setFloatNavMinimized(false);
-          return;
-        }
-        if (e.target.closest("[data-cis-float-minimize]")) {
-          e.preventDefault();
-          e.stopPropagation();
-          setFloatNavMinimized(true);
-          return;
-        }
         if (e.target.closest("[data-cis-float-home]")) {
           e.preventDefault();
           floatNavState.secondary = null;
@@ -336,9 +280,6 @@
     ensureFloatNavButtons(nav);
     nav.classList.remove("hidden");
     nav.setAttribute("aria-hidden", "false");
-    nav.classList.toggle("cis-float-nav--minimized", !!floatNavState.minimized);
-    var peekBtn = nav.querySelector("[data-cis-float-peek]");
-    if (peekBtn) peekBtn.setAttribute("aria-expanded", floatNavState.minimized ? "false" : "true");
     clearFloatNavScrollRoom();
     applyFloatNavScrollRoom(true);
   }

@@ -478,45 +478,6 @@ body {
   gap: 6px;
   max-width: 100%;
 }
-.cis-float-nav--minimized .cis-float-nav__actions {
-  display: none;
-}
-.cis-float-nav__peek {
-  display: none;
-  padding: 7px 12px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  max-width: 100%;
-}
-.cis-float-nav--minimized .cis-float-nav__peek {
-  display: inline-flex;
-}
-.cis-float-nav__minimize {
-  align-self: stretch;
-  width: 100%;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 6px 12px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  white-space: nowrap;
-  overflow: visible;
-  text-overflow: clip;
-  text-align: center;
-  color: #1a1200;
-  cursor: pointer;
-  touch-action: manipulation;
-  background: rgba(26, 18, 0, 0.12);
-  border: 1px solid rgba(26, 18, 0, 0.28);
-  border-radius: 6px;
-}
-.cis-float-nav__minimize:hover {
-  background: rgba(26, 18, 0, 0.2);
-}
-
 /* Launcher tiles (Maintenance Manager, Producers office, etc.) — vertical stack, not a flex row. */
 .module-content.module-launcher-page {
   display: block;
