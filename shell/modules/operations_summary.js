@@ -57,11 +57,12 @@
         : "";
     return (
       '<div class="cis-float-ops-card__head">' +
+      '<button type="button" class="cis-float-ops-minimize-btn" aria-label="Minimize active operations" title="Collapse to one line">Minimize</button>' +
       '<div class="cis-float-ops-card__title">' +
       esc(titleText) +
       countHtml +
       "</div>" +
-      '<button type="button" class="cis-float-ops-minimize-btn" aria-label="Minimize active operations" title="Collapse to one line">Minimize</button>' +
+      '<div class="cis-float-ops-card__expand-hint">Tap to expand</div>' +
       "</div>"
     );
   }
@@ -196,7 +197,7 @@
         return;
       }
       if (!panel.classList.contains("cis-float-ops-panel--minimized")) return;
-      if (e.target.closest(".cis-float-ops-card__head, .cis-float-ops-card__title")) {
+      if (e.target.closest(".cis-float-ops-card__head, .cis-float-ops-card__title, .cis-float-ops-card__expand-hint")) {
         e.preventDefault();
         setOpsMinimized(false);
       }
