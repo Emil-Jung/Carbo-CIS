@@ -193,15 +193,17 @@
     section.appendChild(actionMsg);
 
     var actions = ui.el("div", { class: "td-doc-sheet-actions td-doc-eudr-actions" });
-    var btnLoadSuggested = ui.el("button", { class: "btn btn-sm", type: "button" }, [
+    var secondary = "btn td-doc-eudr-btn-secondary";
+    var btnLoadSuggested = ui.el("button", { class: secondary, type: "button" }, [
       "Load suggested fields",
     ]);
     var btnSave = ui.el("button", { class: "btn", type: "button" }, ["Save new statement"]);
-    var btnPreview = ui.el("button", { class: "btn", type: "button" }, ["Preview statement"]);
-    var btnPdf = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Download PDF"]);
-    var btnPrint = ui.el("button", { class: "btn btn-sm", type: "button" }, ["Print"]);
+    var btnPreview = ui.el("button", { class: secondary, type: "button" }, ["Preview"]);
+    var btnPdf = ui.el("button", { class: secondary, type: "button" }, ["Download PDF"]);
+    var btnPrint = ui.el("button", { class: secondary, type: "button" }, ["Print"]);
     actions.appendChild(btnLoadSuggested);
     actions.appendChild(btnSave);
+    actions.appendChild(ui.el("span", { class: "td-doc-eudr-actions-sep", "aria-hidden": "true" }));
     actions.appendChild(btnPreview);
     actions.appendChild(btnPdf);
     actions.appendChild(btnPrint);
