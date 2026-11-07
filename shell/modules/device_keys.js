@@ -48,10 +48,20 @@
       filter: "all",
       pwaUrlKey: "traceabilityKioskUrl",
       pwaDefault: "/traceability/kiosk/",
-      intro: "One key per Zebra scanner at the weighing station (Fransina).",
+      intro: "One key per Zebra scanner — weighing station kiosk and Bag Walk scanners.",
       deviceNoun: "scanner",
       registerStep: "Paste the key on the registration screen (or History → Device key)",
+      scannerIdentity: true,
     },
+  ];
+
+  var SCANNER_NAMES = [
+    "Packaging Scanner GFN",
+    "Storage Scanner GFN",
+    "Briquette Scanner GFN",
+    "Walvis Bay Scanner",
+    "AGL Scanner",
+    "Training Scanner",
   ];
 
   function cfg(ctx, key, fallback) {
@@ -111,6 +121,11 @@
     var editLabelBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Edit label…"]);
     toolbar.appendChild(genBtn);
     toolbar.appendChild(editLabelBtn);
+    var identityBtn = null;
+    if (pool.scannerIdentity) {
+      identityBtn = ui.el("button", { class: "btn-ghost btn-sm", type: "button" }, ["Scanner identity…"]);
+      toolbar.appendChild(identityBtn);
+    }
     toolbar.appendChild(refreshBtn);
     section.appendChild(toolbar);
 
@@ -134,7 +149,9 @@
       tableWrap.innerHTML = "";
       var table = ui.el("table", { class: "data device-keys-table" });
       table.innerHTML =
-        "<thead><tr><th></th><th>Label</th><th>Key ID</th><th>Status</th><th>Last used</th><th>Created</th></tr></thead>";
+        "<thead><tr><th></th><th>Label</th>" +
+        (pool.scannerIdentity ? "<th>Scanner name</th>" : "") +
+        "<th>Key ID</th><th>Status</th><th>Last used</th><th>Created</th></tr></thead>";
       var tbody = ui.el("tbody", {});
       rows.forEach(function (row) {
         var tr = ui.el("tr", {});
@@ -159,6 +176,10 @@
           openEditLabelModal(ctx, pool, ui, row, refresh);
         });
         tr.appendChild(labelTd);
+        if (pool.scannerIdentity) {
+          var identityText = [row.operational_name, row.department].filter(Boolean).join(" · ");
+          tr.appendChild(ui.el("td", {}, [identityText || "—"]));
+        }
         tr.appendChild(ui.el("td", { class: "muted" }, [row.key_id || ""]));
         var st = row.status || "";
         tr.appendChild(ui.el("td", {}, [ui.el("span", { class: "pill " + (st === "active" ? "ok" : st === "disabled" ? "warn" : "danger") }, [st])]));
@@ -211,6 +232,15 @@
       }
       openEditLabelModal(ctx, pool, ui, row, refresh);
     });
+    if (identityBtn) {
+      identityBtn.addEventListener("click", function () {
+        if (!selectedRow) {
+          window.alert("Select a key first.");
+          return;
+        }
+        openScannerIdentityModal(ctx, pool, ui, selectedRow, refresh);
+      });
+    }
     refreshBtn.addEventListener("click", refresh);
     disableBtn.addEventListener("click", function () { patchStatus("disabled"); });
     enableBtn.addEventListener("click", function () { patchStatus("active"); });
@@ -293,6 +323,77 @@
     document.body.appendChild(backdrop);
     labelInput.focus();
     labelInput.select();
+  }
+
+  /** Display identity only — the key, its permissions and enforcement do not change. */
+  function openScannerIdentityModal(ctx, pool, ui, row, onDone) {
+    var backdrop = ui.el("div", { class: "modal-backdrop" });
+    var modal = ui.el("div", { class: "modal" });
+    backdrop.appendChild(modal);
+    modal.appendChild(ui.el("h3", {}, ["Scanner identity — " + (row.label || row.key_id || "")]));
+    modal.appendChild(ui.el("p", { class: "muted" }, [
+      "Key ID ",
+      ui.el("code", {}, [row.key_id || "—"]),
+      " and device number " + row.device_key_id + " never change. The scanner name is shown on Bag Walk " +
+        "and in movement history; past records keep the device number they were saved with.",
+    ]));
+    var errEl = ui.el("div", { class: "error-box hidden" });
+    modal.appendChild(errEl);
+
+    var listId = "dk-scanner-names-" + pool.id;
+    var datalist = ui.el("datalist", { id: listId });
+    SCANNER_NAMES.forEach(function (n) {
+      datalist.appendChild(ui.el("option", { value: n }));
+    });
+    modal.appendChild(datalist);
+
+    var fields = [
+      ["operational_name", "Scanner name", "e.g. Walvis Bay Scanner", { list: listId }],
+      ["department", "Department / site", "e.g. Walvis Bay yard", {}],
+      ["hardware_id", "Hardware ID (Zebra serial)", "e.g. 22123522503456", {}],
+      ["assigned_operator_ref", "Usual operator (reference)", "e.g. Fransina", {}],
+    ];
+    var inputs = {};
+    fields.forEach(function (f) {
+      modal.appendChild(ui.el("label", {}, [f[1]]));
+      var attrs = Object.assign({ type: "text", value: row[f[0]] || "", placeholder: f[2] }, f[3]);
+      inputs[f[0]] = ui.el("input", attrs);
+      modal.appendChild(inputs[f[0]]);
+    });
+
+    var actions = ui.el("div", { class: "modal-actions" });
+    var cancelBtn = ui.el("button", { class: "btn-ghost", type: "button" }, ["Cancel"]);
+    var saveBtn = ui.el("button", { class: "btn", type: "button" }, ["Save"]);
+    actions.appendChild(cancelBtn);
+    actions.appendChild(saveBtn);
+    modal.appendChild(actions);
+
+    cancelBtn.addEventListener("click", function () { document.body.removeChild(backdrop); });
+    saveBtn.addEventListener("click", async function () {
+      errEl.classList.add("hidden");
+      var body = {};
+      fields.forEach(function (f) {
+        var v = inputs[f[0]].value.trim();
+        if (v !== (row[f[0]] || "").trim()) body[f[0]] = v;
+      });
+      if (!Object.keys(body).length) {
+        document.body.removeChild(backdrop);
+        return;
+      }
+      saveBtn.disabled = true;
+      try {
+        await apiFor(ctx, pool)("/device-keys/" + row.device_key_id, { method: "PATCH", body: body });
+        document.body.removeChild(backdrop);
+        if (onDone) await onDone();
+      } catch (e) {
+        errEl.textContent = e.message || "Could not save scanner identity";
+        errEl.classList.remove("hidden");
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+    document.body.appendChild(backdrop);
+    inputs.operational_name.focus();
   }
 
   function openGenerateModal(ctx, pool, ui, onDone) {

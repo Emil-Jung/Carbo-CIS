@@ -593,7 +593,13 @@
           "<td>" + ui.escape(fmtContainerLoadingDate(c)) + "</td>" +
           "<td>" + ui.escape(c.location_display) + "</td>" +
           "<td>" + ui.escape(progressText(c)) + "</td>" +
-          "<td>" + ui.escape(STATUS_LABEL[c.status] || c.status) + "</td>" +
+          "<td>" + ui.escape(STATUS_LABEL[c.status] || c.status) +
+          (c.loading_paused
+            ? " <strong title=\"Paused on a scanner" +
+              (c.loading_paused_by ? " by " + ui.escape(c.loading_paused_by) : "") +
+              "\">· PAUSED</strong>"
+            : "") +
+          "</td>" +
           "<td>" +
           ui.escape(c.released_for_loading ? fmtDate(c.released_for_loading_at) : "Not released") +
           "</td>";

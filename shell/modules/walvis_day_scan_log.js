@@ -77,12 +77,7 @@
     return "—";
   }
 
-  function fmtMovedAt(row) {
-    if (!row) return "—";
-    var iso = row.status_changed_at || row.recorded_at;
-    if (!iso) return "—";
-    var timeHm = row.status_changed_time || row.recorded_time;
-    if (timeHm) return timeHm;
+  function fmtClock(iso) {
     try {
       var d = new Date(iso);
       if (isNaN(d.getTime())) return "—";
@@ -96,6 +91,33 @@
     } catch (e) {
       return "—";
     }
+  }
+
+  /** Physical time first; server receipt shown too when the scanner sent it late. */
+  function fmtMovedAt(row) {
+    if (!row) return "—";
+    var iso = row.status_changed_at || row.recorded_at;
+    var physical = row.physical_at;
+    var server = row.server_recorded_at || iso;
+    if (physical && server && Math.abs(new Date(server) - new Date(physical)) > 60000) {
+      return fmtClock(physical) + " (server " + fmtClock(server) + ")";
+    }
+    if (!iso) return "—";
+    var timeHm = row.status_changed_time || row.recorded_time;
+    if (timeHm) return timeHm;
+    return fmtClock(iso);
+  }
+
+  function movementCell(row, ui) {
+    var parts = [row.event_title || row.movement_summary || "—"];
+    if (row.event_class && row.event_class !== "physical") {
+      parts.push(
+        ui.el("span", { class: "bs-item-history__class bs-item-history__class--" + row.event_class }, [
+          row.event_class_label || row.event_class,
+        ])
+      );
+    }
+    return parts;
   }
 
   function streamLabel(row) {
@@ -358,7 +380,9 @@
           if (row.master_storage_override) movementCls += " wdsl-movement--master-revert";
           tr.appendChild(ui.el("td", { class: "bs-dash-muted" }, [String(i + 1)]));
           tr.appendChild(ui.el("td", {}, [row.serial || "—"]));
-          tr.appendChild(ui.el("td", { class: movementCls }, [row.movement_summary || "—"]));
+          var movementAttrs = { class: movementCls };
+          if (row.event_description) movementAttrs.title = row.event_description;
+          tr.appendChild(ui.el("td", movementAttrs, movementCell(row, ui)));
           tr.appendChild(ui.el("td", {}, [row.movement_product_code || row.product_code || "—"]));
           tr.appendChild(ui.el("td", {}, [row.producer_name || "—"]));
           tr.appendChild(ui.el("td", {}, [streamLabel(row)]));

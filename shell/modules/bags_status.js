@@ -199,6 +199,57 @@
     return wrap;
   }
 
+  /** Movement history from the Traceability event dictionary (same wording as Bag Walk). */
+  function renderItemHistory(history, ui) {
+    var wrap = ui.el("section", { class: "bs-item-history" });
+    wrap.appendChild(ui.el("h4", { class: "bs-item-history__title" }, ["Movement history"]));
+    var items = history || [];
+    if (!items.length) {
+      wrap.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, ["No recorded movements."]));
+      return wrap;
+    }
+    var table = ui.el("table", { class: "bs-item-history__table" });
+    table.appendChild(
+      ui.el("thead", {}, [
+        ui.el("tr", {}, [
+          ui.el("th", {}, ["Happened"]),
+          ui.el("th", {}, ["Event"]),
+          ui.el("th", {}, ["Recorded on server"]),
+          ui.el("th", {}, ["Scanner / by"]),
+        ]),
+      ])
+    );
+    var tbody = ui.el("tbody");
+    items.forEach(function (h) {
+      var physical = h.physical_at || h.server_recorded_at;
+      var server = h.server_recorded_at;
+      var gapMs = physical && server ? Math.abs(new Date(server) - new Date(physical)) : 0;
+      var eventCell = [ui.el("strong", {}, [h.title || h.code || "—"])];
+      if (h.event_class && h.event_class !== "physical") {
+        eventCell.push(
+          ui.el("span", { class: "bs-item-history__class bs-item-history__class--" + h.event_class }, [
+            h.event_class_label || h.event_class,
+          ])
+        );
+      }
+      if (h.description && h.description !== h.title) {
+        eventCell.push(ui.el("div", { class: "bs-item-history__desc" }, [h.description]));
+      }
+      var who = [h.device_name, h.recorded_by].filter(Boolean).join(" · ");
+      tbody.appendChild(
+        ui.el("tr", {}, [
+          ui.el("td", {}, [fmtDateTime(physical)]),
+          ui.el("td", {}, eventCell),
+          ui.el("td", {}, [gapMs > 60000 ? fmtDateTime(server) : "Same time"]),
+          ui.el("td", {}, [who || "—"]),
+        ])
+      );
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return wrap;
+  }
+
   function fmtMass(kg, forceKg) {
     return CIS.formatMassFromKg(kg, forceKg ? { forceKg: true } : {});
   }
@@ -3689,6 +3740,7 @@
             body.appendChild(openBtn);
           }
           body.appendChild(renderDrillTable([hit.row], ui, openPalletDetail));
+          body.appendChild(renderItemHistory(hit.history, ui));
         } else if (!bagSearch.error) {
           body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No matching bag."]));
         }
