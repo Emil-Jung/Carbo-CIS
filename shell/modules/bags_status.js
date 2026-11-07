@@ -151,7 +151,11 @@
   function normalizeBagSearchSerial(raw) {
     var s = String(raw || "").trim().toUpperCase();
     if (!s) return "";
-    if (s.indexOf("BAG-") !== 0 && /^[0-9]{4}-[0-9]+$/.test(s)) {
+    if (
+      s.indexOf("BAG-") !== 0 &&
+      s.indexOf("CARBO-") !== 0 &&
+      /^[0-9]{4}-[0-9]+$/.test(s)
+    ) {
       s = "BAG-" + s;
     }
     return s;
@@ -164,10 +168,10 @@
       class: "bs-dash-bag-search__input",
       type: "search",
       name: "bag_serial",
-      placeholder: "BAG-2026-004661",
+      placeholder: "BAG-2026-004661 or CARBO-2027-000001",
       autocomplete: "off",
       spellcheck: "false",
-      "aria-label": "Search by BAG label code",
+      "aria-label": "Search by label serial",
     });
     if (bagSearch && bagSearch.serial) input.value = bagSearch.serial;
     form.appendChild(input);
