@@ -56,7 +56,14 @@
   }
 
   function progressText(c) {
+    if (c.target_bag_count == null) return fmt(c.loaded_bags) + " / —";
     return fmt(c.loaded_bags) + " / " + fmt(c.target_bag_count);
+  }
+
+  function displayLabel(c) {
+    if (c.display_state_label) return c.display_state_label;
+    if (c.closed_below_target_no_record) return "Closed below target — no historical closure record";
+    return STATUS_LABEL[c.status] || c.status;
   }
 
   /** Yard loading started (first pallet), not planned ship date or per-pallet dates. */
@@ -106,14 +113,15 @@
     );
     addSection.appendChild(
       ui.el("p", { class: "muted ct-containers-section-desc" }, [
-        "Create a new preload row — this does not load bags. Release for loading when the yard may scan Into container.",
+        "Register the physical container when it arrives — product and target can be added later. ",
+        "Release for loading only after configuration is complete.",
       ])
     );
 
     var form = ui.el("form", { class: "toolbar ct-form ct-form--container-booking" });
     var numberInput = ui.el("input", {
       type: "text",
-      placeholder: "Office / booking container ref",
+      placeholder: "Physical container number, e.g. MSCU1234567",
       required: "required",
       autocomplete: "off",
     });
@@ -126,15 +134,14 @@
       type: "number",
       min: "1",
       step: "1",
-      placeholder: "Bags",
-      required: "required",
+      placeholder: "Target pallets (optional)",
     });
     var locationSelect = ui.el("select", {});
     LOCATIONS.forEach(function (loc) {
       locationSelect.appendChild(ui.el("option", { value: loc.value }, [loc.label]));
     });
-    var loadDateInput = ui.el("input", { type: "date", required: "required", autocomplete: "off" });
-    var productSelect = ui.el("select", { required: "required" });
+    var loadDateInput = ui.el("input", { type: "date", autocomplete: "off" });
+    var productSelect = ui.el("select", {});
     productSelect.appendChild(ui.el("option", { value: "" }, ["Loading products…"]));
     var shipToInput = ui.el("input", { type: "text", autocomplete: "off" });
     var deliveryNoteInput = ui.el("input", { type: "text", autocomplete: "off" });
@@ -248,6 +255,77 @@
 
     function confirmContainerAction(title, detail) {
       return window.confirm(title + "\n\n" + detail + "\n\nContinue?");
+    }
+
+    function openCloseShortDialog(containerRow, onSaved) {
+      var backdrop = ui.el("div", { class: "modal-backdrop cm-print-dialog-backdrop" });
+      var dialog = ui.el("div", { class: "modal cm-print-dialog" });
+      dialog.appendChild(ui.el("h3", { class: "cm-print-dialog-title" }, [
+        "Close short — " + containerRow.container_number,
+      ]));
+      dialog.appendChild(
+        ui.el("p", { class: "muted" }, [
+          "Physical count must match the system record (",
+          String(containerRow.loaded_bags || 0),
+          " pallets). Requires authorised manager.",
+        ])
+      );
+      var physicalInput = ui.el("input", {
+        type: "number",
+        min: "0",
+        step: "1",
+        value: String(containerRow.loaded_bags || 0),
+      });
+      var reasonInput = ui.el("input", { type: "text", placeholder: "Reason code", autocomplete: "off" });
+      var detailInput = ui.el("textarea", { rows: "3", placeholder: "Detail (optional)" });
+      var managerInput = ui.el("input", { type: "text", placeholder: "Authorised manager login" });
+      dialog.appendChild(labelled("Physical count", physicalInput));
+      dialog.appendChild(labelled("Reason", reasonInput));
+      dialog.appendChild(labelled("Detail", detailInput));
+      dialog.appendChild(labelled("Authorised manager", managerInput));
+      var errEl = ui.el("p", { class: "error-box", hidden: true });
+      dialog.appendChild(errEl);
+      var actions = ui.el("div", { class: "cm-print-dialog-actions" });
+      var cancelBtn = ui.el("button", { type: "button", class: "btn btn-sm" }, ["Cancel"]);
+      var saveBtn = ui.el("button", { type: "button", class: "btn" }, ["Close short"]);
+      actions.appendChild(cancelBtn);
+      actions.appendChild(saveBtn);
+      dialog.appendChild(actions);
+      backdrop.appendChild(dialog);
+      document.body.appendChild(backdrop);
+      function close() {
+        if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+      }
+      cancelBtn.addEventListener("click", close);
+      backdrop.addEventListener("click", function (ev) {
+        if (ev.target === backdrop) close();
+      });
+      saveBtn.addEventListener("click", async function () {
+        saveBtn.disabled = true;
+        errEl.hidden = true;
+        try {
+          await ctx.api.traceability(
+            "/containers/" + encodeURIComponent(containerRow.id) + "/close-short",
+            {
+              method: "POST",
+              body: {
+                expected_count: containerRow.target_bag_count,
+                physical_count: parseInt(physicalInput.value, 10),
+                reason_code: reasonInput.value.trim(),
+                reason_detail: detailInput.value.trim() || null,
+                authorised_manager_login: managerInput.value.trim(),
+                confirm: true,
+              },
+            }
+          );
+          close();
+          if (onSaved) await onSaved();
+        } catch (e) {
+          errEl.textContent = e.message || String(e);
+          errEl.hidden = false;
+          saveBtn.disabled = false;
+        }
+      });
     }
 
     function openBookingRefOnlyDialog(containerRow, onSaved) {
@@ -593,7 +671,10 @@
           "<td>" + ui.escape(fmtContainerLoadingDate(c)) + "</td>" +
           "<td>" + ui.escape(c.location_display) + "</td>" +
           "<td>" + ui.escape(progressText(c)) + "</td>" +
-          "<td>" + ui.escape(STATUS_LABEL[c.status] || c.status) +
+          "<td>" + ui.escape(displayLabel(c)) +
+          (c.allocation_review_required
+            ? " <strong title=\"Known mismatch — reconcile allocation\">· REVIEW</strong>"
+            : "") +
           (c.loading_paused
             ? " <strong title=\"Paused on a scanner" +
               (c.loading_paused_by ? " by " + ui.escape(c.loading_paused_by) : "") +
@@ -642,7 +723,23 @@
             }, ["Release for loading"])
           );
         }
-        if (c.status === "loading") {
+        if (c.released_for_loading && (c.status === "booked" || c.status === "loading") && (c.loaded_bags || 0) === 0) {
+          actions.appendChild(
+            ui.el("button", {
+              class: "btn btn-sm",
+              type: "button",
+              onclick: function () {
+                act(
+                  c.id,
+                  "/containers/" + encodeURIComponent(c.id) + "/withdraw-release",
+                  {},
+                  "Withdraw release for " + c.container_number
+                );
+              },
+            }, ["Withdraw release"])
+          );
+        }
+        if (c.status === "loading" && c.at_target) {
           actions.appendChild(
             ui.el("button", {
               class: "btn btn-sm btn-sm-active",
@@ -664,6 +761,23 @@
                 );
               },
             }, ["Close loading"])
+          );
+        }
+        if (
+          (c.status === "loading" || c.loading_paused) &&
+          c.has_fixed_target &&
+          (c.loaded_bags || 0) > 0 &&
+          (c.loaded_bags || 0) < c.target_bag_count &&
+          !c.short_close
+        ) {
+          actions.appendChild(
+            ui.el("button", {
+              class: "btn btn-sm",
+              type: "button",
+              onclick: function () {
+                openCloseShortDialog(c, load);
+              },
+            }, ["Close short"])
           );
         }
         if (c.status === "full") {
@@ -777,10 +891,15 @@
     form.addEventListener("submit", async function (ev) {
       ev.preventDefault();
       var number = numberInput.value.trim().toUpperCase();
-      var count = parseInt(countInput.value, 10);
+      var countRaw = countInput.value.trim();
+      var count = countRaw ? parseInt(countRaw, 10) : null;
       var productKey = productSelect.value;
-      if (!number || !count || count < 1 || !loadDateInput.value || !productKey) {
-        setStatus("Container number, load date, product, and bag target are required.", true);
+      if (!number) {
+        setStatus("Physical container number is required.", true);
+        return;
+      }
+      if (countRaw && (!count || count < 1)) {
+        setStatus("Target pallet count must be a positive number.", true);
         return;
       }
       var selOpt = productSelect.options[productSelect.selectedIndex];
@@ -789,17 +908,20 @@
         var bodyPayload = {
           container_number: number,
           fcl_number: fclInput.value.trim().toUpperCase() || null,
-          target_bag_count: count,
           location: locationSelect.value,
-          load_date: loadDateInput.value,
-          product_key: productKey,
-          product_label: (selOpt && (selOpt.dataset.label || selOpt.textContent)) || productKey,
           booking_ref: bookingInput.value.trim() || null,
           ship_to: shipToInput.value.trim() || null,
           delivery_note: deliveryNoteInput.value.trim() || null,
           transporter: transporterInput.value.trim() || null,
           ship_name: shipNameInput.value.trim() || null,
         };
+        if (count) bodyPayload.target_bag_count = count;
+        if (loadDateInput.value) bodyPayload.load_date = loadDateInput.value;
+        if (productKey) {
+          bodyPayload.product_key = productKey;
+          bodyPayload.product_label =
+            (selOpt && (selOpt.dataset.label || selOpt.textContent)) || productKey;
+        }
         if (shipDateInput.value) bodyPayload.expected_ship_date = shipDateInput.value;
         await ctx.api.traceability("/containers", {
           method: "POST",
