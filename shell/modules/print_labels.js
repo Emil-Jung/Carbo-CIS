@@ -11,11 +11,12 @@
   var MAX_QUANTITY = 10000;
   var SERIAL_RE = /^(?:BAG|CARBO)-\d{4}-\d{6,}$/i;
   /** Capture year + sequence — SERIAL_RE alone has no groups (do not use match[1] on it). */
-  var BAG_ID_PARTS = /^BAG-(\d{4})-(\d+)$/i;
+  var BAG_ID_PARTS = /^(?:BAG|CARBO)-(\d{4})-(\d+)$/i;
+  var CARBO_PREFIX_FROM_YEAR = 2027;
   var ZEBRA_STOCK_6128 = "6128";
   var ZEBRA_STOCK_5425 = "5425";
   var PL_RELEASE_ID = "20261020-reprint-stable";
-  var PL_UI_VERSION = "1.9.13";
+  var PL_UI_VERSION = "1.9.14";
   var STOCK_PROFILES = {
     "6128": {
       code: "6128",
@@ -502,13 +503,19 @@
     return new Date().getFullYear();
   }
 
+  function serialPrefixForLabelYear(year) {
+    var y = parseInt(year, 10);
+  if (y >= CARBO_PREFIX_FROM_YEAR) return "CARBO";
+    return "BAG";
+  }
+
   function canonicalSerial(year, seq) {
     var y = labelYearDefault(year);
     var n = parseInt(seq, 10);
     if (!n) return "";
     var pad = String(n);
     while (pad.length < 6) pad = "0" + pad;
-    return "BAG-" + y + "-" + pad;
+    return serialPrefixForLabelYear(y) + "-" + y + "-" + pad;
   }
 
   function cleanSerialToken(raw) {
@@ -516,6 +523,10 @@
     if (/bag/i.test(t)) {
       t = t.replace(/\s+/g, "");
       t = t.replace(/^bags?-/i, "BAG-");
+    }
+    if (/carbo/i.test(t)) {
+      t = t.replace(/\s+/g, "");
+      t = t.replace(/^carbo-/i, "CARBO-");
     }
     return t;
   }
@@ -1336,7 +1347,7 @@
           );
         }
         if (data.next_serial) {
-          var hm = String(data.next_serial).match(/^BAG-(\d{4})-\d{6,}$/i);
+          var hm = String(data.next_serial).match(/^(?:BAG|CARBO)-(\d{4})-\d{6,}$/i);
           if (hm) reprintDefaultYear = parseInt(hm[1], 10);
         } else if (data.year) {
           reprintDefaultYear = labelYearDefault(data.year);

@@ -168,7 +168,7 @@
       class: "bs-dash-bag-search__input",
       type: "search",
       name: "bag_serial",
-      placeholder: "BAG-2026-004661 or CARBO-2027-000001",
+      placeholder: "BAG-2026-004661",
       autocomplete: "off",
       spellcheck: "false",
       "aria-label": "Search by label serial",
