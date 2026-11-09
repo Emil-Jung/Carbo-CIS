@@ -257,6 +257,26 @@
       return window.confirm(title + "\n\n" + detail + "\n\nContinue?");
     }
 
+    function formatTraceabilityError(err) {
+      var msg = (err && err.message) || String(err || "Request failed");
+      try {
+        var parsed = JSON.parse(msg);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map(function (item) {
+              return item && item.msg ? item.msg : JSON.stringify(item);
+            })
+            .join(" ");
+        }
+        if (parsed && parsed.detail) {
+          return typeof parsed.detail === "string"
+            ? parsed.detail
+            : JSON.stringify(parsed.detail);
+        }
+      } catch (_e) { /* not JSON */ }
+      return msg;
+    }
+
     function openCloseShortDialog(containerRow, onSaved) {
       var backdrop = ui.el("div", { class: "modal-backdrop cm-print-dialog-backdrop" });
       var dialog = ui.el("div", { class: "modal cm-print-dialog" });
@@ -267,7 +287,7 @@
         ui.el("p", { class: "muted" }, [
           "Physical count must match the system record (",
           String(containerRow.loaded_bags || 0),
-          " pallets). Requires authorised manager.",
+          " pallets). Reason and manager are optional for now.",
         ])
       );
       var physicalInput = ui.el("input", {
@@ -276,13 +296,21 @@
         step: "1",
         value: String(containerRow.loaded_bags || 0),
       });
-      var reasonInput = ui.el("input", { type: "text", placeholder: "Reason code", autocomplete: "off" });
+      var reasonInput = ui.el("input", {
+        type: "text",
+        placeholder: "Reason code (optional)",
+        autocomplete: "off",
+      });
       var detailInput = ui.el("textarea", { rows: "3", placeholder: "Detail (optional)" });
-      var managerInput = ui.el("input", { type: "text", placeholder: "Authorised manager login" });
+      var managerInput = ui.el("input", {
+        type: "text",
+        placeholder: "Authorised manager (optional)",
+        autocomplete: "off",
+      });
       dialog.appendChild(labelled("Physical count", physicalInput));
-      dialog.appendChild(labelled("Reason", reasonInput));
+      dialog.appendChild(labelled("Reason (optional)", reasonInput));
       dialog.appendChild(labelled("Detail", detailInput));
-      dialog.appendChild(labelled("Authorised manager", managerInput));
+      dialog.appendChild(labelled("Authorised manager (optional)", managerInput));
       var errEl = ui.el("p", { class: "error-box", hidden: true });
       dialog.appendChild(errEl);
       var actions = ui.el("div", { class: "cm-print-dialog-actions" });
@@ -311,9 +339,9 @@
               body: {
                 expected_count: containerRow.target_bag_count,
                 physical_count: parseInt(physicalInput.value, 10),
-                reason_code: reasonInput.value.trim(),
+                reason_code: reasonInput.value.trim() || null,
                 reason_detail: detailInput.value.trim() || null,
-                authorised_manager_login: managerInput.value.trim(),
+                authorised_manager_login: managerInput.value.trim() || null,
                 confirm: true,
               },
             }
@@ -321,7 +349,7 @@
           close();
           if (onSaved) await onSaved();
         } catch (e) {
-          errEl.textContent = e.message || String(e);
+          errEl.textContent = formatTraceabilityError(e);
           errEl.hidden = false;
           saveBtn.disabled = false;
         }
