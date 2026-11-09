@@ -227,29 +227,71 @@
       status.className = isError ? "error-box" : "muted";
     }
 
-    function fillProductSelect() {
-      productSelect.innerHTML = "";
-      productSelect.appendChild(ui.el("option", { value: "" }, ["Choose product…"]));
-      productOptions.forEach(function (opt) {
+    function palletProductOptions() {
+      return productOptions.filter(function (o) {
+        return (o.key || "").indexOf("pallet:") === 0;
+      });
+    }
+
+    function fillProductSelect(selectEl, selectedKey) {
+      var el = selectEl || productSelect;
+      el.innerHTML = "";
+      el.appendChild(ui.el("option", { value: "" }, ["Choose product…"]));
+      palletProductOptions().forEach(function (opt) {
         var o = ui.el("option", { value: opt.key }, [opt.label || opt.key]);
         o.dataset.label = opt.label || opt.key;
-        productSelect.appendChild(o);
+        if (selectedKey && opt.key === selectedKey) o.selected = true;
+        el.appendChild(o);
       });
+      if (!palletProductOptions().length) {
+        el.appendChild(
+          ui.el("option", { value: "", disabled: true }, ["No active pallet SKUs in catalog"])
+        );
+      }
+    }
+
+    function fillProductSelectFailed(selectEl, message) {
+      var el = selectEl || productSelect;
+      el.innerHTML = "";
+      el.appendChild(
+        ui.el("option", { value: "" }, [message || "Could not load products — refresh the page"])
+      );
+    }
+
+    function makeProductSelect(selectedKey) {
+      var sel = ui.el("select", {});
+      if (productOptions.length) fillProductSelect(sel, selectedKey);
+      else fillProductSelectFailed(sel, "Loading products…");
+      return sel;
     }
 
     async function loadOptions() {
       try {
+        if (!ctx.api.traceability) {
+          productOptions = [];
+          fillProductSelectFailed(null, "Traceability API not configured");
+          return;
+        }
         var prod = await ctx.api.traceability("/containers/product-options");
         productOptions = [];
-        (prod.bulk || []).forEach(function (o) {
-          productOptions.push(o);
-        });
         (prod.pallets || []).forEach(function (o) {
           productOptions.push(o);
         });
+        (prod.bulk || []).forEach(function (o) {
+          productOptions.push(o);
+        });
         fillProductSelect();
+        if (!palletProductOptions().length) {
+          setStatus(
+            "No pallet SKUs returned — check Packing & products (active catalog rows).",
+            true
+          );
+        }
       } catch (e) {
-        setStatus("Could not load product options: " + (e.message || e), true);
+        productOptions = [];
+        var msg = formatTraceabilityError(e);
+        fillProductSelectFailed(null, "Product list failed — refresh");
+        setStatus("Could not load product options: " + msg, true);
       }
     }
 
@@ -432,6 +474,207 @@
       });
       bookingInput.focus();
       bookingInput.select();
+    }
+
+    function openConfigureContainerDialog(containerRow, onSaved) {
+      var backdrop = ui.el("div", { class: "modal-backdrop cm-print-dialog-backdrop" });
+      var dialog = ui.el("div", { class: "modal cm-print-dialog cm-configure-container-dialog" });
+      dialog.appendChild(
+        ui.el("h3", { class: "cm-print-dialog-title" }, [
+          "Configure loading — " + containerRow.container_number,
+        ])
+      );
+      dialog.appendChild(
+        ui.el("p", { class: "muted" }, [
+          "Choose pallet SKUs and how many of each when this container is full. ",
+          "Allocation total must match ",
+          ui.el("strong", {}, ["Bags when full"]),
+          " before release.",
+        ])
+      );
+
+      var targetInput = ui.el("input", {
+        type: "number",
+        min: "1",
+        step: "1",
+        value: containerRow.target_bag_count
+          ? String(containerRow.target_bag_count)
+          : "",
+      });
+      var linesWrap = ui.el("div", { class: "cm-alloc-lines" });
+      var sumEl = ui.el("p", { class: "muted cm-alloc-sum" }, [""]);
+      var errEl = ui.el("p", { class: "error-box", hidden: true });
+      var addLineBtn = ui.el("button", { type: "button", class: "btn btn-sm" }, ["Add product line"]);
+      dialog.appendChild(labelled("Bags when full", targetInput));
+      dialog.appendChild(ui.el("p", { class: "muted" }, ["Loading products"]));
+      dialog.appendChild(linesWrap);
+      dialog.appendChild(addLineBtn);
+      dialog.appendChild(sumEl);
+      dialog.appendChild(errEl);
+
+      var actions = ui.el("div", { class: "cm-print-dialog-actions" });
+      var cancelBtn = ui.el("button", { type: "button", class: "btn btn-sm" }, ["Cancel"]);
+      var saveBtn = ui.el("button", { type: "button", class: "btn" }, ["Save configuration"]);
+      actions.appendChild(cancelBtn);
+      actions.appendChild(saveBtn);
+      dialog.appendChild(actions);
+      backdrop.appendChild(dialog);
+      document.body.appendChild(backdrop);
+
+      var lineRows = [];
+
+      function refreshSum() {
+        var target = parseInt(targetInput.value, 10);
+        var sum = lineRows.reduce(function (acc, row) {
+          var n = parseInt(row.countInput.value, 10);
+          return acc + (isNaN(n) ? 0 : n);
+        }, 0);
+        var parts = ["Allocated: " + sum];
+        if (!isNaN(target) && target > 0) {
+          parts.push("of " + target);
+          if (sum > target) parts.push("(over target)");
+          else if (sum < target) parts.push("(" + (target - sum) + " remaining)");
+          else parts.push("(matches target)");
+        }
+        sumEl.textContent = parts.join(" ");
+      }
+
+      function addLine(productKey, count) {
+        var row = ui.el("div", { class: "cm-alloc-line" });
+        var productSel = makeProductSelect(productKey || "");
+        var countInput = ui.el("input", {
+          type: "number",
+          min: "1",
+          step: "1",
+          value: count != null ? String(count) : "",
+        });
+        var removeBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm" }, ["Remove"]);
+        row.appendChild(labelled("Product", productSel));
+        row.appendChild(labelled("Count", countInput));
+        row.appendChild(removeBtn);
+        linesWrap.appendChild(row);
+        var entry = { productSel: productSel, countInput: countInput, row: row };
+        lineRows.push(entry);
+        countInput.addEventListener("input", refreshSum);
+        removeBtn.addEventListener("click", function () {
+          linesWrap.removeChild(row);
+          lineRows = lineRows.filter(function (x) {
+            return x !== entry;
+          });
+          refreshSum();
+        });
+        if (!productOptions.length) {
+          loadOptions().then(function () {
+            fillProductSelect(productSel, productKey || "");
+          });
+        }
+        refreshSum();
+      }
+
+      function close() {
+        if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+      }
+
+      cancelBtn.addEventListener("click", close);
+      backdrop.addEventListener("click", function (ev) {
+        if (ev.target === backdrop) close();
+      });
+      addLineBtn.addEventListener("click", function () {
+        addLine("", "");
+      });
+      targetInput.addEventListener("input", refreshSum);
+
+      (function seedLines() {
+        var allocs = containerRow.product_allocations || [];
+        if (allocs.length) {
+          allocs.forEach(function (a) {
+            var key = a.product_key || (a.product_code ? "pallet:" + a.product_code : "");
+            addLine(key, a.allocated_count);
+          });
+        } else if (containerRow.product_key) {
+          addLine(
+            containerRow.product_key,
+            containerRow.target_bag_count || ""
+          );
+        } else {
+          addLine("", "");
+        }
+      })();
+
+      saveBtn.addEventListener("click", async function () {
+        errEl.hidden = true;
+        var target = parseInt(targetInput.value, 10);
+        if (isNaN(target) || target < 1) {
+          errEl.textContent = "Enter bags when full (positive number).";
+          errEl.hidden = false;
+          return;
+        }
+        var allocations = [];
+        var seen = {};
+        for (var i = 0; i < lineRows.length; i++) {
+          var lr = lineRows[i];
+          var key = (lr.productSel.value || "").trim();
+          var count = parseInt(lr.countInput.value, 10);
+          if (!key && !count) continue;
+          if (!key) {
+            errEl.textContent = "Choose a product on every line with a count.";
+            errEl.hidden = false;
+            return;
+          }
+          if (isNaN(count) || count < 1) {
+            errEl.textContent = "Each allocation line needs a positive count.";
+            errEl.hidden = false;
+            return;
+          }
+          if (seen[key]) {
+            errEl.textContent = "Duplicate product on allocation lines.";
+            errEl.hidden = false;
+            return;
+          }
+          seen[key] = true;
+          allocations.push({
+            product_key: key,
+            allocated_count: count,
+          });
+        }
+        if (!allocations.length) {
+          errEl.textContent = "Add at least one product line.";
+          errEl.hidden = false;
+          return;
+        }
+        var sum = allocations.reduce(function (a, x) {
+          return a + x.allocated_count;
+        }, 0);
+        if (sum !== target) {
+          errEl.textContent =
+            "Allocation total (" +
+            sum +
+            ") must equal bags when full (" +
+            target +
+            ").";
+          errEl.hidden = false;
+          return;
+        }
+        saveBtn.disabled = true;
+        try {
+          await ctx.api.traceability(
+            "/containers/" + encodeURIComponent(containerRow.id),
+            {
+              method: "PATCH",
+              body: {
+                target_bag_count: target,
+                product_allocations: allocations,
+              },
+            }
+          );
+          close();
+          if (onSaved) await onSaved();
+        } catch (e) {
+          errEl.textContent = formatTraceabilityError(e);
+          errEl.hidden = false;
+          saveBtn.disabled = false;
+        }
+      });
     }
 
     function openEditContainerDialog(containerRow, onSaved) {
@@ -715,6 +958,21 @@
 
         var actions = ui.el("td", { class: "ct-actions-cell" });
         if (c.status === "booked" || c.status === "loading" || c.status === "full") {
+          if (
+            (c.display_state === "awaiting_configuration" ||
+              c.display_state === "ready_for_release") &&
+            !c.released_for_loading
+          ) {
+            actions.appendChild(
+              ui.el("button", {
+                class: "btn btn-sm btn-sm-active",
+                type: "button",
+                onclick: function () {
+                  openConfigureContainerDialog(c, load);
+                },
+              }, ["Configure loading"])
+            );
+          }
           actions.appendChild(
             ui.el("button", {
               class: "btn btn-sm",
