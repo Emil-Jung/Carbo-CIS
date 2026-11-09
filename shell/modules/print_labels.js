@@ -9,13 +9,13 @@
   var LS_LEGACY = "cis_print_labels_v4";
   var CHUNK = 50;
   var MAX_QUANTITY = 10000;
-  var SERIAL_RE = /^BAG-\d{4}-\d{6,}$/i;
+  var SERIAL_RE = /^(?:BAG|CARBO)-\d{4}-\d{6,}$/i;
   /** Capture year + sequence — SERIAL_RE alone has no groups (do not use match[1] on it). */
   var BAG_ID_PARTS = /^BAG-(\d{4})-(\d+)$/i;
   var ZEBRA_STOCK_6128 = "6128";
   var ZEBRA_STOCK_5425 = "5425";
   var PL_RELEASE_ID = "20261020-reprint-stable";
-  var PL_UI_VERSION = "1.9.12";
+  var PL_UI_VERSION = "1.9.13";
   var STOCK_PROFILES = {
     "6128": {
       code: "6128",
@@ -745,7 +745,8 @@
       standardStockOnly ? "62 × 28 mm standard." : "Must match roll in printer."));
     printerPanel.body.appendChild(stockSizeBanner);
     printerPanel.body.appendChild(field(ui, "Zebra", zebraRow, "Windows printer queue."));
-    printerPanel.body.appendChild(field(ui, "A4 (optional)", a4Row, "Pallet sheets only."));
+    a4Row.style.display = "none";
+    a4Row.setAttribute("aria-hidden", "true");
     printerPanel.body.appendChild(refreshRow);
 
     var labelsPanel = panel(ui, "Preview");
@@ -769,13 +770,7 @@
 
     var runPanel = panel(ui, "New print run");
     workspace.appendChild(runPanel.root);
-    var formatEl = ui.el("select", {}, [
-      ui.el("option", { value: "zebra", selected: true }, ["Zebra bag labels (62×28)"]),
-      ui.el("option", { value: "a4_pallet", selected: false }, [
-        "A4 — one pallet sheet per Bag ID",
-      ]),
-    ]);
-    formatEl.value = "zebra";
+    var formatEl = ui.el("input", { type: "hidden", value: "zebra" });
     labelFormat = "zebra";
     var qtyEl = ui.el("input", {
       type: "text",
@@ -785,8 +780,8 @@
       value: "",
     });
     var noteEl = ui.el("input", { type: "text", placeholder: "Optional note", value: "" });
-    runPanel.body.appendChild(field(ui, "Format", formatEl, ""));
-    runPanel.body.appendChild(field(ui, "Quantity", qtyEl, "Max " + MAX_QUANTITY + " per run."));
+    runPanel.body.appendChild(formatEl);
+    runPanel.body.appendChild(field(ui, "Quantity", qtyEl, "Universal Zebra stickers — max " + MAX_QUANTITY + " per run."));
     runPanel.body.appendChild(field(ui, "Note", noteEl));
     var prepareBtn = ui.el("button", { class: "btn-primary", type: "button" }, ["Continue"]);
     runPanel.body.appendChild(prepareBtn);
