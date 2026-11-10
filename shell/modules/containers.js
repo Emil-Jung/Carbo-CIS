@@ -55,10 +55,20 @@
     }
   }
 
-  function progressText(c) {
+    var MIX_LOADING_KEY = "loading:mixed";
+
+    function progressText(c) {
     if (c.target_bag_count == null) return fmt(c.loaded_bags) + " / —";
     return fmt(c.loaded_bags) + " / " + fmt(c.target_bag_count);
   }
+
+    function productCellText(c) {
+      if (c.mix_loading || c.product_key === MIX_LOADING_KEY) {
+        var label = c.product_label || "Mix loading";
+        return c.loaded_mix_summary ? label + " · " + c.loaded_mix_summary : label;
+      }
+      return c.product_label || c.product_key || "—";
+    }
 
   function displayLabel(c) {
     if (c.display_state_label) return c.display_state_label;
@@ -90,9 +100,15 @@
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Containers"]));
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
-        "Preload containers from the booking (ship date and bag target). ",
+        "Choose ",
+        ui.el("strong", {}, ["one product"]),
+        " or ",
+        ui.el("strong", {}, ["Mix loading"]),
+        ", set ",
+        ui.el("strong", {}, ["bags when full"]),
+        ", then ",
         ui.el("strong", {}, ["Release for loading"]),
-        " activates Bag Walk ",
+        " for the yard. Mix loads: product breakdown fills in from scans. Release activates Bag Walk ",
         ui.el("strong", {}, ["Into container"]),
         " when a released booking exists (any coast storage or in-transit bag that may load per status rules). ",
         "Set ",
@@ -113,8 +129,7 @@
     );
     addSection.appendChild(
       ui.el("p", { class: "muted ct-containers-section-desc" }, [
-        "Register the physical container when it arrives — product and target can be added later. ",
-        "Release for loading only after configuration is complete.",
+        "Container number required. Pick product (or Mix loading) and target pallets before release.",
       ])
     );
 
@@ -229,7 +244,8 @@
 
     function palletProductOptions() {
       return productOptions.filter(function (o) {
-        return (o.key || "").indexOf("pallet:") === 0;
+        var k = o.key || "";
+        return k.indexOf("pallet:") === 0 || k === MIX_LOADING_KEY || o.mix_loading;
       });
     }
 
@@ -481,18 +497,21 @@
       var dialog = ui.el("div", { class: "modal cm-print-dialog cm-configure-container-dialog" });
       dialog.appendChild(
         ui.el("h3", { class: "cm-print-dialog-title" }, [
-          "Configure loading — " + containerRow.container_number,
+          "Set product & target — " + containerRow.container_number,
         ])
       );
       dialog.appendChild(
         ui.el("p", { class: "muted" }, [
-          "Choose pallet SKUs and how many of each when this container is full. ",
-          "Allocation total must match ",
-          ui.el("strong", {}, ["Bags when full"]),
-          " before release.",
+          "Pick ",
+          ui.el("strong", {}, ["one pallet product"]),
+          " or ",
+          ui.el("strong", {}, ["Mix loading"]),
+          ", then how many pallets when the container is full. ",
+          "For mix loads, individual SKUs are recorded when the yard scans bags.",
         ])
       );
 
+      var productSel = makeProductSelect(containerRow.product_key || "");
       var targetInput = ui.el("input", {
         type: "number",
         min: "1",
@@ -501,74 +520,24 @@
           ? String(containerRow.target_bag_count)
           : "",
       });
-      var linesWrap = ui.el("div", { class: "cm-alloc-lines" });
-      var sumEl = ui.el("p", { class: "muted cm-alloc-sum" }, [""]);
       var errEl = ui.el("p", { class: "error-box", hidden: true });
-      var addLineBtn = ui.el("button", { type: "button", class: "btn btn-sm" }, ["Add product line"]);
+      dialog.appendChild(labelled("Product", productSel));
       dialog.appendChild(labelled("Bags when full", targetInput));
-      dialog.appendChild(ui.el("p", { class: "muted" }, ["Loading products"]));
-      dialog.appendChild(linesWrap);
-      dialog.appendChild(addLineBtn);
-      dialog.appendChild(sumEl);
       dialog.appendChild(errEl);
 
       var actions = ui.el("div", { class: "cm-print-dialog-actions" });
       var cancelBtn = ui.el("button", { type: "button", class: "btn btn-sm" }, ["Cancel"]);
-      var saveBtn = ui.el("button", { type: "button", class: "btn" }, ["Save configuration"]);
+      var saveBtn = ui.el("button", { type: "button", class: "btn" }, ["Save"]);
       actions.appendChild(cancelBtn);
       actions.appendChild(saveBtn);
       dialog.appendChild(actions);
       backdrop.appendChild(dialog);
       document.body.appendChild(backdrop);
 
-      var lineRows = [];
-
-      function refreshSum() {
-        var target = parseInt(targetInput.value, 10);
-        var sum = lineRows.reduce(function (acc, row) {
-          var n = parseInt(row.countInput.value, 10);
-          return acc + (isNaN(n) ? 0 : n);
-        }, 0);
-        var parts = ["Allocated: " + sum];
-        if (!isNaN(target) && target > 0) {
-          parts.push("of " + target);
-          if (sum > target) parts.push("(over target)");
-          else if (sum < target) parts.push("(" + (target - sum) + " remaining)");
-          else parts.push("(matches target)");
-        }
-        sumEl.textContent = parts.join(" ");
-      }
-
-      function addLine(productKey, count) {
-        var row = ui.el("div", { class: "cm-alloc-line" });
-        var productSel = makeProductSelect(productKey || "");
-        var countInput = ui.el("input", {
-          type: "number",
-          min: "1",
-          step: "1",
-          value: count != null ? String(count) : "",
+      if (!productOptions.length) {
+        loadOptions().then(function () {
+          fillProductSelect(productSel, containerRow.product_key || "");
         });
-        var removeBtn = ui.el("button", { type: "button", class: "btn-ghost btn-sm" }, ["Remove"]);
-        row.appendChild(labelled("Product", productSel));
-        row.appendChild(labelled("Count", countInput));
-        row.appendChild(removeBtn);
-        linesWrap.appendChild(row);
-        var entry = { productSel: productSel, countInput: countInput, row: row };
-        lineRows.push(entry);
-        countInput.addEventListener("input", refreshSum);
-        removeBtn.addEventListener("click", function () {
-          linesWrap.removeChild(row);
-          lineRows = lineRows.filter(function (x) {
-            return x !== entry;
-          });
-          refreshSum();
-        });
-        if (!productOptions.length) {
-          loadOptions().then(function () {
-            fillProductSelect(productSel, productKey || "");
-          });
-        }
-        refreshSum();
       }
 
       function close() {
@@ -579,93 +548,34 @@
       backdrop.addEventListener("click", function (ev) {
         if (ev.target === backdrop) close();
       });
-      addLineBtn.addEventListener("click", function () {
-        addLine("", "");
-      });
-      targetInput.addEventListener("input", refreshSum);
-
-      (function seedLines() {
-        var allocs = containerRow.product_allocations || [];
-        if (allocs.length) {
-          allocs.forEach(function (a) {
-            var key = a.product_key || (a.product_code ? "pallet:" + a.product_code : "");
-            addLine(key, a.allocated_count);
-          });
-        } else if (containerRow.product_key) {
-          addLine(
-            containerRow.product_key,
-            containerRow.target_bag_count || ""
-          );
-        } else {
-          addLine("", "");
-        }
-      })();
 
       saveBtn.addEventListener("click", async function () {
         errEl.hidden = true;
         var target = parseInt(targetInput.value, 10);
+        var productKey = (productSel.value || "").trim();
+        if (!productKey) {
+          errEl.textContent = "Choose a product or Mix loading.";
+          errEl.hidden = false;
+          return;
+        }
         if (isNaN(target) || target < 1) {
           errEl.textContent = "Enter bags when full (positive number).";
           errEl.hidden = false;
           return;
         }
-        var allocations = [];
-        var seen = {};
-        for (var i = 0; i < lineRows.length; i++) {
-          var lr = lineRows[i];
-          var key = (lr.productSel.value || "").trim();
-          var count = parseInt(lr.countInput.value, 10);
-          if (!key && !count) continue;
-          if (!key) {
-            errEl.textContent = "Choose a product on every line with a count.";
-            errEl.hidden = false;
-            return;
-          }
-          if (isNaN(count) || count < 1) {
-            errEl.textContent = "Each allocation line needs a positive count.";
-            errEl.hidden = false;
-            return;
-          }
-          if (seen[key]) {
-            errEl.textContent = "Duplicate product on allocation lines.";
-            errEl.hidden = false;
-            return;
-          }
-          seen[key] = true;
-          allocations.push({
-            product_key: key,
-            allocated_count: count,
-          });
-        }
-        if (!allocations.length) {
-          errEl.textContent = "Add at least one product line.";
-          errEl.hidden = false;
-          return;
-        }
-        var sum = allocations.reduce(function (a, x) {
-          return a + x.allocated_count;
-        }, 0);
-        if (sum !== target) {
-          errEl.textContent =
-            "Allocation total (" +
-            sum +
-            ") must equal bags when full (" +
-            target +
-            ").";
-          errEl.hidden = false;
-          return;
-        }
+        var selOpt = productSel.options[productSel.selectedIndex];
+        var label = (selOpt && (selOpt.dataset.label || selOpt.textContent)) || productKey;
+        var body = {
+          target_bag_count: target,
+          product_key: productKey,
+          product_label: label,
+          product_allocations: [],
+        };
         saveBtn.disabled = true;
         try {
           await ctx.api.traceability(
             "/containers/" + encodeURIComponent(containerRow.id),
-            {
-              method: "PATCH",
-              body: {
-                target_bag_count: target,
-                product_allocations: allocations,
-              },
-            }
+            { method: "PATCH", body: body }
           );
           close();
           if (onSaved) await onSaved();
@@ -938,7 +848,7 @@
           "<td><strong>" + ui.escape(c.container_number) + "</strong></td>" +
           "<td>" + ui.escape(c.fcl_number || "—") + "</td>" +
           "<td>" + ui.escape(c.booking_ref || "—") + "</td>" +
-          "<td>" + ui.escape(c.product_label || c.product_key || "—") + "</td>" +
+          "<td>" + ui.escape(productCellText(c)) + "</td>" +
           "<td>" + ui.escape(fmtContainerLoadingDate(c)) + "</td>" +
           "<td>" + ui.escape(c.location_display) + "</td>" +
           "<td>" + ui.escape(progressText(c)) + "</td>" +
@@ -970,7 +880,7 @@
                 onclick: function () {
                   openConfigureContainerDialog(c, load);
                 },
-              }, ["Configure loading"])
+              }, ["Set product & target"])
             );
           }
           actions.appendChild(
