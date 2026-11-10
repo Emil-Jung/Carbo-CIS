@@ -5618,6 +5618,11 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   color: #cbd5e1;
   border: 1px solid rgba(148, 163, 184, 0.4);
 }
+.packing-floor-pill--paused {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+}
 .packing-floor-basket-kg {
   font-weight: 700;
   font-variant-numeric: tabular-nums;

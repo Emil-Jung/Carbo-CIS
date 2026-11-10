@@ -348,6 +348,22 @@
       actions.appendChild(
         ui.el("button", {
           type: "button",
+          class: "btn btn-secondary",
+          onclick: function () {
+            closeBasketModal();
+            void act(
+              shift.id,
+              { status: "completed", leave_basket: true },
+              "Complete this shift and keep basket material on these SKUs",
+              "Completing shift (basket unchanged)…",
+              true
+            );
+          },
+        }, ["Complete & keep basket"])
+      );
+      actions.appendChild(
+        ui.el("button", {
+          type: "button",
           class: "btn",
           onclick: function () {
             err.hidden = true;
