@@ -5104,6 +5104,13 @@ tr.fleet-row-soon td { background: rgba(217, 119, 6, 0.06); }
   justify-content: flex-end;
   margin-top: 0.5rem;
 }
+.packaging-shift-basket-modal__actions--stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+.packaging-shift-basket-modal__actions--stack .packaging-shift-basket-modal__cancel {
+  margin-top: 0.35rem;
+}
 .packaging-shift-basket-modal__err { margin: 0.5rem 0 0; }
 
 /* Walvis Bay Dispatch — two-column office layout */

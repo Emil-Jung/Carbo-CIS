@@ -51,13 +51,13 @@
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Packing & products"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
       "Manage pallet SKUs and packing-floor status here (CIS only — packaging scanner apps are unchanged). ",
-      "Use ",
-      ui.el("strong", {}, ["Active"]),
-      " to show a SKU on packing scanners, ",
-      ui.el("strong", {}, ["Paused"]),
-      " to hide it while keeping basket material on that SKU, or ",
-      ui.el("strong", {}, ["Close assignment"]),
-      " when you are done with the SKU (optionally move or keep basket kg).",
+      "Tick a SKU to show it on packing scanners. Untick to choose ",
+      ui.el("strong", {}, ["Pause"]),
+      " (hide scanners, basket unchanged), ",
+      ui.el("strong", {}, ["Close & keep basket"]),
+      ", or ",
+      ui.el("strong", {}, ["Close & move basket"]),
+      ".",
     ]));
 
     var status = ui.el("p", { class: "muted pallet-config-status" }, [""]);
@@ -75,8 +75,8 @@
         ui.el("dl", { class: "packing-floor-legend__dl" }, [
           ui.el("dt", {}, ["Packing scanner"]),
           ui.el("dd", {}, [
-            "Active = on the scanner menu. Paused = hidden from scanners but basket kg stays on this SKU. ",
-            "Off = assignment closed (use Close — you can leave basket kg or move it to another SKU).",
+            "Tick = on scanners. Untick = Pause, Close & keep basket, or Close & move basket. ",
+            "Basket kg is independent — it stays on the SKU unless you move it when closing.",
           ]),
           ui.el("dt", {}, ["Pallet basket"]),
           ui.el("dd", {}, [
@@ -342,18 +342,17 @@
       return "packing-floor-pill--no";
     }
 
-    function openCloseAssignmentModal(productCode, basketKg) {
+    function openUntickScannerModal(productCode, basketKg, onCancel) {
       basketModalCard.innerHTML = "";
       basketModalCard.appendChild(
         ui.el("h3", { class: "packaging-shift-basket-modal__title" }, [
-          "Close scanner assignment — " + productCode,
+          "Remove " + productCode + " from scanners",
         ])
       );
       basketModalCard.appendChild(
         ui.el("p", { class: "muted packaging-shift-basket-modal__lead" }, [
-          "This ends the SKU on packaging shifts (use Pause instead if you only want to hide it from scanners). ",
           basketKg > 0.001
-            ? fmtKg(basketKg) + " is still in the pallet basket for " + productCode + "."
+            ? fmtKg(basketKg) + " is in the pallet basket for " + productCode + " (unchanged unless you move it)."
             : "The pallet basket for " + productCode + " is empty.",
         ])
       );
@@ -365,50 +364,55 @@
       var opts = products.filter(function (p) {
         return p.active !== false && p.product_code !== productCode;
       });
+      sel.appendChild(ui.el("option", { value: "" }, ["— choose target SKU —"]));
+      opts.forEach(function (p) {
+        sel.appendChild(
+          ui.el("option", { value: p.product_code }, [
+            p.product_code + (p.name ? " — " + p.name : ""),
+          ])
+        );
+      });
       if (!opts.length) {
-        sel.appendChild(ui.el("option", { value: "" }, ["No other active products"]));
-        sel.disabled = true;
+        moveBlock.appendChild(
+          ui.el("p", { class: "muted" }, ["No other catalog SKU to move basket to."])
+        );
       } else {
-        sel.appendChild(ui.el("option", { value: "" }, ["— choose target SKU —"]));
-        opts.forEach(function (p) {
-          sel.appendChild(
-            ui.el("option", { value: p.product_code }, [
-              p.product_code + (p.name ? " — " + p.name : ""),
-            ])
-          );
-        });
+        moveBlock.appendChild(
+          ui.el("p", { class: "muted" }, ["Only needed for “Move basket & close”:"])
+        );
+        moveBlock.appendChild(sel);
       }
-      moveBlock.appendChild(
-        ui.el("p", { class: "muted" }, ["Optional — move basket material to another SKU:"])
-      );
-      moveBlock.appendChild(sel);
       basketModalCard.appendChild(moveBlock);
 
-      var actions = ui.el("div", { class: "packaging-shift-basket-modal__actions" });
-      actions.appendChild(
-        ui.el("button", { type: "button", class: "btn btn-secondary", onclick: closeBasketModal }, ["Cancel"])
-      );
-      if (basketKg > 0.001) {
-        actions.appendChild(
-          ui.el("button", {
-            type: "button",
-            class: "btn btn-secondary",
-            onclick: function () {
-              closeBasketModal();
-              void postScannerAction(productCode, "close", { leave_basket: true });
-            },
-          }, ["Close & keep basket on " + productCode])
-        );
-      }
+      var actions = ui.el("div", { class: "packaging-shift-basket-modal__actions packaging-shift-basket-modal__actions--stack" });
       actions.appendChild(
         ui.el("button", {
           type: "button",
           class: "btn",
           onclick: function () {
+            closeBasketModal();
+            void postScannerAction(productCode, "pause");
+          },
+        }, ["Pause — hide on scanners, keep basket"])
+      );
+      actions.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn btn-secondary",
+          onclick: function () {
+            closeBasketModal();
+            void postScannerAction(productCode, "close", { leave_basket: true });
+          },
+        }, ["Close — keep basket on " + productCode])
+      );
+      actions.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn btn-secondary",
+          onclick: function () {
             var to = (sel.value || "").trim();
             if (basketKg > 0.001 && !to) {
-              err.textContent =
-                "Choose a target SKU to move basket material, or use “keep basket”.";
+              err.textContent = "Choose which SKU should receive the basket material.";
               err.hidden = false;
               return;
             }
@@ -418,7 +422,17 @@
               leave_basket: basketKg <= 0.001,
             });
           },
-        }, [basketKg > 0.001 ? "Move basket & close" : "Close assignment"])
+        }, ["Close — move basket to another SKU"])
+      );
+      actions.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn btn-secondary packaging-shift-basket-modal__cancel",
+          onclick: function () {
+            closeBasketModal();
+            if (onCancel) onCancel();
+          },
+        }, ["Cancel"])
       );
       basketModalCard.appendChild(actions);
       basketModal.hidden = false;
@@ -463,42 +477,25 @@
         }, [scannerStateLabel(scannerState)]);
         var cb = ui.el("input", {
           type: "checkbox",
-          "aria-label": "Active on packing scanners for " + p.product_code,
-          title: "Checked = Active on scanners; unchecked = Paused (basket unchanged)",
+          "aria-label": "Show on packing scanners — " + p.product_code,
+          title: "Untick to pause, close & keep basket, or close & move basket",
         });
         cb.checked = scannerState === "active";
-        cb.disabled = scannerState === "off";
         cb.addEventListener("change", function () {
-          var wantActive = cb.checked;
-          var nextAction = wantActive ? "activate" : "pause";
-          cb.disabled = true;
-          void postScannerAction(p.product_code, nextAction).finally(function () {
-            cb.disabled = false;
+          if (cb.checked) {
+            cb.disabled = true;
+            void postScannerAction(p.product_code, "activate").finally(function () {
+              cb.disabled = false;
+            });
+            return;
+          }
+          cb.checked = true;
+          openUntickScannerModal(p.product_code, basketKg, function () {
+            cb.checked = true;
           });
         });
         row.appendChild(stateEl);
         row.appendChild(cb);
-        if (scannerState !== "off") {
-          row.appendChild(
-            ui.el("button", {
-              type: "button",
-              class: "btn btn-sm btn-secondary packing-floor-close-scan",
-              onclick: function () {
-                openCloseAssignmentModal(p.product_code, basketKg);
-              },
-            }, ["Close…"])
-          );
-        } else {
-          row.appendChild(
-            ui.el("button", {
-              type: "button",
-              class: "btn btn-sm packing-floor-close-scan",
-              onclick: function () {
-                void postScannerAction(p.product_code, "activate");
-              },
-            }, ["Activate"])
-          );
-        }
         scanTd.appendChild(row);
       }
       tr.appendChild(scanTd);
