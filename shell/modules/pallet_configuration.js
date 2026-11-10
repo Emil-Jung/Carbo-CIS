@@ -349,7 +349,8 @@
           "Remove " + productCode + " from scanners",
         ])
       );
-      basketModalCard.appendChild(
+      var body = ui.el("div", { class: "packaging-shift-basket-modal__body" });
+      body.appendChild(
         ui.el("p", { class: "muted packaging-shift-basket-modal__lead" }, [
           basketKg > 0.001
             ? fmtKg(basketKg) + " is in the pallet basket for " + productCode + " (unchanged unless you move it)."
@@ -357,7 +358,7 @@
         ])
       );
       var err = ui.el("p", { class: "error-box packaging-shift-basket-modal__err", hidden: true }, [""]);
-      basketModalCard.appendChild(err);
+      body.appendChild(err);
 
       var moveBlock = ui.el("div", { class: "packaging-shift-basket-modal__move" });
       var sel = ui.el("select", { class: "packaging-shift-basket-select" });
@@ -382,9 +383,10 @@
         );
         moveBlock.appendChild(sel);
       }
-      basketModalCard.appendChild(moveBlock);
+      body.appendChild(moveBlock);
+      basketModalCard.appendChild(body);
 
-      var actions = ui.el("div", { class: "packaging-shift-basket-modal__actions packaging-shift-basket-modal__actions--stack" });
+      var actions = ui.el("div", { class: "packaging-shift-basket-modal__actions" });
       actions.appendChild(
         ui.el("button", {
           type: "button",

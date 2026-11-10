@@ -287,7 +287,8 @@
           "Move basket material before completing",
         ])
       );
-      basketModalCard.appendChild(
+      var body = ui.el("div", { class: "packaging-shift-basket-modal__body" });
+      body.appendChild(
         ui.el("p", { class: "muted packaging-shift-basket-modal__lead" }, [
           "This shift still has charcoal in the pallet basket. Choose which ",
           ui.el("strong", {}, ["active product"]),
@@ -334,33 +335,11 @@
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      basketModalCard.appendChild(table);
+      body.appendChild(table);
       var err = ui.el("p", { class: "error-box packaging-shift-basket-modal__err", hidden: true }, [""]);
-      basketModalCard.appendChild(err);
+      body.appendChild(err);
+      basketModalCard.appendChild(body);
       var actions = ui.el("div", { class: "packaging-shift-basket-modal__actions" });
-      actions.appendChild(
-        ui.el("button", {
-          type: "button",
-          class: "btn btn-secondary",
-          onclick: closeBasketModal,
-        }, ["Cancel"])
-      );
-      actions.appendChild(
-        ui.el("button", {
-          type: "button",
-          class: "btn btn-secondary",
-          onclick: function () {
-            closeBasketModal();
-            void act(
-              shift.id,
-              { status: "completed", leave_basket: true },
-              "Complete this shift and keep basket material on these SKUs",
-              "Completing shift (basket unchanged)…",
-              true
-            );
-          },
-        }, ["Complete & keep basket"])
-      );
       actions.appendChild(
         ui.el("button", {
           type: "button",
@@ -396,6 +375,29 @@
             );
           },
         }, ["Confirm move & complete shift"])
+      );
+      actions.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn btn-secondary",
+          onclick: function () {
+            closeBasketModal();
+            void act(
+              shift.id,
+              { status: "completed", leave_basket: true },
+              "Complete this shift and keep basket material on these SKUs",
+              "Completing shift (basket unchanged)…",
+              true
+            );
+          },
+        }, ["Complete & keep basket"])
+      );
+      actions.appendChild(
+        ui.el("button", {
+          type: "button",
+          class: "btn btn-secondary packaging-shift-basket-modal__cancel",
+          onclick: closeBasketModal,
+        }, ["Cancel"])
       );
       basketModalCard.appendChild(actions);
       basketModal.hidden = false;
