@@ -44,9 +44,9 @@
       },
       {
         doc: "trace",
-        title: "2 — Traceability summary",
+        title: "2 — EUDR accompanying location sheet",
         text:
-          "Spreadsheet-style record: producers, farms, GPS, FSC and each bag line for this container. Supporting evidence for EUDR and due diligence.",
+          "GPS location sheet (Excel layout): each producer and farm that supplied charcoal in this FCL, with latitude and longitude — not camp GeoJSON polygons.",
       },
       {
         doc: "eudr",
@@ -98,7 +98,7 @@
     );
     sharedSection.appendChild(
       ui.el("p", { class: "muted td-doc-shared-picker__hint" }, [
-        "The EUDR declaration (document 3) uses its own booking or container scope below.",
+        "The EUDR due diligence statement (document 3) uses its own booking or container scope below.",
       ])
     );
     sharedSection.appendChild(toggleClosed);
@@ -107,7 +107,7 @@
     containerSelect.appendChild(ui.el("option", { value: "" }, ["Loading containers…"]));
     sharedSection.appendChild(
       ui.el("label", { class: "ct-field td-doc-field" }, [
-        ui.el("span", { class: "ct-field-label" }, ["Container for load sheet & traceability summary"]),
+        ui.el("span", { class: "ct-field-label" }, ["Container for load sheet & location sheet"]),
         containerSelect,
       ])
     );
@@ -293,24 +293,35 @@
       class: "td-doc-doc-card td-doc-doc-card--trace",
       "aria-labelledby": "td-doc-trace-title",
     });
-    traceCard.appendChild(ui.el("p", { class: "td-doc-doc-card__tag" }, ["Document 2 · Traceability evidence"]));
+    traceCard.appendChild(ui.el("p", { class: "td-doc-doc-card__tag" }, ["Document 2 · EUDR GPS evidence"]));
     traceCard.appendChild(
       ui.el("h3", { class: "td-doc-doc-card__title", id: "td-doc-trace-title" }, [
-        "Container traceability summary",
+        "EUDR accompanying location sheet",
       ])
     );
     traceCard.appendChild(
       ui.el("p", { class: "td-doc-doc-card__purpose" }, [
-        "Landscape spreadsheet: producer and farm rollup with GPS, then every bag line with FSC — for audits and EUDR packages.",
+        "Same layout as ",
+        ui.el("em", {}, ["GPS EUDR Accompanying Location Sheet Containers"]),
+        ": supplier, farm name & number, and farm GPS point per producer in the container (from Traceability + Producers API).",
       ])
     );
+    var traceActions = ui.el("div", { class: "td-doc-sheet-actions" });
     var btnTraceSummary = ui.el("button", {
       class: "btn",
       type: "button",
       disabled: "disabled",
       id: "td-doc-location-sheet-pdf",
-    }, ["Preview traceability summary"]);
-    traceCard.appendChild(ui.el("div", { class: "td-doc-sheet-actions" }, [btnTraceSummary]));
+    }, ["Preview location sheet"]);
+    var btnTraceCsv = ui.el("button", {
+      class: "btn btn-sm td-doc-eudr-btn-secondary",
+      type: "button",
+      disabled: "disabled",
+      id: "td-doc-location-sheet-print",
+    }, ["Download CSV (Excel)"]);
+    traceActions.appendChild(btnTraceSummary);
+    traceActions.appendChild(btnTraceCsv);
+    traceCard.appendChild(traceActions);
     var traceSummaryMsg = ui.el("p", {
       class: "error-box td-doc-sheet-action-msg td-doc-action-error--hidden",
     }, [""]);
@@ -323,6 +334,22 @@
       else traceSummaryMsg.classList.add("td-doc-action-error--hidden");
     }
 
+    btnTraceCsv.addEventListener("click", async function () {
+      if (!selectedContainerId) return;
+      setTraceSummaryMsg("");
+      btnTraceCsv.disabled = true;
+      try {
+        if (!CIS.downloadEudrAccompanyingLocationSheetCsv) {
+          throw new Error("Location sheet module not loaded.");
+        }
+        await CIS.downloadEudrAccompanyingLocationSheetCsv(ctx.api, selectedContainerId);
+      } catch (e) {
+        setTraceSummaryMsg("CSV download failed: " + (e.message || e));
+      } finally {
+        syncDocButtons();
+      }
+    });
+
     btnTraceSummary.addEventListener("click", async function () {
       if (!selectedContainerId) return;
       setTraceSummaryMsg("");
@@ -330,15 +357,15 @@
       btnTraceSummary.disabled = true;
       btnTraceSummary.textContent = "Loading…";
       var busy = showBusyModal(
-        "Container traceability summary",
-        "Building producer and bag traceability from Traceability…"
+        "EUDR accompanying location sheet",
+        "Resolving producers and farm GPS for this container…"
       );
       try {
-        if (!CIS.showContainerTraceabilitySummaryPreview) {
-          throw new Error("Traceability summary module not loaded.");
+        if (!CIS.showEudrAccompanyingLocationSheetPreview) {
+          throw new Error("Location sheet module not loaded.");
         }
         busy.close();
-        await CIS.showContainerTraceabilitySummaryPreview(ctx.api, selectedContainerId);
+        await CIS.showEudrAccompanyingLocationSheetPreview(ctx.api, selectedContainerId);
       } catch (e) {
         busy.close();
         setTraceSummaryMsg("Could not open summary: " + (e.message || e));
@@ -355,12 +382,15 @@
       var on = !!selectedContainerId;
       btnLoadSheet.disabled = !on;
       btnTraceSummary.disabled = !on;
+      btnTraceCsv.disabled = !on;
       if (!on) {
         btnLoadSheet.title = "Choose a container in the section above.";
         btnTraceSummary.title = "Choose a container in the section above.";
+        btnTraceCsv.title = "Choose a container in the section above.";
       } else {
         btnLoadSheet.removeAttribute("title");
         btnTraceSummary.removeAttribute("title");
+        btnTraceCsv.removeAttribute("title");
       }
     }
 
@@ -400,7 +430,7 @@
     kind: "lookup",
     order: 18,
     icon: "traceability",
-    description: "Load sheet, traceability summary, and EUDR declaration per container",
+    description: "Load sheet, EUDR location sheet (GPS), and EUDR declaration",
     requires: "traceability.containers",
     render: render,
   });

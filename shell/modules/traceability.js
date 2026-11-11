@@ -52,7 +52,7 @@
     traceability_documentation: {
       id: "traceability_documentation",
       title: "Traceability Documentation",
-      description: "Load sheet, traceability summary spreadsheet, and EUDR declaration.",
+      description: "Load sheet, EUDR location sheet (GPS), and EUDR declaration.",
       requires: "traceability.containers",
       icon: "labels",
     },
