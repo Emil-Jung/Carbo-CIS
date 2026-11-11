@@ -58,19 +58,26 @@
     var assetUrls = null;
     var statementTitle = "";
 
-    var section = ui.el("section", { class: "td-doc-section td-doc-eudr-dds" });
+    var section = ui.el("section", {
+      class: "td-doc-doc-card td-doc-doc-card--eudr",
+      "aria-labelledby": "td-doc-eudr-title",
+    });
     section.appendChild(
-      ui.el("h3", { class: "ct-containers-section-title" }, [
+      ui.el("p", { class: "td-doc-doc-card__tag" }, ["Document 3 · EUDR / regulatory"])
+    );
+    section.appendChild(
+      ui.el("h3", { class: "td-doc-doc-card__title", id: "td-doc-eudr-title" }, [
         "EUDR Due Diligence Statement",
       ])
     );
     section.appendChild(
-      ui.el("p", { class: "muted" }, [
-        "Prepare a due diligence statement by ",
+      ui.el("p", { class: "td-doc-doc-card__purpose" }, [
+        "Formal EU due diligence declaration — not the operational load sheet or the traceability spreadsheet. ",
+        "Scope by ",
         ui.el("strong", {}, ["booking reference"]),
-        " (default) or a ",
-        ui.el("strong", {}, ["single container"]),
-        ", then save, preview, or download PDF.",
+        " (several FCLs) or one ",
+        ui.el("strong", {}, ["container"]),
+        ", then save, preview or PDF.",
       ])
     );
 
@@ -107,13 +114,22 @@
     });
     var containerSelect = ui.el("select", { class: "td-doc-select" });
     containerSelect.appendChild(ui.el("option", { value: "" }, ["Choose container…"]));
-    containers.forEach(function (c) {
-      containerSelect.appendChild(
-        ui.el("option", { value: c.id }, [
-          (c.container_number || "—") + (c.booking_ref ? " · " + c.booking_ref : ""),
-        ])
-      );
-    });
+    function paintEudrContainerOptions() {
+      var keep = containerSelect.value;
+      containerSelect.innerHTML = "";
+      containerSelect.appendChild(ui.el("option", { value: "" }, ["Choose container…"]));
+      containers.forEach(function (c) {
+        containerSelect.appendChild(
+          ui.el("option", { value: c.id }, [
+            (c.container_number || "—") + (c.booking_ref ? " · " + c.booking_ref : ""),
+          ])
+        );
+      });
+      if (keep && containers.some(function (c) { return c.id === keep; })) {
+        containerSelect.value = keep;
+      }
+    }
+    paintEudrContainerOptions();
     singlePanel.appendChild(
       ui.el("label", { class: "ct-field td-doc-field" }, [
         ui.el("span", { class: "ct-field-label" }, ["Container"]),
@@ -677,5 +693,12 @@
     paintFields();
     updateSaveButtonLabel();
     populateBookingSelect();
+
+    if (typeof shared.onContainersReloaded === "function") {
+      shared.onContainersReloaded(function (fresh) {
+        containers = fresh || [];
+        paintEudrContainerOptions();
+      });
+    }
   };
 })();

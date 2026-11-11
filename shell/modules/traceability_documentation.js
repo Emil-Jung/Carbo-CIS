@@ -1,4 +1,4 @@
-/* Traceability Documentation — container load sheet per FCL. */
+/* Traceability Documentation — load sheet, traceability summary, EUDR declaration. */
 (function () {
   "use strict";
   var CIS = (window.CIS = window.CIS || {});
@@ -20,22 +20,51 @@
   async function render(container, ctx) {
     var ui = CIS.ui;
     var containers = [];
-    var sheetContainerId = "";
+    var selectedContainerId = "";
 
     container.className = "module-content td-doc-host";
     if (ctx.applyModuleFloatNavPadding) ctx.applyModuleFloatNavPadding(container);
+
     container.appendChild(
       ui.el("h2", { class: "module-title" }, ["Traceability Documentation"])
     );
     container.appendChild(
       ui.el("p", { class: "module-desc" }, [
-        "Operational ",
-        ui.el("strong", {}, ["container load sheet"]),
-        " for one FCL, and an editable ",
-        ui.el("strong", {}, ["EUDR Due Diligence Statement"]),
-        " with branded PDF output.",
+        "Three separate documents per shipment. Pick a container once below, then open the document you need.",
       ])
     );
+
+    var introGrid = ui.el("div", { class: "td-doc-intro-grid", role: "list" });
+    [
+      {
+        doc: "load",
+        title: "1 — Container load sheet",
+        text:
+          "Operational weighing list: every pallet/bag ID, product code and weight loaded into the FCL. For the yard, transporter and shipping line — not for farm GPS.",
+      },
+      {
+        doc: "trace",
+        title: "2 — Traceability summary",
+        text:
+          "Spreadsheet-style record: producers, farms, GPS, FSC and each bag line for this container. Supporting evidence for EUDR and due diligence.",
+      },
+      {
+        doc: "eudr",
+        title: "3 — EUDR declaration",
+        text:
+          "Due Diligence Statement (DDS): formal EU regulatory declaration by booking or container, with save, PDF and print — not a bag-by-bag load list.",
+      },
+    ].forEach(function (card) {
+      var el = ui.el("div", {
+        class: "td-doc-intro-card",
+        "data-doc": card.doc,
+        role: "listitem",
+      });
+      el.appendChild(ui.el("h4", {}, [card.title]));
+      el.appendChild(ui.el("p", {}, [card.text]));
+      introGrid.appendChild(el);
+    });
+    container.appendChild(introGrid);
 
     var statusEl = ui.el("p", { class: "muted td-doc-status" }, [""]);
     container.appendChild(statusEl);
@@ -49,13 +78,6 @@
     var toggleClosed = ui.el("button", { class: "btn btn-sm", type: "button" }, [
       "Include shipped and cancelled",
     ]);
-    toggleClosed.addEventListener("click", function () {
-      includeClosed = !includeClosed;
-      toggleClosed.textContent = includeClosed
-        ? "Hide shipped and cancelled"
-        : "Include shipped and cancelled";
-      paintSheetSelect();
-    });
 
     function visibleList() {
       if (includeClosed) return containers.slice();
@@ -64,55 +86,55 @@
       });
     }
 
-    /* —— Container sheet (one FCL) —— */
-    var sheetSection = ui.el("section", { class: "td-doc-section" });
-    sheetSection.appendChild(
-      ui.el("h3", { class: "ct-containers-section-title" }, ["Container sheet"])
+    function selectedContainer() {
+      return containers.find(function (x) {
+        return x.id === selectedContainerId;
+      });
+    }
+
+    var sharedSection = ui.el("section", { class: "td-doc-shared-picker" });
+    sharedSection.appendChild(
+      ui.el("h3", { class: "td-doc-shared-picker__title" }, ["Choose container (documents 1 & 2)"])
     );
-    sheetSection.appendChild(
-      ui.el("p", { class: "muted" }, [
-        "Select a container, preview the form, then download or print.",
+    sharedSection.appendChild(
+      ui.el("p", { class: "muted td-doc-shared-picker__hint" }, [
+        "The EUDR declaration (document 3) uses its own booking or container scope below.",
       ])
     );
-    sheetSection.appendChild(toggleClosed);
+    sharedSection.appendChild(toggleClosed);
 
-    var sheetSelect = ui.el("select", { class: "td-doc-select" });
-    sheetSelect.appendChild(ui.el("option", { value: "" }, ["Loading containers…"]));
-    sheetSection.appendChild(
+    var containerSelect = ui.el("select", { class: "td-doc-select" });
+    containerSelect.appendChild(ui.el("option", { value: "" }, ["Loading containers…"]));
+    sharedSection.appendChild(
       ui.el("label", { class: "ct-field td-doc-field" }, [
-        ui.el("span", { class: "ct-field-label" }, ["Container"]),
-        sheetSelect,
+        ui.el("span", { class: "ct-field-label" }, ["Container for load sheet & traceability summary"]),
+        containerSelect,
       ])
     );
-    var sheetPreview = ui.el("div", { class: "td-doc-preview muted" }, [
-      "Choose a container.",
-    ]);
-    sheetSection.appendChild(sheetPreview);
-    var sheetActions = ui.el("div", { class: "td-doc-sheet-actions" });
-    var sheetBtnPreview = ui.el("button", {
-      class: "btn",
-      type: "button",
-      disabled: "disabled",
-    }, ["Preview Container Load Sheet"]);
-    sheetActions.appendChild(sheetBtnPreview);
-    sheetSection.appendChild(sheetActions);
-    var sheetActionMsg = ui.el("p", {
-      class: "error-box td-doc-sheet-action-msg td-doc-action-error--hidden",
-    }, [""]);
-    sheetSection.appendChild(sheetActionMsg);
-    container.appendChild(sheetSection);
 
-    function paintSheetSelect() {
+    var containerPreview = ui.el("div", { class: "td-doc-preview muted" }, ["Choose a container."]);
+    sharedSection.appendChild(containerPreview);
+    container.appendChild(sharedSection);
+
+    toggleClosed.addEventListener("click", function () {
+      includeClosed = !includeClosed;
+      toggleClosed.textContent = includeClosed
+        ? "Hide shipped and cancelled"
+        : "Include shipped and cancelled";
+      paintContainerSelect();
+    });
+
+    function paintContainerSelect() {
       var list = visibleList();
-      var prev = sheetSelect.value;
-      sheetSelect.innerHTML = "";
+      var prev = containerSelect.value;
+      containerSelect.innerHTML = "";
       if (!list.length) {
-        sheetSelect.appendChild(ui.el("option", { value: "" }, ["No containers in this view"]));
-        sheetContainerId = "";
+        containerSelect.appendChild(ui.el("option", { value: "" }, ["No containers in this view"]));
+        selectedContainerId = "";
       } else {
-        sheetSelect.appendChild(ui.el("option", { value: "" }, ["Choose container…"]));
+        containerSelect.appendChild(ui.el("option", { value: "" }, ["Choose container…"]));
         list.forEach(function (c) {
-          sheetSelect.appendChild(
+          containerSelect.appendChild(
             ui.el("option", { value: c.id }, [
               c.container_number +
                 " (" +
@@ -124,25 +146,24 @@
           );
         });
         if (prev && list.some(function (c) { return c.id === prev; })) {
-          sheetSelect.value = prev;
+          containerSelect.value = prev;
         }
       }
-      sheetContainerId = sheetSelect.value;
-      paintSheetPreview();
+      selectedContainerId = containerSelect.value;
+      paintContainerPreview();
+      syncDocButtons();
     }
 
-    function paintSheetPreview() {
-      var c = containers.find(function (x) { return x.id === sheetContainerId; });
+    function paintContainerPreview() {
+      var c = selectedContainer();
       if (!c) {
-        sheetPreview.textContent = "Choose a container.";
-        sheetPreview.className = "td-doc-preview muted";
-        sheetBtnPreview.disabled = true;
-        sheetBtnPreview.title = "Choose a container from the list above.";
+        containerPreview.textContent = "Choose a container.";
+        containerPreview.className = "td-doc-preview muted";
         return;
       }
-      sheetPreview.innerHTML = "";
-      sheetPreview.className = "td-doc-preview";
-      sheetPreview.appendChild(
+      containerPreview.innerHTML = "";
+      containerPreview.className = "td-doc-preview";
+      containerPreview.appendChild(
         ui.el("p", {}, [
           ui.el("strong", {}, [c.container_number]),
           " · ",
@@ -151,7 +172,7 @@
           STATUS_LABEL[c.status] || c.status,
         ])
       );
-      sheetPreview.appendChild(
+      containerPreview.appendChild(
         ui.el("p", { class: "muted" }, [
           fmt(c.loaded_bags),
           " bags loaded · Booking ",
@@ -159,17 +180,17 @@
           c.ship_to ? " · To " + c.ship_to : "",
         ])
       );
-      sheetBtnPreview.disabled = false;
-      sheetBtnPreview.removeAttribute("title");
     }
 
-    function setSheetActionMsg(text) {
-      sheetActionMsg.textContent = text || "";
-      if (text) sheetActionMsg.classList.remove("td-doc-action-error--hidden");
-      else sheetActionMsg.classList.add("td-doc-action-error--hidden");
-    }
+    containerSelect.addEventListener("change", function () {
+      selectedContainerId = containerSelect.value;
+      paintContainerPreview();
+      syncDocButtons();
+      setLoadSheetMsg("");
+      setTraceSummaryMsg("");
+    });
 
-    function showSheetLoadingModal(initialMessage) {
+    function showBusyModal(title, initialMessage) {
       var backdrop = ui.el("div", {
         class: "modal-backdrop td-doc-busy-backdrop",
         role: "dialog",
@@ -177,23 +198,16 @@
         "aria-busy": "true",
       });
       var dialog = ui.el("div", { class: "modal td-doc-busy-dialog" });
-      dialog.appendChild(
-        ui.el("h3", { class: "cm-print-dialog-title td-doc-busy-title" }, [
-          "Preparing container load sheet",
-        ])
-      );
-      var msgEl = ui.el("p", { class: "td-doc-busy-message" }, [
-        initialMessage || "Please wait…",
-      ]);
+      dialog.appendChild(ui.el("h3", { class: "cm-print-dialog-title td-doc-busy-title" }, [title]));
+      var msgEl = ui.el("p", { class: "td-doc-busy-message" }, [initialMessage || "Please wait…"]);
       dialog.appendChild(msgEl);
       dialog.appendChild(
         ui.el("p", { class: "td-doc-busy-hint muted" }, [
-          "Please wait — the preview opens when loading finishes. Do not click the button again.",
+          "The preview opens when loading finishes. Do not click the button again.",
         ])
       );
       backdrop.appendChild(dialog);
       document.body.appendChild(backdrop);
-
       return {
         setMessage: function (text) {
           msgEl.textContent = text || "";
@@ -204,61 +218,151 @@
       };
     }
 
-    async function fetchSheetManifest() {
-      if (!sheetContainerId) {
-        throw new Error("Choose a container from the list above.");
-      }
-      return await ctx.api.traceability(
-        "/containers/" + encodeURIComponent(sheetContainerId) + "/manifest"
-      );
+    /* —— Document 1: Container load sheet —— */
+    var loadSheetCard = ui.el("section", {
+      class: "td-doc-doc-card td-doc-doc-card--load",
+      "aria-labelledby": "td-doc-load-title",
+    });
+    loadSheetCard.appendChild(ui.el("p", { class: "td-doc-doc-card__tag" }, ["Document 1 · Operational"]));
+    loadSheetCard.appendChild(
+      ui.el("h3", { class: "td-doc-doc-card__title", id: "td-doc-load-title" }, [
+        "Container load sheet",
+      ])
+    );
+    loadSheetCard.appendChild(
+      ui.el("p", { class: "td-doc-doc-card__purpose" }, [
+        "Printable load manifest: NR, bag ID with product code, and weight — same data as yard loading.",
+      ])
+    );
+    var btnLoadSheet = ui.el("button", {
+      class: "btn",
+      type: "button",
+      disabled: "disabled",
+    }, ["Preview load sheet"]);
+    loadSheetCard.appendChild(ui.el("div", { class: "td-doc-sheet-actions" }, [btnLoadSheet]));
+    var loadSheetMsg = ui.el("p", {
+      class: "error-box td-doc-sheet-action-msg td-doc-action-error--hidden",
+    }, [""]);
+    loadSheetCard.appendChild(loadSheetMsg);
+    container.appendChild(loadSheetCard);
+
+    function setLoadSheetMsg(text) {
+      loadSheetMsg.textContent = text || "";
+      if (text) loadSheetMsg.classList.remove("td-doc-action-error--hidden");
+      else loadSheetMsg.classList.add("td-doc-action-error--hidden");
     }
 
-    sheetSelect.addEventListener("change", function () {
-      sheetContainerId = sheetSelect.value;
-      setSheetActionMsg("");
-      paintSheetPreview();
-    });
-
-    sheetBtnPreview.addEventListener("click", async function () {
-      if (!sheetContainerId) return;
-      setSheetActionMsg("");
-      var prevBtnLabel = sheetBtnPreview.textContent;
-      sheetBtnPreview.disabled = true;
-      sheetBtnPreview.textContent = "Loading…";
-      var busy = showSheetLoadingModal(
-        "Loading container manifest from Traceability…"
-      );
+    btnLoadSheet.addEventListener("click", async function () {
+      if (!selectedContainerId) return;
+      setLoadSheetMsg("");
+      var prevLabel = btnLoadSheet.textContent;
+      btnLoadSheet.disabled = true;
+      btnLoadSheet.textContent = "Loading…";
+      var busy = showBusyModal("Container load sheet", "Loading container manifest…");
       try {
-        var manifest = await fetchSheetManifest();
+        var manifest = await ctx.api.traceability(
+          "/containers/" + encodeURIComponent(selectedContainerId) + "/manifest"
+        );
         if (!manifest || !manifest.header) {
           throw new Error("Manifest did not return container header data.");
         }
         if (!CIS.prepareContainerSheetManifest || !CIS.showContainerSheetPreview) {
           throw new Error("Container sheet module not loaded.");
         }
-        busy.setMessage(
-          "Loading in-container bags (same data as Bags Status → Into container)…"
-        );
+        busy.setMessage("Loading in-container bags…");
         manifest = await CIS.prepareContainerSheetManifest(ctx.api, manifest);
-        var loadCount = (manifest._sheet_loading_rows || []).length;
-        if (!loadCount) {
-          throw new Error(
-            "No in-container bags found for this FCL. Check Bags Status → Into container."
-          );
+        if (!(manifest._sheet_loading_rows || []).length) {
+          throw new Error("No in-container bags found. Check Bags Status → Into container.");
         }
         busy.close();
         await CIS.showContainerSheetPreview(manifest, "documentation");
       } catch (e) {
         busy.close();
-        var msg = e.message || String(e);
-        setSheetActionMsg("Could not open preview: " + msg);
+        setLoadSheetMsg("Could not open load sheet: " + (e.message || e));
       } finally {
-        if (sheetContainerId) {
-          sheetBtnPreview.disabled = false;
-          sheetBtnPreview.textContent = prevBtnLabel;
+        if (selectedContainerId) {
+          btnLoadSheet.disabled = false;
+          btnLoadSheet.textContent = prevLabel;
         }
+        syncDocButtons();
       }
     });
+
+    /* —— Document 2: Traceability summary —— */
+    var traceCard = ui.el("section", {
+      class: "td-doc-doc-card td-doc-doc-card--trace",
+      "aria-labelledby": "td-doc-trace-title",
+    });
+    traceCard.appendChild(ui.el("p", { class: "td-doc-doc-card__tag" }, ["Document 2 · Traceability evidence"]));
+    traceCard.appendChild(
+      ui.el("h3", { class: "td-doc-doc-card__title", id: "td-doc-trace-title" }, [
+        "Container traceability summary",
+      ])
+    );
+    traceCard.appendChild(
+      ui.el("p", { class: "td-doc-doc-card__purpose" }, [
+        "Landscape spreadsheet: producer and farm rollup with GPS, then every bag line with FSC — for audits and EUDR packages.",
+      ])
+    );
+    var btnTraceSummary = ui.el("button", {
+      class: "btn",
+      type: "button",
+      disabled: "disabled",
+      id: "td-doc-location-sheet-pdf",
+    }, ["Preview traceability summary"]);
+    traceCard.appendChild(ui.el("div", { class: "td-doc-sheet-actions" }, [btnTraceSummary]));
+    var traceSummaryMsg = ui.el("p", {
+      class: "error-box td-doc-sheet-action-msg td-doc-action-error--hidden",
+    }, [""]);
+    traceCard.appendChild(traceSummaryMsg);
+    container.appendChild(traceCard);
+
+    function setTraceSummaryMsg(text) {
+      traceSummaryMsg.textContent = text || "";
+      if (text) traceSummaryMsg.classList.remove("td-doc-action-error--hidden");
+      else traceSummaryMsg.classList.add("td-doc-action-error--hidden");
+    }
+
+    btnTraceSummary.addEventListener("click", async function () {
+      if (!selectedContainerId) return;
+      setTraceSummaryMsg("");
+      var prevLabel = btnTraceSummary.textContent;
+      btnTraceSummary.disabled = true;
+      btnTraceSummary.textContent = "Loading…";
+      var busy = showBusyModal(
+        "Container traceability summary",
+        "Building producer and bag traceability from Traceability…"
+      );
+      try {
+        if (!CIS.showContainerTraceabilitySummaryPreview) {
+          throw new Error("Traceability summary module not loaded.");
+        }
+        busy.close();
+        await CIS.showContainerTraceabilitySummaryPreview(ctx.api, selectedContainerId);
+      } catch (e) {
+        busy.close();
+        setTraceSummaryMsg("Could not open summary: " + (e.message || e));
+      } finally {
+        if (selectedContainerId) {
+          btnTraceSummary.disabled = false;
+          btnTraceSummary.textContent = prevLabel;
+        }
+        syncDocButtons();
+      }
+    });
+
+    function syncDocButtons() {
+      var on = !!selectedContainerId;
+      btnLoadSheet.disabled = !on;
+      btnTraceSummary.disabled = !on;
+      if (!on) {
+        btnLoadSheet.title = "Choose a container in the section above.";
+        btnTraceSummary.title = "Choose a container in the section above.";
+      } else {
+        btnLoadSheet.removeAttribute("title");
+        btnTraceSummary.removeAttribute("title");
+      }
+    }
 
     async function loadContainers() {
       setStatus("Loading containers…", false);
@@ -268,8 +372,9 @@
         containers.sort(function (a, b) {
           return String(b.created_at || "").localeCompare(String(a.created_at || ""));
         });
-        paintSheetSelect();
+        paintContainerSelect();
         setStatus("", false);
+        if (CIS._tdDocOnContainersLoaded) CIS._tdDocOnContainersLoaded(containers);
       } catch (e) {
         setStatus("Could not load containers: " + (e.message || e), true);
       }
@@ -278,7 +383,13 @@
     await loadContainers();
 
     if (CIS.mountEudrDdsEditor) {
-      CIS.mountEudrDdsEditor(container, ctx, { ui: ui, containers: containers });
+      CIS.mountEudrDdsEditor(container, ctx, {
+        ui: ui,
+        containers: containers,
+        onContainersReloaded: function (fn) {
+          CIS._tdDocOnContainersLoaded = fn;
+        },
+      });
     }
   }
 
@@ -289,7 +400,7 @@
     kind: "lookup",
     order: 18,
     icon: "traceability",
-    description: "Container load sheets and EUDR due diligence statements",
+    description: "Load sheet, traceability summary, and EUDR declaration per container",
     requires: "traceability.containers",
     render: render,
   });
