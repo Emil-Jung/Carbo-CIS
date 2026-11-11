@@ -17,6 +17,7 @@ for (let i = 1; i <= 48; i++) {
   const n = String(5658 + i).padStart(6, "0");
   rows.push({
     serial: "BAG-2026-" + n,
+    product_code: i === 1 ? "RCH12" : "DOM2.5",
     net_weight_kg: 387,
     status_changed_at: "2026-10-20T12:00:0" + (i % 10) + "Z",
   });
@@ -54,6 +55,7 @@ const wSum = entries.reduce((s, e) => s + Number(e.weight_kg || 0), 0);
 
 const checks = [
   ["ITEMS column heading", html.includes("<th>ITEMS</th>") && !html.includes("<th>SUPPLIER</th>")],
+  ["ITEMS shows bag id + product code", html.includes("BAG-2026-005659 RCH12")],
   ["48 loading entries", entries.length === 48],
   ["weight sum 18576", wSum === 18576],
   ["QTY in totals", html.includes("18576") && html.includes("QTY BAGS")],

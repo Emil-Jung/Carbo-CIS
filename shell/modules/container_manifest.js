@@ -139,11 +139,20 @@
     return Math.round(Number(w));
   }
 
+  function sheetItemsCellLabel(entry) {
+    var serial = String((entry && entry.bag_serial) || "").trim();
+    if (!serial) return "";
+    var code = String((entry && entry.product_code) || "").trim();
+    return code ? serial + " " + code : serial;
+  }
+
   function bagRowToLoadingEntry(row) {
     var serial = String((row && (row.serial || row.bag_identifier)) || "").trim();
     if (!serial || /^unknown producer/i.test(serial)) return null;
+    var productCode = String((row && row.product_code) || "").trim();
     return {
       bag_serial: serial,
+      product_code: productCode || undefined,
       weight_kg: normalizeLoadingWeight(
         row.net_weight_kg != null ? row.net_weight_kg : row.weight_kg
       ),
@@ -157,6 +166,7 @@
         return bagRowToLoadingEntry({
           serial: ln.bag_identifier,
           net_weight_kg: ln.weight_kg,
+          product_code: ln.product_code,
         });
       })
       .filter(Boolean);
@@ -208,7 +218,11 @@
     }
     if (!rows.length) {
       rows = loadingEntriesFromManifestLines(manifest).map(function (e) {
-        return { serial: e.bag_serial, net_weight_kg: e.weight_kg };
+        return {
+          serial: e.bag_serial,
+          net_weight_kg: e.weight_kg,
+          product_code: e.product_code,
+        };
       });
     }
     return Object.assign({}, manifest, { _sheet_loading_rows: rows });
@@ -244,7 +258,7 @@
       var supplierCell = "&nbsp;";
       var weightCell = "&nbsp;";
       if (ln) {
-        if (ln.bag_serial) supplierCell = esc(ln.bag_serial);
+        if (ln.bag_serial) supplierCell = esc(sheetItemsCellLabel(ln));
         if (ln.weight_kg !== "" && ln.weight_kg != null) {
           weightCell = esc(String(ln.weight_kg));
         }
