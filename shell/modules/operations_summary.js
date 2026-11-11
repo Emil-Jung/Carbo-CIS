@@ -340,7 +340,7 @@
       });
     }
 
-    (data.container_loading || []).forEach(function (c) {
+    (data.container_loading || []).slice(0, 1).forEach(function (c) {
       var cMain = c.container_number || "Container";
       var sku = (c.product_key || "").trim();
       if (sku) cMain += " · " + sku;
