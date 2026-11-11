@@ -40,6 +40,36 @@
     return ((header && header.fcl_number) || "").trim();
   }
 
+  /** Match booking/FCL refs across spacing and punctuation (all container sheets). */
+  function physicalContainerMatchKey(raw) {
+    return String(raw || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function manifestProductCodeBySerial(manifest) {
+    var map = Object.create(null);
+    var lines = (manifest && manifest.lines) || [];
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i];
+      var id = String(ln.bag_identifier || "").trim();
+      var pc = String(ln.product_code || "").trim();
+      if (id && pc) map[id] = pc;
+    }
+    return map;
+  }
+
+  function enrichSheetRowsWithManifestProductCodes(rows, manifest) {
+    var bySerial = manifestProductCodeBySerial(manifest);
+    if (!rows.length || !Object.keys(bySerial).length) return rows;
+    return rows.map(function (row) {
+      var serial = String((row && (row.serial || row.bag_identifier)) || "").trim();
+      if (!serial || String(row.product_code || "").trim()) return row;
+      var pc = bySerial[serial];
+      return pc ? Object.assign({}, row, { product_code: pc }) : row;
+    });
+  }
+
   function sheetBagMatchKeys(header) {
     var keys = [];
     var container = sheetBookingContainerRef(header);
@@ -197,9 +227,11 @@
       "/reports/bags-status?drill=1&status=" + encodeURIComponent("in_container") + "&_=" + Date.now()
     );
     var sections = (data && data.event_sections) || [];
+    var want = physicalContainerMatchKey(cn);
     for (var i = 0; i < sections.length; i++) {
       var sec = sections[i];
-      if ((sec.container_number || "").trim() === cn) {
+      var secRef = (sec.container_number || "").trim();
+      if (secRef === cn || (want && physicalContainerMatchKey(secRef) === want)) {
         return sec.rows || [];
       }
     }
@@ -224,6 +256,8 @@
           product_code: e.product_code,
         };
       });
+    } else {
+      rows = enrichSheetRowsWithManifestProductCodes(rows, manifest);
     }
     return Object.assign({}, manifest, { _sheet_loading_rows: rows });
   };
