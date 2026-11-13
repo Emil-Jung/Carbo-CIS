@@ -258,6 +258,16 @@ body {
 .cis-float-ops-host {
   max-width: min(92vw, 20rem);
   user-select: text;
+  overflow: visible;
+  max-height: none;
+}
+.cis-float-ops-panel,
+.cis-float-ops-host,
+.cis-float-ops-card,
+.cis-float-ops-card--active {
+  overflow: visible;
+  overflow-y: visible;
+  max-height: none;
 }
 .cis-float-ops-drag-handle {
   display: block;
