@@ -27,5 +27,5 @@
   "zebraPrinterPort": 9100,
   "zebraLabelStockDefault": "6128",
   "zebraLabelStockStandardOnly": true,
-  "shellRev": "20261113-float-ops-no-inner-scroll"
+  "shellRev": "20261113-float-ops-one-container"
 }

@@ -340,10 +340,7 @@
       });
     }
 
-    var loadingContainers = data.container_loading || [];
-    if (loadingContainers.length) {
-      /* API sorts by latest scan — show only the primary in-progress load (not every open FCL). */
-      var c = loadingContainers[0];
+    (data.container_loading || []).slice(0, 1).forEach(function (c) {
       var cMain = c.container_number || "Container";
       var sku = (c.product_key || "").trim();
       if (sku) cMain += " · " + sku;
@@ -361,17 +358,11 @@
           esc(String(c.loaded_bags)) +
           " bag(s) loaded</p>";
       }
-      if (loadingContainers.length > 1) {
-        cMeta +=
-          '<p class="cis-float-ops-card__meta cis-float-ops-card__muted">' +
-          esc(String(loadingContainers.length - 1)) +
-          " other open load(s) — open Containers module for full list.</p>";
-      }
       items.push({
         sort: 4,
         html: renderItem("Container loading", cMain, cMeta),
       });
-    }
+    });
 
     items.sort(function (a, b) {
       return a.sort - b.sort;

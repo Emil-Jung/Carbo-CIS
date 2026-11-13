@@ -298,10 +298,6 @@ body {
     0 4px 14px rgba(0, 0, 0, 0.45),
     0 0 12px rgba(228, 192, 74, 0.35);
 }
-.cis-float-ops-card--active {
-  max-height: none;
-  overflow: visible;
-}
 .cis-float-ops-card--idle {
   opacity: 0.95;
 }
