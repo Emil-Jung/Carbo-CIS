@@ -27,5 +27,5 @@
   "zebraPrinterPort": 9100,
   "zebraLabelStockDefault": "6128",
   "zebraLabelStockStandardOnly": true,
-  "shellRev": "20261113-float-ops-one-container"
+  "shellRev": "20261114-transit-truck-regs"
 }
