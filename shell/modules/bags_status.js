@@ -3576,12 +3576,20 @@
       }
 
       if (wxDrill && wxDrill.slice) {
-        wxDrill.slice = null;
+        if (drillStack.length) {
+          restoreNavState(drillStack.pop());
+        } else {
+          wxDrill.slice = null;
+        }
         paint();
         return;
       }
       if (wxDrill) {
-        wxDrill = null;
+        if (drillStack.length) {
+          restoreNavState(drillStack.pop());
+        } else {
+          wxDrill = null;
+        }
         paint();
         return;
       }
