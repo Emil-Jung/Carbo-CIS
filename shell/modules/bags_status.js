@@ -1837,7 +1837,11 @@
 
         card.appendChild(ui.el("div", { class: "bs-dash-status-card__value" }, [String(st.bags)]));
 
-        card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [fmtMass(st.kg)]));
+        var cardSub = fmtMass(st.kg);
+        if (st.receivedLabel) {
+          cardSub = st.receivedLabel + (st.kg ? " · " + fmtMass(st.kg) : "");
+        }
+        card.appendChild(ui.el("span", { class: "bs-dash-status-card__sub" }, [cardSub]));
 
         appendStreamSplitFooter(card, st.streams, ui);
 
@@ -2084,13 +2088,41 @@
     );
   }
 
-  function inTransitLoadDayCards(days) {
+  function windhoekDayFromDispatch(d) {
+    if (d.loading_date) return String(d.loading_date).slice(0, 10);
+    if (!d.opened_at) return "";
+    try {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Africa/Windhoek",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date(d.opened_at));
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function truckRegsForLoadDay(day, dispatches) {
+    var regs = [];
+    (dispatches || []).forEach(function (d) {
+      if (windhoekDayFromDispatch(d) !== day) return;
+      var r = (d.truck_registration || "").trim();
+      if (r && regs.indexOf(r) < 0) regs.push(r);
+    });
+    return regs.join(", ");
+  }
+
+  function inTransitLoadDayCards(days, dispatches) {
     return (days || []).map(function (d) {
       var day = d.day || "unknown";
+      var regs = (d.truck_registrations || []).join(", ");
+      if (!regs) regs = truckRegsForLoadDay(day, dispatches);
       return {
         key: "transit:load_day:" + day,
         kind: "walvis_transit_load_day",
         label: day === "unknown" ? "Unknown load date" : fmtDate(day),
+        receivedLabel: regs || "",
         bags: d.bags || 0,
         kg: d.kg || 0,
         streams: d.streams || {},
@@ -2099,7 +2131,7 @@
     });
   }
 
-  function renderInTransitLoadDayTiles(parent, days, ui, onSelect, heading) {
+  function renderInTransitLoadDayTiles(parent, days, ui, onSelect, heading, dispatches) {
     if (!days || !days.length) return;
     parent.appendChild(
       ui.el("h4", { class: "bs-dash-location__subhead" }, [
@@ -2113,7 +2145,7 @@
     );
     appendStatusCards(
       parent,
-      inTransitLoadDayCards(days),
+      inTransitLoadDayCards(days, dispatches),
       ui,
       null,
       onSelect,
@@ -2125,7 +2157,7 @@
     report = report || { dispatches: [], unassigned: {}, pallets: {}, by_load_day: [] };
     var loadDays = report.by_load_day || [];
     if (loadDays.length) {
-      renderInTransitLoadDayTiles(parent, loadDays, ui, onSelect);
+      renderInTransitLoadDayTiles(parent, loadDays, ui, onSelect, null, dispatches);
     }
     parent.appendChild(
       ui.el("p", { class: "bs-dash-drill-note" }, [
@@ -4905,7 +4937,6 @@
           walvisReport: walvisTransitReport,
         };
       });
-      if (walvisTransitReport) return;
       try {
         walvisTransitReport = await ctx.api.traceability("/walvis-dispatches/in-transit-breakdown");
         if (selected && selected.mode === "walvis_transit_hub") {
@@ -5041,6 +5072,24 @@
       }
 
       if (st.kind === "walvis_dispatch_select" && st.dispatch) {
+        var dispatchForDrill = st.dispatch;
+        try {
+          if (st.transit) {
+            walvisTransitReport = await ctx.api.traceability(
+              "/walvis-dispatches/in-transit-breakdown"
+            );
+            var freshTransit = findWalvisDispatch(walvisTransitReport, st.dispatch.id);
+            if (freshTransit) dispatchForDrill = freshTransit;
+          } else {
+            walvisStorageReport = await ctx.api.traceability(
+              "/walvis-dispatches/storage-at-walvis-breakdown"
+            );
+            var freshStorage = findWalvisDispatch(walvisStorageReport, st.dispatch.id);
+            if (freshStorage) dispatchForDrill = freshStorage;
+          }
+        } catch (e) {
+          /* use cached dispatch */
+        }
         drillNavigate(function () {
           selectedEvent = null;
           wxDrill = null;
@@ -5048,14 +5097,14 @@
             selected = {
               key: st.key,
               mode: "walvis_transit_dispatch",
-              dispatch: st.dispatch,
+              dispatch: dispatchForDrill,
               walvisReport: walvisTransitReport,
             };
           } else {
             selected = {
               key: st.key,
               mode: "walvis_storage_dispatch",
-              dispatch: st.dispatch,
+              dispatch: dispatchForDrill,
               walvisReport: walvisStorageReport,
             };
           }
