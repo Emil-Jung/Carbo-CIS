@@ -42,6 +42,18 @@
     "signature",
   ];
 
+  var EUDR_WOOD_SPECIES_DEFAULT =
+    "Yellow-bark Acacia (Withaak) — Acacia erubescens\n" +
+    "Sandveld Acacia (Geelhaak) — Acacia fleckii\n" +
+    "Kalahari Acacia (Omungondo) — Acacia luederitzii\n" +
+    "Black Thorn (Swarthaak) — Acacia mellifera (M.Vahl) Benth.\n" +
+    "Red-bark Acacia (Rooihaak) — Acacia reficiens\n" +
+    "Umbrella Thorn (Krulpeul) — Acacia tortilis (Forssk.) Hayne\n" +
+    "Mopanie Tree — Colophospermum mopane\n" +
+    "Sickle Bush (Sekelbos) — Dichrostachys cinerea\n" +
+    "Purple-pod Terminalia (Deurmekaarbos) — Terminalia prunioides\n" +
+    "Silver Leaf Cluster (Vaalboom) — Terminalia sericea";
+
   CIS.eudrDdsDefaultFields = function () {
     var today = new Date().toLocaleDateString("en-GB", {
       day: "2-digit",
@@ -61,8 +73,7 @@
       product: "Hardwood charcoal",
       hs_code: "4402 — Charcoal, whether or not agglomerated",
       trade_description: "Hardwood lump charcoal for retail / food-service use",
-      wood_species:
-        "[Common name and full scientific name — insert from production record]",
+      wood_species: EUDR_WOOD_SPECIES_DEFAULT,
       net_mass: "[XX,XXX kg]",
       country: "Namibia",
       geolocation:
