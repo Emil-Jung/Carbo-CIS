@@ -70,7 +70,7 @@
         if (f.namibiaTruckReg) {
           inp.setAttribute("autocapitalize", "characters");
           inp.setAttribute("spellcheck", "false");
-          if (!f.placeholder) inp.placeholder = "e.g. N3990OJ";
+          if (!f.placeholder) inp.placeholder = "e.g. N3990OJ or COLLY1";
           inp.addEventListener("blur", function () {
             if (!inp.value.trim()) return;
             try {
@@ -206,7 +206,7 @@
           key: "truck_registration",
           label: "Truck registration",
           value: (defaults && defaults.truck_registration) || "",
-          placeholder: "e.g. N3990OJ — optional until truck arrives",
+          placeholder: "e.g. N3990OJ or COLLY1 — optional until truck arrives",
           namibiaTruckReg: true,
         },
         {
@@ -1307,7 +1307,7 @@
     var truckInp = ui.el("input", {
       type: "text",
       class: "wd-field-input",
-      placeholder: "e.g. N3990OJ — optional until truck arrives",
+      placeholder: "e.g. N3990OJ or COLLY1 — optional until truck arrives",
       value: (initial && initial.truck_registration) || "",
       autocapitalize: "characters",
       spellcheck: "false",
