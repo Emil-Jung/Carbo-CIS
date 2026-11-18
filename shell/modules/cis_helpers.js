@@ -332,7 +332,12 @@
 
     function onMessage(ev) {
       if (ev.source !== iframe.contentWindow) return;
-      if (!ev.data || ev.data.type !== "cis-auth-ack") return;
+      if (!ev.data || !ev.data.type) return;
+      if (ev.data.type === "cis-ops-refresh" && CIS.refreshOperationsSummary) {
+        CIS.refreshOperationsSummary();
+        return;
+      }
+      if (ev.data.type !== "cis-auth-ack") return;
       acked = true;
       if (pollTimer) {
         clearInterval(pollTimer);

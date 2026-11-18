@@ -288,11 +288,24 @@
 
     var sieving = data.sieving_truck;
     if (sieving) {
-      var sievMain =
-        sieving.farm_name || sieving.label || sieving.title || "Active truck";
+      var sievMain = sieving.title || sieving.label || "Active truck";
+      if (!sievMain && sieving.truck_registration) {
+        sievMain = sieving.truck_registration;
+      }
+      var sievMeta = startedLine(sieving.started_at);
+      if (sieving.grn) {
+        sievMeta +=
+          '<p class="cis-float-ops-card__meta">GRN ' + esc(sieving.grn) + "</p>";
+      }
+      var sievShort =
+        (sieving.truck_registration
+          ? "Discharge · " + sieving.truck_registration
+          : null) || sievMain;
       items.push({
         sort: 1,
-        html: renderItem("Sieving", sievMain, startedLine(sieving.started_at)),
+        kindKey: "sieving",
+        shortTitle: sievShort,
+        html: renderItem("Charcoal intake", sievMain, sievMeta),
       });
     }
 
@@ -396,13 +409,25 @@
       state.floatEl.innerHTML =
         opsCardOpen("cis-float-ops-card--idle") +
         opsCardHead("Active operations", 0) +
-        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active sieving, packaging, Walvis load, or container loading.</p></div>';
+        '<p class="cis-float-ops-card__body cis-float-ops-card__muted">No active charcoal intake, packaging, Walvis load, or container loading.</p></div>';
       return;
+    }
+
+    var headTitle = "Active operations";
+    if (items.length === 1 && items[0].shortTitle) {
+      headTitle = items[0].shortTitle;
+    } else {
+      var sievItem = items.filter(function (it) {
+        return it.kindKey === "sieving";
+      })[0];
+      if (sievItem && sievItem.shortTitle) {
+        headTitle = sievItem.shortTitle;
+      }
     }
 
     state.floatEl.innerHTML =
       opsCardOpen("cis-float-ops-card--active") +
-      opsCardHead("Active operations", items.length) +
+      opsCardHead(headTitle, items.length) +
       items.map(function (it) {
         return it.html;
       }).join("") +
