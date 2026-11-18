@@ -636,8 +636,22 @@
           });
         }
         applyRecord(rec);
-        await refreshSavedList();
         updateSaveButtonLabel();
+        saveState.textContent =
+          "Saved · " +
+          (rec.status || "draft") +
+          " · id " +
+          String(rec.id || "").slice(0, 8) +
+          "… — see Saved statements below.";
+        try {
+          await refreshSavedList();
+        } catch (listErr) {
+          setActionMsg(
+            "Statement saved, but the list could not reload: " +
+              (listErr.message || listErr) +
+              ". Use Saved statements after a refresh (F5)."
+          );
+        }
       } catch (e) {
         var msg = e.message || String(e);
         if (/column .* does not exist/i.test(msg) || /scope_mode/i.test(msg)) {
