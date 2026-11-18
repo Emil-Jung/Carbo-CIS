@@ -2,7 +2,7 @@
    Display names: Dispatch [DAY] [DATE] #[N] — Windhoek day; N = 1st/2nd/… dispatch that day (API display_label). */
 (function () {
   "use strict";
-  var WALVIS_DISPATCH_UI_REV = "1.6.68-manifest-list-only";
+  var WALVIS_DISPATCH_UI_REV = "1.6.69-namibia-truck-reg";
   var CIS = (window.CIS = window.CIS || {});
   CIS.modules = CIS.modules || [];
 
@@ -30,6 +30,11 @@
 
   async function apiPatch(ctx, path, body) {
     return ctx.api.traceability(path, { method: "PATCH", body: body || {} });
+  }
+
+  function optionalTruckReg(raw) {
+    if (!String(raw || "").trim()) return null;
+    return CIS.normalizeNamibiaTruckReg(raw, { required: true });
   }
 
   /** Modal with explicit Cancel — avoids prompt() treating cancel as empty OK. */
@@ -62,6 +67,19 @@
           value: f.value || "",
           placeholder: f.placeholder || "",
         });
+        if (f.namibiaTruckReg) {
+          inp.setAttribute("autocapitalize", "characters");
+          inp.setAttribute("spellcheck", "false");
+          if (!f.placeholder) inp.placeholder = "e.g. N3990OJ";
+          inp.addEventListener("blur", function () {
+            if (!inp.value.trim()) return;
+            try {
+              inp.value = CIS.normalizeNamibiaTruckReg(inp.value, { required: true });
+            } catch (err) {
+              window.alert(err.message || err);
+            }
+          });
+        }
         modal.appendChild(inp);
         inputs[f.key] = inp;
       });
@@ -188,7 +206,8 @@
           key: "truck_registration",
           label: "Truck registration",
           value: (defaults && defaults.truck_registration) || "",
-          placeholder: "Optional — can add later",
+          placeholder: "e.g. N3990OJ — optional until truck arrives",
+          namibiaTruckReg: true,
         },
         {
           key: "transporter",
@@ -933,6 +952,7 @@
             key: "truck_registration",
             label: "Truck registration",
             value: detail.truck_registration || "",
+            namibiaTruckReg: true,
           },
           { key: "transporter", label: "Transporter / contractor", value: detail.transporter || "" },
           { key: "notes", label: "Notes", value: detail.notes || "" },
@@ -945,7 +965,7 @@
       try {
         var updated = await apiPatch(ctx, "/walvis-dispatches/" + encodeURIComponent(detail.id), {
           label_date: form.label_date.trim(),
-          truck_registration: form.truck_registration.trim(),
+          truck_registration: optionalTruckReg(form.truck_registration),
           transporter: form.transporter.trim(),
           notes: form.notes.trim(),
         });
@@ -1049,7 +1069,7 @@
     }
     try {
       await apiPost(ctx, "/walvis-dispatches/open", {
-        truck_registration: form.truck_registration.trim() || null,
+        truck_registration: optionalTruckReg(form.truck_registration),
         transporter: form.transporter.trim() || null,
         notes: form.notes.trim() || null,
       });
@@ -1075,9 +1095,16 @@
     );
     if (!form) return;
     if (!window.confirm("Confirm close this truck load?")) return;
+    var nextReg;
+    try {
+      nextReg = CIS.normalizeNamibiaTruckReg(form.truck_registration, { required: true });
+    } catch (err) {
+      window.alert(err.message || err);
+      return;
+    }
     try {
       await apiPost(ctx, "/walvis-dispatches/switch-truck", {
-        truck_registration: form.truck_registration.trim() || null,
+        truck_registration: nextReg,
         transporter: form.transporter.trim() || null,
         notes: form.notes.trim() || null,
       });
@@ -1280,8 +1307,18 @@
     var truckInp = ui.el("input", {
       type: "text",
       class: "wd-field-input",
-      placeholder: "Optional — add later",
+      placeholder: "e.g. N3990OJ — optional until truck arrives",
       value: (initial && initial.truck_registration) || "",
+      autocapitalize: "characters",
+      spellcheck: "false",
+    });
+    truckInp.addEventListener("blur", function () {
+      if (!truckInp.value.trim()) return;
+      try {
+        truckInp.value = CIS.normalizeNamibiaTruckReg(truckInp.value, { required: true });
+      } catch (err) {
+        window.alert(err.message || err);
+      }
     });
     truckField.appendChild(ui.el("span", { class: "ct-field-label" }, ["Truck registration"]));
     truckField.appendChild(truckInp);
@@ -1356,7 +1393,7 @@
       try {
         var body = {
           loading_date: dateInp.value,
-          truck_registration: truckInp.value.trim() || null,
+          truck_registration: optionalTruckReg(truckInp.value),
           transporter: (initial && initial.transporter) || null,
           notes: (initial && initial.notes) || null,
           lines: lines,
