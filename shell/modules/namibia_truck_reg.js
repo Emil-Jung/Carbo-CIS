@@ -26,7 +26,7 @@
       return cleaned;
     }
     throw new Error(
-      "Use Namibian format (e.g. N3990OJ) or a fleet code of 2–15 letters and numbers (e.g. COLLY1)."
+      "Use Namibian format (e.g. N3990OJ) or 2–15 letters and numbers with at least one letter (e.g. COLLY1 or EMILJUNG)."
     );
   };
 
