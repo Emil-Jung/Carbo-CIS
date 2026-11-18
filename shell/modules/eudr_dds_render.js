@@ -92,6 +92,74 @@
     };
   };
 
+  function eudrTitleTimestampFromIso(iso) {
+    if (!iso) return null;
+    var t = String(iso).trim().replace("T", " ").replace("Z", "");
+    return t.slice(0, 16);
+  }
+
+  CIS.formatEudrStatementDefaultTitle = function (opts) {
+    opts = opts || {};
+    var nums = [];
+    var snap = opts.scopeSnapshot;
+    if (snap && snap.containers && snap.containers.length) {
+      snap.containers.forEach(function (r) {
+        var n = (r.container_number || "").trim();
+        if (n && nums.indexOf(n) < 0) nums.push(n);
+      });
+    }
+    if (!nums.length && opts.fields && String(opts.fields.container || "").trim()) {
+      String(opts.fields.container)
+        .split(/[,;]/)
+        .forEach(function (part) {
+          var n = part.trim();
+          if (n && nums.indexOf(n) < 0) nums.push(n);
+        });
+    }
+    if (!nums.length && opts.containerId && opts.containers) {
+      for (var i = 0; i < opts.containers.length; i++) {
+        var c = opts.containers[i];
+        if (c && c.id === opts.containerId && (c.container_number || "").trim()) {
+          nums.push(String(c.container_number).trim());
+          break;
+        }
+      }
+    }
+    var stamp =
+      eudrTitleTimestampFromIso(opts.savedAt) ||
+      (function () {
+        var now = new Date();
+        function pad(n) {
+          return n < 10 ? "0" + n : String(n);
+        }
+        return (
+          now.getFullYear() +
+          "-" +
+          pad(now.getMonth() + 1) +
+          "-" +
+          pad(now.getDate()) +
+          " " +
+          pad(now.getHours()) +
+          ":" +
+          pad(now.getMinutes())
+        );
+      })();
+    var head = nums.length ? nums.join(", ") : "EUDR statement";
+    return head + " · " + stamp;
+  };
+
+  CIS.resolveEudrStatementListTitle = function (s, containers) {
+    var explicit = (s && s.title) ? String(s.title).trim() : "";
+    if (explicit) return explicit;
+    return CIS.formatEudrStatementDefaultTitle({
+      scopeSnapshot: s && s.scope_snapshot,
+      fields: s && s.fields,
+      containerId: s && s.container_id,
+      containers: containers || [],
+      savedAt: (s && (s.updated_at || s.created_at)) || null,
+    });
+  };
+
   function escapeHtml(text) {
     return String(text == null ? "" : text)
       .replace(/&/g, "&amp;")

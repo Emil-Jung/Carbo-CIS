@@ -156,7 +156,7 @@
     var titleInput = ui.el("input", {
       class: "td-doc-eudr-input td-doc-eudr-title-input",
       type: "text",
-      placeholder: "Statement title / internal reference (e.g. Mobilis draft 2)",
+      placeholder: "Leave blank for container number(s) · date and time",
     });
     section.appendChild(
       ui.el("label", { class: "ct-field td-doc-field" }, [
@@ -277,10 +277,7 @@
       }
       list.forEach(function (s) {
         var li = ui.el("li", { class: "td-doc-eudr-statement-item" });
-        var label =
-          (s.title || "").trim() ||
-          (s.fields && s.fields.client) ||
-          ("Draft " + String(s.id || "").slice(0, 8));
+        var label = CIS.resolveEudrStatementListTitle(s, containers);
         var meta =
           (s.status || "draft") +
           " · " +
@@ -395,7 +392,9 @@
       bookingRef = rec.booking_ref || "";
       containerIds = (rec.container_ids || []).slice();
       scopeSnapshot = rec.scope_snapshot || null;
-      statementTitle = (rec && rec.title) || "";
+      statementTitle =
+        (rec && rec.title && String(rec.title).trim()) ||
+        CIS.resolveEudrStatementListTitle(rec, containers);
       fields = Object.assign(CIS.eudrDdsDefaultFields(), (rec && rec.fields) || {});
 
       if (mode === MODE_BOOKING) {
@@ -620,7 +619,14 @@
           container_ids: containerIds,
           scope_snapshot: scopeSnapshot,
           fields: fields,
-          title: (statementTitle || "").trim(),
+          title:
+            (statementTitle || "").trim() ||
+            CIS.formatEudrStatementDefaultTitle({
+              scopeSnapshot: scopeSnapshot,
+              fields: fields,
+              containerId: containerId,
+              containers: containers,
+            }),
           status: "draft",
         };
         var rec;
@@ -639,10 +645,8 @@
         updateSaveButtonLabel();
         saveState.textContent =
           "Saved · " +
-          (rec.status || "draft") +
-          " · id " +
-          String(rec.id || "").slice(0, 8) +
-          "… — see Saved statements below.";
+          (rec.title || CIS.resolveEudrStatementListTitle(rec, containers)) +
+          " — see Saved statements below.";
         try {
           await refreshSavedList();
         } catch (listErr) {
