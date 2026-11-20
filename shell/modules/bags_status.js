@@ -2088,6 +2088,97 @@
     );
   }
 
+  function filterRowsByLoadDay(rows, loadDay) {
+    return (rows || []).filter(function (r) {
+      return (r.in_transit_day_windhoek || "unknown") === loadDay;
+    });
+  }
+
+  function categoriesFromStatusRows(rows) {
+    var buckets = {};
+    (rows || []).forEach(function (r) {
+      var key = (r.product_stream || "unknown").trim().toLowerCase() || "unknown";
+      if (!buckets[key]) buckets[key] = [];
+      buckets[key].push(r);
+    });
+    return Object.keys(buckets)
+      .sort()
+      .map(function (key) {
+        var group = buckets[key];
+        var kg = group.reduce(function (acc, r) {
+          return acc + Number(r.net_weight_kg || 0);
+        }, 0);
+        return {
+          product_stream: key,
+          bags: group.length,
+          kg: kg,
+          rows: group,
+        };
+      });
+  }
+
+  function filterDispatchByLoadDay(dispatch, loadDay) {
+    var allRows = [];
+    (dispatch.categories || []).forEach(function (c) {
+      allRows = allRows.concat(c.rows || []);
+    });
+    var dayRows = filterRowsByLoadDay(allRows, loadDay);
+    var kg = dayRows.reduce(function (acc, r) {
+      return acc + Number(r.net_weight_kg || 0);
+    }, 0);
+    return Object.assign({}, dispatch, {
+      bags_in_transit: dayRows.length,
+      kg_in_transit: kg,
+      categories: categoriesFromStatusRows(dayRows),
+    });
+  }
+
+  function dispatchesForLoadDay(report, loadDay) {
+    return (report.dispatches || [])
+      .map(function (d) {
+        return filterDispatchByLoadDay(d, loadDay);
+      })
+      .filter(function (d) {
+        return (d.bags_in_transit || 0) > 0;
+      });
+  }
+
+  function unassignedForLoadDay(report, loadDay) {
+    var un = report.unassigned || {};
+    var rows = [];
+    (un.categories || []).forEach(function (c) {
+      rows = rows.concat(c.rows || []);
+    });
+    var dayRows = filterRowsByLoadDay(rows, loadDay);
+    var kg = dayRows.reduce(function (acc, r) {
+      return acc + Number(r.net_weight_kg || 0);
+    }, 0);
+    return {
+      bags_in_transit: dayRows.length,
+      kg_in_transit: kg,
+      categories: categoriesFromStatusRows(dayRows),
+    };
+  }
+
+  function palletsForLoadDay(report, loadDay) {
+    var pal = report.pallets || {};
+    var dayRows = filterRowsByLoadDay(pal.rows || [], loadDay);
+    if (!dayRows.length) {
+      var section = (report.by_load_day || []).find(function (d) {
+        return (d.day || "unknown") === loadDay;
+      });
+      if (section && section.rows) {
+        dayRows = (section.rows || []).filter(function (r) {
+          return String(r.product_stream || "").toLowerCase() === "pallet";
+        });
+      }
+    }
+    var kg = dayRows.reduce(function (acc, r) {
+      return acc + Number(r.net_weight_kg || 0);
+    }, 0);
+    return { bags: dayRows.length, kg: kg, rows: dayRows };
+  }
+
   function windhoekDayFromDispatch(d) {
     if (d.loading_date) return String(d.loading_date).slice(0, 10);
     if (!d.opened_at) return "";
@@ -2140,7 +2231,7 @@
     );
     parent.appendChild(
       ui.el("p", { class: "bs-dash-drill-note bs-dash-location__note--compact" }, [
-        "Windhoek calendar day when each bag was scanned onto the Walvis Bay truck.",
+        "Windhoek calendar day when each bag was scanned onto the Walvis Bay truck. Tap a date to see trucks (reg numbers) for that day.",
       ])
     );
     appendStatusCards(
@@ -2153,8 +2244,96 @@
     );
   }
 
+  function renderWalvisTransitLoadDayHub(parent, loadDay, report, ui, onSelect) {
+    report = report || { dispatches: [], unassigned: {}, pallets: {} };
+    parent.appendChild(
+      ui.el("p", { class: "bs-dash-drill-note" }, [
+        "Trucks that loaded on this Windhoek day — tap a dispatch for product categories, then the bag list for that truck only.",
+      ])
+    );
+
+    var dayDispatches = dispatchesForLoadDay(report, loadDay);
+    if (dayDispatches.length) {
+      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["By truck dispatch"]));
+      appendStatusCards(
+        parent,
+        dayDispatches.map(function (d) {
+          return {
+            key: "walvis:transit:dispatch:" + d.id + ":day:" + loadDay,
+            kind: "walvis_dispatch_select",
+            transit: true,
+            loadDay: loadDay,
+            label: walvisDispatchDisplayLabel(d),
+            receivedLabel: d.truck_registration || d.transporter || "",
+            bags: d.bags_in_transit || 0,
+            kg: d.kg_in_transit || 0,
+            streams: {},
+            dispatch: d,
+          };
+        }),
+        ui,
+        null,
+        onSelect,
+        "bs-dash-status-grid--inline"
+      );
+    } else {
+      parent.appendChild(
+        ui.el("p", { class: "bs-dash-empty" }, ["No manifest trucks for this load date."])
+      );
+    }
+
+    var un = unassignedForLoadDay(report, loadDay);
+    if ((un.bags_in_transit || 0) > 0) {
+      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Not on a dispatch manifest"]));
+      appendStatusCards(
+        parent,
+        [
+          {
+            key: "walvis:transit:unassigned:day:" + loadDay,
+            kind: "walvis_unassigned",
+            transit: true,
+            loadDay: loadDay,
+            label: "Unassigned — in transit",
+            bags: un.bags_in_transit || 0,
+            kg: un.kg_in_transit || 0,
+            streams: {},
+            unassigned: un,
+          },
+        ],
+        ui,
+        null,
+        onSelect,
+        "bs-dash-status-grid--inline"
+      );
+    }
+
+    var pal = palletsForLoadDay(report, loadDay);
+    if ((pal.bags || 0) > 0) {
+      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Pallets in transit"]));
+      appendStatusCards(
+        parent,
+        [
+          {
+            key: "walvis:transit:pallets:day:" + loadDay,
+            kind: "walvis_transit_pallets",
+            label: "Pallets on trucks",
+            bags: pal.bags || 0,
+            kg: pal.kg || 0,
+            streams: {},
+            rows: pal.rows || [],
+          },
+        ],
+        ui,
+        null,
+        onSelect,
+        "bs-dash-status-grid--inline"
+      );
+    }
+  }
+
   function renderWalvisTransitDispatchHub(parent, report, ui, onSelect) {
     report = report || { dispatches: [], unassigned: {}, pallets: {}, by_load_day: [] };
+    var dispatches = report.dispatches || [];
     var loadDays = report.by_load_day || [];
     if (loadDays.length) {
       renderInTransitLoadDayTiles(parent, loadDays, ui, onSelect, null, dispatches);
@@ -2164,8 +2343,6 @@
         "One tile per truck dispatch — tap a dispatch for product categories, then the bag list for that truck only.",
       ])
     );
-
-    var dispatches = report.dispatches || [];
     if (dispatches.length) {
       parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["By truck dispatch"]));
       appendStatusCards(
@@ -3908,6 +4085,31 @@
           return;
         }
 
+        if (selected.mode === "walvis_transit_load_day_hub") {
+          body.appendChild(
+            ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label || "In transit — by load date"])
+          );
+          if (selected.walvisReportLoading) {
+            body.appendChild(renderDrillLoading("In transit — by truck", ui));
+            syncFloatingNav();
+            return;
+          }
+          if (selected.walvisReportError) {
+            body.appendChild(ui.error(selected.walvisReportError));
+            syncFloatingNav();
+            return;
+          }
+          renderWalvisTransitLoadDayHub(
+            body,
+            selected.loadDay || "unknown",
+            selected.walvisReport || walvisTransitReport,
+            ui,
+            openStatus
+          );
+          syncFloatingNav();
+          return;
+        }
+
         if (selected.mode === "walvis_storage_dispatch") {
           body.appendChild(
             ui.el("h3", { class: "bs-dash-drill-title" }, [
@@ -4966,38 +5168,30 @@
       var loadDay = st.loadDay || "unknown";
       drillNavigate(function () {
         selectedEvent = null;
-        selected = null;
-        wxDrill = {
+        wxDrill = null;
+        selected = {
+          key: "transit:load_day:" + loadDay,
+          mode: "walvis_transit_load_day_hub",
+          loadDay: loadDay,
           label:
-            (loadDay === "unknown" ? "In transit — unknown load date" : "In transit — loaded " + fmtDate(loadDay)),
-          rows: [],
-          loading: true,
-          backTo: st.backTo || "main",
+            loadDay === "unknown" ? "In transit — unknown load date" : "In transit — loaded " + fmtDate(loadDay),
+          walvisReportLoading: !walvisTransitReport,
+          walvisReport: walvisTransitReport,
+          walvisReportError: null,
         };
       });
       try {
-        if (!walvisTransitReport) {
-          walvisTransitReport = await ctx.api.traceability("/walvis-dispatches/in-transit-breakdown");
+        walvisTransitReport = await ctx.api.traceability("/walvis-dispatches/in-transit-breakdown");
+        if (selected && selected.mode === "walvis_transit_load_day_hub" && selected.loadDay === loadDay) {
+          selected.walvisReport = walvisTransitReport;
+          selected.walvisReportLoading = false;
+          selected.walvisReportError = null;
+          paint();
         }
-        var section = (walvisTransitReport.by_load_day || []).find(function (d) {
-          return (d.day || "unknown") === loadDay;
-        });
-        var rows = (section && section.rows) || [];
-        var allPallets = rows.length && rows.every(function (r) {
-          return String(r.product_stream || "").toLowerCase() === "pallet";
-        });
-        if (!wxDrill || wxDrill.loading !== true) return;
-        wxDrill.loading = false;
-        wxDrill.rows = rows;
-        wxDrill.view = allPallets ? "pallet_table" : undefined;
-        if (!rows.length) {
-          wxDrill.note = "No bags found for this load date (counts may have changed).";
-        }
-        paint();
       } catch (e) {
-        if (wxDrill && wxDrill.loading) {
-          wxDrill.loading = false;
-          wxDrill.error = e.message || String(e);
+        if (selected && selected.mode === "walvis_transit_load_day_hub" && selected.loadDay === loadDay) {
+          selected.walvisReportLoading = false;
+          selected.walvisReportError = e.message || String(e);
           paint();
         }
       }
@@ -5088,6 +5282,9 @@
             );
             var freshTransit = findWalvisDispatch(walvisTransitReport, st.dispatch.id);
             if (freshTransit) dispatchForDrill = freshTransit;
+            if (st.loadDay) {
+              dispatchForDrill = filterDispatchByLoadDay(dispatchForDrill, st.loadDay);
+            }
           } else {
             walvisStorageReport = await ctx.api.traceability(
               "/walvis-dispatches/storage-at-walvis-breakdown"
@@ -5106,6 +5303,7 @@
               key: st.key,
               mode: "walvis_transit_dispatch",
               dispatch: dispatchForDrill,
+              loadDay: st.loadDay || null,
               walvisReport: walvisTransitReport,
             };
           } else {
@@ -5560,6 +5758,8 @@
 
         (selected.mode === "walvis_transit_hub" ||
 
+          selected.mode === "walvis_transit_load_day_hub" ||
+
           selected.mode === "walvis_transit_dispatch" ||
 
           selected.mode === "walvis_transit_unassigned_hub");
@@ -5598,6 +5798,14 @@
 
       }
 
+      if (selected && selected.mode === "walvis_transit_load_day_hub") {
+
+        selected.walvisReport = walvisTransitReport;
+
+        selected.walvisReportLoading = false;
+
+      }
+
       if (selected && selected.mode === "walvis_unassigned_hub" && walvisStorageReport) {
 
         selected.unassigned = walvisStorageReport.unassigned || {};
@@ -5629,6 +5837,10 @@
         var td = findWalvisDispatch(walvisTransitReport, selected.dispatch.id);
 
         if (td) selected.dispatch = td;
+
+        if (selected.loadDay) {
+          selected.dispatch = filterDispatchByLoadDay(selected.dispatch, selected.loadDay);
+        }
 
         selected.walvisReport = walvisTransitReport;
 
