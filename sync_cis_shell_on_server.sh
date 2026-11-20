@@ -37,6 +37,12 @@ mkdir -p "$DEST"
 echo ">> copy shell/* -> $DEST"
 cp -r "$REPO/shell/"* "$DEST/"
 
+if ! diff -q "$REPO/shell/index.html" "$DEST/index.html" >/dev/null 2>&1; then
+  echo "ERROR: $DEST/index.html differs from repo immediately after copy — copy step failed?"
+  exit 1
+fi
+echo "OK: shell copy matches repo index.html (before boot-rev patch)"
+
 # Shell V2 retired — wipe stale prototype assets nginx may still serve from old deploys.
 if [[ -d "$DEST/explorer-prototype" ]]; then
   echo ">> retire explorer-prototype (V1 only; redirect stub if present in repo)"
@@ -119,11 +125,12 @@ echo ""
 echo "Git HEAD in repo: $GIT_HEAD"
 BS_VER=$(grep -o 'bags_status.js?v=[^"]*' "$DEST/index.html" 2>/dev/null | head -1 || true)
 echo "nginx shell index.html: ${BS_VER:-bags_status.js tag missing}"
-if ! diff -q "$REPO/shell/index.html" "$DEST/index.html" >/dev/null 2>&1; then
-  echo "ERROR: $DEST/index.html differs from repo — copy step failed?"
-  exit 1
+if [[ -n "$SHELL_REV" && -f "$DEST/index.html" ]]; then
+  if grep -q "cis-shell-rev\" content=\"$SHELL_REV\"" "$DEST/index.html" 2>/dev/null \
+    && grep -q "CIS_BOOT_SHELL_REV = \"$SHELL_REV\"" "$DEST/index.html" 2>/dev/null; then
+    echo "OK: deployed index.html boot rev patched to config shellRev"
+  fi
 fi
-echo "OK: nginx shell index.html matches repo"
 
 echo ""
 echo "Verify in browser (Ctrl+F5): https://bkweb3.bigk.co.uk/cis/"

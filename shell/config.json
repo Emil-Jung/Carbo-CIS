@@ -27,5 +27,5 @@
   "zebraPrinterPort": 9100,
   "zebraLabelStockDefault": "6128",
   "zebraLabelStockStandardOnly": true,
-  "shellRev": "20261114-intransit-back-stack"
+  "shellRev": "20261120-transit-day-trucks"
 }
