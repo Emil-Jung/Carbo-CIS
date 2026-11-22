@@ -214,8 +214,9 @@
 
     container.appendChild(ui.el("h2", { class: "module-title" }, ["Charcoal deliveries (load sheet)"]));
     container.appendChild(ui.el("p", { class: "module-desc" }, [
-      "Deliveries sheet — same column headers as the Charcoal Tracker workbook. Filter by supplier and month; ",
-      "totals match the filtered rows (YTD when a calendar year is selected). PJ edits in Traceability → Delivery Confirmations.",
+      "Deliveries sheet — same column headers as the Charcoal Tracker workbook. Only loads PJ has marked complete ",
+      "in Delivery Confirmations appear here (factory POST alone does not). Filter by supplier and month; totals ",
+      "match the filtered rows (YTD when a calendar year is selected).",
     ]));
 
     var filterBar = ui.el("div", {
