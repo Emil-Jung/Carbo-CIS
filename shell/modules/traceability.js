@@ -20,6 +20,13 @@
       requires: "traceability.delivery_confirmations",
       icon: "delivery",
     },
+    manual_producer_status: {
+      id: "manual_producer_status",
+      title: "Producer certification",
+      description: "Convert Non-FSC / Other FSC manual producers; past loads keep their original status.",
+      requires: "traceability.delivery_confirmations",
+      icon: "delivery",
+    },
     pallet_configuration: {
       id: "pallet_configuration",
       title: "Packing & products",
@@ -74,7 +81,7 @@
 
   /** Workflow rows on the Traceability hub (max three tiles per row). */
   var HUB_ROWS = [
-    ["control_room", "delivery_confirmations"],
+    ["control_room", "delivery_confirmations", "manual_producer_status"],
     ["pallet_configuration", "walvis_dispatches", "containers"],
     ["traceability_documentation"],
     ["label_deployment", "manager_override"],
