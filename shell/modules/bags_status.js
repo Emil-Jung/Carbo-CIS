@@ -3576,6 +3576,7 @@
 
     var wxDrill = null;
     var wxDrillToken = 0;
+    var eventsDrillToken = 0;
     var drillFetchToken = 0;
     /** Nav state to restore when Back is pressed during a drill API fetch. */
     var navSnapshotBeforeFetch = null;
@@ -3757,6 +3758,7 @@
     function cancelDrillFetchAndRestore() {
       drillFetchToken += 1;
       wxDrillToken += 1;
+      eventsDrillToken += 1;
       var snap = navSnapshotBeforeFetch;
       navSnapshotBeforeFetch = null;
       restoreNavState(snap);
@@ -3779,6 +3781,7 @@
       }
       navSnapshotBeforeFetch = null;
       wxDrillToken += 1;
+      eventsDrillToken += 1;
 
       if (selected && selected.palletDetail) {
         if (drillStack.length) {
@@ -3869,9 +3872,6 @@
       body.innerHTML = "";
       body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [title || "Bags"]));
       body.appendChild(renderDrillLoading(title, ui));
-      if (container && typeof container.scrollTop === "number") {
-        container.scrollTop = 0;
-      }
       syncFloatingNav();
     }
 
@@ -4494,7 +4494,12 @@
 
         }
 
-
+        if (selected.mode === "events" && selected.eventsLoading && !selectedEvent) {
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [selected.label || "Bags"]));
+          body.appendChild(renderDrillLoading(selected.label, ui));
+          syncFloatingNav();
+          return;
+        }
 
         if (selectedEvent) {
 
@@ -4545,45 +4550,48 @@
 
 
 
-        var intoContainerDrill = selected.key === "in_container";
-        body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
+        if (selected.mode === "events" && !selectedEvent) {
+          var intoContainerDrill = selected.key === "in_container";
+          var sectionList = selected.sections || [];
+          body.appendChild(ui.el("h3", { class: "bs-dash-drill-title" }, [
 
-          selected.label + " — " + selected.count + (selected.count === 1 ? " bag" : " bags")
+            selected.label + " — " + selected.count + (selected.count === 1 ? " bag" : " bags")
 
-            + " across " + selected.sections.length
+              + " across " + sectionList.length
 
-            + (intoContainerDrill
-              ? (selected.sections.length === 1 ? " container" : " containers")
-              : (selected.sections.length === 1 ? " date" : " dates")),
-
-        ]));
-
-        if (!selected.sections.length) {
-
-          body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No bags are in this status."]));
-
-        } else {
-
-          body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
-
-            intoContainerDrill
-              ? "Each card is one export container — container number on the card, load times below the count."
-              : "Each date is one cluster — three loads to the same destination on the same day count as one event.",
+              + (intoContainerDrill
+                ? (sectionList.length === 1 ? " container" : " containers")
+                : (sectionList.length === 1 ? " date" : " dates")),
 
           ]));
 
-          body.appendChild(renderEventCards(selected.sections, ui, function (section) {
-            pushDrillNav();
-            selectedEvent = section;
+          if (!sectionList.length) {
 
-            paint();
+            body.appendChild(ui.el("p", { class: "bs-dash-empty" }, ["No bags are in this status."]));
 
-          }, intoContainerDrill ? "container" : null));
+          } else {
 
+            body.appendChild(ui.el("p", { class: "bs-dash-drill-note" }, [
+
+              intoContainerDrill
+                ? "Each card is one export container — container number on the card, load times below the count."
+                : "Each date is one cluster — three loads to the same destination on the same day count as one event.",
+
+            ]));
+
+            body.appendChild(renderEventCards(sectionList, ui, function (section) {
+              pushDrillNav();
+              selectedEvent = section;
+
+              paint();
+
+            }, intoContainerDrill ? "container" : null));
+
+          }
+
+          syncFloatingNav();
+          return;
         }
-
-        syncFloatingNav();
-        return;
 
       }
 
@@ -5570,61 +5578,49 @@
 
       }
 
-      var token = beginDrillFetch(st.label || "Bags");
+      eventsDrillToken += 1;
+      var eventsToken = eventsDrillToken;
+      var tileBags = st.bags != null ? st.bags : 0;
+
+      drillNavigate(function () {
+        selectedEvent = null;
+        wxDrill = null;
+        selected = {
+          key: st.key,
+          label: st.label,
+          mode: "events",
+          count: tileBags,
+          sections: [],
+          eventsLoading: true,
+        };
+      });
 
       try {
-
         var data = await ctx.api.traceability(bagsStatusDrillPath(st.key));
-
-        if (drillFetchCancelled(token)) return;
-
-        selectedEvent = null;
-
-        wxDrill = null;
+        if (eventsToken !== eventsDrillToken) return;
+        if (!selected || selected.mode !== "events" || selected.key !== st.key) return;
 
         var sections = data.event_sections || [];
-
         if (isFactoryStorageBagStatus(st.key)) {
-
           sections = filterEventSectionsToIntakeBags(sections);
-
         }
 
         var drillCount = 0;
-
         sections.forEach(function (sec) {
           drillCount += sec.bags || 0;
         });
 
-        finishDrillFetch(token);
-
-        selected = {
-
-          key: st.key,
-
-          label: st.label,
-
-          mode: "events",
-
-          count: drillCount,
-
-          sections: sections,
-
-        };
-
+        selected.eventsLoading = false;
+        selected.sections = sections;
+        selected.count = drillCount;
         paint();
-
       } catch (e) {
-
-        if (drillFetchCancelled(token)) return;
-
-        finishDrillFetch(token);
+        if (eventsToken !== eventsDrillToken) return;
+        if (!selected || selected.mode !== "events" || selected.key !== st.key) return;
+        selected = null;
         body.innerHTML = "";
-
         body.appendChild(ui.error("Could not load bags: " + (e.message || e)));
-
         syncFloatingNav();
-
       }
 
     }
@@ -5925,7 +5921,7 @@
 
 
 
-      if (selected && selected.mode === "events" && selected.key) {
+      if (selected && selected.mode === "events" && selected.key && !selected.eventsLoading) {
 
         var drillData = await ctx.api.traceability(bagsStatusDrillPath(selected.key));
 
@@ -5945,6 +5941,7 @@
 
         });
 
+        selected.eventsLoading = false;
         selected.sections = sections;
 
         selected.count = drillCount;
