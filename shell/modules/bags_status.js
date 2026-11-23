@@ -2160,6 +2160,52 @@
     };
   }
 
+  function manifestRowsFromDispatch(dispatch, loadDay) {
+    var rows = [];
+    (dispatch.categories || []).forEach(function (c) {
+      rows = rows.concat(c.rows || []);
+    });
+    if (loadDay) {
+      rows = filterRowsByLoadDay(rows, loadDay);
+    }
+    rows.sort(function (a, b) {
+      return String(a.serial || "").localeCompare(String(b.serial || ""));
+    });
+    return rows;
+  }
+
+  function manifestRowsFromUnassigned(un) {
+    var rows = [];
+    (un.categories || []).forEach(function (c) {
+      rows = rows.concat(c.rows || []);
+    });
+    rows.sort(function (a, b) {
+      return String(a.serial || "").localeCompare(String(b.serial || ""));
+    });
+    return rows;
+  }
+
+  function walvisTransitTruckTileLabel(d) {
+    if (!d) return "Truck";
+    var reg = (d.truck_registration || "").trim();
+    if (reg) return reg;
+    var tr = (d.transporter || "").trim();
+    if (tr) return tr;
+    return walvisDispatchDisplayLabel(d);
+  }
+
+  function walvisTransitTruckTileSublabel(d) {
+    if (!d) return "";
+    var reg = (d.truck_registration || "").trim();
+    var parts = [];
+    if (reg) {
+      parts.push(walvisDispatchDisplayLabel(d));
+    }
+    var tr = (d.transporter || "").trim();
+    if (tr && (!reg || tr !== reg)) parts.push(tr);
+    return parts.join(" · ");
+  }
+
   function palletsForLoadDay(report, loadDay) {
     var pal = report.pallets || {};
     var dayRows = filterRowsByLoadDay(pal.rows || [], loadDay);
@@ -2248,13 +2294,13 @@
     report = report || { dispatches: [], unassigned: {}, pallets: {} };
     parent.appendChild(
       ui.el("p", { class: "bs-dash-drill-note" }, [
-        "Trucks that loaded on this Windhoek day — tap a dispatch for product categories, then the bag list for that truck only.",
+        "Trucks loaded on this day — tap a registration to open the manifest (bags scanned onto that truck).",
       ])
     );
 
     var dayDispatches = dispatchesForLoadDay(report, loadDay);
     if (dayDispatches.length) {
-      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["By truck dispatch"]));
+      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Trucks"]));
       appendStatusCards(
         parent,
         dayDispatches.map(function (d) {
@@ -2263,8 +2309,8 @@
             kind: "walvis_dispatch_select",
             transit: true,
             loadDay: loadDay,
-            label: walvisDispatchDisplayLabel(d),
-            receivedLabel: d.truck_registration || d.transporter || "",
+            label: walvisTransitTruckTileLabel(d),
+            receivedLabel: walvisTransitTruckTileSublabel(d),
             bags: d.bags_in_transit || 0,
             kg: d.kg_in_transit || 0,
             streams: {},
@@ -2332,19 +2378,16 @@
   }
 
   function renderWalvisTransitDispatchHub(parent, report, ui, onSelect) {
-    report = report || { dispatches: [], unassigned: {}, pallets: {}, by_load_day: [] };
+    report = report || { dispatches: [], unassigned: {}, pallets: {} };
     var dispatches = report.dispatches || [];
-    var loadDays = report.by_load_day || [];
-    if (loadDays.length) {
-      renderInTransitLoadDayTiles(parent, loadDays, ui, onSelect, null, dispatches);
-    }
     parent.appendChild(
       ui.el("p", { class: "bs-dash-drill-note" }, [
-        "One tile per truck dispatch — tap a dispatch for product categories, then the bag list for that truck only.",
+        "All trucks with bags in transit to Walvis Bay. Use load-date tiles on the main In transit view when you know the GF scan day. ",
+        "Tap a truck registration here for the manifest.",
       ])
     );
     if (dispatches.length) {
-      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["By truck dispatch"]));
+      parent.appendChild(ui.el("h4", { class: "bs-dash-location__subhead" }, ["Trucks"]));
       appendStatusCards(
         parent,
         dispatches.map(function (d) {
@@ -2352,8 +2395,8 @@
             key: "walvis:transit:dispatch:" + d.id,
             kind: "walvis_dispatch_select",
             transit: true,
-            label: walvisDispatchDisplayLabel(d),
-            receivedLabel: d.truck_registration || d.transporter || "",
+            label: walvisTransitTruckTileLabel(d),
+            receivedLabel: walvisTransitTruckTileSublabel(d),
             bags: walvisDispatchTileBagsInTransit(d),
             kg: d.kg_in_transit || 0,
             streams: {},
@@ -5103,6 +5146,51 @@
 
 
 
+    function openWalvisTransitManifest(dispatch, loadDay) {
+      var rows = manifestRowsFromDispatch(dispatch, loadDay || null);
+      var allPallets =
+        rows.length &&
+        rows.every(function (r) {
+          return String(r.product_stream || "").toLowerCase() === "pallet";
+        });
+      var label = walvisTransitTruckTileLabel(dispatch);
+      var sub = walvisTransitTruckTileSublabel(dispatch);
+      var heading = label + (sub ? " — " + sub : "") + " — manifest";
+      if (loadDay && loadDay !== "unknown") {
+        heading = "Loaded " + fmtDate(loadDay) + " · " + heading;
+      }
+      drillNavigate(function () {
+        selectedEvent = null;
+        selected = null;
+        wxDrill = {
+          label: heading,
+          rows: rows,
+          view: allPallets ? "pallet_table" : undefined,
+          note: rows.length ? null : "No bags on this manifest.",
+        };
+      });
+    }
+
+    function openWalvisTransitUnassignedManifest(un, loadDay) {
+      var rows = manifestRowsFromUnassigned(un || {});
+      if (loadDay) {
+        rows = filterRowsByLoadDay(rows, loadDay);
+      }
+      var heading =
+        loadDay && loadDay !== "unknown"
+          ? "Loaded " + fmtDate(loadDay) + " · Not on manifest"
+          : "In transit — not on a dispatch manifest";
+      drillNavigate(function () {
+        selectedEvent = null;
+        selected = null;
+        wxDrill = {
+          label: heading,
+          rows: rows,
+          note: rows.length ? null : "No unassigned bags for this step.",
+        };
+      });
+    }
+
     async function openWalvisStorageHub(st) {
       drillNavigate(function () {
         selectedEvent = null;
@@ -5295,48 +5383,37 @@
         } catch (e) {
           /* use cached dispatch */
         }
+        if (st.transit) {
+          openWalvisTransitManifest(dispatchForDrill, st.loadDay || null);
+          return;
+        }
         drillNavigate(function () {
           selectedEvent = null;
           wxDrill = null;
-          if (st.transit) {
-            selected = {
-              key: st.key,
-              mode: "walvis_transit_dispatch",
-              dispatch: dispatchForDrill,
-              loadDay: st.loadDay || null,
-              walvisReport: walvisTransitReport,
-            };
-          } else {
-            selected = {
-              key: st.key,
-              mode: "walvis_storage_dispatch",
-              dispatch: dispatchForDrill,
-              walvisReport: walvisStorageReport,
-            };
-          }
+          selected = {
+            key: st.key,
+            mode: "walvis_storage_dispatch",
+            dispatch: dispatchForDrill,
+            walvisReport: walvisStorageReport,
+          };
         });
         return;
       }
 
       if (st.kind === "walvis_unassigned" && st.unassigned) {
+        if (st.transit) {
+          openWalvisTransitUnassignedManifest(st.unassigned, st.loadDay || null);
+          return;
+        }
         drillNavigate(function () {
           selectedEvent = null;
           wxDrill = null;
-          if (st.transit) {
-            selected = {
-              key: st.key,
-              mode: "walvis_transit_unassigned_hub",
-              unassigned: st.unassigned,
-              walvisReport: walvisTransitReport,
-            };
-          } else {
-            selected = {
-              key: st.key,
-              mode: "walvis_unassigned_hub",
-              unassigned: st.unassigned,
-              walvisReport: walvisStorageReport,
-            };
-          }
+          selected = {
+            key: st.key,
+            mode: "walvis_unassigned_hub",
+            unassigned: st.unassigned,
+            walvisReport: walvisStorageReport,
+          };
         });
         return;
       }
