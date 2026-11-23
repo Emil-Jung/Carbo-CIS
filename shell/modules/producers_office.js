@@ -19,7 +19,7 @@
     var join = base.indexOf("?") === -1 ? "?" : "&";
 
     // Bust stale index.html / app.js in the CIS iframe after producer-office updates.
-    return base + join + "cis=1&pwa=20261123-convert4";
+    return base + join + "cis=1&pwa=20261123-convert5";
 
   }
 
