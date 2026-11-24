@@ -353,8 +353,8 @@
       section.appendChild(ui.el("h3", { class: "print-labels-panel-title" }, ["BQ direct fines settlement"]));
       section.appendChild(
         ui.el("p", { class: "muted" }, [
-          "On factory POST, direct BQ feed is calculated as digital fines minus kiosk fines bags (450 kg tolerance). " +
-            "Use override only if that auto-credit needs correction.",
+          "Briquette FIFO at the plant is fed from the bins (Bag Walk stage-bag and loose direct fines). " +
+            "Confirm direct BQ kg here only when a provisional advance was recorded for this truck.",
         ])
       );
 
@@ -373,10 +373,6 @@
       facts.appendChild(fact("Provisional advance (kg)", bq.provisional_kg, " kg"));
       facts.appendChild(fact("Digital fines from POST (kg)", bq.digital_fines_kg, " kg"));
       facts.appendChild(fact("Bagged fines (kg)", bq.bagged_fines_kg, " kg"));
-      facts.appendChild(fact("Suggested direct feed (kg)", bq.suggested_direct_fines_kg, " kg"));
-      if (bq.basket_balance_rule) {
-        facts.appendChild(fact("Balance rule", bq.basket_balance_rule, ""));
-      }
       facts.appendChild(fact("Consumed from provisional (kg)", bq.consumed_from_provisional_kg, " kg"));
       facts.appendChild(fact("Remaining provisional pool (kg)", bq.remaining_provisional_kg, " kg"));
       facts.appendChild(fact("Confirmed direct (kg)", bq.confirmed_direct_fines_kg, " kg"));
@@ -398,8 +394,6 @@
       });
       if (bq.confirmed_direct_fines_kg != null) {
         confirmInput.value = String(bq.confirmed_direct_fines_kg);
-      } else if (bq.suggested_direct_fines_kg != null) {
-        confirmInput.value = String(bq.suggested_direct_fines_kg);
       }
       var settleBtn = ui.el("button", { type: "button", class: "btn-sm delivery-conf-btn-primary" }, [
         "Confirm direct BQ contribution",
